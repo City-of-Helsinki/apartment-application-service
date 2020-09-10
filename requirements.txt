@@ -4,12 +4,23 @@
 #
 #    pip-compile requirements.in
 #
-certifi==2020.6.20        # via sentry-sdk
+certifi==2020.6.20        # via requests, sentry-sdk
+chardet==3.0.4            # via requests
+django-anymail==7.2.1     # via django-ilmoitin
 django-cors-headers==3.5.0  # via -r requirements.in
 django-environ==0.4.5     # via -r requirements.in
-django==2.2.13            # via -r requirements.in, django-cors-headers
+django-ilmoitin==0.5.3    # via -r requirements.in
+django-mailer==2.0.1      # via django-ilmoitin
+django-parler==1.9.2      # via django-ilmoitin
+django==2.2.13            # via -r requirements.in, django-anymail, django-cors-headers, django-ilmoitin, django-mailer
+idna==2.10                # via requests
+jinja2==2.11.2            # via django-ilmoitin
+lockfile==0.12.2          # via django-mailer
+markupsafe==1.1.1         # via jinja2
 psycopg2==2.8.6           # via -r requirements.in
 pytz==2020.1              # via django
+requests==2.24.0          # via django-anymail
 sentry-sdk==0.17.3        # via -r requirements.in
+six==1.15.0               # via django-anymail, django-mailer
 sqlparse==0.3.1           # via django
-urllib3==1.25.10          # via sentry-sdk
+urllib3==1.25.10          # via requests, sentry-sdk
