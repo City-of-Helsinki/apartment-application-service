@@ -31,6 +31,8 @@ env = environ.Env(
         "@localhost/apartment-application",
     ),
     CACHE_URL=(str, "locmemcache://"),
+    MAILER_EMAIL_BACKEND=(str, "django.core.mail.backends.console.EmailBackend"),
+    DEFAULT_FROM_EMAIL=(str, "apartment_application_service@example.com"),
     MAIL_MAILGUN_KEY=(str, ""),
     MAIL_MAILGUN_DOMAIN=(str, ""),
     MAIL_MAILGUN_API=(str, ""),
@@ -55,6 +57,11 @@ USE_X_FORWARDED_HOST = env.bool("USE_X_FORWARDED_HOST")
 DATABASES = {"default": env.db()}
 
 CACHES = {"default": env.cache()}
+
+if env.str("DEFAULT_FROM_EMAIL"):
+    DEFAULT_FROM_EMAIL = env.str("DEFAULT_FROM_EMAIL")
+if env.str("MAILER_EMAIL_BACKEND"):
+    MAILER_EMAIL_BACKEND = env.str("MAILER_EMAIL_BACKEND")
 
 try:
     version = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).strip()
@@ -91,6 +98,10 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "corsheaders",
+    "parler",
+    "anymail",
+    "mailer",
+    "django_ilmoitin",
     # local apps
     "utils",
 ]
@@ -132,6 +143,10 @@ LOGGING = {
     "handlers": {"console": {"class": "logging.StreamHandler"}},
     "loggers": {"django": {"handlers": ["console"], "level": "ERROR"}},
 }
+
+SITE_ID = 1
+
+PARLER_LANGUAGES = {SITE_ID: ({"code": "fi"}, {"code": "en"}, {"code": "sv"})}
 
 # local_settings.py can be used to override environment-specific settings
 # like database and email that differ between development and production.
