@@ -112,7 +112,6 @@ INSTALLED_APPS = [
     "django_ilmoitin",
     "social_django",
     # local apps
-    "utils",
     "users",
 ]
 
