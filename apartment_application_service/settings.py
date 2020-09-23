@@ -40,6 +40,13 @@ env = environ.Env(
     SENTRY_ENVIRONMENT=(str, ""),
     CORS_ORIGIN_WHITELIST=(list, []),
     CORS_ORIGIN_ALLOW_ALL=(bool, False),
+    OIDC_AUDIENCE=(str, ""),
+    OIDC_API_SCOPE_PREFIX=(str, ""),
+    OIDC_REQUIRE_API_SCOPE_FOR_AUTHENTICATION=(bool, False),
+    OIDC_ISSUER=(str, ""),
+    SOCIAL_AUTH_TUNNISTAMO_KEY=(str, ""),
+    SOCIAL_AUTH_TUNNISTAMO_SECRET=(str, ""),
+    SOCIAL_AUTH_TUNNISTAMO_OIDC_ENDPOINT=(str, ""),
 )
 if os.path.exists(env_file):
     env.read_env(env_file)
@@ -91,7 +98,8 @@ USE_L10N = True
 USE_TZ = True
 
 INSTALLED_APPS = [
-    "django.contrib.admin",
+    "helusers.apps.HelusersConfig",
+    "helusers.apps.HelusersAdminConfig",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -102,8 +110,9 @@ INSTALLED_APPS = [
     "anymail",
     "mailer",
     "django_ilmoitin",
+    "social_django",
     # local apps
-    "utils",
+    "users",
 ]
 
 MIDDLEWARE = [
@@ -134,6 +143,8 @@ TEMPLATES = [
     }
 ]
 
+AUTH_USER_MODEL = "users.User"
+
 CORS_ORIGIN_WHITELIST = env.list("CORS_ORIGIN_WHITELIST")
 CORS_ORIGIN_ALLOW_ALL = env.bool("CORS_ORIGIN_ALLOW_ALL")
 
@@ -147,6 +158,35 @@ LOGGING = {
 SITE_ID = 1
 
 PARLER_LANGUAGES = {SITE_ID: ({"code": "fi"}, {"code": "en"}, {"code": "sv"})}
+
+# Authentication
+
+AUTHENTICATION_BACKENDS = (
+    "helusers.tunnistamo_oidc.TunnistamoOIDCAuth",
+    "django.contrib.auth.backends.ModelBackend",
+)
+
+LOGIN_REDIRECT_URL = "/"
+LOGOUT_REDIRECT_URL = "/"
+
+SESSION_SERIALIZER = "django.contrib.sessions.serializers.PickleSerializer"
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": ("helusers.oidc.ApiTokenAuthentication",),
+}
+
+OIDC_API_TOKEN_AUTH = {
+    "AUDIENCE": env("OIDC_AUDIENCE"),
+    "API_SCOPE_PREFIX": env("OIDC_API_SCOPE_PREFIX"),
+    "REQUIRE_API_SCOPE_FOR_AUTHENTICATION": env(
+        "OIDC_REQUIRE_API_SCOPE_FOR_AUTHENTICATION"
+    ),
+    "ISSUER": env("OIDC_ISSUER"),
+}
+
+SOCIAL_AUTH_TUNNISTAMO_KEY = env("SOCIAL_AUTH_TUNNISTAMO_KEY")
+SOCIAL_AUTH_TUNNISTAMO_SECRET = env("SOCIAL_AUTH_TUNNISTAMO_SECRET")
+SOCIAL_AUTH_TUNNISTAMO_OIDC_ENDPOINT = env("SOCIAL_AUTH_TUNNISTAMO_OIDC_ENDPOINT")
 
 # local_settings.py can be used to override environment-specific settings
 # like database and email that differ between development and production.
