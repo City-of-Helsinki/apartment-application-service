@@ -48,6 +48,7 @@ env = environ.Env(
     SOCIAL_AUTH_TUNNISTAMO_SECRET=(str, ""),
     SOCIAL_AUTH_TUNNISTAMO_OIDC_ENDPOINT=(str, ""),
     ELASTICSEARCH_URL=(str, "http://apartment-application-elasticsearch:9200"),
+    APARTMENT_INDEX_NAME=(str, ""),
 )
 if os.path.exists(env_file):
     env.read_env(env_file)
@@ -113,6 +114,7 @@ INSTALLED_APPS = [
     "django_ilmoitin",
     "social_django",
     # local apps
+    "connections",
     "users",
 ]
 
@@ -191,6 +193,7 @@ SOCIAL_AUTH_TUNNISTAMO_OIDC_ENDPOINT = env("SOCIAL_AUTH_TUNNISTAMO_OIDC_ENDPOINT
 
 # Elasticsearch
 ELASTICSEARCH_URL = env("ELASTICSEARCH_URL")
+APARTMENT_INDEX_NAME = env("APARTMENT_INDEX_NAME")
 
 # local_settings.py can be used to override environment-specific settings
 # like database and email that differ between development and production.
