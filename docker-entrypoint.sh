@@ -11,6 +11,14 @@ if [ -n "$DATABASE_HOST" ]; then
   echo "Database is up!"
 fi
 
+if [ -n "$ELASTICSEARCH_HOST" ]; then
+  until nc -z -v -w30 "$ELASTICSEARCH_HOST" 9200
+  do
+    echo "Waiting for elasticsearch connection..."
+    sleep 1
+  done
+  echo "Elasticsearch is up!"
+fi
 
 # Apply database migrations
 if [[ "$APPLY_MIGRATIONS" = "1" ]]; then
