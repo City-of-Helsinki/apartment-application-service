@@ -13,6 +13,14 @@ services:
           - pgdata:/var/lib/postgresql/data
         container_name: apartment-application-db
 
+    elasticsearch:
+        image: elasticsearch:7.9.1
+        ports:
+            - "9200:9200"
+        environment:
+            - "discovery.type=single-node"
+        container_name: apartment-application-elasticsearch
+
     django:
         build:
             context: .
@@ -22,6 +30,7 @@ services:
         environment:
             DATABASE_URL: postgres://apartment-application:apartment-application@apartment-application-db/apartment-application
             DATABASE_HOST: apartment-application-db.helsinki
+            ELASTICSEARCH_HOST: apartment-application-elasticsearch.helsinki
         volumes:
             - .:/app
         ports:
