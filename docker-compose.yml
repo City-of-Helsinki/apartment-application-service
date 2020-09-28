@@ -1,0 +1,48 @@
+version: '3.7'
+services:
+    postgres:
+        image: postgres:12
+        restart: on-failure
+        environment:
+            POSTGRES_USER: apartment-application
+            POSTGRES_PASSWORD: apartment-application
+            POSTGRES_DB: apartment-application
+        ports:
+            - 5434:5432
+        volumes:
+          - pgdata:/var/lib/postgresql/data
+        container_name: apartment-application-db
+
+    elasticsearch:
+        image: elasticsearch:7.9.1
+        ports:
+            - "9200:9200"
+        environment:
+            - "discovery.type=single-node"
+        container_name: apartment-application-elasticsearch
+
+    django:
+        build:
+            context: .
+            target: development
+        env_file:
+            - .env
+        environment:
+            DATABASE_URL: postgres://apartment-application:apartment-application@apartment-application-db/apartment-application
+            DATABASE_HOST: apartment-application-db.helsinki
+            ELASTICSEARCH_HOST: apartment-application-elasticsearch.helsinki
+        volumes:
+            - .:/app
+        ports:
+            - 8081:8081
+        depends_on:
+            - postgres
+        container_name: apartment-application-backend
+
+volumes:
+    pgdata:
+        driver: local
+
+networks:
+    default:
+        name: helsinki

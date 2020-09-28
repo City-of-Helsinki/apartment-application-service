@@ -1,0 +1,8 @@
+black
+factory-boy
+flake8
+ipython
+isort
+pytest
+pytest-cov
+pytest-django
