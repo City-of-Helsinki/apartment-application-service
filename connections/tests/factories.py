@@ -28,54 +28,54 @@ class ApartmentFactory(factory.Factory):
     project_id = fuzzy.FuzzyInteger(0, 9999999999)
     project_uuid = fuzzy.FuzzyText()
 
-    housing_company = fuzzy.FuzzyText()
-    holding_type = "Asumisoikeushuoneisto"
-    street_address = fuzzy.FuzzyText()
-    postal_code = fuzzy.FuzzyText()
-    city = fuzzy.FuzzyText()
-    district = fuzzy.FuzzyText()
-    realty_id = fuzzy.FuzzyText()
-    construction_year = fuzzy.FuzzyInteger(2000, 3000)
-    new_development_status = fuzzy.FuzzyText()
-    new_housing = True
-    apartment_count = fuzzy.FuzzyInteger(0, 9999999999)
-    parkingplace_count = fuzzy.FuzzyInteger(0, 9999999999)
+    project_housing_company = fuzzy.FuzzyText()
+    project_holding_type = "Asumisoikeushuoneisto"
+    project_street_address = fuzzy.FuzzyText()
+    project_postal_code = fuzzy.FuzzyText()
+    project_city = fuzzy.FuzzyText()
+    project_district = fuzzy.FuzzyText()
+    project_realty_id = fuzzy.FuzzyText()
+    project_construction_year = fuzzy.FuzzyInteger(2000, 3000)
+    project_new_development_status = fuzzy.FuzzyText()
+    project_new_housing = True
+    project_apartment_count = fuzzy.FuzzyInteger(0, 9999999999)
+    project_parkingplace_count = fuzzy.FuzzyInteger(0, 9999999999)
 
-    has_elevator = True
-    has_sauna = True
-    construction_materials = factory.List([fuzzy.FuzzyText() for _ in range(2)])
-    roof_material = fuzzy.FuzzyText()
-    heating_options = factory.List([fuzzy.FuzzyText() for _ in range(2)])
-    energy_class = fuzzy.FuzzyText()
-    site_area = fuzzy.FuzzyFloat(0, 9999999999)
-    site_owner = fuzzy.FuzzyText()
-    site_renter = fuzzy.FuzzyText()
-    sanitation = fuzzy.FuzzyText()
-    zoning_info = fuzzy.FuzzyText()
-    zoning_status = fuzzy.FuzzyText()
+    project_has_elevator = True
+    project_has_sauna = True
+    project_construction_materials = factory.List([fuzzy.FuzzyText() for _ in range(2)])
+    project_roof_material = fuzzy.FuzzyText()
+    project_heating_options = factory.List([fuzzy.FuzzyText() for _ in range(2)])
+    project_energy_class = fuzzy.FuzzyText()
+    project_site_area = fuzzy.FuzzyFloat(0, 9999999999)
+    project_site_owner = fuzzy.FuzzyText()
+    project_site_renter = fuzzy.FuzzyText()
+    project_sanitation = fuzzy.FuzzyText()
+    project_zoning_info = fuzzy.FuzzyText()
+    project_zoning_status = fuzzy.FuzzyText()
 
-    building_type = "Kerrostalo"
+    project_building_type = "Kerrostalo"
     project_description = fuzzy.FuzzyText()
-    accessibility = fuzzy.FuzzyText()
-    smoke_free = fuzzy.FuzzyText()
+    project_accessibility = fuzzy.FuzzyText()
+    project_smoke_free = fuzzy.FuzzyText()
 
-    publication_start_time = fuzzy.FuzzyDateTime(timezone.now())
-    publication_end_time = fuzzy.FuzzyDateTime(timezone.now())
-    premarketing_start_time = fuzzy.FuzzyDateTime(timezone.now())
-    premarketing_end_time = fuzzy.FuzzyDateTime(timezone.now())
-    application_start_time = fuzzy.FuzzyDateTime(timezone.now())
-    application_end_time = fuzzy.FuzzyDateTime(timezone.now())
-    material_choice_dl = fuzzy.FuzzyDate(datetime.date.today())
-    shareholder_meeting_date = fuzzy.FuzzyDate(datetime.date.today())
-    estimated_completion = fuzzy.FuzzyText()
-    estimated_completion_date = fuzzy.FuzzyDate(datetime.date.today())
-    completion_date = fuzzy.FuzzyDate(datetime.date.today())
-    posession_transfer_date = fuzzy.FuzzyDate(datetime.date.today())
+    project_publication_start_time = fuzzy.FuzzyDateTime(timezone.now())
+    project_publication_end_time = fuzzy.FuzzyDateTime(timezone.now())
+    project_premarketing_start_time = fuzzy.FuzzyDateTime(timezone.now())
+    project_premarketing_end_time = fuzzy.FuzzyDateTime(timezone.now())
+    project_application_start_time = fuzzy.FuzzyDateTime(timezone.now())
+    project_application_end_time = fuzzy.FuzzyDateTime(timezone.now())
+    project_material_choice_dl = fuzzy.FuzzyDate(datetime.date.today())
+    project_shareholder_meeting_date = fuzzy.FuzzyDate(datetime.date.today())
+    project_estimated_completion = fuzzy.FuzzyText()
+    project_estimated_completion_date = fuzzy.FuzzyDate(datetime.date.today())
+    project_completion_date = fuzzy.FuzzyDate(datetime.date.today())
+    project_posession_transfer_date = fuzzy.FuzzyDate(datetime.date.today())
 
-    attachment_urls = factory.List([fuzzy.FuzzyText() for _ in range(2)])
-    main_image_url = fuzzy.FuzzyText()
-    image_urls = factory.List([fuzzy.FuzzyText() for _ in range(2)])
-    virtual_presentation_url = fuzzy.FuzzyText()
+    project_attachment_urls = factory.List([fuzzy.FuzzyText() for _ in range(2)])
+    project_main_image_url = fuzzy.FuzzyText()
+    project_image_urls = factory.List([fuzzy.FuzzyText() for _ in range(2)])
+    project_virtual_presentation_url = fuzzy.FuzzyText()
 
     acc_salesperson = fuzzy.FuzzyText()
     acc_financeofficer = fuzzy.FuzzyText()
@@ -86,8 +86,8 @@ class ApartmentFactory(factory.Factory):
     estate_agent_email = fuzzy.FuzzyText()
     estate_agent_phone = fuzzy.FuzzyText()
 
-    coordinate_lat = fuzzy.FuzzyFloat(-90, 90)
-    coordinate_lon = fuzzy.FuzzyFloat(-180, 180)
+    project_coordinate_lat = fuzzy.FuzzyFloat(-90, 90)
+    project_coordinate_lon = fuzzy.FuzzyFloat(-180, 180)
 
     uuid = fuzzy.FuzzyText()
 

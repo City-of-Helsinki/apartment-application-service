@@ -1,21 +1,20 @@
+from datetime import date
+
 from connections.tests.factories import ApartmentFactory, ApartmentTest
 
 
-def test_apartment_has_required_fields(client):
+def test_apartment_index_has_data(client):
     apartment = ApartmentFactory(_id=42)
     apartment.save()
 
     at = ApartmentTest.get(id=42)
 
-    assert at.housing_company == apartment.housing_company
-    assert at.holding_type == apartment.holding_type
-    assert at.street_address == apartment.street_address
-    assert at.postal_code == apartment.postal_code
-    assert at.city == apartment.city
-    assert at.district == apartment.district
-    assert at.realty_id == apartment.realty_id
-    assert at.construction_year == apartment.construction_year
-    assert at.new_development_status == apartment.new_development_status
-    assert at.new_housing == apartment.new_housing
-    assert at.apartment_count == apartment.apartment_count
-    assert at.estimated_completion == apartment.estimated_completion
+    fields = ApartmentTest._doc_type.mapping.properties.properties
+    for field in fields:
+        input_value = getattr(apartment, field)
+        index_value = getattr(at, field)
+        if type(input_value) == date:
+            # elasticsearch-dsl does not support plain date values in the index.
+            # If 2020-01-01 is saved to the index, it will return 2020-01-01 00:00:00.
+            index_value = index_value.date()
+        assert input_value == index_value
