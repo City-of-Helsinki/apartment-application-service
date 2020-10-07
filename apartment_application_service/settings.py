@@ -113,6 +113,7 @@ INSTALLED_APPS = [
     "mailer",
     "django_ilmoitin",
     "social_django",
+    "rest_framework",
     # local apps
     "connections",
     "users",
@@ -175,7 +176,13 @@ LOGOUT_REDIRECT_URL = "/"
 SESSION_SERIALIZER = "django.contrib.sessions.serializers.PickleSerializer"
 
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": ("helusers.oidc.ApiTokenAuthentication",),
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "helusers.oidc.ApiTokenAuthentication",
+        "rest_framework.authentication.SessionAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.DjangoModelPermissions",
+    ),
 }
 
 OIDC_API_TOKEN_AUTH = {
