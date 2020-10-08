@@ -115,6 +115,7 @@ INSTALLED_APPS = [
     "social_django",
     "rest_framework",
     # local apps
+    "application_form",
     "connections",
     "users",
 ]
