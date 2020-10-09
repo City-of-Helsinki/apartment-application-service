@@ -14,9 +14,10 @@ addons:
 matrix:
   include:
     - name: Unit tests
-      env: DATABASE_URL=postgres:///apartment-application SECRET_KEY=topsecret123
-      services:
-        - postgresql
+      env:
+        - DATABASE_URL=postgres:///apartment-application
+        - SECRET_KEY=topsecret123
+        - PGPORT=5433
       before_install:
         - curl https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.9.1-amd64.deb -o elasticsearch.deb
         - sudo dpkg -i --force-confnew elasticsearch.deb
