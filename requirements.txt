@@ -17,7 +17,7 @@ django-ilmoitin==0.5.3    # via -r requirements.in
 django-mailer==2.0.1      # via django-ilmoitin
 django-parler==1.9.2      # via django-ilmoitin
 django==2.2.13            # via -r requirements.in, django-anymail, django-cors-headers, django-helusers, django-ilmoitin, django-mailer, djangorestframework, drf-oidc-auth
-djangorestframework==3.11.1  # via drf-oidc-auth
+djangorestframework==3.11.1  # via -r requirements.in, drf-oidc-auth
 drf-oidc-auth==0.10.0     # via django-helusers
 ecdsa==0.14.1             # via python-jose
 elasticsearch-dsl==7.3.0  # via -r requirements.in
