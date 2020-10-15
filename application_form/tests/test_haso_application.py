@@ -8,7 +8,7 @@ list_url = reverse("v1:hasoapplication-list")
 
 
 HASO_APPLICATION_TEST_DATA = {
-    "running_number": "123456789",
+    "right_of_occupancy_id": "123456789",
     "current_housing": "Asumisoikeusasunto",
     "housing_description": "test",
     "housing_type": "test, 5h+k",

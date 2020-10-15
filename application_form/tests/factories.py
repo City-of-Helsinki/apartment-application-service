@@ -21,7 +21,7 @@ class HasoApplicationFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = HasoApplication
 
-    running_number = fuzzy.FuzzyText()
+    right_of_occupancy_id = fuzzy.FuzzyText()
     current_housing = fuzzy.FuzzyChoice([c[0] for c in CURRENT_HOUSING_CHOICES])
     housing_description = fuzzy.FuzzyText()
     housing_type = fuzzy.FuzzyText()

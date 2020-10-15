@@ -17,7 +17,9 @@ PERMISSIONS_LIST = [
 
 
 class HasoApplication(models.Model):
-    running_number = models.CharField(max_length=255, verbose_name=_("running number"))
+    right_of_occupancy_id = models.CharField(
+        max_length=255, verbose_name=_("right of occupancy ID")
+    )
     current_housing = models.CharField(
         max_length=255,
         choices=CURRENT_HOUSING_CHOICES,
@@ -29,7 +31,9 @@ class HasoApplication(models.Model):
     is_changing_occupancy_apartment = models.BooleanField(
         default=False, verbose_name=_("is changing occupancy apartment")
     )
-    is_over_55 = models.BooleanField(default=False, verbose_name=_("is over 55"))
+    is_over_55 = models.BooleanField(
+        default=False, verbose_name=_("is applicant over 55 years old")
+    )
     project_uuid = models.UUIDField(verbose_name=_("project uuid"))
     apartment_uuids = ArrayField(models.UUIDField(), verbose_name=_("apartment uuids"))
 
