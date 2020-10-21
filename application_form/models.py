@@ -1,4 +1,3 @@
-from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 
@@ -20,6 +19,13 @@ HITAS_PERMISSIONS_LIST = [
     ("hitas_update", _("Can update the existing hitas applications.")),
     ("hitas_delete", _("Can remove remove the existing hitas applications.")),
 ]
+
+
+class Apartment(models.Model):
+    apartment_uuid = models.UUIDField(
+        verbose_name=_("apartment uuid"), primary_key=True
+    )
+    is_available = models.BooleanField(default=True, verbose_name=_("is available"))
 
 
 class ApplicationQuerySet(models.QuerySet):
@@ -75,8 +81,29 @@ class HasoApplication(ApplicationMixin):
     is_over_55 = models.BooleanField(
         default=False, verbose_name=_("is applicant over 55 years old")
     )
-    project_uuid = models.UUIDField(verbose_name=_("project uuid"))
-    apartment_uuids = ArrayField(models.UUIDField(), verbose_name=_("apartment uuids"))
+
+    @property
+    def apartment_uuids(self):
+        return list(
+            HasoApartmentPriority.objects.filter(haso_application=self)
+            .order_by("priority_number")
+            .values_list("apartment__apartment_uuid", flat=True)
+        )
+
+
+class HasoApartmentPriority(models.Model):
+    is_active = models.BooleanField(default=True, verbose_name=_("is active"))
+    priority_number = models.IntegerField(verbose_name=_("priority number"))
+    haso_application = models.ForeignKey(
+        HasoApplication,
+        on_delete=models.CASCADE,
+        related_name="haso_apartment_priorities",
+    )
+    apartment = models.ForeignKey(
+        Apartment,
+        on_delete=models.CASCADE,
+        related_name="haso_apartment_priorities",
+    )
 
     class Meta:
         permissions = HASO_PERMISSIONS_LIST
@@ -90,8 +117,9 @@ class HitasApplication(ApplicationMixin):
         verbose_name=_("previous hitas descripiton")
     )
     has_children = models.BooleanField(default=False, verbose_name=_("has children"))
-    project_uuid = models.UUIDField(verbose_name=_("project uuid"))
-    apartment_uuid = models.UUIDField(verbose_name=_("apartment uuid"))
+    apartment = models.ForeignKey(
+        Apartment, on_delete=models.CASCADE, related_name="hitas_applications"
+    )
 
     class Meta:
         permissions = HITAS_PERMISSIONS_LIST
