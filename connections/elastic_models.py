@@ -70,14 +70,14 @@ class Apartment(ReadOnlyDocument):
     project_image_urls = Keyword(multi=True)
     project_virtual_presentation_url = Keyword()
 
-    acc_salesperson = Keyword()
-    acc_financeofficer = Keyword()
-    project_manager = Keyword()
-    constructor = Keyword()
-    housing_manager = Keyword()
-    estate_agent = Keyword()
-    estate_agent_email = Keyword()
-    estate_agent_phone = Keyword()
+    project_acc_salesperson = Keyword()
+    project_acc_financeofficer = Keyword()
+    project_project_manager = Keyword()
+    project_constructor = Keyword()
+    project_housing_manager = Keyword()
+    project_estate_agent = Keyword()
+    project_estate_agent_email = Keyword()
+    project_estate_agent_phone = Keyword()
 
     project_coordinate_lat = Float()
     project_coordinate_lon = Float()
@@ -119,6 +119,7 @@ class Apartment(ReadOnlyDocument):
     services_description = Keyword()
     additional_information = Keyword()
     application_url = Keyword()
+    image_urls = Keyword(multi=True)
 
     class Index:
         name = settings.APARTMENT_INDEX_NAME
