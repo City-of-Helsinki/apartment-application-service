@@ -1,6 +1,7 @@
 Django~=2.2
 django-cors-headers
 django-environ
+git+git://github.com/City-of-Helsinki/django-etuovi@develop#egg=django_etuovi  # TODO: change this when released in PyPI
 django-helusers
 django-ilmoitin~=0.5.0
 djangorestframework

@@ -7,17 +7,18 @@
 certifi==2020.6.20        # via elasticsearch, requests, sentry-sdk
 cffi==1.14.3              # via cryptography
 chardet==3.0.4            # via requests
-cryptography==3.1         # via social-auth-core
+cryptography==3.1.1       # via social-auth-core
 defusedxml==0.6.0         # via python3-openid, social-auth-core
-django-anymail==7.2.1     # via django-ilmoitin
+django-anymail==8.1       # via django-ilmoitin
 django-cors-headers==3.5.0  # via -r requirements.in
 django-environ==0.4.5     # via -r requirements.in
 django-helusers==0.5.6    # via -r requirements.in
 django-ilmoitin==0.5.3    # via -r requirements.in
 django-mailer==2.0.1      # via django-ilmoitin
 django-parler==1.9.2      # via django-ilmoitin
-django==2.2.13            # via -r requirements.in, django-anymail, django-cors-headers, django-helusers, django-ilmoitin, django-mailer, djangorestframework, drf-oidc-auth
-djangorestframework==3.11.1  # via -r requirements.in, drf-oidc-auth
+django==2.2.16            # via -r requirements.in, django-anymail, django-cors-headers, django-etuovi, django-helusers, django-ilmoitin, django-mailer, djangorestframework, drf-oidc-auth
+git+git://github.com/City-of-Helsinki/django-etuovi@develop#egg=django_etuovi  # via -r requirements.in
+djangorestframework==3.12.1  # via -r requirements.in, drf-oidc-auth
 drf-oidc-auth==0.10.0     # via django-helusers
 ecdsa==0.14.1             # via python-jose
 elasticsearch-dsl==7.3.0  # via -r requirements.in
@@ -26,6 +27,7 @@ future==0.18.2            # via pyjwkest
 idna==2.10                # via requests
 jinja2==2.11.2            # via django-ilmoitin
 lockfile==0.12.2          # via django-mailer
+lxml==4.5.2               # via django-etuovi
 markupsafe==1.1.1         # via jinja2
 oauthlib==3.1.0           # via requests-oauthlib, social-auth-core
 psycopg2==2.8.6           # via -r requirements.in
@@ -41,9 +43,9 @@ pytz==2020.1              # via django
 requests-oauthlib==1.3.0  # via social-auth-core
 requests==2.24.0          # via django-anymail, django-helusers, pyjwkest, requests-oauthlib, social-auth-core
 rsa==4.6                  # via python-jose
-sentry-sdk==0.17.3        # via -r requirements.in
-six==1.15.0               # via cryptography, django-anymail, django-mailer, ecdsa, elasticsearch-dsl, pyjwkest, python-dateutil, python-jose, social-auth-app-django, social-auth-core
+sentry-sdk==0.19.0        # via -r requirements.in
+six==1.15.0               # via cryptography, django-mailer, ecdsa, elasticsearch-dsl, pyjwkest, python-dateutil, python-jose, social-auth-app-django, social-auth-core
 social-auth-app-django==4.0.0  # via -r requirements.in
 social-auth-core==3.3.3   # via social-auth-app-django
-sqlparse==0.3.1           # via django
+sqlparse==0.4.1           # via django
 urllib3==1.25.10          # via elasticsearch, requests, sentry-sdk

@@ -49,6 +49,12 @@ env = environ.Env(
     SOCIAL_AUTH_TUNNISTAMO_OIDC_ENDPOINT=(str, ""),
     ELASTICSEARCH_URL=(str, "http://apartment-application-elasticsearch:9200"),
     APARTMENT_INDEX_NAME=(str, ""),
+    ETUOVI_SUPPLIER_SOURCE_ITEMCODE=(str, ""),
+    ETUOVI_COMPANY_NAME=(str, ""),
+    ETUOVI_TRANSFER_ID=(str, ""),
+    ETUOVI_FTP_HOST=(str, ""),
+    ETUOVI_USER=(str, ""),
+    ETUOVI_PASSWORD=(str, ""),
 )
 if os.path.exists(env_file):
     env.read_env(env_file)
@@ -202,6 +208,14 @@ SOCIAL_AUTH_TUNNISTAMO_OIDC_ENDPOINT = env("SOCIAL_AUTH_TUNNISTAMO_OIDC_ENDPOINT
 # Elasticsearch
 ELASTICSEARCH_URL = env("ELASTICSEARCH_URL")
 APARTMENT_INDEX_NAME = env("APARTMENT_INDEX_NAME")
+
+# Etuovi settings
+ETUOVI_SUPPLIER_SOURCE_ITEMCODE = env("ETUOVI_SUPPLIER_SOURCE_ITEMCODE")
+ETUOVI_COMPANY_NAME = env("ETUOVI_COMPANY_NAME")
+ETUOVI_TRANSFER_ID = env("ETUOVI_TRANSFER_ID")
+ETUOVI_FTP_HOST = env("ETUOVI_FTP_HOST")
+ETUOVI_USER = env("ETUOVI_USER")
+ETUOVI_PASSWORD = env("ETUOVI_PASSWORD")
 
 # local_settings.py can be used to override environment-specific settings
 # like database and email that differ between development and production.

@@ -1,5 +1,6 @@
 import datetime
 import factory
+import uuid
 from django.utils import timezone
 from elasticsearch_dsl import Document
 from factory import fuzzy
@@ -26,7 +27,7 @@ class ApartmentFactory(factory.Factory):
         model = ApartmentTest
 
     project_id = fuzzy.FuzzyInteger(0, 9999999999)
-    project_uuid = fuzzy.FuzzyText()
+    project_uuid = str(uuid.uuid4())
 
     project_housing_company = fuzzy.FuzzyText()
     project_holding_type = "Asumisoikeushuoneisto"
@@ -77,19 +78,19 @@ class ApartmentFactory(factory.Factory):
     project_image_urls = factory.List([fuzzy.FuzzyText() for _ in range(2)])
     project_virtual_presentation_url = fuzzy.FuzzyText()
 
-    acc_salesperson = fuzzy.FuzzyText()
-    acc_financeofficer = fuzzy.FuzzyText()
-    project_manager = fuzzy.FuzzyText()
-    constructor = fuzzy.FuzzyText()
-    housing_manager = fuzzy.FuzzyText()
-    estate_agent = fuzzy.FuzzyText()
-    estate_agent_email = fuzzy.FuzzyText()
-    estate_agent_phone = fuzzy.FuzzyText()
+    project_acc_salesperson = fuzzy.FuzzyText()
+    project_acc_financeofficer = fuzzy.FuzzyText()
+    project_project_manager = fuzzy.FuzzyText()
+    project_constructor = fuzzy.FuzzyText()
+    project_housing_manager = fuzzy.FuzzyText()
+    project_estate_agent = fuzzy.FuzzyText()
+    project_estate_agent_email = fuzzy.FuzzyText()
+    project_estate_agent_phone = fuzzy.FuzzyText()
 
     project_coordinate_lat = fuzzy.FuzzyFloat(-90, 90)
     project_coordinate_lon = fuzzy.FuzzyFloat(-180, 180)
 
-    uuid = fuzzy.FuzzyText()
+    uuid = str(uuid.uuid4())
 
     apartment_address = fuzzy.FuzzyText()
     apartment_number = fuzzy.FuzzyText()
@@ -130,3 +131,4 @@ class ApartmentFactory(factory.Factory):
     services_description = fuzzy.FuzzyText()
     additional_information = fuzzy.FuzzyText()
     application_url = fuzzy.FuzzyText()
+    image_urls = factory.List([fuzzy.FuzzyText() for _ in range(2)])
