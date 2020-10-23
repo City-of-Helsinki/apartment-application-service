@@ -8,17 +8,19 @@ list_url = reverse("v1:hasoapplication-list")
 
 
 HASO_APPLICATION_TEST_DATA = {
-    "running_number": "123456789",
+    "right_of_occupancy_id": "123456789",
     "current_housing": "Asumisoikeusasunto",
     "housing_description": "test",
     "housing_type": "test, 5h+k",
     "housing_area": 35.5,
     "is_changing_occupancy_apartment": True,
     "is_over_55": True,
-    "project_uuid": "aabf22f3-5d09-47dc-bd89-ab744b905a17",
     "apartment_uuids": [
         "55796dd1-bd35-42c4-82bb-6a7e9898d0ff",
         "11993697-a0c1-4c07-b38e-b293c3875137",
+        "53123618-8a4d-4d6a-90d1-748cd64bbcd1",
+        "ded49be3-b307-4148-ac2e-56893e0d943c",
+        "cb0de199-356a-4faa-a883-745938d9bc44",
     ],
 }
 

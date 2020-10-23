@@ -11,7 +11,6 @@ HITAS_APPLICATION_TEST_DATA = {
     "has_previous_hitas_apartment": True,
     "previous_hitas_description": "WqQAZURKDxBk",
     "has_children": True,
-    "project_uuid": "af03d5ae-0ea5-4280-b371-d6108477dbb3",
     "apartment_uuid": "e6dd9eff-6bfa-49c6-98ae-24290d220ef2",
 }
 
