@@ -27,12 +27,35 @@ class Apartment(models.Model):
     )
     is_available = models.BooleanField(default=True, verbose_name=_("is available"))
 
+    @property
+    def haso_application_id_queue(self):
+        return list(
+            HasoApartmentPriority.objects.filter(
+                is_active=True,
+                apartment=self,
+            )
+            .order_by("haso_application__right_of_occupancy_id")
+            .values_list("haso_application__right_of_occupancy_id", flat=True)
+        )
+
 
 class ApplicationQuerySet(models.QuerySet):
     def active(self):
+        return self.filter(is_rejected=False, applicant_has_accepted_offer=False)
+
+    def non_approved(self):
         return self.filter(
-            is_accepted=False, is_rejected=False, applicant_has_accepted_offer=False
+            is_approved=False, is_rejected=False, applicant_has_accepted_offer=False
         )
+
+    def approved(self):
+        return self.filter(is_approved=True, applicant_has_accepted_offer=False)
+
+    def accepted(self):
+        return self.filter(applicant_has_accepted_offer=True)
+
+    def rejected(self):
+        return self.filter(is_rejected=True)
 
 
 class ApplicationMixin(models.Model):
@@ -62,11 +85,15 @@ class ApplicationMixin(models.Model):
             )
         super(ApplicationMixin, self).save(**kwargs)
 
+    def reject(self, rejection_description: str):
+        self.is_approved = False
+        self.is_rejected = True
+        self.rejection_description = rejection_description
+        self.save()
+
 
 class HasoApplication(ApplicationMixin):
-    right_of_occupancy_id = models.CharField(
-        max_length=255, verbose_name=_("right of occupancy ID")
-    )
+    right_of_occupancy_id = models.IntegerField(verbose_name=_("right of occupancy ID"))
     current_housing = models.CharField(
         max_length=255,
         choices=CURRENT_HOUSING_CHOICES,
