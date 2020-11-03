@@ -74,6 +74,13 @@ class ApplicationMixin(models.Model):
     applicant_has_accepted_offer = models.BooleanField(
         default=False, verbose_name=_("applicant has accepted offer")
     )
+    applicant_token = models.CharField(
+        max_length=200,
+        verbose_name=_("applicant token"),
+        help_text=_(
+            "a token that can be associated with the applicant's user information."
+        ),
+    )
 
     objects = ApplicationQuerySet.as_manager()
 
