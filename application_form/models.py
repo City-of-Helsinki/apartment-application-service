@@ -38,6 +38,12 @@ class Apartment(models.Model):
             .values_list("haso_application__right_of_occupancy_id", flat=True)
         )
 
+    @property
+    def hitas_application_queue(self):
+        return HitasApplication.objects.filter(
+            apartment=self,
+        ).order_by("order")
+
 
 class ApplicationQuerySet(models.QuerySet):
     def active(self):
@@ -147,6 +153,21 @@ class HitasApplication(ApplicationMixin):
     apartment = models.ForeignKey(
         Apartment, on_delete=models.CASCADE, related_name="hitas_applications"
     )
+    order = models.PositiveIntegerField(verbose_name=_("order"))
 
     class Meta:
         permissions = HITAS_PERMISSIONS_LIST
+
+    def save(self, **kwargs):
+        if not self.id:
+            if self.__class__.objects.filter(apartment=self.apartment).exists():
+                self.order = (
+                    self.__class__.objects.filter(apartment=self.apartment)
+                    .order_by("-order")
+                    .first()
+                    .order
+                    + 1
+                )
+            else:
+                self.order = 1
+        super(HitasApplication, self).save(**kwargs)
