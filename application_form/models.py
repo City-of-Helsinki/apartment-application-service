@@ -38,6 +38,12 @@ class Apartment(models.Model):
             .values_list("haso_application__right_of_occupancy_id", flat=True)
         )
 
+    @property
+    def hitas_application_queue(self):
+        return HitasApplication.objects.filter(
+            apartment=self,
+        ).order_by("order")
+
 
 class ApplicationQuerySet(models.QuerySet):
     def active(self):
@@ -67,6 +73,13 @@ class ApplicationMixin(models.Model):
     )
     applicant_has_accepted_offer = models.BooleanField(
         default=False, verbose_name=_("applicant has accepted offer")
+    )
+    applicant_token = models.CharField(
+        max_length=200,
+        verbose_name=_("applicant token"),
+        help_text=_(
+            "a token that can be associated with the applicant's user information."
+        ),
     )
 
     objects = ApplicationQuerySet.as_manager()
@@ -147,6 +160,21 @@ class HitasApplication(ApplicationMixin):
     apartment = models.ForeignKey(
         Apartment, on_delete=models.CASCADE, related_name="hitas_applications"
     )
+    order = models.PositiveIntegerField(verbose_name=_("order"))
 
     class Meta:
         permissions = HITAS_PERMISSIONS_LIST
+
+    def save(self, **kwargs):
+        if not self.id:
+            if self.__class__.objects.filter(apartment=self.apartment).exists():
+                self.order = (
+                    self.__class__.objects.filter(apartment=self.apartment)
+                    .order_by("-order")
+                    .first()
+                    .order
+                    + 1
+                )
+            else:
+                self.order = 1
+        super(HitasApplication, self).save(**kwargs)
