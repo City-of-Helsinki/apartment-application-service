@@ -15,6 +15,7 @@ HASO_APPLICATION_TEST_DATA = {
     "housing_area": 35.5,
     "is_changing_occupancy_apartment": True,
     "is_over_55": True,
+    "applicant_token": "8fc6b646-bce8-4143-a33c-be91975080c4",
     "apartment_uuids": [
         "55796dd1-bd35-42c4-82bb-6a7e9898d0ff",
         "11993697-a0c1-4c07-b38e-b293c3875137",
@@ -30,14 +31,22 @@ def test_haso_application_create(api_client):
     response = api_client.post(list_url, HASO_APPLICATION_TEST_DATA)
 
     assert response.status_code == 201
+    for idx, apartment_uuid in enumerate(HASO_APPLICATION_TEST_DATA["apartment_uuids"]):
+        assert str(apartment_uuid) == str(response.data["apartment_uuids"][idx])
 
 
 @pytest.mark.django_db
 def test_haso_applications_read(api_client):
-    HasoApplicationFactory()
+    haso_application = HasoApplicationFactory()
     response = api_client.get(list_url)
 
     assert response.status_code == 200
+    for idx, apartment_uuid in enumerate(
+        haso_application.haso_apartment_priorities.order_by(
+            "priority_number"
+        ).values_list("apartment", flat=True)
+    ):
+        assert str(apartment_uuid) == str(response.data[0]["apartment_uuids"][idx])
 
 
 @pytest.mark.django_db
@@ -48,10 +57,16 @@ def test_haso_application_single_read(api_client):
     )
 
     assert response.status_code == 200
+    for idx, apartment_uuid in enumerate(
+        haso_application.haso_apartment_priorities.order_by(
+            "priority_number"
+        ).values_list("apartment", flat=True)
+    ):
+        assert str(apartment_uuid) == str(response.data["apartment_uuids"][idx])
 
 
 @pytest.mark.django_db
-def test_haso_application_udpdate(api_client):
+def test_haso_application_update(api_client):
     haso_application = HasoApplicationFactory()
     serializer = HasoSerializer(haso_application)
     data = serializer.data
@@ -62,6 +77,12 @@ def test_haso_application_udpdate(api_client):
 
     assert response.status_code == 200
     assert response.data["is_changing_occupancy_apartment"] is False
+    for idx, apartment_uuid in enumerate(
+        haso_application.haso_apartment_priorities.order_by(
+            "priority_number"
+        ).values_list("apartment", flat=True)
+    ):
+        assert str(apartment_uuid) == (response.data["apartment_uuids"][idx])
 
 
 @pytest.mark.django_db

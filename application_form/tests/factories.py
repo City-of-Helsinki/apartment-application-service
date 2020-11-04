@@ -44,6 +44,7 @@ class HasoApplicationFactory(factory.django.DjangoModelFactory):
     is_rejected = False
     applicant_has_accepted_offer = False
     rejection_description = ""
+    applicant_token = fuzzy.FuzzyText()
     right_of_occupancy_id = fuzzy.FuzzyInteger(0, 99999999)
     current_housing = fuzzy.FuzzyChoice([c[0] for c in CURRENT_HOUSING_CHOICES])
     housing_description = fuzzy.FuzzyText()
@@ -80,6 +81,8 @@ class HitasApplicationFactory(factory.django.DjangoModelFactory):
     is_approved = False
     is_rejected = False
     applicant_has_accepted_offer = False
+    rejection_description = ""
+    applicant_token = fuzzy.FuzzyText()
     has_previous_hitas_apartment = True
     previous_hitas_description = fuzzy.FuzzyText()
     has_children = True

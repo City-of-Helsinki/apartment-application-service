@@ -12,6 +12,7 @@ HITAS_APPLICATION_TEST_DATA = {
     "previous_hitas_description": "WqQAZURKDxBk",
     "has_children": True,
     "apartment_uuid": "e6dd9eff-6bfa-49c6-98ae-24290d220ef2",
+    "applicant_token": "8fc6b646-bce8-4143-a33c-be91975080c4",
 }
 
 
@@ -20,28 +21,37 @@ def test_hitas_application_create(api_client):
     response = api_client.post(list_url, HITAS_APPLICATION_TEST_DATA)
 
     assert response.status_code == 201
+    assert HITAS_APPLICATION_TEST_DATA["apartment_uuid"] == str(
+        response.data["apartment_uuid"]
+    )
 
 
 @pytest.mark.django_db
 def test_hitas_applications_read(api_client):
-    HitasApplicationFactory()
+    hitas_application = HitasApplicationFactory()
     response = api_client.get(list_url)
 
     assert response.status_code == 200
+    assert str(hitas_application.apartment.apartment_uuid) == str(
+        response.data[0]["apartment_uuid"]
+    )
 
 
 @pytest.mark.django_db
-def test_hitas_application_singlis_changing_occupancy_apartmente_read(api_client):
+def test_hitas_application_single_read(api_client):
     hitas_application = HitasApplicationFactory()
     response = api_client.get(
         reverse("v1:hitasapplication-detail", kwargs={"pk": hitas_application.id})
     )
 
     assert response.status_code == 200
+    assert str(hitas_application.apartment.apartment_uuid) == str(
+        response.data["apartment_uuid"]
+    )
 
 
 @pytest.mark.django_db
-def test_hitas_application_udpdate(api_client):
+def test_hitas_application_update(api_client):
     hitas_application = HitasApplicationFactory()
     serializer = HitasSerializer(hitas_application)
     data = serializer.data
@@ -52,6 +62,9 @@ def test_hitas_application_udpdate(api_client):
 
     assert response.status_code == 200
     assert response.data["has_children"] is False
+    assert str(hitas_application.apartment.apartment_uuid) == str(
+        response.data["apartment_uuid"]
+    )
 
 
 @pytest.mark.django_db

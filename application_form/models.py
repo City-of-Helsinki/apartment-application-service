@@ -72,6 +72,7 @@ class ApplicationMixin(models.Model):
     rejection_description = models.TextField(
         default="",
         verbose_name=_("rejection description"),
+        blank=True,
     )
     applicant_has_accepted_offer = models.BooleanField(
         default=False, verbose_name=_("applicant has accepted offer")
