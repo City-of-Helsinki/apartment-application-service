@@ -55,6 +55,23 @@ class HasoApplicationFactory(factory.django.DjangoModelFactory):
         HasoApartmentPriorityFactory, factory_related_name="haso_application", size=5
     )
 
+    @classmethod
+    def create_batch_with_apartments(cls, size: int, apartments: list) -> list:
+        applications = []
+        for i in range(size):
+            haso_application = cls.create(
+                right_of_occupancy_id=i,
+                is_approved=True,
+                haso_apartment_priorities=None,
+            )
+            HasoApartmentPriorityFactory.create_batch(
+                len(apartments),
+                haso_application=haso_application,
+                apartment=factory.Iterator(apartments),
+            )
+            applications.append(haso_application)
+        return applications
+
 
 class HitasApplicationFactory(factory.django.DjangoModelFactory):
     class Meta:

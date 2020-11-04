@@ -1,5 +1,6 @@
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
+from simple_history.models import HistoricalRecords
 
 CURRENT_HOUSING_CHOICES = [
     ("Omistusasunto", "Omistusasunto"),
@@ -26,6 +27,7 @@ class Apartment(models.Model):
         verbose_name=_("apartment uuid"), primary_key=True
     )
     is_available = models.BooleanField(default=True, verbose_name=_("is available"))
+    history = HistoricalRecords()
 
     @property
     def haso_application_id_queue(self):
@@ -81,6 +83,7 @@ class ApplicationMixin(models.Model):
             "a token that can be associated with the applicant's user information."
         ),
     )
+    history = HistoricalRecords(inherit=True)
 
     objects = ApplicationQuerySet.as_manager()
 
@@ -102,6 +105,12 @@ class ApplicationMixin(models.Model):
         self.is_approved = False
         self.is_rejected = True
         self.rejection_description = rejection_description
+        self._change_reason = _("application rejected.")
+        self.save()
+
+    def approve(self) -> None:
+        self.is_approved = True
+        self._change_reason = _("application approved.")
         self.save()
 
 
@@ -144,6 +153,7 @@ class HasoApartmentPriority(models.Model):
         on_delete=models.CASCADE,
         related_name="haso_apartment_priorities",
     )
+    history = HistoricalRecords()
 
     class Meta:
         permissions = HASO_PERMISSIONS_LIST
