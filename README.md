@@ -77,3 +77,6 @@ Basic `black` commands:
 
 * To let `black` do its magic: `black .`
 * To see which files `black` would change: `black --check .`
+
+For Django, this project mostly follows the styleguide defined in
+[Django-Styleguide](https://github.com/HackSoftware/Django-Styleguide).

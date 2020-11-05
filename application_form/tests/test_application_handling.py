@@ -1,11 +1,11 @@
 import pytest
 import random
 
-from application_form.application_handling import (
-    deactivate_haso_apartment_priorities,
+from application_form.models import HasoApartmentPriority, HasoApplication
+from application_form.services import (
+    check_first_place_haso_applications,
     shuffle_hitas_applications_by_apartments,
 )
-from application_form.models import HasoApartmentPriority, HasoApplication
 from application_form.tests.factories import (
     ApartmentFactory,
     HasoApplicationFactory,
@@ -18,7 +18,7 @@ def test_haso_application_deactivation():
     apartments = ApartmentFactory.create_batch(5)
     HasoApplicationFactory.create_batch_with_apartments(5, apartments)
 
-    deactivate_haso_apartment_priorities()
+    check_first_place_haso_applications()
 
     # With 5 applications for the same 5 apartments, the applications should have
     # 1, 2, 3, 4, 5 active apartment priorities respectively.
@@ -57,7 +57,7 @@ def test_haso_application_deactivation_history_changelog():
     apartments = ApartmentFactory.create_batch(5)
     HasoApplicationFactory.create_batch_with_apartments(5, apartments)
 
-    deactivate_haso_apartment_priorities()
+    check_first_place_haso_applications()
 
     for haso_application in HasoApartmentPriority.objects.filter(is_active=False):
         assert (

@@ -89,3 +89,21 @@ def test_application_reject_leaves_a_history_changelog():
     application = HitasApplicationFactory()
     application.reject("rejected")
     assert application.history.first().history_change_reason == "application rejected."
+
+
+@pytest.mark.django_db
+def test_accept_offer():
+    application = HitasApplicationFactory(is_approved=True)
+    apartment = application.apartment
+    application.accept_offer(apartment)
+
+    assert application.applicant_has_accepted_offer is True
+    assert apartment.is_available is False
+    assert (
+        application.history.first().history_change_reason
+        == "applicant has accepted an offer."
+    )
+    assert (
+        apartment.history.first().history_change_reason
+        == "apartment offer accepted by an applicant."
+    )

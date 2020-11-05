@@ -107,3 +107,29 @@ def test_application_reject_leaves_a_history_changelog():
     application = HasoApplicationFactory()
     application.reject("rejected")
     assert application.history.first().history_change_reason == "application rejected."
+
+
+@pytest.mark.django_db
+def test_accept_offer():
+    application = HasoApplicationFactory(is_approved=True)
+    apartment = application.haso_apartment_priorities.first().apartment
+    application.accept_offer(apartment)
+
+    assert application.applicant_has_accepted_offer is True
+    assert apartment.is_available is False
+    assert (
+        application.history.first().history_change_reason
+        == "applicant has accepted an offer."
+    )
+    assert (
+        apartment.history.first().history_change_reason
+        == "apartment offer accepted by an applicant."
+    )
+    assert application.haso_apartment_priorities.filter(is_active=True).count() == 1
+    for haso_apartment_priority in application.haso_apartment_priorities.filter(
+        is_active=False
+    ):
+        assert (
+            haso_apartment_priority.history.first().history_change_reason
+            == "haso application deactivated due to accepted offer."
+        )
