@@ -62,3 +62,17 @@ def test_hitas_application_delete(api_client):
     )
 
     assert response.status_code == 204
+
+
+@pytest.mark.django_db
+def test_application_approve_leaves_a_history_changelog():
+    application = HitasApplicationFactory()
+    application.approve()
+    assert application.history.first().history_change_reason == "application approved."
+
+
+@pytest.mark.django_db
+def test_application_reject_leaves_a_history_changelog():
+    application = HitasApplicationFactory()
+    application.reject("rejected")
+    assert application.history.first().history_change_reason == "application rejected."

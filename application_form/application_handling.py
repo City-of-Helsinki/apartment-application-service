@@ -1,5 +1,7 @@
 import random
 from django.db.models import OuterRef, QuerySet, Subquery
+from django.utils.translation import ugettext_lazy as _
+from simple_history.utils import bulk_update_with_history
 from typing import Optional
 
 from application_form.models import Apartment, HasoApartmentPriority, HasoApplication
@@ -40,17 +42,23 @@ def deactivate_haso_apartment_priorities(
             application_priority_queryset = HasoApartmentPriority.objects.filter(
                 haso_application=haso_application,
                 pk__in=winning_apartment_priority_pks,
-            ).order_by("priority_number")
+            ).order_by("priority_number")[1:]
 
             # Deactivate all but the first priority.
-            num_priorities_updated = application_priority_queryset.exclude(
-                pk=application_priority_queryset[:1]
-            ).update(is_active=False)
-
-            # If an apartment was deactivated, we need to run this loop again
-            # to check if there are new duplicate 1st places.
-            if num_priorities_updated > 0:
+            for application_priority in application_priority_queryset:
+                application_priority.is_active = False
+                application_priority._change_reason = _(
+                    "priority deactivated due to application being "
+                    "first place in multiple apartment queues."
+                )
                 priorities_updated = True
+
+            if priorities_updated:
+                bulk_update_with_history(
+                    application_priority_queryset,
+                    HasoApartmentPriority,
+                    ["is_active"],
+                )
 
 
 def shuffle_hitas_applications(hitas_applications: QuerySet) -> None:
@@ -72,6 +80,7 @@ def shuffle_hitas_applications(hitas_applications: QuerySet) -> None:
         # The order is visible to the user.
         # To avoid confusion, we start the ordering from 1.
         hitas_application.order = i + 1
+        hitas_application._change_reason = _("hitas applications shuffled.")
         hitas_application.save()
 
 

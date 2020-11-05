@@ -1,14 +1,13 @@
-import factory
 import pytest
+import random
 
 from application_form.application_handling import (
     deactivate_haso_apartment_priorities,
     shuffle_hitas_applications_by_apartments,
 )
-from application_form.models import HasoApplication
+from application_form.models import HasoApartmentPriority, HasoApplication
 from application_form.tests.factories import (
     ApartmentFactory,
-    HasoApartmentPriorityFactory,
     HasoApplicationFactory,
     HitasApplicationFactory,
 )
@@ -17,13 +16,7 @@ from application_form.tests.factories import (
 @pytest.mark.django_db
 def test_haso_application_deactivation():
     apartments = ApartmentFactory.create_batch(5)
-    for i in range(5):
-        haso_application = HasoApplicationFactory(
-            right_of_occupancy_id=i, is_approved=True, haso_apartment_priorities=None
-        )
-        HasoApartmentPriorityFactory.create_batch(
-            5, haso_application=haso_application, apartment=factory.Iterator(apartments)
-        )
+    HasoApplicationFactory.create_batch_with_apartments(5, apartments)
 
     deactivate_haso_apartment_priorities()
 
@@ -57,3 +50,34 @@ def test_hitas_application_shuffles_applications_with_children_first():
             assert hitas_application in applications_with_children
         else:
             assert hitas_application in applications_without_children
+
+
+@pytest.mark.django_db
+def test_haso_application_deactivation_history_changelog():
+    apartments = ApartmentFactory.create_batch(5)
+    HasoApplicationFactory.create_batch_with_apartments(5, apartments)
+
+    deactivate_haso_apartment_priorities()
+
+    for haso_application in HasoApartmentPriority.objects.filter(is_active=False):
+        assert (
+            haso_application.history.first().history_change_reason
+            == "priority deactivated due to application "
+            "being first place in multiple apartment queues."
+        )
+
+
+@pytest.mark.django_db
+def test_hitas_application_shuffle_history_changelog():
+    random.seed(123)
+
+    apartment = ApartmentFactory()
+    hitas_applications = HitasApplicationFactory.create_batch(10, apartment=apartment)
+
+    shuffle_hitas_applications_by_apartments()
+
+    for hitas_application in hitas_applications:
+        assert (
+            hitas_application.history.first().history_change_reason
+            == "hitas applications shuffled."
+        )
