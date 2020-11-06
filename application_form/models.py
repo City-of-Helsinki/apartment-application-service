@@ -31,20 +31,19 @@ class Apartment(models.Model):
 
     @property
     def haso_application_id_queue(self):
-        return list(
-            HasoApartmentPriority.objects.filter(
-                is_active=True,
-                apartment=self,
-            )
-            .order_by("haso_application__right_of_occupancy_id")
-            .values_list("haso_application__right_of_occupancy_id", flat=True)
-        )
+        from application_form.selectors import get_apartment_haso_application_id_queue
+
+        return get_apartment_haso_application_id_queue(self)
 
     @property
     def hitas_application_queue(self):
-        return HitasApplication.objects.filter(
-            apartment=self,
-        ).order_by("order")
+        from application_form.selectors import get_apartment_hitas_application_queue
+
+        return get_apartment_hitas_application_queue(self)
+
+    def save(self, **kwargs):
+        self.full_clean()
+        return super(Apartment, self).save(**kwargs)
 
 
 class ApplicationQuerySet(models.QuerySet):
@@ -72,6 +71,7 @@ class ApplicationMixin(models.Model):
     rejection_description = models.TextField(
         default="",
         verbose_name=_("rejection description"),
+        blank=True,
     )
     applicant_has_accepted_offer = models.BooleanField(
         default=False, verbose_name=_("applicant has accepted offer")
@@ -90,7 +90,7 @@ class ApplicationMixin(models.Model):
     class Meta:
         abstract = True
 
-    def save(self, **kwargs):
+    def clean(self):
         if self.is_approved and self.is_rejected:
             raise ValueError(
                 _("application cannot be accepted and rejected at the same time.")
@@ -99,7 +99,11 @@ class ApplicationMixin(models.Model):
             raise ValueError(
                 _("the offer cannot be accepted before the application is approved.")
             )
-        super(ApplicationMixin, self).save(**kwargs)
+        super(ApplicationMixin, self).clean()
+
+    def save(self, **kwargs):
+        self.full_clean()
+        return super(ApplicationMixin, self).save(**kwargs)
 
     def reject(self, rejection_description: str):
         self.is_approved = False
@@ -112,6 +116,11 @@ class ApplicationMixin(models.Model):
         self.is_approved = True
         self._change_reason = _("application approved.")
         self.save()
+
+    def accept_offer(self, apartment) -> None:
+        from application_form.services import accept_offer
+
+        accept_offer(self, apartment)
 
 
 class HasoApplication(ApplicationMixin):
@@ -133,11 +142,9 @@ class HasoApplication(ApplicationMixin):
 
     @property
     def apartment_uuids(self):
-        return list(
-            HasoApartmentPriority.objects.filter(haso_application=self)
-            .order_by("priority_number")
-            .values_list("apartment__apartment_uuid", flat=True)
-        )
+        from application_form.selectors import get_haso_apartment_uuids
+
+        return get_haso_apartment_uuids(self)
 
 
 class HasoApartmentPriority(models.Model):
@@ -177,14 +184,13 @@ class HitasApplication(ApplicationMixin):
 
     def save(self, **kwargs):
         if not self.id:
-            if self.__class__.objects.filter(apartment=self.apartment).exists():
-                self.order = (
-                    self.__class__.objects.filter(apartment=self.apartment)
-                    .order_by("-order")
-                    .first()
-                    .order
-                    + 1
-                )
+            latest_application = (
+                self.__class__.objects.filter(apartment=self.apartment)
+                .order_by("-order")
+                .first()
+            )
+            if latest_application:
+                self.order = latest_application.order + 1
             else:
                 self.order = 1
         super(HitasApplication, self).save(**kwargs)

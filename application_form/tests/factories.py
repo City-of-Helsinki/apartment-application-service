@@ -2,6 +2,7 @@ import factory
 import uuid
 from django.contrib.auth import get_user_model
 from factory import fuzzy
+from typing import List
 
 from application_form.models import (
     Apartment,
@@ -44,6 +45,7 @@ class HasoApplicationFactory(factory.django.DjangoModelFactory):
     is_rejected = False
     applicant_has_accepted_offer = False
     rejection_description = ""
+    applicant_token = fuzzy.FuzzyText()
     right_of_occupancy_id = fuzzy.FuzzyInteger(0, 99999999)
     current_housing = fuzzy.FuzzyChoice([c[0] for c in CURRENT_HOUSING_CHOICES])
     housing_description = fuzzy.FuzzyText()
@@ -56,7 +58,9 @@ class HasoApplicationFactory(factory.django.DjangoModelFactory):
     )
 
     @classmethod
-    def create_batch_with_apartments(cls, size: int, apartments: list) -> list:
+    def create_batch_with_apartments(
+        cls, size: int, apartments: List[Apartment]
+    ) -> List[HasoApplication]:
         applications = []
         for i in range(size):
             haso_application = cls.create(
@@ -80,6 +84,8 @@ class HitasApplicationFactory(factory.django.DjangoModelFactory):
     is_approved = False
     is_rejected = False
     applicant_has_accepted_offer = False
+    rejection_description = ""
+    applicant_token = fuzzy.FuzzyText()
     has_previous_hitas_apartment = True
     previous_hitas_description = fuzzy.FuzzyText()
     has_children = True

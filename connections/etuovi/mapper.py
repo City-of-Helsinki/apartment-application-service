@@ -9,13 +9,14 @@ from django_etuovi.enums import (
     LinkType,
     RealtyGroup,
     RealtyImageType,
+    RealtyOption,
     RealtyType,
     TextKey,
     TextLanguage,
 )
 from django_etuovi.items import Coordinate, ExtraLink, Image, Item, Scontact, Text
 from elasticsearch_dsl.utils import AttrList
-from typing import Union
+from typing import List, Union
 
 from connections.elastic_models import Apartment
 from connections.etuovi.field_mappings import (
@@ -39,7 +40,7 @@ def handle_field(field: Union[str, AttrList]) -> str:
         yield field
 
 
-def map_coordinates(elastic_apartment: Apartment) -> list:
+def map_coordinates(elastic_apartment: Apartment) -> List[Coordinate]:
     return [
         Coordinate(
             lat=elastic_apartment["project_coordinate_lat"],
@@ -56,7 +57,7 @@ def get_text_mapping(text_key: TextKey, text_value: str) -> Text:
     )
 
 
-def map_texts(elastic_apartment: Apartment) -> list:
+def map_texts(elastic_apartment: Apartment) -> List[Text]:
     texts = []
     for field_name, text_key in TEXT_MAPPING.items():
         current_texts = []
@@ -76,7 +77,7 @@ def get_extra_link_mapping(
     )
 
 
-def map_extra_links(elastic_apartment: Apartment) -> list:
+def map_extra_links(elastic_apartment: Apartment) -> List[ExtraLink]:
     extra_links = []
     for field_name, link_type in EXTRA_LINK_MAPPING.items():
         for link_url in handle_field(elastic_apartment[field_name]):
@@ -98,7 +99,7 @@ def get_image_mapping(
     )
 
 
-def map_images(elastic_apartment: Apartment) -> list:
+def map_images(elastic_apartment: Apartment) -> List[Image]:
     images = []
     image_seq = 1
     for field_name, image_type in IMAGE_MAPPING.items():
@@ -109,7 +110,7 @@ def map_images(elastic_apartment: Apartment) -> list:
     return images
 
 
-def map_scontacts(elastic_apartment: Apartment) -> list:
+def map_scontacts(elastic_apartment: Apartment) -> List[Scontact]:
     return [
         Scontact(
             scontact_name=elastic_apartment["project_estate_agent"],
@@ -158,7 +159,7 @@ def map_item_fields(elastic_apartment: Apartment) -> dict:
     return item_dict
 
 
-def map_realty_options(elastic_apartment: Apartment) -> list:
+def map_realty_options(elastic_apartment: Apartment) -> List[RealtyOption]:
     realty_options = []
     for field_name, realty_option in REALTY_OPTION_MAPPING.items():
         has_realty_option = get_elastic_value(elastic_apartment, field_name)
