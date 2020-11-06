@@ -1,4 +1,6 @@
 from django.db.models import OuterRef, QuerySet, Subquery
+from typing import List
+from uuid import UUID
 
 from application_form.models import (
     Apartment,
@@ -17,7 +19,7 @@ def list_haso_applications() -> QuerySet:
     return HasoApplication.objects.all()
 
 
-def get_apartment_haso_application_id_queue(apartment: Apartment) -> list:
+def get_apartment_haso_application_id_queue(apartment: Apartment) -> List[int]:
     """
     For the given apartment, return a list of Haso right_of_occupancy_ids
     ordered by the right_of_occupancy_id.
@@ -32,7 +34,7 @@ def get_apartment_haso_application_id_queue(apartment: Apartment) -> list:
     )
 
 
-def get_haso_apartment_uuids(haso_application: HasoApplication) -> list:
+def get_haso_apartment_uuids(haso_application: HasoApplication) -> List[UUID]:
     """
     From the given Haso application, get all apartment uuids
     ordered by the priority of the apartment.

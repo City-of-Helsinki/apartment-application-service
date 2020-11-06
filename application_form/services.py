@@ -2,7 +2,7 @@ import random
 from django.db.models import QuerySet
 from django.utils.translation import ugettext_lazy as _
 from simple_history.utils import bulk_update_with_history
-from typing import Optional, Union
+from typing import List, Optional, Union
 
 from application_form.models import (
     Apartment,
@@ -42,7 +42,7 @@ def deactivate_haso_apartment_priorities(
 
 
 def create_or_update_apartments_and_priorities(
-    apartment_uuids: list, haso_application: HasoApplication
+    apartment_uuids: List[str], haso_application: HasoApplication
 ) -> None:
     """
     Create Haso apartment priorities for each apartment uuid provided.
