@@ -30,6 +30,7 @@ from connections.etuovi.field_mappings import (
     TEXT_MAPPING,
     TRADE_TYPE_MAPPING,
 )
+from connections.utils import convert_price_from_cents_to_eur
 
 
 def handle_field(field: Union[str, AttrList]) -> str:
@@ -141,7 +142,7 @@ def get_elastic_value(
         ]
     elif isinstance(elastic_value, int) and elastic_field in PRICE_FIELDS:
         # Prices are saved as cents in ElasticSearch. Convert to EUR.
-        return Decimal(elastic_value) / 100
+        return convert_price_from_cents_to_eur(elastic_value)
     else:
         return elastic_value
 
