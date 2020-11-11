@@ -17,8 +17,9 @@ django-ilmoitin==0.5.3    # via -r requirements.in
 django-mailer==2.0.1      # via django-ilmoitin
 django-parler==1.9.2      # via django-ilmoitin
 django-simple-history==2.12.0  # via -r requirements.in
-django==2.2.16            # via -r requirements.in, django-anymail, django-cors-headers, django-etuovi, django-helusers, django-ilmoitin, django-mailer, djangorestframework, drf-oidc-auth
+django==2.2.16            # via -r requirements.in, django-anymail, django-cors-headers, django-etuovi, django-helusers, django-ilmoitin, django-mailer, django-oikotie, djangorestframework, drf-oidc-auth
 git+git://github.com/City-of-Helsinki/django-etuovi@develop#egg=django_etuovi  # via -r requirements.in
+git+git://github.com/City-of-Helsinki/django-oikotie@develop#egg=django_oikotie  # via -r requirements.in
 djangorestframework==3.12.1  # via -r requirements.in, drf-oidc-auth
 drf-oidc-auth==0.10.0     # via django-helusers
 ecdsa==0.14.1             # via python-jose
@@ -28,7 +29,7 @@ future==0.18.2            # via pyjwkest
 idna==2.10                # via requests
 jinja2==2.11.2            # via django-ilmoitin
 lockfile==0.12.2          # via django-mailer
-lxml==4.5.2               # via django-etuovi
+lxml==4.5.2               # via django-etuovi, django-oikotie
 markupsafe==1.1.1         # via jinja2
 oauthlib==3.1.0           # via requests-oauthlib, social-auth-core
 psycopg2==2.8.6           # via -r requirements.in
