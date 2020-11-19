@@ -16,13 +16,13 @@ from django_oikotie.xml_models.apartment import (
     MaintenanceFee,
     ModeOfHabitation,
     NewDevelopmentStatus,
-    Site,
 )
 from django_oikotie.xml_models.apartment import Picture as ApartmentPicture
 from django_oikotie.xml_models.apartment import (
     SalesPrice,
     Sauna,
     ShowingDate1,
+    Site,
     SiteArea,
     UnencumberedSalesPrice,
     WaterFee,
