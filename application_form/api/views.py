@@ -5,10 +5,12 @@ from application_form.selectors import list_haso_applications, list_hitas_applic
 
 
 class HasoApplicationViewSet(viewsets.ModelViewSet):
+    # Handles all CRUD operations.
     queryset = list_haso_applications()
     serializer_class = HasoSerializer
 
 
 class HitasApplicationViewSet(viewsets.ModelViewSet):
+    # Handles all CRUD operations.
     queryset = list_hitas_applications()
     serializer_class = HitasSerializer

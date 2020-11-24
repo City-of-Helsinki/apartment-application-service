@@ -8,6 +8,7 @@ from application_form.services import (
 
 
 class HasoSerializer(serializers.ModelSerializer):
+    # List of apartment UUIDs that can be created as apartments / queried from apartments for sending
     apartment_uuids = serializers.ListField(child=serializers.UUIDField())
 
     class Meta:
@@ -31,17 +32,20 @@ class HasoSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         apartment_uuids = validated_data.pop("apartment_uuids")
         haso_application = super(HasoSerializer, self).create(validated_data)
+        # Apartments and priorities need to be created separately.
         create_or_update_apartments_and_priorities(apartment_uuids, haso_application)
         return haso_application
 
     def update(self, instance, validated_data):
         apartment_uuids = validated_data.pop("apartment_uuids")
         haso_application = super(HasoSerializer, self).update(instance, validated_data)
+        # Apartments and priorities need to be updated separately.
         create_or_update_apartments_and_priorities(apartment_uuids, haso_application)
         return haso_application
 
 
 class HitasSerializer(serializers.ModelSerializer):
+    # Apartment UUID that can be created as an apartment / queried from apartments for sending
     apartment_uuid = serializers.UUIDField(source="apartment.apartment_uuid")
 
     class Meta:
@@ -60,12 +64,14 @@ class HitasSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         apartment_uuid = validated_data.pop("apartment")["apartment_uuid"]
+        # Apartments need to be created separately.
         apartment = get_or_create_apartment_with_uuid(apartment_uuid)
         validated_data["apartment"] = apartment
         return super(HitasSerializer, self).create(validated_data)
 
     def update(self, instance, validated_data):
         apartment_uuid = validated_data.pop("apartment")["apartment_uuid"]
+        # Apartments need to be updated separately.
         apartment = get_or_create_apartment_with_uuid(apartment_uuid)
         validated_data["apartment"] = apartment
         return super(HitasSerializer, self).update(instance, validated_data)

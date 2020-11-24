@@ -6,6 +6,7 @@ from elasticsearch_dsl import connections
 def create_elastic_connection() -> None:
     """
     Creates the ElasticSearch connection with the url provided in the settings.
+    The ElasticSearch connection needs to be established before it can be accessed.
     """
     connections.create_connection(hosts=[settings.ELASTICSEARCH_URL])
 
