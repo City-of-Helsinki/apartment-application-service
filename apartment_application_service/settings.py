@@ -55,6 +55,7 @@ env = environ.Env(
     ETUOVI_FTP_HOST=(str, ""),
     ETUOVI_USER=(str, ""),
     ETUOVI_PASSWORD=(str, ""),
+    OIKOTIE_VENDOR_ID=(str, ""),
 )
 if os.path.exists(env_file):
     env.read_env(env_file)
@@ -218,6 +219,9 @@ ETUOVI_TRANSFER_ID = env("ETUOVI_TRANSFER_ID")
 ETUOVI_FTP_HOST = env("ETUOVI_FTP_HOST")
 ETUOVI_USER = env("ETUOVI_USER")
 ETUOVI_PASSWORD = env("ETUOVI_PASSWORD")
+
+# Oikotie settings
+OIKOTIE_VENDOR_ID = env("OIKOTIE_VENDOR_ID")
 
 # local_settings.py can be used to override environment-specific settings
 # like database and email that differ between development and production.

@@ -33,7 +33,7 @@ class ApartmentFactory(factory.Factory):
     project_holding_type = "Asumisoikeushuoneisto"
     project_street_address = fuzzy.FuzzyText()
     project_postal_code = fuzzy.FuzzyText()
-    project_city = fuzzy.FuzzyText()
+    project_city = "Helsinki"
     project_district = fuzzy.FuzzyText()
     project_realty_id = fuzzy.FuzzyText()
     project_construction_year = fuzzy.FuzzyInteger(2000, 3000)
@@ -49,7 +49,7 @@ class ApartmentFactory(factory.Factory):
     project_heating_options = factory.List([fuzzy.FuzzyText() for _ in range(2)])
     project_energy_class = fuzzy.FuzzyText()
     project_site_area = fuzzy.FuzzyFloat(0, 9999999999)
-    project_site_owner = fuzzy.FuzzyText()
+    project_site_owner = fuzzy.FuzzyChoice(["Oma", "Vuokra"])
     project_site_renter = fuzzy.FuzzyText()
     project_sanitation = fuzzy.FuzzyText()
     project_zoning_info = fuzzy.FuzzyText()
@@ -132,3 +132,32 @@ class ApartmentFactory(factory.Factory):
     additional_information = fuzzy.FuzzyText()
     application_url = fuzzy.FuzzyText()
     image_urls = factory.List([fuzzy.FuzzyText() for _ in range(2)])
+
+
+class ApartmentMinimalFactory(factory.Factory):
+    class Meta:
+        model = ApartmentTest
+
+    project_id = fuzzy.FuzzyInteger(0, 9999999999)
+    project_uuid = str(uuid.uuid4())
+
+    project_housing_company = fuzzy.FuzzyText()
+    project_holding_type = "Asumisoikeushuoneisto"
+    project_street_address = fuzzy.FuzzyText()
+    project_postal_code = fuzzy.FuzzyText()
+    project_city = "Helsinki"
+    project_district = fuzzy.FuzzyText()
+    project_realty_id = fuzzy.FuzzyText()
+    project_new_development_status = fuzzy.FuzzyText()
+    project_new_housing = True
+    project_apartment_count = fuzzy.FuzzyInteger(0, 9999999999)
+    project_estimated_completion = fuzzy.FuzzyText()
+    project_estate_agent_email = fuzzy.FuzzyText()
+
+    project_building_type = "Kerrostalo"
+
+    uuid = str(uuid.uuid4())
+
+    room_count = fuzzy.FuzzyInteger(0, 9999999999)
+    sales_price = fuzzy.FuzzyInteger(0, 9999999999)
+    debt_free_sales_price = fuzzy.FuzzyInteger(0, 9999999999)
