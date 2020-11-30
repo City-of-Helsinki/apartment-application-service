@@ -48,20 +48,35 @@ class Apartment(models.Model):
 
 class ApplicationQuerySet(models.QuerySet):
     def active(self):
+        """
+        Applications that are not rejected and applicant has not accepted an offered apartment.
+        """
         return self.filter(is_rejected=False, applicant_has_accepted_offer=False)
 
     def non_approved(self):
+        """
+        Applications that are not yet approved or rejected and applicant has not accepted an offered apartment.
+        """
         return self.filter(
             is_approved=False, is_rejected=False, applicant_has_accepted_offer=False
         )
 
     def approved(self):
+        """
+        Applications that are approved, but the applicant has not accepted an offered apartment.
+        """
         return self.filter(is_approved=True, applicant_has_accepted_offer=False)
 
     def accepted(self):
+        """
+        Applications where the applicant has accepted an offered apartment.
+        """
         return self.filter(applicant_has_accepted_offer=True)
 
     def rejected(self):
+        """
+        Applications that are rejected.
+        """
         return self.filter(is_rejected=True)
 
 
@@ -105,7 +120,7 @@ class ApplicationMixin(models.Model):
         self.full_clean()
         return super(ApplicationMixin, self).save(**kwargs)
 
-    def reject(self, rejection_description: str):
+    def reject(self, rejection_description: str) -> None:
         self.is_approved = False
         self.is_rejected = True
         self.rejection_description = rejection_description
@@ -117,7 +132,7 @@ class ApplicationMixin(models.Model):
         self._change_reason = _("application approved.")
         self.save()
 
-    def accept_offer(self, apartment) -> None:
+    def accept_offer(self, apartment: Apartment) -> None:
         from application_form.services import accept_offer
 
         accept_offer(self, apartment)
@@ -183,6 +198,9 @@ class HitasApplication(ApplicationMixin):
         permissions = HITAS_PERMISSIONS_LIST
 
     def save(self, **kwargs):
+        """
+        Add automatic initial ordering for the HitasApplications.
+        """
         if not self.id:
             latest_application = (
                 self.__class__.objects.filter(apartment=self.apartment)
