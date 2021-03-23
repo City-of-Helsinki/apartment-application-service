@@ -1,13 +1,13 @@
 import pytest
 import random
 
+from apartment.tests.factories import ApartmentFactory
 from application_form.models import HasoApartmentPriority, HasoApplication
 from application_form.services import (
     check_first_place_haso_applications,
     shuffle_hitas_applications_by_apartments,
 )
 from application_form.tests.factories import (
-    ApartmentFactory,
     HasoApplicationFactory,
     HitasApplicationFactory,
 )

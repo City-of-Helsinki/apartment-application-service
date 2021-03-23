@@ -2,6 +2,8 @@ from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from simple_history.models import HistoricalRecords
 
+from apartment.models import Apartment
+
 CURRENT_HOUSING_CHOICES = [
     ("Omistusasunto", "Omistusasunto"),
     ("Vuokra-asunto", "Vuokra-asunto"),
@@ -22,40 +24,18 @@ HITAS_PERMISSIONS_LIST = [
 ]
 
 
-class Apartment(models.Model):
-    apartment_uuid = models.UUIDField(
-        verbose_name=_("apartment uuid"), primary_key=True
-    )
-    is_available = models.BooleanField(default=True, verbose_name=_("is available"))
-    history = HistoricalRecords()
-
-    @property
-    def haso_application_id_queue(self):
-        from application_form.selectors import get_apartment_haso_application_id_queue
-
-        return get_apartment_haso_application_id_queue(self)
-
-    @property
-    def hitas_application_queue(self):
-        from application_form.selectors import get_apartment_hitas_application_queue
-
-        return get_apartment_hitas_application_queue(self)
-
-    def save(self, **kwargs):
-        self.full_clean()
-        return super(Apartment, self).save(**kwargs)
-
-
 class ApplicationQuerySet(models.QuerySet):
     def active(self):
         """
-        Applications that are not rejected and applicant has not accepted an offered apartment.
+        Applications that are not rejected and applicant has not accepted an offered
+        apartment.
         """
         return self.filter(is_rejected=False, applicant_has_accepted_offer=False)
 
     def non_approved(self):
         """
-        Applications that are not yet approved or rejected and applicant has not accepted an offered apartment.
+        Applications that are not yet approved or rejected and applicant has not
+        accepted an offered apartment.
         """
         return self.filter(
             is_approved=False, is_rejected=False, applicant_has_accepted_offer=False
@@ -63,7 +43,8 @@ class ApplicationQuerySet(models.QuerySet):
 
     def approved(self):
         """
-        Applications that are approved, but the applicant has not accepted an offered apartment.
+        Applications that are approved, but the applicant has not accepted an offered
+        apartment.
         """
         return self.filter(is_approved=True, applicant_has_accepted_offer=False)
 

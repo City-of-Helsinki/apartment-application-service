@@ -12,6 +12,7 @@ from application_form.models import (
     HitasApplication,
 )
 from application_form.selectors import (
+    get_apartment_hitas_application_queue,
     get_haso_apartments,
     get_winning_haso_apartment_priorities_by_apartment,
     get_winning_haso_apartment_priorities_for_application,
@@ -142,7 +143,7 @@ def shuffle_hitas_applications_by_apartments(
     if not apartments:
         apartments = list_hitas_apartments()
     for apartment in apartments:
-        hitas_applications = apartment.hitas_application_queue
+        hitas_applications = get_apartment_hitas_application_queue(apartment)
         shuffle_hitas_applications(hitas_applications)
 
 
