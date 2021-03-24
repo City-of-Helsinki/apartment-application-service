@@ -23,6 +23,8 @@ django-anymail==8.1
     # via django-ilmoitin
 django-cors-headers==3.5.0
     # via -r requirements.in
+django-enumfields==2.1.1
+    # via -r requirements.in
 django-environ==0.4.5
     # via -r requirements.in
 django-helusers==0.5.6
