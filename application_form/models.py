@@ -155,6 +155,7 @@ class HasoApartmentPriority(models.Model):
         Apartment,
         on_delete=models.CASCADE,
         related_name="haso_apartment_priorities",
+        null=True,
     )
     history = HistoricalRecords()
 
@@ -171,7 +172,10 @@ class HitasApplication(ApplicationMixin):
     )
     has_children = models.BooleanField(default=False, verbose_name=_("has children"))
     apartment = models.ForeignKey(
-        Apartment, on_delete=models.CASCADE, related_name="hitas_applications"
+        Apartment,
+        on_delete=models.CASCADE,
+        related_name="hitas_applications",
+        null=True,
     )
     order = models.PositiveIntegerField(verbose_name=_("order"))
 
