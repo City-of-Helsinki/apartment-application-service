@@ -42,7 +42,7 @@ def get_haso_apartment_uuids(haso_application: HasoApplication) -> List[UUID]:
     return list(
         HasoApartmentPriority.objects.filter(haso_application=haso_application)
         .order_by("priority_number")
-        .values_list("apartment__apartment_uuid", flat=True)
+        .values_list("apartment__identifiers__identifier", flat=True)
     )
 
 

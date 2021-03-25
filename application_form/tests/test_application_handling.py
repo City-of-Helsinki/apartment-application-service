@@ -1,8 +1,10 @@
 import pytest
 import random
+from typing import List
 
-from apartment.tests.factories import ApartmentFactory
+from apartment.tests.factories import ApartmentFactory, ProjectFactory
 from application_form.models import HasoApartmentPriority, HasoApplication
+from application_form.selectors import get_apartment_hitas_application_queue
 from application_form.services import (
     check_first_place_haso_applications,
     shuffle_hitas_applications_by_apartments,
@@ -15,7 +17,8 @@ from application_form.tests.factories import (
 
 @pytest.mark.django_db
 def test_haso_application_deactivation():
-    apartments = ApartmentFactory.create_batch(5)
+    project = ProjectFactory.create()
+    apartments = ApartmentFactory.create_batch_with_project(5, project)
     HasoApplicationFactory.create_batch_with_apartments(5, apartments)
 
     check_first_place_haso_applications()
@@ -45,7 +48,9 @@ def test_hitas_application_shuffles_applications_with_children_first():
 
     shuffle_hitas_applications_by_apartments()
 
-    for i, hitas_application in enumerate(apartment.hitas_application_queue):
+    for i, hitas_application in enumerate(
+        get_apartment_hitas_application_queue(apartment)
+    ):
         if i < number_of_applications:
             assert hitas_application in applications_with_children
         else:

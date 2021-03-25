@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from apartment.enums import IdentifierSchemaType
+from apartment.models import Identifier
 from application_form.models import HasoApplication, HitasApplication
 from application_form.services import (
     create_or_update_apartments_and_priorities,
@@ -46,7 +48,8 @@ class HasoSerializer(serializers.ModelSerializer):
 
 class HitasSerializer(serializers.ModelSerializer):
     # Apartment UUID that can be created as an apartment / queried from apartments for sending
-    apartment_uuid = serializers.UUIDField(source="apartment.apartment_uuid")
+    # apartment_uuid = serializers.UUIDField(source="apartment.apartment_uuid")
+    apartment_uuid = serializers.SerializerMethodField()
 
     class Meta:
         model = HitasApplication
@@ -61,6 +64,11 @@ class HitasSerializer(serializers.ModelSerializer):
             "previous_hitas_description",
             "has_children",
         ]
+
+    def apartment_uuid(self, obj):
+        return obj.apartment.identifiers.filter(
+            identifier_schema__schema_type=IdentifierSchemaType.ATT_PROJECT_ES
+        ).only("identifier")
 
     def create(self, validated_data):
         apartment_uuid = validated_data.pop("apartment")["apartment_uuid"]

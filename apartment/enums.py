@@ -1,5 +1,5 @@
 from enum import Enum
 
 
-class IdentifierScheme(Enum):
-    ATT_ELASTICSEARCH = "att_es"
+class IdentifierSchemaType(Enum):
+    ATT_PROJECT_ES = "att_pro_es"

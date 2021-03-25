@@ -3,20 +3,20 @@ from django.utils.translation import ugettext_lazy as _
 from enumfields import EnumField
 from simple_history.models import HistoricalRecords
 
-from .enums import IdentifierScheme
+from .enums import IdentifierSchemaType
 
 
-class IdentifierScheme(models.Model):
-    scheme_name = EnumField(IdentifierScheme, max_length=10)
+class IdentifierSchema(models.Model):
+    schema_type = EnumField(IdentifierSchemaType, max_length=10, unique=True)
 
 
 class Identifier(models.Model):
-    scheme = models.ForeignKey(IdentifierScheme, on_delete=models.CASCADE)
+    schema = models.ForeignKey(IdentifierSchema, on_delete=models.CASCADE)
     identifier = models.CharField(max_length=36)
 
     class Meta:
         unique_together = (
-            "scheme",
+            "schema",
             "identifier",
         )
 
