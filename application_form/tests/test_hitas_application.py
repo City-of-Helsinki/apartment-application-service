@@ -4,7 +4,7 @@ from rest_framework.reverse import reverse
 from application_form.api.serializers import HitasSerializer
 from application_form.tests.factories import HitasApplicationFactory
 
-list_url = reverse("v1:hitasapplication-list")
+list_url = reverse("v1/applications:hitasapplication-list")
 
 
 HITAS_APPLICATION_TEST_DATA = {
@@ -41,7 +41,10 @@ def test_hitas_applications_read(api_client):
 def test_hitas_application_single_read(api_client):
     hitas_application = HitasApplicationFactory()
     response = api_client.get(
-        reverse("v1:hitasapplication-detail", kwargs={"pk": hitas_application.id})
+        reverse(
+            "v1/applications:hitasapplication-detail",
+            kwargs={"pk": hitas_application.id},
+        )
     )
 
     assert response.status_code == 200
@@ -57,7 +60,11 @@ def test_hitas_application_update(api_client):
     data = serializer.data
     data["has_children"] = False
     response = api_client.put(
-        reverse("v1:hitasapplication-detail", kwargs={"pk": hitas_application.id}), data
+        reverse(
+            "v1/applications:hitasapplication-detail",
+            kwargs={"pk": hitas_application.id},
+        ),
+        data,
     )
 
     assert response.status_code == 200
@@ -71,7 +78,10 @@ def test_hitas_application_update(api_client):
 def test_hitas_application_delete(api_client):
     hitas_application = HitasApplicationFactory()
     response = api_client.delete(
-        reverse("v1:hitasapplication-detail", kwargs={"pk": hitas_application.id})
+        reverse(
+            "v1/applications:hitasapplication-detail",
+            kwargs={"pk": hitas_application.id},
+        )
     )
 
     assert response.status_code == 204

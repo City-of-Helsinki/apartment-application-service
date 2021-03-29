@@ -4,7 +4,7 @@ from rest_framework.reverse import reverse
 from application_form.api.serializers import HasoSerializer
 from application_form.tests.factories import HasoApplicationFactory
 
-list_url = reverse("v1:hasoapplication-list")
+list_url = reverse("v1/applications:hasoapplication-list")
 
 
 HASO_APPLICATION_TEST_DATA = {
@@ -53,7 +53,9 @@ def test_haso_applications_read(api_client):
 def test_haso_application_single_read(api_client):
     haso_application = HasoApplicationFactory()
     response = api_client.get(
-        reverse("v1:hasoapplication-detail", kwargs={"pk": haso_application.id})
+        reverse(
+            "v1/applications:hasoapplication-detail", kwargs={"pk": haso_application.id}
+        )
     )
 
     assert response.status_code == 200
@@ -72,7 +74,10 @@ def test_haso_application_update(api_client):
     data = serializer.data
     data["is_changing_occupancy_apartment"] = False
     response = api_client.put(
-        reverse("v1:hasoapplication-detail", kwargs={"pk": haso_application.id}), data
+        reverse(
+            "v1/applications:hasoapplication-detail", kwargs={"pk": haso_application.id}
+        ),
+        data,
     )
 
     assert response.status_code == 200
@@ -89,7 +94,9 @@ def test_haso_application_update(api_client):
 def test_haso_application_delete(api_client):
     haso_application = HasoApplicationFactory()
     response = api_client.delete(
-        reverse("v1:hasoapplication-detail", kwargs={"pk": haso_application.id})
+        reverse(
+            "v1/applications:hasoapplication-detail", kwargs={"pk": haso_application.id}
+        )
     )
 
     assert response.status_code == 204

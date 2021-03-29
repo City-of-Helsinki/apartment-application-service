@@ -137,12 +137,16 @@ def map_holding_type(elastic_apartment: Apartment) -> HoldingType:
     mapped, because this is a required value.
     """
     holding_type = getattr(elastic_apartment, "project_holding_type", None)
+
+    # temporal for broken test data
+    if holding_type in ["Condominium"]:
+        holding_type = "Osakehuoneisto"
+
     if holding_type in HOLDING_TYPE_MAPPING.keys():
         return HOLDING_TYPE_MAPPING[holding_type]
     else:
         raise ValueError(
-            _("project_holding_type %s not found in HOLDING_TYPE_MAPPING")
-            % holding_type
+            _(f"project_holding_type {holding_type} not found in HOLDING_TYPE_MAPPING")
         )
 
 
@@ -178,12 +182,16 @@ def map_realty_type(elastic_apartment: Apartment) -> str:
     """
     building_type = getattr(elastic_apartment, "project_building_type", None)
     realty_type_options = {realty_type.value: realty_type for realty_type in RealtyType}
+
+    # temporal for broken test data
+    if building_type in ["Flat", "Small house"]:
+        building_type = "Kerrostalo"
+
     if building_type in realty_type_options.keys():
         return realty_type_options[building_type]
     else:
         raise ValueError(
-            _("project_building_type %s not found in realty_type_options")
-            % building_type
+            _(f"project_building_type {building_type} not found in realty_type_options")
         )
 
 
@@ -194,6 +202,11 @@ def map_trade_type(elastic_apartment: Apartment) -> str:
     cannot be mapped, because this is a required value.
     """
     holding_type = getattr(elastic_apartment, "project_holding_type", None)
+
+    # temporal for broken test data
+    if holding_type in ["Condominium"]:
+        holding_type = "Osakehuoneisto"
+
     if holding_type in TRADE_TYPE_MAPPING.keys():
         return TRADE_TYPE_MAPPING[holding_type]
     else:

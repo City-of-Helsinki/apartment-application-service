@@ -151,7 +151,7 @@ def map_living_area(elastic_apartment: ElasticApartment) -> Optional[LivingArea]
 
 
 def map_lift(elastic_apartment: ElasticApartment) -> Optional[Lift]:
-    if getattr(elastic_apartment, "project_has_elevator"):
+    if getattr(elastic_apartment, "project_has_elevator", None):
         return Lift(value=elastic_apartment.project_has_elevator, description="")
     else:
         return None
