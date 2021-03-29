@@ -32,7 +32,7 @@ Create user and database
 
 Allow user to create test database
 
-    sudo -u postgres psql -c "ALTER USER apartment-application CREATEDB;"
+    sudo -u postgres psql -c "ALTER USER "apartment-application" CREATEDB;"
 
 ### Daily running
 
