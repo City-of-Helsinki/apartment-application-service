@@ -47,7 +47,7 @@ env = environ.Env(
     SOCIAL_AUTH_TUNNISTAMO_KEY=(str, ""),
     SOCIAL_AUTH_TUNNISTAMO_SECRET=(str, ""),
     SOCIAL_AUTH_TUNNISTAMO_OIDC_ENDPOINT=(str, ""),
-    ELASTICSEARCH_URL=(str, "http://apartment-application-elasticsearch:9200"),
+    ELASTICSEARCH_URL=(str, "http://apartment-application-elasticsearch"),
     ELASTICSEARCH_PORT=(int, 9200),
     APARTMENT_INDEX_NAME=(str, ""),
     ETUOVI_SUPPLIER_SOURCE_ITEMCODE=(str, ""),
@@ -57,11 +57,12 @@ env = environ.Env(
     ETUOVI_USER=(str, ""),
     ETUOVI_PASSWORD=(str, ""),
     OIKOTIE_VENDOR_ID=(str, ""),
-    OIKOTIE_COMPANY_NAME = (str, ""),
-    OIKOTIE_TRANSFER_ID = (str, ""),
-    OIKOTIE_FTP_HOST = (str, ""),
-    OIKOTIE_USER = (str, ""),
-    OIKOTIE_PASSWORD = (str, ""),
+    OIKOTIE_COMPANY_NAME=(str, ""),
+    OIKOTIE_ENTRYPOINT=(str, ""),
+    OIKOTIE_TRANSFER_ID=(str, ""),
+    OIKOTIE_FTP_HOST=(str, ""),
+    OIKOTIE_USER=(str, ""),
+    OIKOTIE_PASSWORD=(str, ""),
 )
 if os.path.exists(env_file):
     env.read_env(env_file)
@@ -230,6 +231,7 @@ ETUOVI_PASSWORD = env("ETUOVI_PASSWORD")
 # Oikotie settings
 OIKOTIE_VENDOR_ID = env("OIKOTIE_VENDOR_ID")
 OIKOTIE_COMPANY_NAME = env("OIKOTIE_COMPANY_NAME")
+OIKOTIE_ENTRYPOINT = env("OIKOTIE_ENTRYPOINT")
 OIKOTIE_TRANSFER_ID = env("OIKOTIE_TRANSFER_ID")
 OIKOTIE_FTP_HOST = env("OIKOTIE_FTP_HOST")
 OIKOTIE_USER = env("OIKOTIE_USER")

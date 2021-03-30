@@ -137,7 +137,7 @@ def map_holding_type(elastic_apartment: Apartment) -> HoldingType:
     mapped, because this is a required value.
     """
     holding_type = getattr(elastic_apartment, "project_holding_type", None)
-    
+
     # temporal for broken test data
     if holding_type in ['Condominium']:
         holding_type = 'Osakehuoneisto'
@@ -205,7 +205,6 @@ def map_trade_type(elastic_apartment: Apartment) -> str:
     # temporal for broken test data
     if holding_type in ['Condominium']:
         holding_type = 'Osakehuoneisto'
-
 
     if holding_type in TRADE_TYPE_MAPPING.keys():
         return TRADE_TYPE_MAPPING[holding_type]

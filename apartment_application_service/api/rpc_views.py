@@ -23,10 +23,9 @@ class ApartmentApplicationRPC(ViewSet):
     
     @action(methods=['get'], detail=False, url_path='send_etuovi_xml')
     def send_etuovi_xml(self, request):
-        s_obj = Search()
+        s_obj = Search().exclude("match", _language="en")
         response = s_obj.execute()
         scan = s_obj.scan()
-        errors = set()
         items = []
 
         for hit in scan:
@@ -34,51 +33,51 @@ class ApartmentApplicationRPC(ViewSet):
                 m = map_apartment_to_item(hit)
                 items.append(m)
             except ValueError as e:
-                errors.add(str(e))
-                # pass
+                print(f'-- could not map apartment {hit.meta.id}:', str(e))
+                pass
         try:
             send_items(items)
         except AttributeError:
+            pass
+        except Exception as e:
+            print('-- apartment XML not created:', {str(e)})
             pass
 
         return Response(f'Fetched {s_obj.count()} appartements', status=status.HTTP_200_OK)
     
     @action(methods=['get'], detail=False, url_path='send_oikotie_xml')
     def send_oikotie_xml(self, request):
-        s_obj = Search()
+        s_obj = Search().exclude("match", _language="en")
         response = s_obj.execute()
         scan = s_obj.scan()
-        errors = set()
         apartments = []
         housing_companies = []
-
-        # for hit in scan:
-        #     try:
-        #         m = map_apartment_to_item(hit)
-        #         if hit.type == apartment:
-        #             apartments.append(m)
-        #         if hit.type == housing_companies:
-        #             housing_companies.append(m)
-        items = []
 
         for hit in scan:
             try:
                 hc = map_oikotie_housing_company(hit)
-                a = map_oikotie_apartment(hit)
                 housing_companies.append(hc)
+            except ValueError as e:
+                print(f'-- could not map housing company {hit.meta.id}:', str(e))
+                pass
+            try:
+                a = map_oikotie_apartment(hit)
                 apartments.append(a)
             except ValueError as e:
-                errors.add(str(e))
+                print(f'-- could not map apartment {hit.meta.id}:', str(e))
                 pass
         try:
             create_housing_companies(housing_companies)
+        except AttributeError:
+            pass
         except Exception as e:
-            print(f'--- {str(e)}')
+            print('-- housing company XML not created:', {str(e)})
             pass
         try:
             create_apartments(apartments)
-        except Exception as e:
-            print(f'--- {str(e)}')
+        except AttributeError:
             pass
-
+        except Exception as e:
+            print('-- apartment XML not created:', {str(e)})
+            pass
         return Response(f'Fetched {s_obj.count()} apartments', status=status.HTTP_200_OK)
