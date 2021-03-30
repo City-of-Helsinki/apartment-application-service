@@ -74,6 +74,8 @@ class ApartmentApplicationRPC(ViewSet):
                 pass
         try:
             create_housing_companies(housing_companies)
+        except AttributeError:
+            pass
         except Exception as e:
             _logger.warn("Housing company XML not created:", {str(e)})
             return Response(
@@ -82,6 +84,8 @@ class ApartmentApplicationRPC(ViewSet):
 
         try:
             create_apartments(apartments)
+        except AttributeError:
+            pass
         except Exception as e:
             _logger.warn("Apartment XML not created:", {str(e)})
             return Response(
