@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime, date
 import factory
 import uuid
 from django.utils import timezone
@@ -60,18 +60,23 @@ class ApartmentFactory(factory.Factory):
     project_accessibility = fuzzy.FuzzyText()
     project_smoke_free = fuzzy.FuzzyText()
 
-    project_publication_start_time = fuzzy.FuzzyDateTime(timezone.now())
-    project_publication_end_time = fuzzy.FuzzyDateTime(timezone.now())
+    project_publication_start_time = (
+        fuzzy.FuzzyDateTime(timezone.now()).fuzz().strftime("%Y-%m-%dT%H:%M:%S%z")
+    )
+    project_publication_end_time = (
+        fuzzy.FuzzyDateTime(timezone.now()).fuzz().strftime("%Y-%m-%dT%H:%M:%S%z")
+    )
+    # .strftime("%Y-%m-%dT%H:%M:%S%z")
     project_premarketing_start_time = fuzzy.FuzzyDateTime(timezone.now())
     project_premarketing_end_time = fuzzy.FuzzyDateTime(timezone.now())
     project_application_start_time = fuzzy.FuzzyDateTime(timezone.now())
     project_application_end_time = fuzzy.FuzzyDateTime(timezone.now())
-    project_material_choice_dl = fuzzy.FuzzyDate(datetime.date.today())
-    project_shareholder_meeting_date = fuzzy.FuzzyDate(datetime.date.today())
+    project_material_choice_dl = fuzzy.FuzzyDate(date.today())
+    project_shareholder_meeting_date = fuzzy.FuzzyDate(date.today())
     project_estimated_completion = fuzzy.FuzzyText()
-    project_estimated_completion_date = fuzzy.FuzzyDate(datetime.date.today())
-    project_completion_date = fuzzy.FuzzyDate(datetime.date.today())
-    project_posession_transfer_date = fuzzy.FuzzyDate(datetime.date.today())
+    project_estimated_completion_date = fuzzy.FuzzyDate(date.today())
+    project_completion_date = fuzzy.FuzzyDate(date.today())
+    project_posession_transfer_date = fuzzy.FuzzyDate(date.today())
 
     project_attachment_urls = factory.List([fuzzy.FuzzyText() for _ in range(2)])
     project_main_image_url = fuzzy.FuzzyText()
@@ -99,7 +104,10 @@ class ApartmentFactory(factory.Factory):
     floor = fuzzy.FuzzyInteger(0, 9999999999)
     floor_max = fuzzy.FuzzyInteger(0, 9999999999)
     showing_times = factory.List(
-        [fuzzy.FuzzyDateTime(timezone.now()) for _ in range(2)]
+        [
+            fuzzy.FuzzyDateTime(timezone.now()).fuzz().strftime("%Y-%m-%dT%H:%M:%S%z")
+            for _ in range(2)
+        ]
     )
     apartment_structure = fuzzy.FuzzyText()
     room_count = fuzzy.FuzzyInteger(0, 9999999999)

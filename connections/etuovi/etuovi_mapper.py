@@ -2,6 +2,9 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
+from elasticsearch_dsl.utils import AttrList
+from typing import List, Optional, Tuple, Union
+
 from django_etuovi.enums import (
     Condition,
     Country,
@@ -16,9 +19,6 @@ from django_etuovi.enums import (
     TextLanguage,
 )
 from django_etuovi.items import Coordinate, ExtraLink, Image, Item, Scontact, Text
-from elasticsearch_dsl.utils import AttrList
-from typing import List, Optional, Tuple, Union
-import sys
 from connections.elastic_models import Apartment
 from connections.enums import Currency, Unit
 from connections.etuovi.field_mapper import (
@@ -139,14 +139,15 @@ def map_holding_type(elastic_apartment: Apartment) -> HoldingType:
     holding_type = getattr(elastic_apartment, "project_holding_type", None)
 
     # temporal for broken test data
-    if holding_type in ['Condominium']:
-        holding_type = 'Osakehuoneisto'
+    if holding_type in ["Condominium"]:
+        holding_type = "Osakehuoneisto"
 
     if holding_type in HOLDING_TYPE_MAPPING.keys():
         return HOLDING_TYPE_MAPPING[holding_type]
     else:
         raise ValueError(
-            _(f"project_holding_type {holding_type} not found in HOLDING_TYPE_MAPPING"))
+            _(f"project_holding_type {holding_type} not found in HOLDING_TYPE_MAPPING")
+        )
 
 
 def map_item_group(elastic_apartment: Apartment) -> ItemGroup:
@@ -183,9 +184,9 @@ def map_realty_type(elastic_apartment: Apartment) -> str:
     realty_type_options = {realty_type.value: realty_type for realty_type in RealtyType}
 
     # temporal for broken test data
-    if building_type in ['Flat', 'Small house']:
-        building_type = 'Kerrostalo'
-    
+    if building_type in ["Flat", "Small house"]:
+        building_type = "Kerrostalo"
+
     if building_type in realty_type_options.keys():
         return realty_type_options[building_type]
     else:
@@ -203,8 +204,8 @@ def map_trade_type(elastic_apartment: Apartment) -> str:
     holding_type = getattr(elastic_apartment, "project_holding_type", None)
 
     # temporal for broken test data
-    if holding_type in ['Condominium']:
-        holding_type = 'Osakehuoneisto'
+    if holding_type in ["Condominium"]:
+        holding_type = "Osakehuoneisto"
 
     if holding_type in TRADE_TYPE_MAPPING.keys():
         return TRADE_TYPE_MAPPING[holding_type]
