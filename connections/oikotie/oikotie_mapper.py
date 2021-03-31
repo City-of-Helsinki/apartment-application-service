@@ -54,8 +54,8 @@ def map_apartment_type(elastic_apartment: ElasticApartment) -> ApartmentType:
     project_building_type = getattr(elastic_apartment, "project_building_type", None)
 
     # temporal for broken test data
-    if project_building_type in ['Flat', 'Small house']:
-        project_building_type = 'Kerrostalo'
+    if project_building_type in ["Flat", "Small house"]:
+        project_building_type = "Kerrostalo"
 
     if project_building_type in APARTMENT_TYPE_MAPPING.keys():
         return APARTMENT_TYPE_MAPPING[project_building_type]
@@ -71,8 +71,8 @@ def map_mode_of_habitation(
     project_holding_type = getattr(elastic_apartment, "project_holding_type", None)
 
     # temporal for broken test data
-    if project_holding_type in ['Condominium']:
-        project_holding_type = 'Osakehuoneisto'
+    if project_holding_type in ["Condominium"]:
+        project_holding_type = "Osakehuoneisto"
 
     if project_holding_type in MODE_OF_HABITATION_MAPPING.keys():
         return ModeOfHabitation(type=MODE_OF_HABITATION_MAPPING[project_holding_type])
@@ -97,8 +97,8 @@ def map_estate(elastic_apartment: ElasticApartment) -> Optional[Estate]:
     project_holding_type = getattr(elastic_apartment, "project_holding_type", None)
 
     # temporal for broken test data
-    if project_holding_type in ['Condominium']:
-        project_holding_type = 'Osakehuoneisto'
+    if project_holding_type in ["Condominium"]:
+        project_holding_type = "Osakehuoneisto"
 
     if project_holding_type in ESTATE_TYPE_MAPPING.keys():
         return Estate(type=ESTATE_TYPE_MAPPING[project_holding_type])
@@ -301,9 +301,12 @@ def map_showing_date1(elastic_apartment: ElasticApartment) -> Optional[ShowingDa
         getattr(elastic_apartment, "showing_times", None)
         and len(elastic_apartment.showing_times) > 0
     ):
+        print("-- type showing times --", elastic_apartment.showing_times[0])
         return ShowingDate1(
-            value=datetime.strptime(elastic_apartment.showing_times[0],
-            '%Y-%m-%dT%H:%M:%S%z'), first_showing=True
+            value=datetime.strptime(
+                elastic_apartment.showing_times[0], "%Y-%m-%dT%H:%M:%S%z"
+            ),
+            first_showing=True,
         )
     else:
         return None
@@ -314,8 +317,9 @@ def map_showing_date2(elastic_apartment: ElasticApartment) -> Optional[date]:
         getattr(elastic_apartment, "showing_times", None)
         and len(elastic_apartment.showing_times) > 1
     ):
-        return datetime.strptime(elastic_apartment.showing_times[0],
-            '%Y-%m-%dT%H:%M:%S%z')
+        return datetime.strptime(
+            elastic_apartment.showing_times[0], "%Y-%m-%dT%H:%M:%S%z"
+        )
     else:
         return None
 
@@ -327,8 +331,9 @@ def map_showing_start_time(
         getattr(elastic_apartment, "showing_times", None)
         and len(elastic_apartment.showing_times) > index
     ):
-        return datetime.strptime(elastic_apartment.showing_times[index],
-            '%Y-%m-%dT%H:%M:%S%z').strftime('%H:%M')
+        return datetime.strptime(
+            elastic_apartment.showing_times[index], "%Y-%m-%dT%H:%M:%S%z"
+        ).strftime("%H:%M")
     else:
         return None
 
@@ -340,8 +345,9 @@ def map_showing_end_time(
         getattr(elastic_apartment, "showing_times", None)
         and len(elastic_apartment.showing_times) > index
     ):
-        estimated_end_time = datetime.strptime(elastic_apartment.showing_times[index],
-            '%Y-%m-%dT%H:%M:%S%z') + timedelta(hours=1)
+        estimated_end_time = datetime.strptime(
+            elastic_apartment.showing_times[index], "%Y-%m-%dT%H:%M:%S%z"
+        ) + timedelta(hours=1)
         return estimated_end_time.strftime("%H:%M")
     else:
         return None
@@ -533,11 +539,14 @@ def map_housing_company_pictures(
 
     return pictures
 
+
 def map_publication_time(time_value) -> Optional[date]:
+    print("-- type time value --", type(time_value))
     if time_value:
-        return datetime.strptime(time_value, '%Y-%m-%dT%H:%M:%S%z')
+        return datetime.strptime(time_value, "%Y-%m-%dT%H:%M:%S%z")
     else:
         return None
+
 
 def map_oikotie_housing_company(
     elastic_apartment: ElasticApartment,
@@ -551,13 +560,11 @@ def map_oikotie_housing_company(
         "real_estate_agent": map_real_estate_agent(elastic_apartment),
         "apartment": map_apartment(elastic_apartment),
         "address": map_address(elastic_apartment),
-        "publication_start_date": map_publication_time(getattr(
-            elastic_apartment, "project_publication_start_time", None
-            )
+        "publication_start_date": map_publication_time(
+            getattr(elastic_apartment, "project_publication_start_time", None)
         ),
-        "publication_end_date": map_publication_time(getattr(
-            elastic_apartment, "project_publication_end_time", None
-            )
+        "publication_end_date": map_publication_time(
+            getattr(elastic_apartment, "project_publication_end_time", None)
         ),
         "presentation_text": getattr(elastic_apartment, "project_description", None),
         "coordinates": map_coordinates(elastic_apartment),

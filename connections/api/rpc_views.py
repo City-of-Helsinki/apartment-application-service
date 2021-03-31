@@ -17,7 +17,7 @@ from connections.utils import create_elastic_connection
 _logger = logging.getLogger(__name__)
 
 
-class ApartmentApplicationRPC(ViewSet):
+class ConnectionsRPC(ViewSet):
     """
     An RPC class for calling special prosedures via api.
     """
@@ -36,7 +36,7 @@ class ApartmentApplicationRPC(ViewSet):
                 m = map_apartment_to_item(hit)
                 items.append(m)
             except ValueError as e:
-                _logger.warn(f"Could not map apartment {hit.meta.id}:", str(e))
+                _logger.warn(f"Could not map apartment {hit.uuid}:", str(e))
                 pass
         try:
             create_xml_file(items)

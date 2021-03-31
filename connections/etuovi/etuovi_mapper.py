@@ -2,6 +2,9 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
+from elasticsearch_dsl.utils import AttrList
+from typing import List, Optional, Tuple, Union
+
 from django_etuovi.enums import (
     Condition,
     Country,
