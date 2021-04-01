@@ -301,7 +301,6 @@ def map_showing_date1(elastic_apartment: ElasticApartment) -> Optional[ShowingDa
         getattr(elastic_apartment, "showing_times", None)
         and len(elastic_apartment.showing_times) > 0
     ):
-        print("-- type showing times --", elastic_apartment.showing_times[0])
         return ShowingDate1(
             value=datetime.strptime(
                 elastic_apartment.showing_times[0], "%Y-%m-%dT%H:%M:%S%z"
@@ -541,7 +540,6 @@ def map_housing_company_pictures(
 
 
 def map_publication_time(time_value) -> Optional[date]:
-    print("-- type time value --", type(time_value))
     if time_value:
         return datetime.strptime(time_value, "%Y-%m-%dT%H:%M:%S%z")
     else:

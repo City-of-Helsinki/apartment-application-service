@@ -8,8 +8,9 @@ from django_oikotie.enums import (
 
 # (elastic_project_building_type: oikotie_apartment_type)
 APARTMENT_TYPE_MAPPING = {
-    "Kerrostalo": ApartmentType.BLOCK_OF_FLATS,
-    "Rivitalo": ApartmentType.ROW_HOUSE,
+    "BLOCK_OF_FLATS": ApartmentType.BLOCK_OF_FLATS,
+    "ROW_HOUSE": ApartmentType.ROW_HOUSE,
+    "HOUSE": ApartmentType.HOUSE,
 }
 
 
@@ -21,8 +22,8 @@ CITY_IDS = {
 
 # (elastic_project_holding_type: oikotie_estate_type)
 ESTATE_TYPE_MAPPING = {
-    "Osakehuoneisto": EstateType.CONDOMINIUM,
-    "Asumisoikeushuoneisto": EstateType.REAL_ESTATE,
+    "CONDOMINIUM": EstateType.CONDOMINIUM,
+    "RIGHT_OF_RESIDENCE_APARTMENT": EstateType.REAL_ESTATE,
 }
 
 
@@ -34,8 +35,8 @@ GENERAL_CONDITION_LEVEL_MAPPING = {
 
 # (elastic_project_holding_type: oikotie_mode_of_habatation_type)
 MODE_OF_HABITATION_MAPPING = {
-    "Osakehuoneisto": ModeOfHabitationType.OWNED,
-    "Asumisoikeushuoneisto": ModeOfHabitationType.RIGHT_OF_OCCUPANCY,
+    "CONDOMINIUM": ModeOfHabitationType.OWNED,
+    "RIGHT_OF_RESIDENCE_APARTMENT": ModeOfHabitationType.RIGHT_OF_OCCUPANCY,
 }
 
 
