@@ -1,4 +1,4 @@
-from datetime import datetime, date
+from datetime import date
 import factory
 import uuid
 from django.utils import timezone
@@ -30,7 +30,7 @@ class ApartmentFactory(factory.Factory):
     project_uuid = str(uuid.uuid4())
 
     project_housing_company = fuzzy.FuzzyText()
-    project_holding_type = "Asumisoikeushuoneisto"
+    project_holding_type = "RIGHT_OF_RESIDENCE_APARTMENT"
     project_street_address = fuzzy.FuzzyText()
     project_postal_code = fuzzy.FuzzyText()
     project_city = "Helsinki"
@@ -55,7 +55,7 @@ class ApartmentFactory(factory.Factory):
     project_zoning_info = fuzzy.FuzzyText()
     project_zoning_status = fuzzy.FuzzyText()
 
-    project_building_type = "Kerrostalo"
+    project_building_type = "BLOCK_OF_FLATS"
     project_description = fuzzy.FuzzyText()
     project_accessibility = fuzzy.FuzzyText()
     project_smoke_free = fuzzy.FuzzyText()
@@ -66,7 +66,6 @@ class ApartmentFactory(factory.Factory):
     project_publication_end_time = (
         fuzzy.FuzzyDateTime(timezone.now()).fuzz().strftime("%Y-%m-%dT%H:%M:%S%z")
     )
-    # .strftime("%Y-%m-%dT%H:%M:%S%z")
     project_premarketing_start_time = fuzzy.FuzzyDateTime(timezone.now())
     project_premarketing_end_time = fuzzy.FuzzyDateTime(timezone.now())
     project_application_start_time = fuzzy.FuzzyDateTime(timezone.now())
@@ -120,7 +119,7 @@ class ApartmentFactory(factory.Factory):
     bathroom_appliances = fuzzy.FuzzyText()
     storage_description = fuzzy.FuzzyText()
     has_apartment_sauna = True
-    apartment_holding_type = "Asumisoikeushuoneisto"
+    apartment_holding_type = "RIGHT_OF_RESIDENCE_APARTMENT"
     view_description = fuzzy.FuzzyText()
     sales_price = fuzzy.FuzzyInteger(0, 9999999999)
     debt_free_sales_price = fuzzy.FuzzyInteger(0, 9999999999)
@@ -150,7 +149,7 @@ class ApartmentMinimalFactory(factory.Factory):
     project_uuid = str(uuid.uuid4())
 
     project_housing_company = fuzzy.FuzzyText()
-    project_holding_type = "Asumisoikeushuoneisto"
+    project_holding_type = "RIGHT_OF_RESIDENCE_APARTMENT"
     project_street_address = fuzzy.FuzzyText()
     project_postal_code = fuzzy.FuzzyText()
     project_city = "Helsinki"
@@ -162,7 +161,7 @@ class ApartmentMinimalFactory(factory.Factory):
     project_estimated_completion = fuzzy.FuzzyText()
     project_estate_agent_email = fuzzy.FuzzyText()
 
-    project_building_type = "Kerrostalo"
+    project_building_type = "BLOCK_OF_FLATS"
 
     uuid = str(uuid.uuid4())
 
