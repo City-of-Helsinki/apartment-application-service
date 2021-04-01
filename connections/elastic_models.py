@@ -121,5 +121,7 @@ class Apartment(ReadOnlyDocument):
     application_url = Keyword()
     image_urls = Keyword(multi=True)
 
+    project_state_of_sale = Keyword()
+
     class Index:
         name = settings.APARTMENT_INDEX_NAME

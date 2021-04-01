@@ -90,9 +90,10 @@ class ApartmentFactory(factory.Factory):
     project_estate_agent = fuzzy.FuzzyText()
     project_estate_agent_email = fuzzy.FuzzyText()
     project_estate_agent_phone = fuzzy.FuzzyText()
-
     project_coordinate_lat = fuzzy.FuzzyFloat(-90, 90)
     project_coordinate_lon = fuzzy.FuzzyFloat(-180, 180)
+    project_state_of_sale = fuzzy.FuzzyChoice(["PRE_MARKETING", "FOR_SALE", "SOLD"])
+    apartment_state_of_sale = fuzzy.FuzzyChoice(["SOLD", "FOR_SALE"])
 
     uuid = str(uuid.uuid4())
 
@@ -168,3 +169,5 @@ class ApartmentMinimalFactory(factory.Factory):
     room_count = fuzzy.FuzzyInteger(0, 9999999999)
     sales_price = fuzzy.FuzzyInteger(0, 9999999999)
     debt_free_sales_price = fuzzy.FuzzyInteger(0, 9999999999)
+    project_state_of_sale = fuzzy.FuzzyChoice(["PRE_MARKETING", "FOR_SALE", "SOLD"])
+    apartment_state_of_sale = fuzzy.FuzzyChoice(["SOLD", "FOR_SALE"])

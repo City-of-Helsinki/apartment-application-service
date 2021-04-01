@@ -8,7 +8,10 @@ def create_elastic_connection() -> None:
     Creates the ElasticSearch connection with the url provided in the settings.
     The ElasticSearch connection needs to be established before it can be accessed.
     """
-    connections.create_connection(hosts=[settings.ELASTICSEARCH_URL], port=settings.ELASTICSEARCH_PORT)
+    connections.create_connection(
+        hosts=[settings.ELASTICSEARCH_URL], port=settings.ELASTICSEARCH_PORT
+    )
+
 
 def convert_price_from_cents_to_eur(price: int) -> Decimal:
     """
