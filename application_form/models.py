@@ -1,8 +1,12 @@
+from django.conf import settings
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
+from enumfields import EnumField
 from simple_history.models import HistoricalRecords
 
 from apartment.models import Apartment
+
+from .enums import ApplicationState
 
 CURRENT_HOUSING_CHOICES = [
     ("Omistusasunto", "Omistusasunto"),
@@ -197,3 +201,36 @@ class HitasApplication(ApplicationMixin):
             else:
                 self.order = 1
         super(HitasApplication, self).save(**kwargs)
+
+
+
+
+
+class Application(models.model):
+    applicants_count = models.PositiveSmallIntegerField(
+        verbose_name=_("applicants count")
+    )
+    state = EnumField(
+        ApplicationState, max_length=15, default=ApplicationState.SUBMISSION
+    )
+
+
+class Applicant(models.Model):
+
+    first_name = models.CharField(verbose_name=_("first name"), max_length=50)
+    last_name = models.CharField(verbose_name=_("last name"), max_length=50)
+    email = models.CharField(verbose_name=_("email"), max_length=255)
+    has_children = models.BooleanField(
+        verbose_name=_("has children"), null=True, blank=True
+    )
+    age = models.PositiveSmallIntegerField(verbose_name=_("age"), null=True, blank=True)
+
+    is_primary_applicant = models.BooleanField(
+        verbose_name=_("is primary applicant"), default=False
+    )
+
+    application = models.ForeignKey(Application, on_delete=models.CASCADE)
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True
+    )
