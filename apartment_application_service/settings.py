@@ -123,6 +123,8 @@ INSTALLED_APPS = [
     "rest_framework",
     "simple_history",
     # local apps
+    "customer",
+    "apartment",
     "application_form",
     "connections",
     "users",

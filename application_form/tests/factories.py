@@ -1,11 +1,11 @@
 import factory
-import uuid
 from django.contrib.auth import get_user_model
 from factory import fuzzy
 from typing import List
 
+from apartment.models import Apartment
+from apartment.tests.factories import ApartmentFactory
 from application_form.models import (
-    Apartment,
     CURRENT_HOUSING_CHOICES,
     HasoApartmentPriority,
     HasoApplication,
@@ -18,14 +18,6 @@ class UserFactory(factory.django.DjangoModelFactory):
         model = get_user_model()
 
     username = factory.Sequence(lambda n: "user_%d" % (n + 1))
-
-
-class ApartmentFactory(factory.django.DjangoModelFactory):
-    class Meta:
-        model = Apartment
-
-    apartment_uuid = factory.Sequence(lambda n: "%s" % uuid.uuid4())
-    is_available = True
 
 
 class HasoApartmentPriorityFactory(factory.django.DjangoModelFactory):

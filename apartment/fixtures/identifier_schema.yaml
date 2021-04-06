@@ -1,0 +1,4 @@
+- model: apartment.IdentifierSchema
+  pk: 1
+  fields:
+    schema_type: "att_pro_es"

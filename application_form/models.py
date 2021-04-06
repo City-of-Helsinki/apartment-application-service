@@ -1,6 +1,12 @@
+from django.conf import settings
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
+from enumfields import EnumField
 from simple_history.models import HistoricalRecords
+
+from apartment.models import Apartment
+
+from .enums import ApplicationState
 
 CURRENT_HOUSING_CHOICES = [
     ("Omistusasunto", "Omistusasunto"),
@@ -22,40 +28,18 @@ HITAS_PERMISSIONS_LIST = [
 ]
 
 
-class Apartment(models.Model):
-    apartment_uuid = models.UUIDField(
-        verbose_name=_("apartment uuid"), primary_key=True
-    )
-    is_available = models.BooleanField(default=True, verbose_name=_("is available"))
-    history = HistoricalRecords()
-
-    @property
-    def haso_application_id_queue(self):
-        from application_form.selectors import get_apartment_haso_application_id_queue
-
-        return get_apartment_haso_application_id_queue(self)
-
-    @property
-    def hitas_application_queue(self):
-        from application_form.selectors import get_apartment_hitas_application_queue
-
-        return get_apartment_hitas_application_queue(self)
-
-    def save(self, **kwargs):
-        self.full_clean()
-        return super(Apartment, self).save(**kwargs)
-
-
 class ApplicationQuerySet(models.QuerySet):
     def active(self):
         """
-        Applications that are not rejected and applicant has not accepted an offered apartment.
+        Applications that are not rejected and applicant has not accepted an offered
+        apartment.
         """
         return self.filter(is_rejected=False, applicant_has_accepted_offer=False)
 
     def non_approved(self):
         """
-        Applications that are not yet approved or rejected and applicant has not accepted an offered apartment.
+        Applications that are not yet approved or rejected and applicant has not
+        accepted an offered apartment.
         """
         return self.filter(
             is_approved=False, is_rejected=False, applicant_has_accepted_offer=False
@@ -63,7 +47,8 @@ class ApplicationQuerySet(models.QuerySet):
 
     def approved(self):
         """
-        Applications that are approved, but the applicant has not accepted an offered apartment.
+        Applications that are approved, but the applicant has not accepted an offered
+        apartment.
         """
         return self.filter(is_approved=True, applicant_has_accepted_offer=False)
 
@@ -174,6 +159,7 @@ class HasoApartmentPriority(models.Model):
         Apartment,
         on_delete=models.CASCADE,
         related_name="haso_apartment_priorities",
+        null=True,
     )
     history = HistoricalRecords()
 
@@ -190,7 +176,10 @@ class HitasApplication(ApplicationMixin):
     )
     has_children = models.BooleanField(default=False, verbose_name=_("has children"))
     apartment = models.ForeignKey(
-        Apartment, on_delete=models.CASCADE, related_name="hitas_applications"
+        Apartment,
+        on_delete=models.CASCADE,
+        related_name="hitas_applications",
+        null=True,
     )
     order = models.PositiveIntegerField(verbose_name=_("order"))
 
@@ -212,3 +201,36 @@ class HitasApplication(ApplicationMixin):
             else:
                 self.order = 1
         super(HitasApplication, self).save(**kwargs)
+
+
+
+
+
+class Application(models.model):
+    applicants_count = models.PositiveSmallIntegerField(
+        verbose_name=_("applicants count")
+    )
+    state = EnumField(
+        ApplicationState, max_length=15, default=ApplicationState.SUBMISSION
+    )
+
+
+class Applicant(models.Model):
+
+    first_name = models.CharField(verbose_name=_("first name"), max_length=50)
+    last_name = models.CharField(verbose_name=_("last name"), max_length=50)
+    email = models.CharField(verbose_name=_("email"), max_length=255)
+    has_children = models.BooleanField(
+        verbose_name=_("has children"), null=True, blank=True
+    )
+    age = models.PositiveSmallIntegerField(verbose_name=_("age"), null=True, blank=True)
+
+    is_primary_applicant = models.BooleanField(
+        verbose_name=_("is primary applicant"), default=False
+    )
+
+    application = models.ForeignKey(Application, on_delete=models.CASCADE)
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True
+    )
