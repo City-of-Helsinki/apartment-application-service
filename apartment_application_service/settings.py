@@ -38,6 +38,7 @@ env = environ.Env(
     MAIL_MAILGUN_API=(str, ""),
     SENTRY_DSN=(str, ""),
     SENTRY_ENVIRONMENT=(str, ""),
+    LOG_LEVEL=(str, ""),
     CORS_ORIGIN_WHITELIST=(list, []),
     CORS_ORIGIN_ALLOW_ALL=(bool, False),
     OIDC_AUDIENCE=(str, ""),
@@ -182,7 +183,6 @@ LOGGING = {
         "console": {
             "level": "INFO",
             "class": "logging.StreamHandler",
-            "filename": "/var/log/refdata_indexer/reindex.log",
             "formatter": "standard",
         }
     },
@@ -194,7 +194,7 @@ LOGGING = {
             ],
         },
         "connections": {
-            "level": "DEBUG",
+            "level": env("LOG_LEVEL"),
             "handlers": [
                 "console",
             ],

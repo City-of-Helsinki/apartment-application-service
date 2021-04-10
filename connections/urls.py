@@ -1,7 +1,7 @@
 from django.urls import include, path
 from rest_framework import routers
-from connections.api.rpc_views import ConnectionsRPC
 
+from connections.api.rpc_views import ConnectionsRPC
 
 app_name = "connections"
 

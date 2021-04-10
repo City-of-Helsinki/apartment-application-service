@@ -1,6 +1,6 @@
-from datetime import date
 import factory
 import uuid
+from datetime import date
 from django.utils import timezone
 from elasticsearch_dsl import Document
 from factory import fuzzy

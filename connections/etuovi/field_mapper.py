@@ -1,4 +1,4 @@
-from django_etuovi.enums import Condition, HoldingType, TradeType, RealtyType
+from django_etuovi.enums import Condition, HoldingType, RealtyType, TradeType
 
 # (elastic_field_value: etuovi_condition)
 CONDITION_MAPPING = {

@@ -1,4 +1,4 @@
-from datetime import date, timedelta, datetime
+from datetime import date, datetime, timedelta
 from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
 from django_oikotie.enums import ApartmentType, NewDevelopmentStatusChoices
