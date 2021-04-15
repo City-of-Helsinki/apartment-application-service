@@ -49,13 +49,15 @@ class Apartment(models.Model):
 class ApplicationQuerySet(models.QuerySet):
     def active(self):
         """
-        Applications that are not rejected and applicant has not accepted an offered apartment.
+        Applications that are not rejected and applicant has not accepted an offered
+        apartment.
         """
         return self.filter(is_rejected=False, applicant_has_accepted_offer=False)
 
     def non_approved(self):
         """
-        Applications that are not yet approved or rejected and applicant has not accepted an offered apartment.
+        Applications that are not yet approved or rejected and applicant has not
+        accepted an offered apartment.
         """
         return self.filter(
             is_approved=False, is_rejected=False, applicant_has_accepted_offer=False
@@ -63,7 +65,8 @@ class ApplicationQuerySet(models.QuerySet):
 
     def approved(self):
         """
-        Applications that are approved, but the applicant has not accepted an offered apartment.
+        Applications that are approved, but the applicant has not accepted an offered
+        apartment.
         """
         return self.filter(is_approved=True, applicant_has_accepted_offer=False)
 

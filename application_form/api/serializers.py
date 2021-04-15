@@ -8,7 +8,8 @@ from application_form.services import (
 
 
 class HasoSerializer(serializers.ModelSerializer):
-    # List of apartment UUIDs that can be created as apartments / queried from apartments for sending
+    # List of apartment UUIDs that can be created as apartments / queried from
+    # apartments for sending
     apartment_uuids = serializers.ListField(child=serializers.UUIDField())
 
     class Meta:
@@ -45,7 +46,8 @@ class HasoSerializer(serializers.ModelSerializer):
 
 
 class HitasSerializer(serializers.ModelSerializer):
-    # Apartment UUID that can be created as an apartment / queried from apartments for sending
+    # Apartment UUID that can be created as an apartment / queried from apartments for
+    # sending
     apartment_uuid = serializers.UUIDField(source="apartment.apartment_uuid")
 
     class Meta:
