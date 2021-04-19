@@ -225,10 +225,6 @@ REST_FRAMEWORK = {
         "helusers.oidc.ApiTokenAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ),
-    # Not working with views without queryset
-    # "DEFAULT_PERMISSION_CLASSES": (
-    #     "rest_framework.permissions.DjangoModelPermissions",
-    # ),
 }
 
 OIDC_API_TOKEN_AUTH = {

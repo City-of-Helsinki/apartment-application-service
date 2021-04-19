@@ -4,6 +4,7 @@ from django_oikotie.oikotie import create_apartments, create_housing_companies
 from elasticsearch_dsl import Search
 from rest_framework import status
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 
@@ -21,6 +22,8 @@ class ConnectionsRPC(ViewSet):
     """
     An RPC class for calling special prosedures via api.
     """
+
+    permission_classes = (IsAuthenticated,)
 
     create_elastic_connection()
 
