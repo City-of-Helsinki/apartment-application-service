@@ -24,6 +24,7 @@ from connections.enums import Currency, Unit
 from connections.etuovi.field_mapper import (
     CONDITION_MAPPING,
     HOLDING_TYPE_MAPPING,
+    REALTY_TYPE_MAPPING,
     TRADE_TYPE_MAPPING,
 )
 from connections.utils import convert_price_from_cents_to_eur
@@ -141,8 +142,7 @@ def map_holding_type(elastic_apartment: Apartment) -> HoldingType:
         return HOLDING_TYPE_MAPPING[holding_type]
     else:
         raise ValueError(
-            _("project_holding_type %s not found in HOLDING_TYPE_MAPPING")
-            % holding_type
+            _(f"project_holding_type {holding_type} not found in HOLDING_TYPE_MAPPING")
         )
 
 
@@ -170,20 +170,18 @@ def map_realty_group(elastic_apartment: Apartment) -> Optional[RealtyGroup]:
         return RealtyGroup.RESIDENTIAL_APARTMENT
 
 
-def map_realty_type(elastic_apartment: Apartment) -> str:
+def map_realty_type(elastic_apartment: Apartment) -> RealtyType:
     """
     Tries to match the given project_building_type value with the options
     in ElasticSearch. Raises an error if the holding type cannot be
     mapped, because this is a required value.
     """
-    building_type = getattr(elastic_apartment, "project_building_type", None)
-    realty_type_options = {realty_type.value: realty_type for realty_type in RealtyType}
-    if building_type in realty_type_options.keys():
-        return realty_type_options[building_type]
+    realty_type = getattr(elastic_apartment, "project_building_type", None)
+    if realty_type in REALTY_TYPE_MAPPING.keys():
+        return REALTY_TYPE_MAPPING[realty_type]
     else:
         raise ValueError(
-            _("project_building_type %s not found in realty_type_options")
-            % building_type
+            _(f"project_building_type {realty_type} not found in REALTY_TYPE_MAPPING")
         )
 
 

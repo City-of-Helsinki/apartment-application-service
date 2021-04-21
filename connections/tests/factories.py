@@ -1,6 +1,6 @@
-import datetime
 import factory
 import uuid
+from datetime import date
 from django.utils import timezone
 from elasticsearch_dsl import Document
 from factory import fuzzy
@@ -30,7 +30,7 @@ class ApartmentFactory(factory.Factory):
     project_uuid = str(uuid.uuid4())
 
     project_housing_company = fuzzy.FuzzyText()
-    project_holding_type = "Asumisoikeushuoneisto"
+    project_holding_type = "RIGHT_OF_RESIDENCE_APARTMENT"
     project_street_address = fuzzy.FuzzyText()
     project_postal_code = fuzzy.FuzzyText()
     project_city = "Helsinki"
@@ -55,23 +55,27 @@ class ApartmentFactory(factory.Factory):
     project_zoning_info = fuzzy.FuzzyText()
     project_zoning_status = fuzzy.FuzzyText()
 
-    project_building_type = "Kerrostalo"
+    project_building_type = "BLOCK_OF_FLATS"
     project_description = fuzzy.FuzzyText()
     project_accessibility = fuzzy.FuzzyText()
     project_smoke_free = fuzzy.FuzzyText()
 
-    project_publication_start_time = fuzzy.FuzzyDateTime(timezone.now())
-    project_publication_end_time = fuzzy.FuzzyDateTime(timezone.now())
+    project_publication_start_time = (
+        fuzzy.FuzzyDateTime(timezone.now()).fuzz().strftime("%Y-%m-%dT%H:%M:%S%z")
+    )
+    project_publication_end_time = (
+        fuzzy.FuzzyDateTime(timezone.now()).fuzz().strftime("%Y-%m-%dT%H:%M:%S%z")
+    )
     project_premarketing_start_time = fuzzy.FuzzyDateTime(timezone.now())
     project_premarketing_end_time = fuzzy.FuzzyDateTime(timezone.now())
     project_application_start_time = fuzzy.FuzzyDateTime(timezone.now())
     project_application_end_time = fuzzy.FuzzyDateTime(timezone.now())
-    project_material_choice_dl = fuzzy.FuzzyDate(datetime.date.today())
-    project_shareholder_meeting_date = fuzzy.FuzzyDate(datetime.date.today())
+    project_material_choice_dl = fuzzy.FuzzyDate(date.today())
+    project_shareholder_meeting_date = fuzzy.FuzzyDate(date.today())
     project_estimated_completion = fuzzy.FuzzyText()
-    project_estimated_completion_date = fuzzy.FuzzyDate(datetime.date.today())
-    project_completion_date = fuzzy.FuzzyDate(datetime.date.today())
-    project_posession_transfer_date = fuzzy.FuzzyDate(datetime.date.today())
+    project_estimated_completion_date = fuzzy.FuzzyDate(date.today())
+    project_completion_date = fuzzy.FuzzyDate(date.today())
+    project_posession_transfer_date = fuzzy.FuzzyDate(date.today())
 
     project_attachment_urls = factory.List([fuzzy.FuzzyText() for _ in range(2)])
     project_main_image_url = fuzzy.FuzzyText()
@@ -99,7 +103,10 @@ class ApartmentFactory(factory.Factory):
     floor = fuzzy.FuzzyInteger(0, 9999999999)
     floor_max = fuzzy.FuzzyInteger(0, 9999999999)
     showing_times = factory.List(
-        [fuzzy.FuzzyDateTime(timezone.now()) for _ in range(2)]
+        [
+            fuzzy.FuzzyDateTime(timezone.now()).fuzz().strftime("%Y-%m-%dT%H:%M:%S%z")
+            for _ in range(2)
+        ]
     )
     apartment_structure = fuzzy.FuzzyText()
     room_count = fuzzy.FuzzyInteger(0, 9999999999)
@@ -112,7 +119,7 @@ class ApartmentFactory(factory.Factory):
     bathroom_appliances = fuzzy.FuzzyText()
     storage_description = fuzzy.FuzzyText()
     has_apartment_sauna = True
-    apartment_holding_type = "Asumisoikeushuoneisto"
+    apartment_holding_type = "RIGHT_OF_RESIDENCE_APARTMENT"
     view_description = fuzzy.FuzzyText()
     sales_price = fuzzy.FuzzyInteger(0, 9999999999)
     debt_free_sales_price = fuzzy.FuzzyInteger(0, 9999999999)
@@ -142,7 +149,7 @@ class ApartmentMinimalFactory(factory.Factory):
     project_uuid = str(uuid.uuid4())
 
     project_housing_company = fuzzy.FuzzyText()
-    project_holding_type = "Asumisoikeushuoneisto"
+    project_holding_type = "RIGHT_OF_RESIDENCE_APARTMENT"
     project_street_address = fuzzy.FuzzyText()
     project_postal_code = fuzzy.FuzzyText()
     project_city = "Helsinki"
@@ -154,7 +161,7 @@ class ApartmentMinimalFactory(factory.Factory):
     project_estimated_completion = fuzzy.FuzzyText()
     project_estate_agent_email = fuzzy.FuzzyText()
 
-    project_building_type = "Kerrostalo"
+    project_building_type = "BLOCK_OF_FLATS"
 
     uuid = str(uuid.uuid4())
 

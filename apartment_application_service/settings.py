@@ -38,6 +38,7 @@ env = environ.Env(
     MAIL_MAILGUN_API=(str, ""),
     SENTRY_DSN=(str, ""),
     SENTRY_ENVIRONMENT=(str, ""),
+    LOG_LEVEL=(str, ""),
     CORS_ORIGIN_WHITELIST=(list, []),
     CORS_ORIGIN_ALLOW_ALL=(bool, False),
     OIDC_AUDIENCE=(str, ""),
@@ -47,7 +48,8 @@ env = environ.Env(
     SOCIAL_AUTH_TUNNISTAMO_KEY=(str, ""),
     SOCIAL_AUTH_TUNNISTAMO_SECRET=(str, ""),
     SOCIAL_AUTH_TUNNISTAMO_OIDC_ENDPOINT=(str, ""),
-    ELASTICSEARCH_URL=(str, "http://apartment-application-elasticsearch:9200"),
+    ELASTICSEARCH_URL=(str, "http://apartment-application-elasticsearch"),
+    ELASTICSEARCH_PORT=(int, 9200),
     APARTMENT_INDEX_NAME=(str, ""),
     ETUOVI_SUPPLIER_SOURCE_ITEMCODE=(str, ""),
     ETUOVI_COMPANY_NAME=(str, ""),
@@ -56,6 +58,12 @@ env = environ.Env(
     ETUOVI_USER=(str, ""),
     ETUOVI_PASSWORD=(str, ""),
     OIKOTIE_VENDOR_ID=(str, ""),
+    OIKOTIE_COMPANY_NAME=(str, ""),
+    OIKOTIE_ENTRYPOINT=(str, ""),
+    OIKOTIE_TRANSFER_ID=(str, ""),
+    OIKOTIE_FTP_HOST=(str, ""),
+    OIKOTIE_USER=(str, ""),
+    OIKOTIE_PASSWORD=(str, ""),
 )
 if os.path.exists(env_file):
     env.read_env(env_file)
@@ -165,8 +173,35 @@ CORS_ORIGIN_ALLOW_ALL = env.bool("CORS_ORIGIN_ALLOW_ALL")
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "handlers": {"console": {"class": "logging.StreamHandler"}},
-    "loggers": {"django": {"handlers": ["console"], "level": "ERROR"}},
+    "formatters": {
+        "standard": {
+            "format": "%(asctime)s p%(process)d %(name)s %(levelname)s: %(message)s",
+            "datefmt": "%Y-%m-%dT%H:%M:%S.%03dZ",
+        }
+    },
+    "handlers": {
+        "console": {
+            "level": "INFO",
+            "class": "logging.StreamHandler",
+            "formatter": "standard",
+        }
+    },
+    "loggers": {
+        "": {
+            "level": "WARNING",
+            "handlers": [
+                "console",
+            ],
+        },
+        "connections": {
+            "level": env("LOG_LEVEL"),
+            "handlers": [
+                "console",
+            ],
+            # required to avoid double logging with root logger
+            "propagate": False,
+        },
+    },
 }
 
 SITE_ID = 1
@@ -190,9 +225,6 @@ REST_FRAMEWORK = {
         "helusers.oidc.ApiTokenAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ),
-    "DEFAULT_PERMISSION_CLASSES": (
-        "rest_framework.permissions.DjangoModelPermissions",
-    ),
 }
 
 OIDC_API_TOKEN_AUTH = {
@@ -210,6 +242,7 @@ SOCIAL_AUTH_TUNNISTAMO_OIDC_ENDPOINT = env("SOCIAL_AUTH_TUNNISTAMO_OIDC_ENDPOINT
 
 # Elasticsearch
 ELASTICSEARCH_URL = env("ELASTICSEARCH_URL")
+ELASTICSEARCH_PORT = env("ELASTICSEARCH_PORT")
 APARTMENT_INDEX_NAME = env("APARTMENT_INDEX_NAME")
 
 # Etuovi settings
@@ -222,6 +255,12 @@ ETUOVI_PASSWORD = env("ETUOVI_PASSWORD")
 
 # Oikotie settings
 OIKOTIE_VENDOR_ID = env("OIKOTIE_VENDOR_ID")
+OIKOTIE_COMPANY_NAME = env("OIKOTIE_COMPANY_NAME")
+OIKOTIE_ENTRYPOINT = env("OIKOTIE_ENTRYPOINT")
+OIKOTIE_TRANSFER_ID = env("OIKOTIE_TRANSFER_ID")
+OIKOTIE_FTP_HOST = env("OIKOTIE_FTP_HOST")
+OIKOTIE_USER = env("OIKOTIE_USER")
+OIKOTIE_PASSWORD = env("OIKOTIE_PASSWORD")
 
 # local_settings.py can be used to override environment-specific settings
 # like database and email that differ between development and production.

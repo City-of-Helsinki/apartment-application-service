@@ -138,3 +138,9 @@ dmypy.json
 !.vscode/launch.json
 !.vscode/extensions.json
 *.code-workspace
+
+# test XML files
+APTATT*.xml
+hkikaupunkiymparisto*.xml
+HOUSINGCOMPANYATT*.xml
+UPDATE*.xml
