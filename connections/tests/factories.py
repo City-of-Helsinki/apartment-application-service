@@ -22,10 +22,15 @@ class ApartmentTest(Apartment):
         name = "test-apartment"
 
 
+def get_uuid():
+    return str(uuid.uuid4)
+
+
 class ApartmentFactory(factory.Factory):
     class Meta:
         model = ApartmentTest
 
+    _language = fuzzy.FuzzyChoice(["en", "fi", "sv"])
     project_id = fuzzy.FuzzyInteger(0, 9999999999)
     project_uuid = str(uuid.uuid4())
 
@@ -94,7 +99,10 @@ class ApartmentFactory(factory.Factory):
     project_coordinate_lat = fuzzy.FuzzyFloat(-90, 90)
     project_coordinate_lon = fuzzy.FuzzyFloat(-180, 180)
 
-    uuid = str(uuid.uuid4())
+    project_state_of_sale = fuzzy.FuzzyChoice(["PRE_MARKETING", "FOR_SALE", "SOLD"])
+    apartment_state_of_sale = fuzzy.FuzzyChoice(["RESERVED", "FOR_SALE"])
+
+    uuid = fuzzy.FuzzyAttribute(get_uuid)
 
     apartment_address = fuzzy.FuzzyText()
     apartment_number = fuzzy.FuzzyText()
@@ -145,6 +153,7 @@ class ApartmentMinimalFactory(factory.Factory):
     class Meta:
         model = ApartmentTest
 
+    _language = fuzzy.FuzzyChoice(["en", "fi"])
     project_id = fuzzy.FuzzyInteger(0, 9999999999)
     project_uuid = str(uuid.uuid4())
 
@@ -163,8 +172,11 @@ class ApartmentMinimalFactory(factory.Factory):
 
     project_building_type = "BLOCK_OF_FLATS"
 
-    uuid = str(uuid.uuid4())
+    uuid = fuzzy.FuzzyAttribute(get_uuid)
 
     room_count = fuzzy.FuzzyInteger(0, 9999999999)
     sales_price = fuzzy.FuzzyInteger(0, 9999999999)
     debt_free_sales_price = fuzzy.FuzzyInteger(0, 9999999999)
+
+    project_state_of_sale = fuzzy.FuzzyChoice(["PRE_MARKETING", "FOR_SALE", "SOLD"])
+    apartment_state_of_sale = fuzzy.FuzzyChoice(["RESERVED", "FOR_SALE"])
