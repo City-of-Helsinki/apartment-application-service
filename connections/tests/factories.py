@@ -1,11 +1,15 @@
 import factory
+import string
 import uuid
 from datetime import date
 from django.utils import timezone
 from elasticsearch_dsl import Document
 from factory import fuzzy
+from faker import Faker
 
 from connections.elastic_models import Apartment
+
+fake = Faker()
 
 
 class ApartmentTest(Apartment):
@@ -37,7 +41,7 @@ class ApartmentFactory(factory.Factory):
     project_housing_company = fuzzy.FuzzyText()
     project_holding_type = "RIGHT_OF_RESIDENCE_APARTMENT"
     project_street_address = fuzzy.FuzzyText()
-    project_postal_code = fuzzy.FuzzyText()
+    project_postal_code = fuzzy.FuzzyText(length=6, chars=string.digits)
     project_city = "Helsinki"
     project_district = fuzzy.FuzzyText()
     project_realty_id = fuzzy.FuzzyText()
@@ -93,7 +97,7 @@ class ApartmentFactory(factory.Factory):
     project_constructor = fuzzy.FuzzyText()
     project_housing_manager = fuzzy.FuzzyText()
     project_estate_agent = fuzzy.FuzzyText()
-    project_estate_agent_email = fuzzy.FuzzyText()
+    project_estate_agent_email = fake.email()
     project_estate_agent_phone = fuzzy.FuzzyText()
 
     project_coordinate_lat = fuzzy.FuzzyFloat(-90, 90)
@@ -160,7 +164,7 @@ class ApartmentMinimalFactory(factory.Factory):
     project_housing_company = fuzzy.FuzzyText()
     project_holding_type = "RIGHT_OF_RESIDENCE_APARTMENT"
     project_street_address = fuzzy.FuzzyText()
-    project_postal_code = fuzzy.FuzzyText()
+    project_postal_code = fuzzy.FuzzyText(length=6, chars=string.digits)
     project_city = "Helsinki"
     project_district = fuzzy.FuzzyText()
     project_realty_id = fuzzy.FuzzyText()
@@ -168,7 +172,7 @@ class ApartmentMinimalFactory(factory.Factory):
     project_new_housing = True
     project_apartment_count = fuzzy.FuzzyInteger(0, 9999999999)
     project_estimated_completion = fuzzy.FuzzyText()
-    project_estate_agent_email = fuzzy.FuzzyText()
+    project_estate_agent_email = fake.email()
 
     project_building_type = "BLOCK_OF_FLATS"
 
