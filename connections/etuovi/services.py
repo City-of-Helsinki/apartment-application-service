@@ -7,7 +7,7 @@ from connections.etuovi.etuovi_mapper import map_apartment_to_item
 _logger = logging.getLogger(__name__)
 
 
-def fetch_apartments_for_sale():
+def fetch_apartments_for_sale() -> list:
     s_obj = (
         Search()
         .query("match", _language="fi")
@@ -32,7 +32,10 @@ def fetch_apartments_for_sale():
     return items
 
 
-def create_xml(items):
+def create_xml(items: list) -> str:
+    if not items:
+        _logger.warning("Apartment XML not created: there were no apartments")
+        return None
     try:
         xml_filename = create_xml_file(items)
         _logger.info(f"Created XML file for apartments in location {xml_filename}")
