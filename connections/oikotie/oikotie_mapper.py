@@ -45,6 +45,7 @@ from connections.oikotie.field_mapper import (
     ESTATE_TYPE_MAPPING,
     GENERAL_CONDITION_LEVEL_MAPPING,
     MODE_OF_HABITATION_MAPPING,
+    NEW_DEVELOPMENT_STATUS_MAPPING,
     SITE_MAPPING,
 )
 from connections.utils import convert_price_from_cents_to_eur
@@ -349,8 +350,21 @@ def map_showing_date_explanation(
         return None
 
 
-def get_new_development_status() -> NewDevelopmentStatus:
-    return NewDevelopmentStatus(value=NewDevelopmentStatusChoices.READY_TO_MOVE)
+def map_new_development_status(
+    elastic_apartment: ElasticApartment,
+) -> NewDevelopmentStatusChoices:
+    project_new_development_status = getattr(
+        elastic_apartment, "project_new_development_status", None
+    )
+    if project_new_development_status in NEW_DEVELOPMENT_STATUS_MAPPING.keys():
+        return NewDevelopmentStatus(
+            NEW_DEVELOPMENT_STATUS_MAPPING[project_new_development_status]
+        )
+    else:
+        raise ValueError(
+            _("could not map the project_new_development_status %s")
+            % project_new_development_status
+        )
 
 
 def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:
@@ -443,7 +457,7 @@ def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:
         "showing_date_explanation2": map_showing_date_explanation(elastic_apartment, 1),
         "application_url": getattr(elastic_apartment, "application_url", None),
         "rc_energyclass": getattr(elastic_apartment, "project_energy_class", None),
-        "new_development_status": get_new_development_status(),
+        "new_development_status": map_new_development_status(elastic_apartment),
         "time_of_completion": getattr(
             elastic_apartment, "project_completion_date", None
         ),
