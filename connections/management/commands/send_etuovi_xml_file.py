@@ -9,7 +9,7 @@ _logger = logging.getLogger(__name__)
 create_elastic_connection()
 
 
-class Command(BaseCommand):
+class Command(BaseCommand):  # pragma: no cover
     help = "Generate apartments XML file to be shown in Etuovi and send it via FTP"
 
     def add_arguments(self, parser):

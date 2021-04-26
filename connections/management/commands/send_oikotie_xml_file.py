@@ -13,7 +13,7 @@ _logger = logging.getLogger(__name__)
 create_elastic_connection()
 
 
-class Command(BaseCommand):
+class Command(BaseCommand):  # pragma: no cover
     help = "Generate apartments and housing companies XML files to be shown in Oikotie \
 and send them via FTP"
 
