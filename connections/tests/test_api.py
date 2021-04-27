@@ -36,3 +36,12 @@ class TestConnectionsApis:
         response = api_client.get("/v1/connections/get_mapped_apartments", follow=True)
 
         assert response.data == []
+
+    @pytest.mark.usefixtures("not_sending_oikotie_ftp", "not_sending_etuovi_ftp")
+    def test_mapped_apartments_removed_from_database(self, api_client):
+        call_command("send_etuovi_xml_file")
+        call_command("send_oikotie_xml_file")
+        call_command("empty_mapped_apartments_database")
+        response = api_client.get("/v1/connections/get_mapped_apartments", follow=True)
+
+        assert response.data == []
