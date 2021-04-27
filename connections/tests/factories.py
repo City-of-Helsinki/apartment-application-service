@@ -8,6 +8,7 @@ from factory import fuzzy
 from faker import Faker
 
 from connections.elastic_models import Apartment
+from connections.oikotie.field_mapper import NEW_DEVELOPMENT_STATUS_MAPPING
 
 fake = Faker()
 
@@ -46,7 +47,9 @@ class ApartmentFactory(factory.Factory):
     project_district = fuzzy.FuzzyText()
     project_realty_id = fuzzy.FuzzyText()
     project_construction_year = fuzzy.FuzzyInteger(2000, 3000)
-    project_new_development_status = fuzzy.FuzzyText()
+    project_new_development_status = fuzzy.FuzzyChoice(
+        NEW_DEVELOPMENT_STATUS_MAPPING.keys()
+    )
     project_new_housing = True
     project_apartment_count = fuzzy.FuzzyInteger(0, 9999999999)
     project_parkingplace_count = fuzzy.FuzzyInteger(0, 9999999999)
@@ -168,7 +171,9 @@ class ApartmentMinimalFactory(factory.Factory):
     project_city = "Helsinki"
     project_district = fuzzy.FuzzyText()
     project_realty_id = fuzzy.FuzzyText()
-    project_new_development_status = fuzzy.FuzzyText()
+    project_new_development_status = fuzzy.FuzzyChoice(
+        NEW_DEVELOPMENT_STATUS_MAPPING.keys()
+    )
     project_new_housing = True
     project_apartment_count = fuzzy.FuzzyInteger(0, 9999999999)
     project_estimated_completion = fuzzy.FuzzyText()
