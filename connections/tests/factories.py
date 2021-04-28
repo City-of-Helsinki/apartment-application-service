@@ -8,6 +8,7 @@ from factory import fuzzy
 from faker import Faker
 
 from connections.elastic_models import Apartment
+from connections.enums import ApartmentStateOfSale, ProjectStateOfSale
 from connections.oikotie.field_mapper import NEW_DEVELOPMENT_STATUS_MAPPING
 
 fake = Faker()
@@ -28,7 +29,7 @@ class ApartmentTest(Apartment):
 
 
 def get_uuid():
-    return str(uuid.uuid4)
+    return str(uuid.uuid4())
 
 
 class ApartmentFactory(factory.Factory):
@@ -106,8 +107,8 @@ class ApartmentFactory(factory.Factory):
     project_coordinate_lat = fuzzy.FuzzyFloat(-90, 90)
     project_coordinate_lon = fuzzy.FuzzyFloat(-180, 180)
 
-    project_state_of_sale = fuzzy.FuzzyChoice(["PRE_MARKETING", "FOR_SALE", "SOLD"])
-    apartment_state_of_sale = fuzzy.FuzzyChoice(["RESERVED", "FOR_SALE"])
+    project_state_of_sale = fuzzy.FuzzyChoice(ProjectStateOfSale)
+    apartment_state_of_sale = fuzzy.FuzzyChoice(ApartmentStateOfSale)
 
     uuid = fuzzy.FuzzyAttribute(get_uuid)
 
@@ -182,10 +183,9 @@ class ApartmentMinimalFactory(factory.Factory):
     project_building_type = "BLOCK_OF_FLATS"
 
     uuid = fuzzy.FuzzyAttribute(get_uuid)
-
     room_count = fuzzy.FuzzyInteger(0, 9999999999)
     sales_price = fuzzy.FuzzyInteger(0, 9999999999)
     debt_free_sales_price = fuzzy.FuzzyInteger(0, 9999999999)
 
-    project_state_of_sale = fuzzy.FuzzyChoice(["PRE_MARKETING", "FOR_SALE", "SOLD"])
-    apartment_state_of_sale = fuzzy.FuzzyChoice(["RESERVED", "FOR_SALE"])
+    project_state_of_sale = fuzzy.FuzzyChoice(ProjectStateOfSale)
+    apartment_state_of_sale = fuzzy.FuzzyChoice(ApartmentStateOfSale)
