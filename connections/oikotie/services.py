@@ -6,10 +6,8 @@ from connections.oikotie.oikotie_mapper import (
     map_oikotie_apartment,
     map_oikotie_housing_company,
 )
-from connections.utils import create_elastic_connection
 
 _logger = logging.getLogger(__name__)
-create_elastic_connection()
 
 
 def fetch_apartments_for_sale() -> (list, list):
