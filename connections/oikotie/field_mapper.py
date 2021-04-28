@@ -3,6 +3,7 @@ from django_oikotie.enums import (
     EstateType,
     GeneralConditionLevel,
     ModeOfHabitationType,
+    NewDevelopmentStatusChoices,
     SiteType,
 )
 
@@ -44,4 +45,11 @@ MODE_OF_HABITATION_MAPPING = {
 SITE_MAPPING = {
     "Oma": SiteType.OWNED,
     "Vuokra": SiteType.RENT,
+}
+
+NEW_DEVELOPMENT_STATUS_MAPPING = {
+    "UNDER_PLANNING": NewDevelopmentStatusChoices.UNDER_PLANNING,
+    "PRE_MARKETING": NewDevelopmentStatusChoices.PRE_MARKETING,
+    "UNDER_CONSTRUCTION": NewDevelopmentStatusChoices.UNDER_CONSTRUCTION,
+    "READY_TO_MOVE": NewDevelopmentStatusChoices.READY_TO_MOVE,
 }
