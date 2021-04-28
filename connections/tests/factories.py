@@ -28,7 +28,7 @@ class ApartmentTest(Apartment):
 
 
 def get_uuid():
-    return str(uuid.uuid4)
+    return str(uuid.uuid4())
 
 
 class ApartmentFactory(factory.Factory):
