@@ -5,7 +5,9 @@ from django_etuovi.etuovi import create_xml_file
 from elasticsearch_dsl import Search
 from typing import Tuple
 
+from connections.enums import ApartmentStateOfSale
 from connections.etuovi.etuovi_mapper import map_apartment_to_item
+from connections.models import MappedApartment
 
 _logger = logging.getLogger(__name__)
 
@@ -14,7 +16,7 @@ def fetch_apartments_for_sale() -> list:
     s_obj = (
         Search()
         .query("match", _language="fi")
-        .query("match", apartment_state_of_sale="FOR_SALE")
+        .query("match", apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE)
     )
     s_obj.execute()
     scan = s_obj.scan()
@@ -24,7 +26,14 @@ def fetch_apartments_for_sale() -> list:
     for hit in scan:
         try:
             items.append(map_apartment_to_item(hit))
+            MappedApartment.objects.update_or_create(
+                apartment_uuid=hit.uuid, defaults={"mapped_etuovi": True}
+            )
         except ValueError as e:
+            MappedApartment.objects.update_or_create(
+                apartment_uuid=hit.uuid,
+                defaults={"mapped_etuovi": False},
+            )
             _logger.warning(f"Could not map apartment {hit.uuid}:", str(e))
             pass
     if not items:
