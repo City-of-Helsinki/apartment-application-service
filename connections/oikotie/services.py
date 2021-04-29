@@ -2,6 +2,7 @@ import logging
 from django_oikotie.oikotie import create_apartments, create_housing_companies
 from elasticsearch_dsl import Search
 
+from connections.models import MappedApartment
 from connections.oikotie.oikotie_mapper import (
     map_oikotie_apartment,
     map_oikotie_housing_company,
@@ -25,10 +26,18 @@ def fetch_apartments_for_sale() -> (list, list):
         try:
             apartments.append(map_oikotie_apartment(hit))
         except Exception as e:
+            ap, created = MappedApartment.objects.update_or_create(
+                apartment_uuid=hit.uuid,
+                defaults={"mapped_oikotie": False},
+            )
             _logger.warning(f"Could not map apartment {hit.uuid}:", str(e))
-            pass
+            continue
         try:
             housing_companies.append(map_oikotie_housing_company(hit))
+            ap, created = MappedApartment.objects.update_or_create(
+                apartment_uuid=hit.uuid,
+                defaults={"mapped_oikotie": True},
+            )
         except Exception as e:
             _logger.warning(f"Could not map housing company {hit.uuid}:", str(e))
             pass
