@@ -367,6 +367,18 @@ def map_new_development_status(
         )
 
 
+def form_description(elastic_apartment):
+    """
+    Fetch link to apartment presentation and add it to the end of project description
+    """
+    main_text = getattr(elastic_apartment, "project_description", None)
+    link = getattr(elastic_apartment, "url", None)
+
+    if main_text or link:
+        return "\n".join(filter(None, [main_text, link]))
+    return None
+
+
 def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:
     """
     Maps the ElasticSearch data to the Oikotie Apartment dataclass.
@@ -385,7 +397,7 @@ def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:
         "region": getattr(elastic_apartment, "project_district", None),
         "latitude": getattr(elastic_apartment, "project_coordinate_lat", None),
         "longitude": getattr(elastic_apartment, "project_coordinate_lon", None),
-        "description": getattr(elastic_apartment, "project_description", None),
+        "description": form_description(elastic_apartment),
         "supplementary_information": getattr(
             elastic_apartment, "additional_information", None
         ),
@@ -563,7 +575,7 @@ def map_oikotie_housing_company(
         "publication_end_date": map_publication_time(
             getattr(elastic_apartment, "project_publication_end_time", None)
         ),
-        "presentation_text": getattr(elastic_apartment, "project_description", None),
+        "presentation_text": form_description(elastic_apartment),
         "coordinates": map_coordinates(elastic_apartment),
         "pictures": map_housing_company_pictures(elastic_apartment),
     }

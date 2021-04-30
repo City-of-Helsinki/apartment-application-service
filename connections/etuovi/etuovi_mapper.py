@@ -239,6 +239,18 @@ def map_scontacts(elastic_apartment: Apartment) -> Optional[List[Scontact]]:
     return None
 
 
+def form_presentation(elastic_apartment):
+    """
+    Fetch link to apartment presentation and add it to the end of project description
+    """
+    main_text = getattr(elastic_apartment, "project_description", None)
+    link = getattr(elastic_apartment, "url", None)
+
+    if main_text or link:
+        return "\n".join(filter(None, [main_text, link]))
+    return None
+
+
 def get_text_mapping(text_key: TextKey, text_value: str) -> Text:
     """
     Returns a Text instance with the mapped key and value.
@@ -286,7 +298,7 @@ def map_apartment_to_text_properties(
             TextKey.PARKINGSPACE_INFO,
             getattr(elastic_apartment, "parking_fee_explanation", None),
         ),
-        (TextKey.PRESENTATION, getattr(elastic_apartment, "project_description", None)),
+        (TextKey.PRESENTATION, form_presentation(elastic_apartment)),
         (TextKey.ROOF, getattr(elastic_apartment, "project_roof_material", None)),
         (TextKey.SERVICES, getattr(elastic_apartment, "services_description", None)),
         (TextKey.SHOWING_ENDTIME, map_showing_end_time(elastic_apartment, 0)),
