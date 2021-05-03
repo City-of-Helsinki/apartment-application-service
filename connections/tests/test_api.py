@@ -24,11 +24,11 @@ class TestConnectionsApis:
 
         assert response.data == expected
 
-    def test_no_mapped_apartments(self, api_client, elastic_apartments):
+    def test_no_mapped_apartments(self, api_client):
         """
         if no apartments are mapped should return empty list
         """
-        make_apartments_sold_in_elastic(elastic_apartments)
+        make_apartments_sold_in_elastic()
 
         fetch_etuovi_apartments()
         fetch_oikotie_apartments()

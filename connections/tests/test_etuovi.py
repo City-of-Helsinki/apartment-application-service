@@ -66,27 +66,27 @@ class TestApartmentFetchingFromElasticAndMapping:
             remove(file_name)
 
     def test_apartments_for_sale_fetched_correctly(
-        self, broken_elastic_apartments_for_sale
+        self, invalid_data_elastic_apartments_for_sale
     ):
-        # Test data contains two broken apartments
+        # Test data contains one apartment with etuovi invalid data
         expected = get_elastic_apartments_for_sale_uuids()
         items = fetch_apartments_for_sale()
 
-        assert len(expected) - 2 == len(items)
+        assert len(expected) - 1 == len(items)
 
     def test_mapped_etuovi_saved_to_database(self):
         fetch_apartments_for_sale()
         etuovi_mapped = MappedApartment.objects.filter(mapped_etuovi=True).count()
         expected = len(get_elastic_apartments_for_sale_uuids())
 
-        assert etuovi_mapped == expected - 2
+        assert etuovi_mapped == expected - 1
 
         oikotie_mapped = MappedApartment.objects.filter(mapped_oikotie=True).count()
 
         assert oikotie_mapped == 0
 
-    def test_no_apartments_for_sale_not_creating_file(self, elastic_apartments):
-        make_apartments_sold_in_elastic(elastic_apartments)
+    def test_no_apartments_for_sale_not_creating_file(self):
+        make_apartments_sold_in_elastic()
         items = fetch_apartments_for_sale()
 
         assert len(items) == 0

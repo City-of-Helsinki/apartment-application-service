@@ -6,6 +6,7 @@ from rest_framework.test import APIClient
 from time import sleep
 
 from application_form.tests.factories import UserFactory
+from connections.enums import ApartmentStateOfSale
 from connections.tests.factories import ApartmentMinimalFactory
 
 
@@ -32,8 +33,14 @@ def client():
 
 @fixture(scope="class")
 def elastic_apartments():
-    try:
+    sale_apartments = []
+    while not sale_apartments:
         elastic_apartments = ApartmentMinimalFactory.create_batch(20)
+        sale_apartments = [
+            item.apartment_state_of_sale == "FOR_SALE" and item._language == "fi"
+            for item in elastic_apartments
+        ]
+    try:
         for item in elastic_apartments:
             item.save()
         sleep(3)
@@ -43,22 +50,37 @@ def elastic_apartments():
 
 
 @fixture()
-def broken_elastic_apartments_for_sale():
-    # oikotie broken data is in project_new_development_status
-    # etuovi broken data is in project_building_type
+def invalid_data_elastic_apartments_for_sale():
+    # etuovi (and oikotie apartment) invalid data is in project_holding_type
+    # oikotie apartment invalid data data is in project_new_development_status
+    # oikotie housing company invalid data is in project_estate_agent_email
+
+    # should fail with oikotie apartments and etuovi
     elastic_apartment_1 = ApartmentMinimalFactory.build(
-        project_new_development_status="rakenteilla",
-        project_building_type="rivitalo",
-        apartment_state_of_sale="FOR_SALE",
+        project_holding_type="some text",
+        project_new_development_status="some text",
+        apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE,
         _language="fi",
     )
+    # should fail with oikotie housing companies
     elastic_apartment_2 = ApartmentMinimalFactory.build(
-        project_new_development_status="suunnitteilla",
-        project_building_type="kerrostalo",
-        apartment_state_of_sale="FOR_SALE",
+        project_estate_agent_email="",
+        apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE,
         _language="fi",
     )
-    for item in [elastic_apartment_1, elastic_apartment_2]:
+    # should fail with oikotie apartments and housing companies
+    elastic_apartment_3 = ApartmentMinimalFactory.build(
+        project_new_development_status="some text",
+        project_estate_agent_email="",
+        apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE,
+        _language="fi",
+    )
+
+    for item in [
+        elastic_apartment_1,
+        elastic_apartment_2,
+        elastic_apartment_3,
+    ]:
         item.save()
     sleep(3)
     yield elastic_apartments
