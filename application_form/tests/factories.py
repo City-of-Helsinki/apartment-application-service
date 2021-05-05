@@ -17,7 +17,7 @@ class UserFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = get_user_model()
 
-    username = factory.Sequence(lambda n: "user_%d" % (n + 1))
+    email = factory.Sequence(lambda n: "user_%d@foo.bar" % (n + 1))
 
 
 class ApartmentFactory(factory.django.DjangoModelFactory):

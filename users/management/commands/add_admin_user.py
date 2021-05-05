@@ -7,9 +7,6 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
-            "-u", "--username", type=str, help="Username", default="admin"
-        )
-        parser.add_argument(
             "-p", "--password", type=str, help="Password", default="admin"
         )
         parser.add_argument(
@@ -17,7 +14,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **kwargs):
-        if not get_user_model().objects.filter(username=kwargs["username"]).count():
+        if not get_user_model().objects.filter(email=kwargs["email"]).count():
             get_user_model().objects.create_superuser(
-                kwargs["username"], kwargs["email"], kwargs["password"]
+                kwargs["email"], kwargs["password"]
             )
