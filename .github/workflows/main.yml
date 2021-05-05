@@ -16,6 +16,7 @@ env:
   DATABASE_URL: postgres://postgres:postgres@localhost/apartment-application
   LOG_LEVEL: INFO
   OIKOTIE_VENDOR_ID: test
+  ELASTICSEARCH_VERSION: '7.9.1'
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -52,6 +53,23 @@ jobs:
         run: |
           pip install -U pip
           pip install codecov -r requirements.txt -r requirements-dev.txt
+
+      # https://github.com/marketplace/actions/setup-elasticsearch
+      - name: Configure sysctl limits
+        run: |
+          sudo swapoff -a
+          sudo sysctl -w vm.swappiness=1
+          sudo sysctl -w fs.file-max=262144
+          sudo sysctl -w vm.max_map_count=262144
+
+      - uses: getong/elasticsearch-action@v1.2
+        with:
+          elasticsearch version: ${{env.ELASTICSEARCH_VERSION}}
+          host port: 9200
+          container port: 9200
+          host node port: 9300
+          node port: 9300
+          discovery type: 'single-node'
 
       - name: Check and run migrations
         run: |
