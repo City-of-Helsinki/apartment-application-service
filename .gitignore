@@ -130,3 +130,17 @@ dmypy.json
 
 # PyCharm
 .idea/
+
+# VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# test XML files
+APTATT*.xml
+hkikaupunkiymparisto*.xml
+HOUSINGCOMPANYATT*.xml
+UPDATE*.xml

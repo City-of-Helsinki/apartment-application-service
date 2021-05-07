@@ -3,6 +3,8 @@ factory-boy
 flake8
 ipython
 isort
+pip-tools
+pre-commit
 pytest
 pytest-cov
 pytest-django

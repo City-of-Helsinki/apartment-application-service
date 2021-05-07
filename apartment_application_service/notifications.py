@@ -6,6 +6,10 @@ from unittest.mock import MagicMock
 
 from apartment_application_service.consts import NotificationType
 
+# This module and django-ilmoitin might be redundant if the notification system is
+# later replaced with Helsinki Profiili email service when that releases.
+
+
 TEMPLATES = [
     (NotificationType.APPLICATION_CREATED, _("Application created")),
 ]
