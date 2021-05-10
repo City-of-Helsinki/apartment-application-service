@@ -31,8 +31,8 @@ env = environ.Env(
         "@localhost/apartment-application",
     ),
     CACHE_URL=(str, "locmemcache://"),
-    MAILER_EMAIL_BACKEND=(str, "django.core.mail.backends.console.EmailBackend"),
-    DEFAULT_FROM_EMAIL=(str, "apartment_application_service@example.com"),
+    EMAIL_URL=(str, "consolemail://"),
+    DEFAULT_FROM_EMAIL=(str, ""),
     MAIL_MAILGUN_KEY=(str, ""),
     MAIL_MAILGUN_DOMAIN=(str, ""),
     MAIL_MAILGUN_API=(str, ""),
@@ -81,11 +81,11 @@ USE_X_FORWARDED_HOST = env.bool("USE_X_FORWARDED_HOST")
 DATABASES = {"default": env.db()}
 
 CACHES = {"default": env.cache()}
-
+vars().update(env.email_url())  # EMAIL_BACKEND etc.
+MAILER_EMAIL_BACKEND = EMAIL_BACKEND  # noqa: F821
+EMAIL_BACKEND = "mailer.backend.DbBackend"
 if env.str("DEFAULT_FROM_EMAIL"):
     DEFAULT_FROM_EMAIL = env.str("DEFAULT_FROM_EMAIL")
-if env.str("MAILER_EMAIL_BACKEND"):
-    MAILER_EMAIL_BACKEND = env.str("MAILER_EMAIL_BACKEND")
 
 try:
     version = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).strip()
