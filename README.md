@@ -32,7 +32,7 @@ Create user and database
 
 Allow user to create test database
 
-    sudo -u postgres psql -c "ALTER USER apartment-application CREATEDB;"
+    sudo -u postgres psql -c 'ALTER USER "apartment-application" CREATEDB;'
 
 ### Daily running
 
@@ -77,3 +77,6 @@ Basic `black` commands:
 
 * To let `black` do its magic: `black .`
 * To see which files `black` would change: `black --check .`
+
+For Django, this project mostly follows the styleguide defined in
+[Django-Styleguide](https://github.com/HackSoftware/Django-Styleguide).

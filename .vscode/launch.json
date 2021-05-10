@@ -1,0 +1,21 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Django",
+            "type": "python",
+            "request": "launch",
+            "python": "${command:python.interpreterPath}",
+            "program": "${workspaceRoot}/manage.py",
+            "cwd": "${workspaceRoot}",
+            "args": [
+                "runserver",
+                "0.0.0.0:8000",
+                "--traceback",
+                "--force-color"
+            ],
+            "envFile": "${workspaceRoot}/.env",
+            "django": true
+        },
+    ]
+}

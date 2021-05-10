@@ -1,11 +1,16 @@
-import datetime
 import factory
+import string
 import uuid
+from datetime import date
 from django.utils import timezone
 from elasticsearch_dsl import Document
 from factory import fuzzy
+from faker import Faker
 
 from connections.elastic_models import Apartment
+from connections.oikotie.field_mapper import NEW_DEVELOPMENT_STATUS_MAPPING
+
+fake = Faker()
 
 
 class ApartmentTest(Apartment):
@@ -22,22 +27,29 @@ class ApartmentTest(Apartment):
         name = "test-apartment"
 
 
+def get_uuid():
+    return str(uuid.uuid4)
+
+
 class ApartmentFactory(factory.Factory):
     class Meta:
         model = ApartmentTest
 
+    _language = fuzzy.FuzzyChoice(["en", "fi", "sv"])
     project_id = fuzzy.FuzzyInteger(0, 9999999999)
     project_uuid = str(uuid.uuid4())
 
     project_housing_company = fuzzy.FuzzyText()
-    project_holding_type = "Asumisoikeushuoneisto"
+    project_holding_type = "RIGHT_OF_RESIDENCE_APARTMENT"
     project_street_address = fuzzy.FuzzyText()
-    project_postal_code = fuzzy.FuzzyText()
-    project_city = fuzzy.FuzzyText()
+    project_postal_code = fuzzy.FuzzyText(length=6, chars=string.digits)
+    project_city = "Helsinki"
     project_district = fuzzy.FuzzyText()
     project_realty_id = fuzzy.FuzzyText()
     project_construction_year = fuzzy.FuzzyInteger(2000, 3000)
-    project_new_development_status = fuzzy.FuzzyText()
+    project_new_development_status = fuzzy.FuzzyChoice(
+        NEW_DEVELOPMENT_STATUS_MAPPING.keys()
+    )
     project_new_housing = True
     project_apartment_count = fuzzy.FuzzyInteger(0, 9999999999)
     project_parkingplace_count = fuzzy.FuzzyInteger(0, 9999999999)
@@ -49,29 +61,33 @@ class ApartmentFactory(factory.Factory):
     project_heating_options = factory.List([fuzzy.FuzzyText() for _ in range(2)])
     project_energy_class = fuzzy.FuzzyText()
     project_site_area = fuzzy.FuzzyFloat(0, 9999999999)
-    project_site_owner = fuzzy.FuzzyText()
+    project_site_owner = fuzzy.FuzzyChoice(["Oma", "Vuokra"])
     project_site_renter = fuzzy.FuzzyText()
     project_sanitation = fuzzy.FuzzyText()
     project_zoning_info = fuzzy.FuzzyText()
     project_zoning_status = fuzzy.FuzzyText()
 
-    project_building_type = "Kerrostalo"
+    project_building_type = "BLOCK_OF_FLATS"
     project_description = fuzzy.FuzzyText()
     project_accessibility = fuzzy.FuzzyText()
     project_smoke_free = fuzzy.FuzzyText()
 
-    project_publication_start_time = fuzzy.FuzzyDateTime(timezone.now())
-    project_publication_end_time = fuzzy.FuzzyDateTime(timezone.now())
+    project_publication_start_time = (
+        fuzzy.FuzzyDateTime(timezone.now()).fuzz().strftime("%Y-%m-%dT%H:%M:%S%z")
+    )
+    project_publication_end_time = (
+        fuzzy.FuzzyDateTime(timezone.now()).fuzz().strftime("%Y-%m-%dT%H:%M:%S%z")
+    )
     project_premarketing_start_time = fuzzy.FuzzyDateTime(timezone.now())
     project_premarketing_end_time = fuzzy.FuzzyDateTime(timezone.now())
     project_application_start_time = fuzzy.FuzzyDateTime(timezone.now())
     project_application_end_time = fuzzy.FuzzyDateTime(timezone.now())
-    project_material_choice_dl = fuzzy.FuzzyDate(datetime.date.today())
-    project_shareholder_meeting_date = fuzzy.FuzzyDate(datetime.date.today())
+    project_material_choice_dl = fuzzy.FuzzyDate(date.today())
+    project_shareholder_meeting_date = fuzzy.FuzzyDate(date.today())
     project_estimated_completion = fuzzy.FuzzyText()
-    project_estimated_completion_date = fuzzy.FuzzyDate(datetime.date.today())
-    project_completion_date = fuzzy.FuzzyDate(datetime.date.today())
-    project_posession_transfer_date = fuzzy.FuzzyDate(datetime.date.today())
+    project_estimated_completion_date = fuzzy.FuzzyDate(date.today())
+    project_completion_date = fuzzy.FuzzyDate(date.today())
+    project_posession_transfer_date = fuzzy.FuzzyDate(date.today())
 
     project_attachment_urls = factory.List([fuzzy.FuzzyText() for _ in range(2)])
     project_main_image_url = fuzzy.FuzzyText()
@@ -84,13 +100,16 @@ class ApartmentFactory(factory.Factory):
     project_constructor = fuzzy.FuzzyText()
     project_housing_manager = fuzzy.FuzzyText()
     project_estate_agent = fuzzy.FuzzyText()
-    project_estate_agent_email = fuzzy.FuzzyText()
+    project_estate_agent_email = fake.email()
     project_estate_agent_phone = fuzzy.FuzzyText()
 
     project_coordinate_lat = fuzzy.FuzzyFloat(-90, 90)
     project_coordinate_lon = fuzzy.FuzzyFloat(-180, 180)
 
-    uuid = str(uuid.uuid4())
+    project_state_of_sale = fuzzy.FuzzyChoice(["PRE_MARKETING", "FOR_SALE", "SOLD"])
+    apartment_state_of_sale = fuzzy.FuzzyChoice(["RESERVED", "FOR_SALE"])
+
+    uuid = fuzzy.FuzzyAttribute(get_uuid)
 
     apartment_address = fuzzy.FuzzyText()
     apartment_number = fuzzy.FuzzyText()
@@ -99,7 +118,10 @@ class ApartmentFactory(factory.Factory):
     floor = fuzzy.FuzzyInteger(0, 9999999999)
     floor_max = fuzzy.FuzzyInteger(0, 9999999999)
     showing_times = factory.List(
-        [fuzzy.FuzzyDateTime(timezone.now()) for _ in range(2)]
+        [
+            fuzzy.FuzzyDateTime(timezone.now()).fuzz().strftime("%Y-%m-%dT%H:%M:%S%z")
+            for _ in range(2)
+        ]
     )
     apartment_structure = fuzzy.FuzzyText()
     room_count = fuzzy.FuzzyInteger(0, 9999999999)
@@ -112,7 +134,7 @@ class ApartmentFactory(factory.Factory):
     bathroom_appliances = fuzzy.FuzzyText()
     storage_description = fuzzy.FuzzyText()
     has_apartment_sauna = True
-    apartment_holding_type = "Asumisoikeushuoneisto"
+    apartment_holding_type = "RIGHT_OF_RESIDENCE_APARTMENT"
     view_description = fuzzy.FuzzyText()
     sales_price = fuzzy.FuzzyInteger(0, 9999999999)
     debt_free_sales_price = fuzzy.FuzzyInteger(0, 9999999999)
@@ -132,3 +154,38 @@ class ApartmentFactory(factory.Factory):
     additional_information = fuzzy.FuzzyText()
     application_url = fuzzy.FuzzyText()
     image_urls = factory.List([fuzzy.FuzzyText() for _ in range(2)])
+
+
+class ApartmentMinimalFactory(factory.Factory):
+    class Meta:
+        model = ApartmentTest
+
+    _language = fuzzy.FuzzyChoice(["en", "fi"])
+    project_id = fuzzy.FuzzyInteger(0, 9999999999)
+    project_uuid = str(uuid.uuid4())
+
+    project_housing_company = fuzzy.FuzzyText()
+    project_holding_type = "RIGHT_OF_RESIDENCE_APARTMENT"
+    project_street_address = fuzzy.FuzzyText()
+    project_postal_code = fuzzy.FuzzyText(length=6, chars=string.digits)
+    project_city = "Helsinki"
+    project_district = fuzzy.FuzzyText()
+    project_realty_id = fuzzy.FuzzyText()
+    project_new_development_status = fuzzy.FuzzyChoice(
+        NEW_DEVELOPMENT_STATUS_MAPPING.keys()
+    )
+    project_new_housing = True
+    project_apartment_count = fuzzy.FuzzyInteger(0, 9999999999)
+    project_estimated_completion = fuzzy.FuzzyText()
+    project_estate_agent_email = fake.email()
+
+    project_building_type = "BLOCK_OF_FLATS"
+
+    uuid = fuzzy.FuzzyAttribute(get_uuid)
+
+    room_count = fuzzy.FuzzyInteger(0, 9999999999)
+    sales_price = fuzzy.FuzzyInteger(0, 9999999999)
+    debt_free_sales_price = fuzzy.FuzzyInteger(0, 9999999999)
+
+    project_state_of_sale = fuzzy.FuzzyChoice(["PRE_MARKETING", "FOR_SALE", "SOLD"])
+    apartment_state_of_sale = fuzzy.FuzzyChoice(["RESERVED", "FOR_SALE"])

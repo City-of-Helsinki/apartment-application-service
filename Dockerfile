@@ -26,6 +26,7 @@ FROM appbase as development
 COPY --chown=appuser:appuser requirements-dev.txt /app/requirements-dev.txt
 RUN apt-install.sh \
         build-essential \
+        ssh-client \
     && pip install --no-cache-dir -r /app/requirements-dev.txt \
     && apt-cleanup.sh build-essential
 
