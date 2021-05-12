@@ -2,6 +2,7 @@ import logging
 from django.core.management.base import BaseCommand
 from django_oikotie.oikotie import send_items
 
+from connections.models import MappedApartment
 from connections.oikotie.services import (
     create_xml_apartment_file,
     create_xml_housing_company_file,
@@ -13,7 +14,7 @@ _logger = logging.getLogger(__name__)
 create_elastic_connection()
 
 
-class Command(BaseCommand):  # pragma: no cover
+class Command(BaseCommand):
     help = "Generate apartments and housing companies XML files to be shown in Oikotie \
 and send them via FTP"
 
@@ -42,5 +43,11 @@ and send them via FTP"
                         str(e),
                     )
                     raise e
+
+            for item in apartments:
+                MappedApartment.objects.update_or_create(
+                    apartment_uuid=item.key,
+                    defaults={"mapped_oikotie": True},
+                )
         else:
             _logger.info("Not sending XML files to Oikotie")

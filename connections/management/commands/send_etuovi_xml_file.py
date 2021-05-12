@@ -9,7 +9,7 @@ _logger = logging.getLogger(__name__)
 create_elastic_connection()
 
 
-class Command(BaseCommand):  # pragma: no cover
+class Command(BaseCommand):
     help = "Generate apartments XML file to be shown in Etuovi and send it via FTP"
 
     def add_arguments(self, parser):
@@ -34,6 +34,5 @@ class Command(BaseCommand):  # pragma: no cover
                 _logger.error(
                     f"File {path}/{xml_file} sending via FTP to Etuovi failed:", str(e)
                 )
-                raise e
         else:
             _logger.info("Not sending XML file to Etuovi")

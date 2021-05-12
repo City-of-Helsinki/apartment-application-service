@@ -6,7 +6,6 @@ from elasticsearch_dsl import Search
 from typing import Tuple
 
 from connections.enums import ApartmentStateOfSale
-from connections.models import MappedApartment
 from connections.oikotie.oikotie_mapper import (
     map_oikotie_apartment,
     map_oikotie_housing_company,
@@ -40,10 +39,6 @@ def fetch_apartments_for_sale() -> Tuple[list, list]:
 
         apartments.append(apartment)
         housing_companies.append(housing)
-        MappedApartment.objects.update_or_create(
-            apartment_uuid=hit.uuid,
-            defaults={"mapped_oikotie": True},
-        )
 
     if not apartments:
         _logger.warning(
