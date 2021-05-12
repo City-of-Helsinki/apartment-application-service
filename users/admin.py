@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth import get_user_model
 
-from .models import Profile
+from users.models import Profile
 
 
 @admin.register(get_user_model())
