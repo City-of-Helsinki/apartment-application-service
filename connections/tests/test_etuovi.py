@@ -3,7 +3,6 @@ import pytest
 from django.conf import settings
 from django.core.management import call_command
 from django_etuovi.utils.testing import check_dataclass_typing
-from unittest import mock
 
 from connections.etuovi.etuovi_mapper import map_apartment_to_item
 from connections.etuovi.services import create_xml, fetch_apartments_for_sale
@@ -46,7 +45,6 @@ class TestEtuoviMapper:
 
 
 @pytest.mark.usefixtures("client", "elastic_apartments")
-@mock.patch.dict(os.environ, {"ENV": "dev"}, clear=True)
 @pytest.mark.django_db
 class TestApartmentFetchingFromElasticAndMapping:
     """
@@ -74,6 +72,7 @@ class TestApartmentFetchingFromElasticAndMapping:
 
         assert len(expected) - 1 == len(items)
 
+    @pytest.mark.usefixtures("not_sending_etuovi_ftp")
     def test_mapped_etuovi_saved_to_database(self):
         # Test data contains one apartment with etuovi invalid data
         call_command("send_etuovi_xml_file")

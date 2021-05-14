@@ -19,6 +19,26 @@ def use_test_elasticsearch_envs(settings):
     settings.ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_HOST", "localhost")
 
 
+@fixture()
+def not_sending_oikotie_ftp(monkeypatch):
+    from django_oikotie import oikotie
+
+    def send_items(file):
+        pass
+
+    monkeypatch.setattr(oikotie, "send_items", send_items)
+
+
+@fixture()
+def not_sending_etuovi_ftp(monkeypatch):
+    from django_etuovi import etuovi
+
+    def send_items(file):
+        pass
+
+    monkeypatch.setattr(etuovi, "send_items", send_items)
+
+
 @fixture
 def api_client():
     user = UserFactory()

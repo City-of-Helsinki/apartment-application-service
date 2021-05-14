@@ -6,7 +6,7 @@ from connections.models import MappedApartment
 _logger = logging.getLogger(__name__)
 
 
-class Command(BaseCommand):  # pragma: no cover
+class Command(BaseCommand):
     help = "Empty MappedApartment database table"
 
     def handle(self, *args, **options):

@@ -3,7 +3,6 @@ import pytest
 from django.conf import settings
 from django.core.management import call_command
 from django_etuovi.utils.testing import check_dataclass_typing
-from unittest import mock
 
 from connections.models import MappedApartment
 from connections.oikotie.oikotie_mapper import (
@@ -232,7 +231,6 @@ class TestOikotieMapper:
 
 
 @pytest.mark.usefixtures("client", "elastic_apartments")
-@mock.patch.dict(os.environ, {"ENV": "dev"}, clear=True)
 @pytest.mark.django_db
 class TestApartmentFetchingFromElasticAndMapping:
     """
@@ -272,6 +270,7 @@ class TestApartmentFetchingFromElasticAndMapping:
         apartments, h_companies = fetch_apartments_for_sale()
         assert len(expected_ap) - 3 == len(apartments)
 
+    @pytest.mark.usefixtures("not_sending_oikotie_ftp")
     def test_mapped_oikotie_saved_to_database(self):
         # Test data contains three apartments with oikotie invalid data
         call_command("send_oikotie_xml_file")
