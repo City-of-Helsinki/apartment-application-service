@@ -8,6 +8,7 @@
 	"workspaceFolder": "/workspace",
 	"settings": {
 		"editor.formatOnSave": true,
+		"files.insertFinalNewline": true,
 		"[python]": {
 			"editor.codeActionsOnSave": {
 				"source.organizeImports": true
