@@ -15,8 +15,13 @@
 		},
 		"python.formatting.provider": "black",
 		"python.linting.flake8Enabled": true,
-		"python.linting.pylintEnabled": false,
+		"python.linting.pylintEnabled": true,
 		"python.linting.enabled": true,
+		"python.linting.pylintArgs": [
+			"--load-plugins",
+			"pylint_django",
+			"--django-settings-module=apartment_application_service.settings"
+		],
 		"python.pythonPath": "/usr/local/bin/python",
 		"python.testing.pytestEnabled": true
 	},

@@ -5,6 +5,7 @@ ipython
 isort
 pip-tools
 pre-commit
+pylint-django
 pytest
 pytest-cov
 pytest-django
