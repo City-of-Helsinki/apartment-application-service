@@ -13,6 +13,12 @@ from connections.enums import ApartmentStateOfSale
 from connections.tests.factories import ApartmentMinimalFactory
 
 
+@fixture(autouse=True)
+def use_test_elasticsearch_envs(settings):
+    settings.ELASTICSEARCH_PORT = os.environ.get("ELASTICSEARCH_HOST_PORT", 9200)
+    settings.ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_HOST", "localhost")
+
+
 @fixture
 def api_client():
     user = UserFactory()
