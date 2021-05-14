@@ -7,9 +7,10 @@
 	"service": "django",
 	"workspaceFolder": "/workspace",
 	"settings": {
+		"editor.formatOnSave": true,
 		"[python]": {
 			"editor.codeActionsOnSave": {
-				"source.organizeImports.python": true
+				"source.organizeImports": true
 			}
 		},
 		"python.formatting.provider": "black",
