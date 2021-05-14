@@ -36,6 +36,7 @@ env = environ.Env(
     MAIL_MAILGUN_KEY=(str, ""),
     MAIL_MAILGUN_DOMAIN=(str, ""),
     MAIL_MAILGUN_API=(str, ""),
+    MAILER_LOCK_PATH=(str, ""),
     SENTRY_DSN=(str, ""),
     SENTRY_ENVIRONMENT=(str, ""),
     LOG_LEVEL=(str, "ERROR"),
@@ -83,6 +84,7 @@ DATABASES = {"default": env.db()}
 CACHES = {"default": env.cache()}
 vars().update(env.email_url())  # EMAIL_BACKEND etc.
 MAILER_EMAIL_BACKEND = EMAIL_BACKEND  # noqa: F821
+MAILER_LOCK_PATH = env.str("MAILER_LOCK_PATH")
 EMAIL_BACKEND = "mailer.backend.DbBackend"
 if env.str("DEFAULT_FROM_EMAIL"):
     DEFAULT_FROM_EMAIL = env.str("DEFAULT_FROM_EMAIL")
