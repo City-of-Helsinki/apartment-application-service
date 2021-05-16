@@ -230,8 +230,8 @@ class TestOikotieMapper:
         raise Exception("Missing project_postal_code should have thrown a ValueError")
 
 
-@pytest.mark.usefixtures("client", "elastic_apartments")
 @pytest.mark.django_db
+@pytest.mark.usefixtures("client", "elastic_apartments")
 class TestApartmentFetchingFromElasticAndMapping:
     """
     Tests for fetching apartments from elasticsearch with Oikotie mapper, creating XML
@@ -261,16 +261,16 @@ class TestApartmentFetchingFromElasticAndMapping:
             hc_path, hc_file_name
         )
 
-    def test_apartments_for_sale_fetched_correctly(
-        self, invalid_data_elastic_apartments_for_sale
-    ):
+    @pytest.mark.usefixtures("invalid_data_elastic_apartments_for_sale")
+    def test_apartments_for_sale_mapped_correctly(self):
         # Test data contains three apartments with oikotie invalid data
-
         expected_ap = get_elastic_apartments_for_sale_uuids()
-        apartments, h_companies = fetch_apartments_for_sale()
+        apartments, _ = fetch_apartments_for_sale()
         assert len(expected_ap) - 3 == len(apartments)
 
-    @pytest.mark.usefixtures("not_sending_oikotie_ftp")
+    @pytest.mark.usefixtures(
+        "invalid_data_elastic_apartments_for_sale", "not_sending_oikotie_ftp"
+    )
     def test_mapped_oikotie_saved_to_database(self):
         # Test data contains three apartments with oikotie invalid data
         call_command("send_oikotie_xml_file")

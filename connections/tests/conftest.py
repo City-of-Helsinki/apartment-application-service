@@ -66,8 +66,9 @@ def elastic_apartments():
     while not sale_apartments:
         elastic_apartments = ApartmentMinimalFactory.create_batch(20)
         sale_apartments = [
-            item.apartment_state_of_sale == "FOR_SALE" and item._language == "fi"
+            item
             for item in elastic_apartments
+            if item.apartment_state_of_sale == "FOR_SALE" and item._language == "fi"
         ]
     try:
         for item in elastic_apartments:
@@ -115,11 +116,16 @@ def invalid_data_elastic_apartments_for_sale():
         _language="fi",
     )
 
-    for item in [
+    apartments = [
         elastic_apartment_1,
         elastic_apartment_2,
         elastic_apartment_3,
-    ]:
+    ]
+    for item in apartments:
         item.save()
-    sleep(3)
+    sleep(1)
     yield elastic_apartments
+
+    for item in apartments:
+        item.delete()
+    sleep(1)

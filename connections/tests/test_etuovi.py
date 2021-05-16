@@ -63,16 +63,17 @@ class TestApartmentFetchingFromElasticAndMapping:
 
         assert settings.ETUOVI_COMPANY_NAME in os.path.join(filepath, file_name)
 
-    def test_apartments_for_sale_fetched_correctly(
-        self, invalid_data_elastic_apartments_for_sale
-    ):
+    @pytest.mark.usefixtures("invalid_data_elastic_apartments_for_sale")
+    def test_apartments_for_sale_fetched_correctly(self):
         # Test data contains one apartment with etuovi invalid data
         expected = get_elastic_apartments_for_sale_uuids()
         items = fetch_apartments_for_sale()
 
         assert len(expected) - 1 == len(items)
 
-    @pytest.mark.usefixtures("not_sending_etuovi_ftp")
+    @pytest.mark.usefixtures(
+        "invalid_data_elastic_apartments_for_sale", "not_sending_etuovi_ftp"
+    )
     def test_mapped_etuovi_saved_to_database(self):
         # Test data contains one apartment with etuovi invalid data
         call_command("send_etuovi_xml_file")
