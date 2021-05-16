@@ -32,6 +32,12 @@ if [[ "$CREATE_SUPERUSER" = "1" ]]; then
     echo "Admin user created with credentials admin:admin (email: admin@example.com)"
 fi
 
+# Create data transfer folder
+if [[ "$CREATE_DATA_TRANSFER_PATH" = "1" ]]; then
+    ./manage.py create_data_transfer_folder
+    echo "Apartment data transfer folder created"
+fi
+
 # Start server
 if [[ ! -z "$@" ]]; then
     "$@"
