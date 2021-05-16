@@ -140,7 +140,4 @@ dmypy.json
 *.code-workspace
 
 # test XML files
-APTHKI-KYMP*.xml
-hkikaupunkiymparisto*.xml
-HOUSINGCOMPANYHKI-KYMP*.xml
-UPDATE*.xml
+transfer_files/*
