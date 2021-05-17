@@ -19,8 +19,7 @@ else:
 env = environ.Env(
     DEBUG=(bool, False),
     SECRET_KEY=(str, ""),
-    MEDIA_ROOT=(environ.Path(), default_var_root("media")),
-    STATIC_ROOT=(environ.Path(), default_var_root("static")),
+    VAR_ROOT=(str, default_var_root),
     MEDIA_URL=(str, "/media/"),
     STATIC_URL=(str, "/static/"),
     ALLOWED_HOSTS=(list, []),
@@ -101,8 +100,9 @@ sentry_sdk.init(
     integrations=[DjangoIntegration()],
 )
 
-MEDIA_ROOT = env("MEDIA_ROOT")
-STATIC_ROOT = env("STATIC_ROOT")
+var_root = env.path("VAR_ROOT")
+MEDIA_ROOT = var_root("media")
+STATIC_ROOT = var_root("static")
 MEDIA_URL = env.str("MEDIA_URL")
 STATIC_URL = env.str("STATIC_URL")
 
