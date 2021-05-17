@@ -15,6 +15,9 @@ _logger = logging.getLogger(__name__)
 
 
 def fetch_apartments_for_sale() -> Tuple[list, list]:
+    """
+    Fetch apartments for sale from elasticsearch and map them for Oikotie
+    """
     s_obj = (
         Search()
         .query("match", _language="fi")
@@ -49,6 +52,9 @@ def fetch_apartments_for_sale() -> Tuple[list, list]:
 
 
 def create_xml_apartment_file(apartments: list) -> Tuple[str, str]:
+    """
+    Create XML file from apartment list
+    """
     path = settings.APARTMENT_DATA_TRANSFER_PATH
     if not apartments:
         _logger.warning("Apartment XML not created: there were no apartments")
@@ -65,6 +71,9 @@ def create_xml_apartment_file(apartments: list) -> Tuple[str, str]:
 
 
 def create_xml_housing_company_file(housing_companies: list) -> Tuple[str, str]:
+    """
+    Create XML file from housing company list
+    """
     path = settings.APARTMENT_DATA_TRANSFER_PATH
     if not housing_companies:
         _logger.warning(
