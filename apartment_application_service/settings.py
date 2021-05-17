@@ -132,6 +132,7 @@ INSTALLED_APPS = [
     "social_django",
     "rest_framework",
     "simple_history",
+    "drf_spectacular",
     # local apps
     "application_form",
     "connections",
@@ -200,6 +201,15 @@ REST_FRAMEWORK = {
         "helusers.oidc.ApiTokenAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ),
+    "DEFAULT_SCHEMA_CLASS": "apartment_application_service.openapi.AutoSchema",
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Apartment Application API",
+    "DESCRIPTION": "Apartment application service for the City of Helsinki.",
+    "VERSION": None,
+    "SCHEMA_PATH_PREFIX": r"/v[0-9]+",
+    "SERVE_INCLUDE_SCHEMA": False,
 }
 
 OIDC_API_TOKEN_AUTH = {
