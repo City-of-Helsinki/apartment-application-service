@@ -38,7 +38,7 @@ env = environ.Env(
     MAILER_LOCK_PATH=(str, ""),
     SENTRY_DSN=(str, ""),
     SENTRY_ENVIRONMENT=(str, ""),
-    LOG_LEVEL=(str, "ERROR"),
+    LOG_LEVEL=(str, ""),
     CORS_ORIGIN_WHITELIST=(list, []),
     CORS_ORIGIN_ALLOW_ALL=(bool, False),
     OIDC_AUDIENCE=(str, ""),
@@ -176,8 +176,35 @@ CORS_ORIGIN_ALLOW_ALL = env.bool("CORS_ORIGIN_ALLOW_ALL")
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "handlers": {"console": {"class": "logging.StreamHandler"}},
-    "loggers": {"django": {"handlers": ["console"], "level": env.str("LOG_LEVEL")}},
+    "formatters": {
+        "standard": {
+            "format": "%(asctime)s p%(process)d %(name)s %(levelname)s: %(message)s",
+            "datefmt": "%Y-%m-%dT%H:%M:%S.%03dZ",
+        }
+    },
+    "handlers": {
+        "console": {
+            "level": "INFO",
+            "class": "logging.StreamHandler",
+            "formatter": "standard",
+        }
+    },
+    "loggers": {
+        "": {
+            "level": "WARNING",
+            "handlers": [
+                "console",
+            ],
+        },
+        "connections": {
+            "level": env("LOG_LEVEL"),
+            "handlers": [
+                "console",
+            ],
+            # required to avoid double logging with root logger
+            "propagate": False,
+        },
+    },
 }
 
 SITE_ID = 1
