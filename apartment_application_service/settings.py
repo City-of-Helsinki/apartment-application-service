@@ -11,10 +11,10 @@ assert os.path.exists(checkout_dir("manage.py"))
 parent_dir = checkout_dir.path("..")
 if os.path.isdir(parent_dir("etc")):
     env_file = parent_dir("etc/env")
-    default_var_root = environ.Path(parent_dir("var"))
+    default_var_root = parent_dir("var")
 else:
     env_file = checkout_dir(".env")
-    default_var_root = environ.Path(checkout_dir("var"))
+    default_var_root = checkout_dir("var")
 
 env = environ.Env(
     DEBUG=(bool, False),
