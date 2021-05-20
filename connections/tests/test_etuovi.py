@@ -39,7 +39,7 @@ class TestEtuoviMapper:
 
 @pytest.mark.usefixtures("client", "elastic_apartments")
 class TestApartmentFetchingFromElastic:
-    def test_apartments_for_sale_fetched_correctly(self, elastic_apartments):
+    def test_apartments_for_sale_fetched_correctly(self, client, elastic_apartments):
         expected = [
             str(item["uuid"])
             for item in elastic_apartments
@@ -53,7 +53,7 @@ class TestApartmentFetchingFromElastic:
 
         assert expected == fetched
 
-    def test_no_apartments_for_sale(self, elastic_apartments):
+    def test_no_apartments_for_sale(self, client, elastic_apartments):
         for item in elastic_apartments:
             if item["apartment_state_of_sale"] == "FOR_SALE":
                 item.delete()

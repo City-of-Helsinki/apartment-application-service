@@ -220,7 +220,7 @@ class TestOikotieMapper:
 
 @pytest.mark.usefixtures("client", "elastic_apartments")
 class TestApartmentFetchingFromElastic:
-    def test_apartments_for_sale_fetched_correctly(self, elastic_apartments):
+    def test_apartments_for_sale_fetched_correctly(self, client, elastic_apartments):
         expected = [
             item
             for item in elastic_apartments
@@ -238,7 +238,7 @@ class TestApartmentFetchingFromElastic:
         assert expected_ap == fetched_apartments
         assert expected_hc == fetched_housings
 
-    def test_no_apartments_for_sale(self, elastic_apartments):
+    def test_no_apartments_for_sale(self, client, elastic_apartments):
         for item in elastic_apartments:
             if item["apartment_state_of_sale"] == "FOR_SALE":
                 item.delete()

@@ -52,7 +52,7 @@ env = environ.Env(
     SOCIAL_AUTH_TUNNISTAMO_OIDC_ENDPOINT=(str, ""),
     ELASTICSEARCH_URL=(str, "http://apartment-application-elasticsearch"),
     ELASTICSEARCH_PORT=(int, 9200),
-    APARTMENT_INDEX_NAME=(str, "asuntotuotanto-apartments"),
+    APARTMENT_INDEX_NAME=(str, ""),
     ETUOVI_SUPPLIER_SOURCE_ITEMCODE=(str, ""),
     ETUOVI_COMPANY_NAME=(str, ""),
     ETUOVI_TRANSFER_ID=(str, ""),
@@ -66,7 +66,6 @@ env = environ.Env(
     OIKOTIE_FTP_HOST=(str, ""),
     OIKOTIE_USER=(str, ""),
     OIKOTIE_PASSWORD=(str, ""),
-    APARTMENT_DATA_TRANSFER_PATH=(str, "transfer_files"),
 )
 if os.path.exists(env_file):
     env.read_env(env_file)
@@ -288,7 +287,6 @@ OIKOTIE_TRANSFER_ID = env("OIKOTIE_TRANSFER_ID")
 OIKOTIE_FTP_HOST = env("OIKOTIE_FTP_HOST")
 OIKOTIE_USER = env("OIKOTIE_USER")
 OIKOTIE_PASSWORD = env("OIKOTIE_PASSWORD")
-APARTMENT_DATA_TRANSFER_PATH = env("APARTMENT_DATA_TRANSFER_PATH")
 
 # local_settings.py can be used to override environment-specific settings
 # like database and email that differ between development and production.
