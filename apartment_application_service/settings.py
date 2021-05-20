@@ -38,7 +38,9 @@ env = environ.Env(
     MAILER_LOCK_PATH=(str, ""),
     SENTRY_DSN=(str, ""),
     SENTRY_ENVIRONMENT=(str, ""),
-    LOG_LEVEL=(str, ""),
+    LOG_LEVEL=(str, "ERROR"),
+    DJANGO_LOG_LEVEL=(str, "ERROR"),
+    APPS_LOG_LEVEL=(str, "INFO"),
     CORS_ORIGIN_WHITELIST=(list, []),
     CORS_ORIGIN_ALLOW_ALL=(bool, False),
     OIDC_AUDIENCE=(str, ""),
@@ -177,27 +179,39 @@ LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "standard": {
+        "verbose": {
             "format": "%(asctime)s p%(process)d %(name)s %(levelname)s: %(message)s",
-            "datefmt": "%Y-%m-%dT%H:%M:%S.%03dZ",
         }
     },
     "handlers": {
         "console": {
-            "level": "INFO",
             "class": "logging.StreamHandler",
-            "formatter": "standard",
+            "formatter": "verbose",
         }
     },
     "loggers": {
         "": {
-            "level": "WARNING",
+            "level": env("LOG_LEVEL"),
+            "handlers": [
+                "console",
+            ],
+        },
+        "django": {
+            "level": env("DJANGO_LOG_LEVEL"),
             "handlers": [
                 "console",
             ],
         },
         "connections": {
-            "level": env("LOG_LEVEL"),
+            "level": env("APPS_LOG_LEVEL"),
+            "handlers": [
+                "console",
+            ],
+            # required to avoid double logging with root logger
+            "propagate": False,
+        },
+        "users": {
+            "level": env("APPS_LOG_LEVEL"),
             "handlers": [
                 "console",
             ],
