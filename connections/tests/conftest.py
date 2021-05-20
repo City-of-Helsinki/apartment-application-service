@@ -1,7 +1,3 @@
-import os
-import shutil
-from django.conf import settings
-from django.test import override_settings
 from elasticsearch.helpers.test import get_test_client, SkipTest
 from elasticsearch_dsl.connections import add_connection
 from pytest import fixture, skip
@@ -31,13 +27,3 @@ def elastic_apartments():
         yield elastic_apartments
     except SkipTest:
         skip()
-
-
-@fixture(scope="session", autouse=True)
-@override_settings(APARTMENT_DATA_TRANSFER_PATH="connections/tests/temp_files")
-def test_folder():
-    temp_file = settings.APARTMENT_DATA_TRANSFER_PATH
-    if not os.path.exists(temp_file):
-        os.mkdir(temp_file)
-    yield temp_file
-    shutil.rmtree(temp_file)

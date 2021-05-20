@@ -1,6 +1,4 @@
 import logging
-import os
-from django.conf import settings
 from django_etuovi.etuovi import create_xml_file
 from elasticsearch_dsl import Search
 
@@ -38,10 +36,8 @@ def create_xml(items: list) -> str:
     if not items:
         _logger.warning("Apartment XML not created: there were no apartments")
         return None
-    if not os.path.exists(settings.APARTMENT_DATA_TRANSFER_PATH):
-        os.mkdir(settings.APARTMENT_DATA_TRANSFER_PATH)
     try:
-        xml_filename = create_xml_file(items, settings.APARTMENT_DATA_TRANSFER_PATH)
+        xml_filename = create_xml_file(items)
         _logger.info(f"Created XML file for apartments in location {xml_filename}")
         return xml_filename
 
