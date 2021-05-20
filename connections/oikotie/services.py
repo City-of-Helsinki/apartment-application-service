@@ -1,6 +1,9 @@
 import logging
+import os
+from django.conf import settings
 from django_oikotie.oikotie import create_apartments, create_housing_companies
 from elasticsearch_dsl import Search
+from typing import Tuple
 
 from connections.oikotie.oikotie_mapper import (
     map_oikotie_apartment,
@@ -10,7 +13,7 @@ from connections.oikotie.oikotie_mapper import (
 _logger = logging.getLogger(__name__)
 
 
-def fetch_apartments_for_sale() -> (list, list):
+def fetch_apartments_for_sale() -> Tuple[list, list]:
     s_obj = (
         Search()
         .query("match", _language="fi")
@@ -44,8 +47,10 @@ def create_xml_apartment_file(apartments: list) -> str:
     if not apartments:
         _logger.warning("Apartment XML not created: there were no apartments")
         return None
+    if not os.path.exists(settings.APARTMENT_DATA_TRANSFER_PATH):
+        os.mkdir(settings.APARTMENT_DATA_TRANSFER_PATH)
     try:
-        ap_file = create_apartments(apartments)
+        ap_file = create_apartments(apartments, settings.APARTMENT_DATA_TRANSFER_PATH)
         _logger.info(f"Created XML file for apartments in location {ap_file}")
         return ap_file
     except Exception as e:
@@ -59,8 +64,12 @@ def create_xml_housing_company_file(housing_companies: list) -> str:
             "Housing company XML not created: there were no housing companies"
         )
         return None
+    if not os.path.exists(settings.APARTMENT_DATA_TRANSFER_PATH):
+        os.mkdir(settings.APARTMENT_DATA_TRANSFER_PATH)
     try:
-        hc_file = create_housing_companies(housing_companies)
+        hc_file = create_housing_companies(
+            housing_companies, settings.APARTMENT_DATA_TRANSFER_PATH
+        )
         _logger.info(f"Created XML file for housing_companies in location {hc_file}")
         return hc_file
     except Exception as e:
