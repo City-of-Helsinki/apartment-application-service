@@ -39,6 +39,8 @@ env = environ.Env(
     SENTRY_DSN=(str, ""),
     SENTRY_ENVIRONMENT=(str, ""),
     LOG_LEVEL=(str, "ERROR"),
+    DJANGO_LOG_LEVEL=(str, "ERROR"),
+    APPS_LOG_LEVEL=(str, "INFO"),
     CORS_ORIGIN_WHITELIST=(list, []),
     CORS_ORIGIN_ALLOW_ALL=(bool, False),
     OIDC_AUDIENCE=(str, ""),
@@ -176,8 +178,47 @@ CORS_ORIGIN_ALLOW_ALL = env.bool("CORS_ORIGIN_ALLOW_ALL")
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "handlers": {"console": {"class": "logging.StreamHandler"}},
-    "loggers": {"django": {"handlers": ["console"], "level": env.str("LOG_LEVEL")}},
+    "formatters": {
+        "verbose": {
+            "format": "%(asctime)s p%(process)d %(name)s %(levelname)s: %(message)s",
+        }
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        }
+    },
+    "loggers": {
+        "": {
+            "level": env("LOG_LEVEL"),
+            "handlers": [
+                "console",
+            ],
+        },
+        "django": {
+            "level": env("DJANGO_LOG_LEVEL"),
+            "handlers": [
+                "console",
+            ],
+        },
+        "connections": {
+            "level": env("APPS_LOG_LEVEL"),
+            "handlers": [
+                "console",
+            ],
+            # required to avoid double logging with root logger
+            "propagate": False,
+        },
+        "users": {
+            "level": env("APPS_LOG_LEVEL"),
+            "handlers": [
+                "console",
+            ],
+            # required to avoid double logging with root logger
+            "propagate": False,
+        },
+    },
 }
 
 SITE_ID = 1
