@@ -6,13 +6,11 @@ from drf_spectacular.views import (
 )
 from helusers.admin_site import admin
 
-from application_form import urls as api_urls
 from connections import urls as connections_api_urls
 from users import urls as users_urls
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("v1/", include((api_urls, "application_form"), namespace="v1/applications")),
     path(
         "v1/",
         include((connections_api_urls, "connections"), namespace="v1/connections"),

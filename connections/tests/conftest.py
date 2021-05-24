@@ -1,14 +1,12 @@
 import os
 import shutil
 from django.conf import settings
-from django.contrib.auth.models import Permission
 from elasticsearch.helpers.test import get_test_client, SkipTest
 from elasticsearch_dsl.connections import add_connection
 from pytest import fixture, skip
 from rest_framework.test import APIClient
 from time import sleep
 
-from application_form.tests.factories import UserFactory
 from connections.enums import ApartmentStateOfSale
 from connections.tests.factories import ApartmentMinimalFactory
 
@@ -23,7 +21,7 @@ def use_test_elasticsearch_envs(settings):
 def not_sending_oikotie_ftp(monkeypatch):
     from django_oikotie import oikotie
 
-    def send_items(file):
+    def send_items(path, file):
         pass
 
     monkeypatch.setattr(oikotie, "send_items", send_items)
@@ -33,7 +31,7 @@ def not_sending_oikotie_ftp(monkeypatch):
 def not_sending_etuovi_ftp(monkeypatch):
     from django_etuovi import etuovi
 
-    def send_items(file):
+    def send_items(path, file):
         pass
 
     monkeypatch.setattr(etuovi, "send_items", send_items)
@@ -41,11 +39,7 @@ def not_sending_etuovi_ftp(monkeypatch):
 
 @fixture
 def api_client():
-    user = UserFactory()
-    permissions = Permission.objects.all()
-    user.user_permissions.set(permissions)
     api_client = APIClient()
-    api_client.force_authenticate(user)
     return api_client
 
 

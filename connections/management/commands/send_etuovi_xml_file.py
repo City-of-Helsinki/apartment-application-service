@@ -2,8 +2,8 @@ import logging
 from django.core.management.base import BaseCommand
 from django_etuovi.etuovi import send_items
 
-from connections.models import MappedApartment
 from connections.etuovi.services import create_xml, fetch_apartments_for_sale
+from connections.models import MappedApartment
 from connections.utils import create_elastic_connection
 
 _logger = logging.getLogger(__name__)
