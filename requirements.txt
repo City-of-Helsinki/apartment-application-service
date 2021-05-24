@@ -155,6 +155,8 @@ urllib3==1.26.4
     #   elasticsearch
     #   requests
     #   sentry-sdk
+whitenoise==5.2.0
+    # via -r requirements.in
 
 # The following packages are considered to be unsafe in a requirements file:
 # setuptools
