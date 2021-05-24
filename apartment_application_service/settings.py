@@ -11,16 +11,15 @@ assert os.path.exists(checkout_dir("manage.py"))
 parent_dir = checkout_dir.path("..")
 if os.path.isdir(parent_dir("etc")):
     env_file = parent_dir("etc/env")
-    default_var_root = environ.Path(parent_dir("var"))
+    default_var_root = parent_dir("var")
 else:
     env_file = checkout_dir(".env")
-    default_var_root = environ.Path(checkout_dir("var"))
+    default_var_root = checkout_dir("var")
 
 env = environ.Env(
     DEBUG=(bool, False),
     SECRET_KEY=(str, ""),
-    MEDIA_ROOT=(environ.Path(), default_var_root("media")),
-    STATIC_ROOT=(environ.Path(), default_var_root("static")),
+    VAR_ROOT=(str, default_var_root),
     MEDIA_URL=(str, "/media/"),
     STATIC_URL=(str, "/static/"),
     ALLOWED_HOSTS=(list, []),
@@ -40,6 +39,8 @@ env = environ.Env(
     SENTRY_DSN=(str, ""),
     SENTRY_ENVIRONMENT=(str, ""),
     LOG_LEVEL=(str, "ERROR"),
+    DJANGO_LOG_LEVEL=(str, "ERROR"),
+    APPS_LOG_LEVEL=(str, "INFO"),
     CORS_ORIGIN_WHITELIST=(list, []),
     CORS_ORIGIN_ALLOW_ALL=(bool, False),
     OIDC_AUDIENCE=(str, ""),
@@ -51,7 +52,7 @@ env = environ.Env(
     SOCIAL_AUTH_TUNNISTAMO_OIDC_ENDPOINT=(str, ""),
     ELASTICSEARCH_URL=(str, "http://apartment-application-elasticsearch"),
     ELASTICSEARCH_PORT=(int, 9200),
-    APARTMENT_INDEX_NAME=(str, ""),
+    APARTMENT_INDEX_NAME=(str, "asuntotuotanto-apartments"),
     ETUOVI_SUPPLIER_SOURCE_ITEMCODE=(str, ""),
     ETUOVI_COMPANY_NAME=(str, ""),
     ETUOVI_TRANSFER_ID=(str, ""),
@@ -65,6 +66,7 @@ env = environ.Env(
     OIKOTIE_FTP_HOST=(str, ""),
     OIKOTIE_USER=(str, ""),
     OIKOTIE_PASSWORD=(str, ""),
+    APARTMENT_DATA_TRANSFER_PATH=(str, "transfer_files"),
 )
 if os.path.exists(env_file):
     env.read_env(env_file)
@@ -101,8 +103,9 @@ sentry_sdk.init(
     integrations=[DjangoIntegration()],
 )
 
-MEDIA_ROOT = env("MEDIA_ROOT")
-STATIC_ROOT = env("STATIC_ROOT")
+var_root = env.path("VAR_ROOT")
+MEDIA_ROOT = var_root("media")
+STATIC_ROOT = var_root("static")
 MEDIA_URL = env.str("MEDIA_URL")
 STATIC_URL = env.str("STATIC_URL")
 
@@ -132,6 +135,7 @@ INSTALLED_APPS = [
     "social_django",
     "rest_framework",
     "simple_history",
+    "drf_spectacular",
     # local apps
     "application_form",
     "connections",
@@ -175,8 +179,47 @@ CORS_ORIGIN_ALLOW_ALL = env.bool("CORS_ORIGIN_ALLOW_ALL")
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "handlers": {"console": {"class": "logging.StreamHandler"}},
-    "loggers": {"django": {"handlers": ["console"], "level": env.str("LOG_LEVEL")}},
+    "formatters": {
+        "verbose": {
+            "format": "%(asctime)s p%(process)d %(name)s %(levelname)s: %(message)s",
+        }
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        }
+    },
+    "loggers": {
+        "": {
+            "level": env("LOG_LEVEL"),
+            "handlers": [
+                "console",
+            ],
+        },
+        "django": {
+            "level": env("DJANGO_LOG_LEVEL"),
+            "handlers": [
+                "console",
+            ],
+        },
+        "connections": {
+            "level": env("APPS_LOG_LEVEL"),
+            "handlers": [
+                "console",
+            ],
+            # required to avoid double logging with root logger
+            "propagate": False,
+        },
+        "users": {
+            "level": env("APPS_LOG_LEVEL"),
+            "handlers": [
+                "console",
+            ],
+            # required to avoid double logging with root logger
+            "propagate": False,
+        },
+    },
 }
 
 SITE_ID = 1
@@ -200,6 +243,15 @@ REST_FRAMEWORK = {
         "helusers.oidc.ApiTokenAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ),
+    "DEFAULT_SCHEMA_CLASS": "apartment_application_service.openapi.AutoSchema",
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Apartment Application API",
+    "DESCRIPTION": "Apartment application service for the City of Helsinki.",
+    "VERSION": None,
+    "SCHEMA_PATH_PREFIX": r"/v[0-9]+",
+    "SERVE_INCLUDE_SCHEMA": False,
 }
 
 OIDC_API_TOKEN_AUTH = {
@@ -236,6 +288,7 @@ OIKOTIE_TRANSFER_ID = env("OIKOTIE_TRANSFER_ID")
 OIKOTIE_FTP_HOST = env("OIKOTIE_FTP_HOST")
 OIKOTIE_USER = env("OIKOTIE_USER")
 OIKOTIE_PASSWORD = env("OIKOTIE_PASSWORD")
+APARTMENT_DATA_TRANSFER_PATH = env("APARTMENT_DATA_TRANSFER_PATH")
 
 # local_settings.py can be used to override environment-specific settings
 # like database and email that differ between development and production.

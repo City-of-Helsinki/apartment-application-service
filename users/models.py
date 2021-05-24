@@ -1,7 +1,10 @@
+import logging
 from django.conf import settings
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from helusers.models import AbstractUser
+
+_logger = logging.getLogger(__name__)
 
 
 class User(AbstractUser):
@@ -32,6 +35,14 @@ class Profile(models.Model):
         max_length=2,
         choices=CONTACT_LANGUAGE_CHOICES,
     )
+
+    def delete(self, *args, **kwargs):
+        pk = self.pk
+        _logger.info(f"Deleting profile {pk}")
+        self.user.delete()
+        result = super().delete(*args, **kwargs)
+        _logger.info(f"Profile {pk} deleted")
+        return result
 
     def __str__(self):
         return str(self.user)
