@@ -138,6 +138,7 @@ INSTALLED_APPS = [
     "simple_history",
     "drf_spectacular",
     # local apps
+    "apartment",
     "application_form",
     "connections",
     "users",

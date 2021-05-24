@@ -1,5 +1,6 @@
 Django~=2.2
 django-cors-headers
+django-enumfields
 django-environ
 django-enumfields
 git+git://github.com/City-of-Helsinki/django-etuovi@develop#egg=django_etuovi  # TODO: change this when released in PyPI
