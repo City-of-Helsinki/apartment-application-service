@@ -26,19 +26,19 @@ and send them via FTP"
 
     def handle(self, *args, **options):
         apartments, housing_companies = fetch_apartments_for_sale()
-        apartment_file = create_xml_apartment_file(apartments)
-        housing_file = create_xml_housing_company_file(housing_companies)
+        path, apartment_file = create_xml_apartment_file(apartments)
+        path, housing_file = create_xml_housing_company_file(housing_companies)
 
         if not options["only_create_files"] and apartment_file and housing_file:
-            for file in [apartment_file, housing_file]:
+            for f in [apartment_file, housing_file]:
                 try:
-                    send_items(file)
+                    send_items(path, f)
                     _logger.info(
-                        f"Succefully sent XML file {file} to Oikotie FTP server"
+                        f"Succefully sent XML file {path}/{f} to Oikotie FTP server"
                     )
                 except Exception as e:
                     _logger.error(
-                        f"File {file} sending via FTP to Oikotie failed:",
+                        f"File {path}/{f} sending via FTP to Oikotie failed:",
                         str(e),
                     )
                     raise e
