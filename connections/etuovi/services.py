@@ -3,6 +3,7 @@ import os
 from django.conf import settings
 from django_etuovi.etuovi import create_xml_file
 from elasticsearch_dsl import Search
+from typing import Tuple
 
 from connections.etuovi.etuovi_mapper import map_apartment_to_item
 
@@ -34,16 +35,19 @@ def fetch_apartments_for_sale() -> list:
     return items
 
 
-def create_xml(items: list) -> str:
+def create_xml(items: list) -> Tuple[str, str]:
+    path = settings.APARTMENT_DATA_TRANSFER_PATH
     if not items:
         _logger.warning("Apartment XML not created: there were no apartments")
-        return None
-    if not os.path.exists(settings.APARTMENT_DATA_TRANSFER_PATH):
-        os.mkdir(settings.APARTMENT_DATA_TRANSFER_PATH)
+        return path, None
+    if not os.path.exists(path):
+        os.mkdir(path)
     try:
-        xml_filename = create_xml_file(items, settings.APARTMENT_DATA_TRANSFER_PATH)
-        _logger.info(f"Created XML file for apartments in location {xml_filename}")
-        return xml_filename
+        path, xml_filename = create_xml_file(items, path)
+        _logger.info(
+            f"Created XML file for apartments in location {path}/{xml_filename}"
+        )
+        return path, xml_filename
 
     except Exception as e:
         _logger.error("Apartment XML not created:", str(e))

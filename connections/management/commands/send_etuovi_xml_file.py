@@ -21,17 +21,18 @@ class Command(BaseCommand):  # pragma: no cover
 
     def handle(self, *args, **options):
         items = fetch_apartments_for_sale()
-        xml_file = create_xml(items)
+        path, xml_file = create_xml(items)
 
         if not options["only_create_file"] and xml_file:
             try:
-                send_items(xml_file)
+                send_items(path, xml_file)
                 _logger.info(
-                    f"Succefully sent Etuovi XML file {xml_file} to Etuovi FTP server"
+                    f"Succefully sent Etuovi XML file {path}/{xml_file} to Etuovi FTP \
+                        server"
                 )
             except Exception as e:
                 _logger.error(
-                    f"File {xml_file} sending via FTP to Etuovi failed:", str(e)
+                    f"File {path}/{xml_file} sending via FTP to Etuovi failed:", str(e)
                 )
                 raise e
         else:

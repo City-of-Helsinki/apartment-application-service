@@ -1,9 +1,11 @@
+import os
 import pytest
+from django.conf import settings
 from django_etuovi.utils.testing import check_dataclass_typing
 from time import sleep
 
 from connections.etuovi.etuovi_mapper import map_apartment_to_item
-from connections.etuovi.services import fetch_apartments_for_sale
+from connections.etuovi.services import create_xml, fetch_apartments_for_sale
 from connections.tests.factories import ApartmentFactory, ApartmentMinimalFactory
 
 
@@ -53,6 +55,10 @@ class TestApartmentFetchingFromElastic:
 
         assert expected == fetched
 
+        path, file_name = create_xml(items)
+
+        assert settings.ETUOVI_COMPANY_NAME in os.path.join(path, file_name)
+
     def test_no_apartments_for_sale(self, elastic_apartments):
         for item in elastic_apartments:
             if item["apartment_state_of_sale"] == "FOR_SALE":
@@ -61,3 +67,7 @@ class TestApartmentFetchingFromElastic:
         items = fetch_apartments_for_sale()
 
         assert len(items) == 0
+
+        _, file_name = create_xml(items)
+
+        assert file_name is None

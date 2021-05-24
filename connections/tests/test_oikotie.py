@@ -1,4 +1,6 @@
+import os
 import pytest
+from django.conf import settings
 from django_etuovi.utils.testing import check_dataclass_typing
 from time import sleep
 
@@ -26,7 +28,11 @@ from connections.oikotie.oikotie_mapper import (
     map_water_fee,
     map_year_of_building,
 )
-from connections.oikotie.services import fetch_apartments_for_sale
+from connections.oikotie.services import (
+    create_xml_apartment_file,
+    create_xml_housing_company_file,
+    fetch_apartments_for_sale,
+)
 from connections.tests.factories import ApartmentFactory, ApartmentMinimalFactory
 
 
@@ -238,6 +244,17 @@ class TestApartmentFetchingFromElastic:
         assert expected_ap == fetched_apartments
         assert expected_hc == fetched_housings
 
+        ap_path, ap_file_name = create_xml_apartment_file(apartments)
+        hc_path, hc_file_name = create_xml_housing_company_file(housing_companies)
+
+        assert ap_path == hc_path
+        assert "APT" + settings.OIKOTIE_COMPANY_NAME in os.path.join(
+            ap_path, ap_file_name
+        )
+        assert "HOUSINGCOMPANY" + settings.OIKOTIE_COMPANY_NAME in os.path.join(
+            hc_path, hc_file_name
+        )
+
     def test_no_apartments_for_sale(self, elastic_apartments):
         for item in elastic_apartments:
             if item["apartment_state_of_sale"] == "FOR_SALE":
@@ -247,3 +264,9 @@ class TestApartmentFetchingFromElastic:
 
         assert len(apartments) == 0
         assert len(housing_companies) == 0
+
+        _, ap_file_name = create_xml_apartment_file(apartments)
+        _, hc_file_name = create_xml_housing_company_file(housing_companies)
+
+        assert ap_file_name is None
+        assert hc_file_name is None
