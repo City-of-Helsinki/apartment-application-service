@@ -1,0 +1,28 @@
+# File: apartment-application-service/azure-pipelines-master.yml
+
+# Continuous integration (CI) triggers cause a pipeline to run whenever you push 
+# an update to the specified branches or you push specified tags.
+trigger:
+  branches:
+    include:
+    - master
+  paths:
+    exclude:
+    - README.md
+
+# By default, use self-hosted agents
+pool: Default
+
+# Opting out of pull request validation
+pr: none
+
+resources:
+  repositories:
+  # Azure DevOps repository
+  - repository: asuntotuotanto-django-pipelines
+    type: git
+    # project/repository
+    name: asuntotuotanto/asuntotuotanto-django-pipelines
+
+extends:
+  template: azure-pipelines-asuntotuotanto-django-master.yml@asuntotuotanto-django-pipelines
