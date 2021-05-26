@@ -1,9 +1,10 @@
 import os
 import pytest
 from django.conf import settings
+from django.core.management import call_command
 from django_etuovi.utils.testing import check_dataclass_typing
-from time import sleep
 
+from connections.models import MappedApartment
 from connections.oikotie.oikotie_mapper import (
     map_address,
     map_apartment,
@@ -34,6 +35,11 @@ from connections.oikotie.services import (
     fetch_apartments_for_sale,
 )
 from connections.tests.factories import ApartmentFactory, ApartmentMinimalFactory
+from connections.tests.utils import (
+    get_elastic_apartments_for_sale_project_uuids,
+    get_elastic_apartments_for_sale_uuids,
+    make_apartments_sold_in_elastic,
+)
 
 
 class TestOikotieMapper:
@@ -224,17 +230,17 @@ class TestOikotieMapper:
         raise Exception("Missing project_postal_code should have thrown a ValueError")
 
 
+@pytest.mark.django_db
 @pytest.mark.usefixtures("client", "elastic_apartments")
-class TestApartmentFetchingFromElastic:
-    def test_apartments_for_sale_fetched_correctly(self, elastic_apartments):
-        expected = [
-            item
-            for item in elastic_apartments
-            if item["apartment_state_of_sale"] == "FOR_SALE"
-            and item["_language"] == "fi"
-        ]
-        expected_ap = [str(item["uuid"]) for item in expected]
-        expected_hc = [str(item["project_uuid"]) for item in expected]
+class TestApartmentFetchingFromElasticAndMapping:
+    """
+    Tests for fetching apartments from elasticsearch with Oikotie mapper, creating XML
+    files and saving correctly mapped apartments to database.
+    """
+
+    def test_apartments_for_sale_fetched_to_XML(self):
+        expected_ap = get_elastic_apartments_for_sale_uuids()
+        expected_hc = get_elastic_apartments_for_sale_project_uuids()
 
         apartments, housing_companies = fetch_apartments_for_sale()
 
@@ -255,11 +261,30 @@ class TestApartmentFetchingFromElastic:
             hc_path, hc_file_name
         )
 
-    def test_no_apartments_for_sale(self, elastic_apartments):
-        for item in elastic_apartments:
-            if item["apartment_state_of_sale"] == "FOR_SALE":
-                item.delete()
-        sleep(3)
+    @pytest.mark.usefixtures("invalid_data_elastic_apartments_for_sale")
+    def test_apartments_for_sale_mapped_correctly(self):
+        # Test data contains three apartments with oikotie invalid data
+        expected_ap = get_elastic_apartments_for_sale_uuids()
+        apartments, _ = fetch_apartments_for_sale()
+        assert len(expected_ap) - 3 == len(apartments)
+
+    @pytest.mark.usefixtures(
+        "invalid_data_elastic_apartments_for_sale", "not_sending_oikotie_ftp"
+    )
+    def test_mapped_oikotie_saved_to_database(self):
+        # Test data contains three apartments with oikotie invalid data
+        call_command("send_oikotie_xml_file")
+        oikotie_mapped = MappedApartment.objects.filter(mapped_oikotie=True).count()
+        expected = len(get_elastic_apartments_for_sale_uuids())
+
+        assert oikotie_mapped == expected - 3
+
+        etuovi_mapped = MappedApartment.objects.filter(mapped_etuovi=True).count()
+
+        assert etuovi_mapped == 0
+
+    def test_no_apartments_for_sale(self):
+        make_apartments_sold_in_elastic()
         apartments, housing_companies = fetch_apartments_for_sale()
 
         assert len(apartments) == 0

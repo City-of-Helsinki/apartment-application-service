@@ -47,6 +47,7 @@ SITE_MAPPING = {
     "Vuokra": SiteType.RENT,
 }
 
+# (elastic_project_new_development_status: oikotie_new_development_status)
 NEW_DEVELOPMENT_STATUS_MAPPING = {
     "UNDER_PLANNING": NewDevelopmentStatusChoices.UNDER_PLANNING,
     "PRE_MARKETING": NewDevelopmentStatusChoices.PRE_MARKETING,

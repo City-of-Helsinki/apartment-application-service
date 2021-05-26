@@ -3,13 +3,14 @@ from django.core.management.base import BaseCommand
 from django_etuovi.etuovi import send_items
 
 from connections.etuovi.services import create_xml, fetch_apartments_for_sale
+from connections.models import MappedApartment
 from connections.utils import create_elastic_connection
 
 _logger = logging.getLogger(__name__)
 create_elastic_connection()
 
 
-class Command(BaseCommand):  # pragma: no cover
+class Command(BaseCommand):
     help = "Generate apartments XML file to be shown in Etuovi and send it via FTP"
 
     def add_arguments(self, parser):
@@ -35,5 +36,11 @@ class Command(BaseCommand):  # pragma: no cover
                     f"File {path}/{xml_file} sending via FTP to Etuovi failed:", str(e)
                 )
                 raise e
+
+            for item in items:
+                MappedApartment.objects.update_or_create(
+                    apartment_uuid=item.cust_itemcode,
+                    defaults={"mapped_etuovi": True},
+                )
         else:
             _logger.info("Not sending XML file to Etuovi")

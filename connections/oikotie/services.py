@@ -5,6 +5,7 @@ from django_oikotie.oikotie import create_apartments, create_housing_companies
 from elasticsearch_dsl import Search
 from typing import Tuple
 
+from connections.enums import ApartmentStateOfSale
 from connections.oikotie.oikotie_mapper import (
     map_oikotie_apartment,
     map_oikotie_housing_company,
@@ -14,10 +15,13 @@ _logger = logging.getLogger(__name__)
 
 
 def fetch_apartments_for_sale() -> Tuple[list, list]:
+    """
+    Fetch apartments for sale from elasticsearch and map them for Oikotie
+    """
     s_obj = (
         Search()
         .query("match", _language="fi")
-        .query("match", apartment_state_of_sale="FOR_SALE")
+        .query("match", apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE)
     )
     s_obj.execute()
     scan = s_obj.scan()
@@ -26,15 +30,19 @@ def fetch_apartments_for_sale() -> Tuple[list, list]:
 
     for hit in scan:
         try:
-            apartments.append(map_oikotie_apartment(hit))
-        except Exception as e:
-            _logger.warning(f"Could not map apartment {hit.uuid}:", str(e))
-            pass
+            apartment = map_oikotie_apartment(hit)
+        except ValueError:
+            _logger.warning(f"Could not map apartment {hit.uuid}")
+            continue
         try:
-            housing_companies.append(map_oikotie_housing_company(hit))
-        except Exception as e:
-            _logger.warning(f"Could not map housing company {hit.uuid}:", str(e))
-            pass
+            housing = map_oikotie_housing_company(hit)
+        except ValueError:
+            _logger.warning(f"Could not map housing company {hit.uuid}")
+            continue
+
+        apartments.append(apartment)
+        housing_companies.append(housing)
+
     if not apartments:
         _logger.warning(
             "There were no apartments to map or could not map any apartments"
@@ -44,6 +52,9 @@ def fetch_apartments_for_sale() -> Tuple[list, list]:
 
 
 def create_xml_apartment_file(apartments: list) -> Tuple[str, str]:
+    """
+    Create XML file from apartment list
+    """
     path = settings.APARTMENT_DATA_TRANSFER_PATH
     if not apartments:
         _logger.warning("Apartment XML not created: there were no apartments")
@@ -60,6 +71,9 @@ def create_xml_apartment_file(apartments: list) -> Tuple[str, str]:
 
 
 def create_xml_housing_company_file(housing_companies: list) -> Tuple[str, str]:
+    """
+    Create XML file from housing company list
+    """
     path = settings.APARTMENT_DATA_TRANSFER_PATH
     if not housing_companies:
         _logger.warning(
