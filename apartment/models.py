@@ -31,7 +31,9 @@ class Project(models.Model):
 class Apartment(models.Model):
     id = UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     identifiers = models.ManyToManyField(Identifier)
-    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    project = models.ForeignKey(
+        Project, on_delete=models.CASCADE, related_name="apartments"
+    )
 
     history = HistoricalRecords()
     is_available = models.BooleanField(default=True, verbose_name=_("is available"))
