@@ -24,11 +24,11 @@ class Profile(models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=False
     )
-    phone_number = models.CharField(_("phone number"), max_length=15, null=False)
+    phone_number = models.CharField(_("phone number"), max_length=40, null=False)
     address = models.CharField(_("address"), max_length=200)
     date_of_birth = models.DateField(_("date of birth"))
     city = models.CharField(_("city"), max_length=50)
-    postal_code = models.CharField(_("postal code"), max_length=5)
+    postal_code = models.CharField(_("postal code"), max_length=10)
     right_of_residence = models.CharField(_("right of residence number"), max_length=10)
     contact_language = models.CharField(
         _("contact language"),
