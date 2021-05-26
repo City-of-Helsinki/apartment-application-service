@@ -12,7 +12,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         try:
             MappedApartment.objects.all().delete()
-            _logger.info("Succefully deleted mapped apartments from database")
+            _logger.info("Successfully deleted mapped apartments from database")
         except Exception as e:
-            _logger.error("Could not delete mapped apartments from database:", str(e))
+            _logger.exception("Could not delete mapped apartments from database:")
             raise e
