@@ -2,6 +2,7 @@ import environ
 import os
 import sentry_sdk
 import subprocess
+from datetime import timedelta
 from django.utils.translation import ugettext_lazy as _
 from sentry_sdk.integrations.django import DjangoIntegration
 
@@ -69,6 +70,7 @@ env = environ.Env(
     OIKOTIE_USER=(str, ""),
     OIKOTIE_PASSWORD=(str, ""),
     APARTMENT_DATA_TRANSFER_PATH=(str, "transfer_files"),
+    HASHIDS_SALT=(str, ""),
 )
 if os.path.exists(env_file):
     env.read_env(env_file)
@@ -245,6 +247,7 @@ SESSION_SERIALIZER = "django.contrib.sessions.serializers.PickleSerializer"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
         "helusers.oidc.ApiTokenAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ),
@@ -296,6 +299,10 @@ OIKOTIE_FTP_HOST = env("OIKOTIE_FTP_HOST")
 OIKOTIE_USER = env("OIKOTIE_USER")
 OIKOTIE_PASSWORD = env("OIKOTIE_PASSWORD")
 APARTMENT_DATA_TRANSFER_PATH = env("APARTMENT_DATA_TRANSFER_PATH")
+
+HASHIDS_SALT = env("HASHIDS_SALT")
+SIMPLE_JWT = {"ACCESS_TOKEN_LIFETIME": timedelta(minutes=30)}
+
 
 # local_settings.py can be used to override environment-specific settings
 # like database and email that differ between development and production.

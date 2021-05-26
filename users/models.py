@@ -3,6 +3,7 @@ from django.conf import settings
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from helusers.models import AbstractUser
+from uuid import uuid4
 
 _logger = logging.getLogger(__name__)
 
@@ -20,7 +21,9 @@ class Profile(models.Model):
         ("en", _("English")),
     ]
 
-    id = models.UUIDField(_("user identifier"), primary_key=True)
+    id = models.UUIDField(
+        _("user identifier"), primary_key=True, default=uuid4, editable=False
+    )
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=False
     )
