@@ -138,7 +138,7 @@ def map_balcony(elastic_apartment: ElasticApartment) -> Optional[Balcony]:
     if getattr(elastic_apartment, "has_balcony", None):
         return Balcony(
             value=elastic_apartment.has_balcony,
-            description=elastic_apartment.balcony_description,
+            description=getattr(elastic_apartment, "balcony_description", None),
         )
     else:
         return None
