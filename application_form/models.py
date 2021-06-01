@@ -3,6 +3,7 @@ from django.utils.translation import ugettext_lazy as _
 from enumfields import EnumField
 from uuid import uuid4
 
+from apartment.models import Apartment
 from application_form.enums import ApplicationState, ApplicationType
 from users.models import Profile
 
@@ -20,6 +21,7 @@ class Application(models.Model):
         verbose_name=_("application state"),
     )
     profile = models.ForeignKey(Profile, on_delete=models.CASCADE)
+    apartments = models.ManyToManyField(Apartment, through="ApplicationApartment")
 
 
 class Applicant(models.Model):
@@ -29,4 +31,12 @@ class Applicant(models.Model):
     has_children = models.BooleanField(_("has children"), default=False)
     age = models.PositiveSmallIntegerField(_("age"))
     is_primary_applicant = models.BooleanField(_("is primary applicant"), default=False)
+    application = models.ForeignKey(
+        Application, on_delete=models.CASCADE, related_name="applicants"
+    )
+
+
+class ApplicationApartment(models.Model):
     application = models.ForeignKey(Application, on_delete=models.CASCADE)
+    apartment = models.ForeignKey(Apartment, on_delete=models.CASCADE)
+    priority_number = models.PositiveSmallIntegerField(_("priority number"))
