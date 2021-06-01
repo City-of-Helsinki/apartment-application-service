@@ -4,14 +4,11 @@ import uuid
 from datetime import date
 from django.utils import timezone
 from elasticsearch_dsl import Document
-from factory import fuzzy
-from faker import Faker
+from factory import Faker, fuzzy
 
 from connections.elastic_models import Apartment
 from connections.enums import ApartmentStateOfSale, ProjectStateOfSale
 from connections.oikotie.field_mapper import NEW_DEVELOPMENT_STATUS_MAPPING
-
-fake = Faker()
 
 
 class ApartmentTest(Apartment):
@@ -69,7 +66,8 @@ class ApartmentFactory(factory.Factory):
     project_zoning_status = fuzzy.FuzzyText()
 
     project_building_type = "BLOCK_OF_FLATS"
-    project_description = fuzzy.FuzzyText()
+    project_description = fuzzy.FuzzyText(length=200)
+    url = fuzzy.FuzzyText(length=20)
     project_accessibility = fuzzy.FuzzyText()
     project_smoke_free = fuzzy.FuzzyText()
 
@@ -101,7 +99,7 @@ class ApartmentFactory(factory.Factory):
     project_constructor = fuzzy.FuzzyText()
     project_housing_manager = fuzzy.FuzzyText()
     project_estate_agent = fuzzy.FuzzyText()
-    project_estate_agent_email = fake.email()
+    project_estate_agent_email = Faker("email")
     project_estate_agent_phone = fuzzy.FuzzyText()
 
     project_coordinate_lat = fuzzy.FuzzyFloat(-90, 90)
@@ -163,13 +161,19 @@ class ApartmentMinimalFactory(factory.Factory):
 
     _language = fuzzy.FuzzyChoice(["en", "fi"])
     project_id = fuzzy.FuzzyInteger(0, 9999999999)
+    # mandatory fields for vendors:
     project_uuid = str(uuid.uuid4())
-
+    uuid = fuzzy.FuzzyAttribute(get_uuid)
     project_housing_company = fuzzy.FuzzyText()
     project_holding_type = "RIGHT_OF_RESIDENCE_APARTMENT"
     project_street_address = fuzzy.FuzzyText()
     project_postal_code = fuzzy.FuzzyText(length=6, chars=string.digits)
     project_city = "Helsinki"
+    project_building_type = "BLOCK_OF_FLATS"
+    project_estate_agent = fuzzy.FuzzyText()
+    project_estate_agent_email = Faker("email")
+
+    # optional fields for vendors
     project_district = fuzzy.FuzzyText()
     project_realty_id = fuzzy.FuzzyText()
     project_new_development_status = fuzzy.FuzzyChoice(
@@ -178,14 +182,10 @@ class ApartmentMinimalFactory(factory.Factory):
     project_new_housing = True
     project_apartment_count = fuzzy.FuzzyInteger(0, 9999999999)
     project_estimated_completion = fuzzy.FuzzyText()
-    project_estate_agent_email = fake.email()
-
-    project_building_type = "BLOCK_OF_FLATS"
-
-    uuid = fuzzy.FuzzyAttribute(get_uuid)
     room_count = fuzzy.FuzzyInteger(0, 9999999999)
     sales_price = fuzzy.FuzzyInteger(0, 9999999999)
     debt_free_sales_price = fuzzy.FuzzyInteger(0, 9999999999)
-
-    project_state_of_sale = fuzzy.FuzzyChoice(ProjectStateOfSale)
-    apartment_state_of_sale = fuzzy.FuzzyChoice(ApartmentStateOfSale)
+    project_state_of_sale = fuzzy.FuzzyChoice(["PRE_MARKETING", "FOR_SALE", "SOLD"])
+    apartment_state_of_sale = fuzzy.FuzzyChoice(["RESERVED", "FOR_SALE"])
+    project_description = fuzzy.FuzzyText(length=200)
+    url = fuzzy.FuzzyText(length=20)

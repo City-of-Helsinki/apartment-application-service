@@ -6,6 +6,7 @@ from django_etuovi.utils.testing import check_dataclass_typing
 
 from connections.models import MappedApartment
 from connections.oikotie.oikotie_mapper import (
+    form_description,
     map_address,
     map_apartment,
     map_apartment_pictures,
@@ -187,6 +188,17 @@ class TestOikotieMapper:
             return
         raise Exception("Missing project_city should have thrown a ValueError")
 
+    def test_elastic_to_oikotie_missing__housing_company(self):
+        elastic_apartment = ApartmentMinimalFactory(project_housing_company=None)
+        try:
+            map_oikotie_housing_company(elastic_apartment)
+        except ValueError as e:
+            assert "project_housing_company" in str(e)
+            return
+        raise Exception(
+            "Missing project_housing_company should have thrown a ValueError"
+        )
+
     def test_elastic_to_oikotie_missing__housing_company__project_city(self):
         elastic_apartment = ApartmentMinimalFactory(project_city=None)
         try:
@@ -228,6 +240,38 @@ class TestOikotieMapper:
             assert "project_postal_code" in str(e)
             return
         raise Exception("Missing project_postal_code should have thrown a ValueError")
+
+    @pytest.mark.parametrize(
+        "description,link,expected",
+        [
+            (
+                "full description",
+                "link_to_project",
+                "full description\n\nlink_to_project",
+            ),
+            (
+                None,
+                "link_to_project",
+                "Tarkemman kohde-esittelyn sekä varaustilanteen löydät täältä:"
+                + "\nlink_to_project",
+            ),
+            (
+                "full description",
+                None,
+                "full description",
+            ),
+        ],
+    )
+    def test_elastic_to_oikotie_missing__project_description(
+        self, description, link, expected
+    ):
+        elastic_apartment = ApartmentMinimalFactory(
+            project_description=description, url=link
+        )
+        formed_description = form_description(elastic_apartment)
+        print(formed_description)
+        print(expected)
+        assert formed_description.strip() == expected.strip()
 
 
 @pytest.mark.django_db
