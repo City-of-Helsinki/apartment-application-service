@@ -8,37 +8,43 @@ class AutoSchema(openapi.AutoSchema):
         try:
             return [self._verbose_name_plural.capitalize()]
         except AttributeError:
-            return super().get_tags()
+            return [tag.capitalize() for tag in super().get_tags()]
 
     def get_summary(self) -> Optional[str]:
         """
         Give some sensible default summaries for each type of endpoint.
         These can be overridden with e.g. @extend_schema_view if needed.
         """
-        default_summaries = {
-            "create": f"Create {self._verbose_name}",
-            "list": f"Get list of {self._verbose_name_plural}",
-            "retrieve": f"Get {self._verbose_name}",
-            "update": f"Update {self._verbose_name}",
-            "partial_update": f"Patch {self._verbose_name}",
-            "destroy": f"Delete {self._verbose_name}",
-        }
-        return default_summaries.get(self.view.action, super().get_summary())
+        try:
+            default_summaries = {
+                "create": f"Create {self._verbose_name}",
+                "list": f"Get list of {self._verbose_name_plural}",
+                "retrieve": f"Get {self._verbose_name}",
+                "update": f"Update {self._verbose_name}",
+                "partial_update": f"Patch {self._verbose_name}",
+                "destroy": f"Delete {self._verbose_name}",
+            }
+            return default_summaries.get(self.view.action, super().get_summary())
+        except AttributeError:
+            return super().get_summary()
 
     def get_description(self) -> str:
         """
         Give some sensible default descriptions for each type of endpoint.
         These can be overridden with e.g. @extend_schema_view if needed.
         """
-        default_descriptions = {
-            "create": f"Create a new {self._verbose_name} instance with the given details.",  # noqa: E501
-            "list": f"Return a list of all accessible {self._verbose_name_plural}.",
-            "retrieve": f"Return the details of the given {self._verbose_name} instance.",  # noqa: E501
-            "update": f"Update the given {self._verbose_name} with new details.",
-            "partial_update": f"Partially update the given {self._verbose_name} with new details.",  # noqa: E501
-            "destroy": f"Delete the given {self._verbose_name} instance.",
-        }
-        return default_descriptions.get(self.view.action, super().get_description())
+        try:
+            default_descriptions = {
+                "create": f"Create a new {self._verbose_name} instance with the given details.",  # noqa: E501
+                "list": f"Return a list of all accessible {self._verbose_name_plural}.",
+                "retrieve": f"Return the details of the given {self._verbose_name} instance.",  # noqa: E501
+                "update": f"Update the given {self._verbose_name} with new details.",
+                "partial_update": f"Partially update the given {self._verbose_name} with new details.",  # noqa: E501
+                "destroy": f"Delete the given {self._verbose_name} instance.",
+            }
+            return default_descriptions.get(self.view.action, super().get_description())
+        except AttributeError:
+            return super().get_description()
 
     @property
     def _model_meta(self):
