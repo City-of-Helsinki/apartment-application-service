@@ -28,7 +28,7 @@ class Profile(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=False
     )
     phone_number = models.CharField(_("phone number"), max_length=40, null=False)
-    address = models.CharField(_("address"), max_length=200)
+    street_address = models.CharField(_("street address"), max_length=200)
     date_of_birth = models.DateField(_("date of birth"))
     city = models.CharField(_("city"), max_length=50)
     postal_code = models.CharField(_("postal code"), max_length=10)
@@ -38,6 +38,8 @@ class Profile(models.Model):
         max_length=2,
         choices=CONTACT_LANGUAGE_CHOICES,
     )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def delete(self, *args, **kwargs):
         pk = self.pk
