@@ -31,7 +31,7 @@ class ProfileSerializer(ModelSerializer):
             "last_name",
             "email",
             "phone_number",
-            "address",
+            "street_address",
             "date_of_birth",
             "city",
             "postal_code",
