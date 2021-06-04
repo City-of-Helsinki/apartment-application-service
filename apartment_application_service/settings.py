@@ -71,6 +71,7 @@ env = environ.Env(
     OIKOTIE_PASSWORD=(str, ""),
     APARTMENT_DATA_TRANSFER_PATH=(str, "transfer_files"),
     HASHIDS_SALT=(str, ""),
+    AUDIT_LOG_FILENAME=(str, ""),
 )
 if os.path.exists(env_file):
     env.read_env(env_file)
@@ -146,6 +147,7 @@ INSTALLED_APPS = [
     "application_form",
     "connections",
     "users",
+    "audit_log",
 ]
 
 MIDDLEWARE = [
@@ -183,6 +185,32 @@ AUTH_USER_MODEL = "users.User"
 CORS_ORIGIN_WHITELIST = env.list("CORS_ORIGIN_WHITELIST")
 CORS_ORIGIN_ALLOW_ALL = env.bool("CORS_ORIGIN_ALLOW_ALL")
 
+AUDIT_LOG_FILENAME = env("AUDIT_LOG_FILENAME")
+
+if AUDIT_LOG_FILENAME:
+    if "X" in AUDIT_LOG_FILENAME:
+        import random
+        import re
+        import string
+
+        system_random = random.SystemRandom()
+        char_pool = string.ascii_lowercase + string.digits
+        AUDIT_LOG_FILENAME = re.sub(
+            "X", lambda x: system_random.choice(char_pool), AUDIT_LOG_FILENAME
+        )
+    _audit_log_handler = {
+        "class": "logging.handlers.RotatingFileHandler",
+        "filename": AUDIT_LOG_FILENAME,
+        "maxBytes": 100_000_000,
+        "backupCount": 1,
+        "delay": True,
+    }
+else:
+    _audit_log_handler = {
+        "class": "logging.StreamHandler",
+        "formatter": "verbose",
+    }
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -195,13 +223,20 @@ LOGGING = {
         "console": {
             "class": "logging.StreamHandler",
             "formatter": "verbose",
-        }
+        },
+        "audit": _audit_log_handler,
     },
     "loggers": {
         "": {
             "level": env("LOG_LEVEL"),
             "handlers": [
                 "console",
+            ],
+        },
+        "audit": {
+            "level": "INFO",  # Audit log only writes at INFO level
+            "handlers": [
+                "audit",
             ],
         },
         "django": {
