@@ -79,7 +79,11 @@ def test_profile_put(profile, api_client):
     # A user should be able to update their own profile
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
     url = reverse("users:profile-detail", args=(mask_uuid(profile.pk),))
-    put_data = {**PROFILE_TEST_DATA, "first_name": "Maija", "address": "Kauppakatu 23"}
+    put_data = {
+        **PROFILE_TEST_DATA,
+        "first_name": "Maija",
+        "street_address": "Kauppakatu 23",
+    }
     response = api_client.put(url, put_data)
     assert response.status_code == 200
     assert response.data == put_data
@@ -95,7 +99,11 @@ def test_profile_put_fails_if_not_own_profile(profile, other_profile, api_client
     # A user should not be able to update other users' profiles
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
     url = reverse("users:profile-detail", args=(mask_uuid(other_profile.pk),))
-    put_data = {**PROFILE_TEST_DATA, "first_name": "Maija", "address": "Kauppakatu 23"}
+    put_data = {
+        **PROFILE_TEST_DATA,
+        "first_name": "Maija",
+        "street_address": "Kauppakatu 23",
+    }
     response = api_client.put(url, put_data)
     assert response.status_code == 404
 
@@ -116,7 +124,7 @@ def test_profile_patch(profile, api_client):
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
     url = reverse("users:profile-detail", args=(mask_uuid(profile.pk),))
     response = api_client.patch(
-        url, {"first_name": "Maija", "address": "Kauppakatu 23"}
+        url, {"first_name": "Maija", "street_address": "Kauppakatu 23"}
     )
     assert response.status_code == 405
 
@@ -187,12 +195,12 @@ def test_profile_update_is_rolled_back_on_profile_save_error(profile, api_client
             put_data = {
                 **PROFILE_TEST_DATA,
                 "first_name": "Maija",
-                "address": "Kauppakatu 23",
+                "street_address": "Kauppakatu 23",
             }
             api_client.put(url, put_data)
     profile.refresh_from_db()
     assert profile.user.first_name == PROFILE_TEST_DATA["first_name"]
-    assert profile.address == PROFILE_TEST_DATA["address"]
+    assert profile.street_address == PROFILE_TEST_DATA["street_address"]
 
 
 @pytest.mark.django_db

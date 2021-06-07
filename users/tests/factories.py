@@ -22,7 +22,7 @@ class ProfileFactory(factory.django.DjangoModelFactory):
 
     id = factory.Faker("uuid4")
     phone_number = Faker("phone_number")
-    address = Faker("street_address")
+    street_address = Faker("street_address")
     city = Faker("city")
     postal_code = Faker("postcode")
     date_of_birth = Faker("date_of_birth", minimum_age=17, maximum_age=99)

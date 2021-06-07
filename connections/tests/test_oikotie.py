@@ -269,8 +269,7 @@ class TestOikotieMapper:
             project_description=description, url=link
         )
         formed_description = form_description(elastic_apartment)
-        print(formed_description)
-        print(expected)
+
         assert formed_description.strip() == expected.strip()
 
 

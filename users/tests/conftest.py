@@ -12,7 +12,7 @@ PROFILE_TEST_DATA = {
     "last_name": "Mallikas",
     "email": "example@example.com",
     "phone_number": "+358123456789",
-    "address": "Mannerheiminkatu 3",
+    "street_address": "Mannerheiminkatu 3",
     "city": "Helsinki",
     "postal_code": "00100",
     "date_of_birth": "1980-01-25",
