@@ -10,7 +10,9 @@ class Operation(Enum):
 
 class Role(Enum):
     OWNER = "OWNER"
+    USER = "USER"
     SYSTEM = "SYSTEM"
+    ANONYMOUS = "ANONYMOUS"
 
 
 class Status(Enum):

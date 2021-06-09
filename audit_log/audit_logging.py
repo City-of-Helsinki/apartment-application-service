@@ -1,8 +1,9 @@
 import json
 import logging
 from datetime import datetime, timezone
+from django.contrib.auth.models import AnonymousUser
 from django.db.models import Model
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
 
 from audit_log.enums import Operation, Role, Status
 from users.models import Profile
@@ -21,9 +22,9 @@ def _iso8601_date(time: datetime) -> str:
 
 
 def log(
-    actor: Optional[Profile],
+    actor: Optional[Union[Profile, AnonymousUser]],
     operation: Operation,
-    target: Model,
+    target: Optional[Model],
     status: Status = Status.SUCCESS,
     get_time: Callable[[], datetime] = _now,
 ):
@@ -37,7 +38,17 @@ def log(
     Audit log events are written to the "audit" logger at "INFO" level.
     """
     current_time = get_time()
-    role = Role.OWNER if actor is not None else Role.SYSTEM
+    profile_id = None
+    if actor is None:
+        role = Role.SYSTEM
+    elif isinstance(actor, AnonymousUser):
+        role = Role.ANONYMOUS
+    elif actor.id == target.pk:
+        role = Role.OWNER
+        profile_id = str(actor.pk)
+    else:
+        role = Role.USER
+        profile_id = str(actor.pk)
     message = {
         "audit_event": {
             "origin": ORIGIN,
@@ -46,12 +57,12 @@ def log(
             "date_time": _iso8601_date(current_time),
             "actor": {
                 "role": str(role.value),
-                "profile_id": str(actor.pk) if actor else None,
+                "profile_id": profile_id,
             },
             "operation": str(operation.value),
             "target": {
-                "id": str(target.pk),
-                "type": str(target.__class__.__name__),
+                "id": target and str(target.pk) or None,
+                "type": target and str(target.__class__.__name__) or None,
             },
         },
     }
