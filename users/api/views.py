@@ -41,8 +41,7 @@ class ProfileViewSet(
         # Unauthenticated users cannot access any profile
         if self.request.user.is_anonymous:
             return self.queryset.none()
-        # Authenticated users should only have access to their own profile
-        return self.queryset.filter(user=self.request.user)
+        return self.queryset
 
     def get_object(self):
         masked_profile_id = self.kwargs[self.lookup_field]

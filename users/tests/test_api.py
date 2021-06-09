@@ -42,7 +42,7 @@ def test_profile_get_detail_fails_if_not_own_profile(
     response = api_client.get(
         reverse("users:profile-detail", args=(mask_uuid(other_profile.pk),))
     )
-    assert response.status_code == 404
+    assert response.status_code == 403
 
 
 @pytest.mark.django_db
@@ -105,7 +105,7 @@ def test_profile_put_fails_if_not_own_profile(profile, other_profile, api_client
         "street_address": "Kauppakatu 23",
     }
     response = api_client.put(url, put_data)
-    assert response.status_code == 404
+    assert response.status_code == 403
 
 
 @pytest.mark.django_db
@@ -156,7 +156,7 @@ def test_profile_delete_fails_if_not_own_profile(profile, other_profile, api_cli
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
     url = reverse("users:profile-detail", args=(mask_uuid(other_profile.pk),))
     response = api_client.delete(url)
-    assert response.status_code == 404
+    assert response.status_code == 403
 
 
 @pytest.mark.django_db
