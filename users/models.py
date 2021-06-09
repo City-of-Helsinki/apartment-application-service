@@ -5,6 +5,8 @@ from django.utils.translation import ugettext_lazy as _
 from helusers.models import AbstractUser
 from uuid import uuid4
 
+from apartment_application_service.models import TimestampedModel
+
 _logger = logging.getLogger(__name__)
 
 
@@ -14,7 +16,7 @@ class User(AbstractUser):
         verbose_name_plural = _("users")
 
 
-class Profile(models.Model):
+class Profile(TimestampedModel):
     CONTACT_LANGUAGE_CHOICES = [
         ("fi", _("Finnish")),
         ("sv", _("Swedish")),
@@ -38,8 +40,6 @@ class Profile(models.Model):
         max_length=2,
         choices=CONTACT_LANGUAGE_CHOICES,
     )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     def delete(self, *args, **kwargs):
         pk = self.pk

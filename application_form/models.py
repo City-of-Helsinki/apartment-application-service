@@ -4,11 +4,12 @@ from enumfields import EnumField
 from uuid import uuid4
 
 from apartment.models import Apartment
+from apartment_application_service.models import TimestampedModel
 from application_form.enums import ApplicationType
 from users.models import Profile
 
 
-class Application(models.Model):
+class Application(TimestampedModel):
     external_uuid = models.UUIDField(
         _("application identifier"), default=uuid4, editable=False
     )
@@ -16,8 +17,6 @@ class Application(models.Model):
     type = EnumField(ApplicationType, max_length=15, verbose_name=_("application type"))
     right_of_residence = models.CharField(_("right of residence number"), max_length=10)
     has_children = models.BooleanField(_("has children"), default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
     profile = models.ForeignKey(Profile, on_delete=models.CASCADE)
     apartments = models.ManyToManyField(
         Apartment,
@@ -26,7 +25,7 @@ class Application(models.Model):
     )
 
 
-class Applicant(models.Model):
+class Applicant(TimestampedModel):
     first_name = models.CharField(_("first name"), max_length=30)
     last_name = models.CharField(_("last name"), max_length=150)
     email = models.EmailField(_("email"))
@@ -42,8 +41,6 @@ class Applicant(models.Model):
         null=True,
     )
     is_primary_applicant = models.BooleanField(_("is primary applicant"), default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
     application = models.ForeignKey(
         Application, on_delete=models.CASCADE, related_name="applicants"
     )
