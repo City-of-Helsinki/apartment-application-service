@@ -12,5 +12,10 @@ def profile() -> Profile:
 
 
 @fixture
+def other_profile() -> Profile:
+    return ProfileFactory(id="f5cf186a-f9a8-4671-a7a5-1ecbe758071f")
+
+
+@fixture
 def fixed_datetime() -> Callable[[], datetime]:
     return lambda: datetime(2020, 6, 1, tzinfo=timezone.utc)

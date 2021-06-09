@@ -1,6 +1,7 @@
 import json
 import pytest
 from datetime import datetime, timedelta, timezone
+from django.contrib.auth.models import AnonymousUser
 
 from audit_log import audit_logging
 from audit_log.enums import Operation, Status
@@ -39,6 +40,33 @@ def test_log_owner_operation(caplog, fixed_datetime, profile, operation):
     assert message == {
         **_common_fields,
         "audit_event": {**_common_fields["audit_event"], "operation": operation.value},
+    }
+
+
+@pytest.mark.django_db
+def test_log_anonymous_role(caplog, fixed_datetime, profile, other_profile):
+    audit_logging.log(AnonymousUser(), Operation.READ, profile, get_time=fixed_datetime)
+    message = json.loads(caplog.records[-1].message)
+    assert message == {
+        **_common_fields,
+        "audit_event": {
+            **_common_fields["audit_event"],
+            "actor": {"role": "ANONYMOUS", "profile_id": None},
+        },
+    }
+
+
+@pytest.mark.django_db
+def test_log_user_role(caplog, fixed_datetime, profile, other_profile):
+    audit_logging.log(profile, Operation.READ, other_profile, get_time=fixed_datetime)
+    message = json.loads(caplog.records[-1].message)
+    assert message == {
+        **_common_fields,
+        "audit_event": {
+            **_common_fields["audit_event"],
+            "actor": {"role": "USER", "profile_id": str(profile.pk)},
+            "target": {"id": str(other_profile.pk), "type": "Profile"},
+        },
     }
 
 
