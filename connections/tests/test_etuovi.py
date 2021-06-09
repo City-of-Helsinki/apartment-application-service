@@ -3,14 +3,17 @@ import pytest
 from django.conf import settings
 from django.core.management import call_command
 from django_etuovi.utils.testing import check_dataclass_typing
+from uuid import UUID
 
 from connections.etuovi.etuovi_mapper import map_apartment_to_item
 from connections.etuovi.services import create_xml, fetch_apartments_for_sale
 from connections.models import MappedApartment
 from connections.tests.factories import ApartmentFactory, ApartmentMinimalFactory
 from connections.tests.utils import (
-    get_elastic_apartments_for_sale_uuids,
+    get_elastic_apartments_for_sale_published_on_etuovi_uuids,
+    get_elastic_apartments_for_sale_published_on_oikotie_uuids,
     make_apartments_sold_in_elastic,
+    publish_elastic_apartments,
 )
 
 
@@ -53,7 +56,7 @@ class TestApartmentFetchingFromElasticAndMapping:
     """
 
     def test_apartments_for_sale_fetched_to_XML(self):
-        expected = get_elastic_apartments_for_sale_uuids()
+        expected = get_elastic_apartments_for_sale_published_on_etuovi_uuids()
         items = fetch_apartments_for_sale()
         fetched = [item.cust_itemcode for item in items]
 
@@ -65,24 +68,57 @@ class TestApartmentFetchingFromElasticAndMapping:
             settings.APARTMENT_DATA_TRANSFER_PATH, file_name
         )
 
-    @pytest.mark.usefixtures("invalid_data_elastic_apartments_for_sale")
-    def test_apartments_for_sale_fetched_correctly(self):
+    def test_apartments_for_sale_fetched_correctly(
+        self, invalid_data_elastic_apartments_for_sale
+    ):
         # Test data contains one apartment with etuovi invalid data
-        expected = get_elastic_apartments_for_sale_uuids()
-        items = fetch_apartments_for_sale()
+        elastic_etuovi = get_elastic_apartments_for_sale_published_on_etuovi_uuids()
+        expected = elastic_etuovi.copy()
 
-        assert len(expected) - 1 == len(items)
+        # remove invalid data
+        for i in invalid_data_elastic_apartments_for_sale:
+            if i.publish_on_etuovi is True:
+                expected.remove(i.uuid)
 
-    @pytest.mark.usefixtures(
-        "invalid_data_elastic_apartments_for_sale", "not_sending_etuovi_ftp"
-    )
-    def test_mapped_etuovi_saved_to_database(self):
-        # Test data contains one apartment with etuovi invalid data
+        apartments = [i.cust_itemcode for i in fetch_apartments_for_sale()]
+
+        assert elastic_etuovi != apartments
+        assert expected == apartments
+
+    @pytest.mark.usefixtures("not_sending_etuovi_ftp")
+    def test_mapped_etuovi_saved_to_database_with_publish_updated(self):
         call_command("send_etuovi_xml_file")
-        etuovi_mapped = MappedApartment.objects.filter(mapped_etuovi=True).count()
-        expected = len(get_elastic_apartments_for_sale_uuids())
+        etuovi_mapped = MappedApartment.objects.filter(mapped_etuovi=True).values_list(
+            "apartment_uuid", flat=True
+        )
+        expected = list(
+            map(UUID, get_elastic_apartments_for_sale_published_on_etuovi_uuids())
+        )
 
-        assert etuovi_mapped == expected - 1
+        assert sorted(etuovi_mapped) == sorted(expected)
+
+        oikotie_mapped = MappedApartment.objects.filter(mapped_oikotie=True).count()
+
+        assert oikotie_mapped == 0
+
+        # get not published etuovi apartments
+        not_published = get_elastic_apartments_for_sale_published_on_oikotie_uuids(
+            only_oikotie_published=True
+        )
+
+        expected_new = list(
+            map(UUID, publish_elastic_apartments(not_published, publish_to_etuovi=True))
+        )
+
+        call_command("send_etuovi_xml_file")
+        etuovi_mapped_new = MappedApartment.objects.filter(
+            mapped_etuovi=True
+        ).values_list("apartment_uuid", flat=True)
+
+        assert etuovi_mapped_new != etuovi_mapped
+        # new apartments are 3 from only oikotie published
+        assert etuovi_mapped_new.count() - etuovi_mapped.count() == 3
+        assert sorted(expected_new) == sorted(etuovi_mapped_new)
 
         oikotie_mapped = MappedApartment.objects.filter(mapped_oikotie=True).count()
 
@@ -90,16 +126,20 @@ class TestApartmentFetchingFromElasticAndMapping:
 
     def test_no_apartments_for_sale_not_creating_file_and_updating_database(self):
         call_command("send_etuovi_xml_file")
-        expected = len(get_elastic_apartments_for_sale_uuids())
+        expected = list(
+            map(UUID, get_elastic_apartments_for_sale_published_on_etuovi_uuids())
+        )
 
         make_apartments_sold_in_elastic()
         items = fetch_apartments_for_sale()
 
         call_command("send_etuovi_xml_file")
-        etuovi_not_mapped = MappedApartment.objects.filter(mapped_etuovi=False).count()
+        etuovi_not_mapped = MappedApartment.objects.filter(
+            mapped_etuovi=False
+        ).values_list("apartment_uuid", flat=True)
 
         assert len(items) == 0
-        assert etuovi_not_mapped == expected
+        assert sorted(etuovi_not_mapped) == sorted(expected)
 
         file_name = create_xml(items)
 

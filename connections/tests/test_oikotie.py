@@ -3,6 +3,7 @@ import pytest
 from django.conf import settings
 from django.core.management import call_command
 from django_etuovi.utils.testing import check_dataclass_typing
+from uuid import UUID
 
 from connections.models import MappedApartment
 from connections.oikotie.oikotie_mapper import (
@@ -38,8 +39,11 @@ from connections.oikotie.services import (
 from connections.tests.factories import ApartmentFactory, ApartmentMinimalFactory
 from connections.tests.utils import (
     get_elastic_apartments_for_sale_project_uuids,
-    get_elastic_apartments_for_sale_uuids,
+    get_elastic_apartments_for_sale_published_on_etuovi_uuids,
+    get_elastic_apartments_for_sale_published_on_oikotie_uuids,
     make_apartments_sold_in_elastic,
+    publish_elastic_apartments,
+    unpublish_elastic_oikotie_apartments,
 )
 
 
@@ -282,7 +286,8 @@ class TestApartmentFetchingFromElasticAndMapping:
     """
 
     def test_apartments_for_sale_fetched_to_XML(self):
-        expected_ap = get_elastic_apartments_for_sale_uuids()
+
+        expected_ap = get_elastic_apartments_for_sale_published_on_oikotie_uuids()
         expected_hc = get_elastic_apartments_for_sale_project_uuids()
 
         apartments, housing_companies = fetch_apartments_for_sale()
@@ -303,27 +308,70 @@ class TestApartmentFetchingFromElasticAndMapping:
             settings.APARTMENT_DATA_TRANSFER_PATH, hc_file_name
         )
 
-    @pytest.mark.usefixtures("invalid_data_elastic_apartments_for_sale")
-    def test_apartments_for_sale_mapped_correctly(self):
+    def test_apartments_for_sale_mapped_correctly(
+        self, invalid_data_elastic_apartments_for_sale
+    ):
         # Test data contains three apartments with oikotie invalid data
-        expected_ap = get_elastic_apartments_for_sale_uuids()
+
+        elastic_oikotie_ap = (
+            get_elastic_apartments_for_sale_published_on_oikotie_uuids()
+        )
+        expected_ap = elastic_oikotie_ap.copy()
+
+        # remove invalid data
+        for i in invalid_data_elastic_apartments_for_sale:
+            if i.publish_on_oikotie is True:
+                expected_ap.remove(i.uuid)
+
         apartments, _ = fetch_apartments_for_sale()
-        assert len(expected_ap) - 3 == len(apartments)
+        apartments = [i.key for i in apartments]
 
-    @pytest.mark.usefixtures(
-        "invalid_data_elastic_apartments_for_sale", "not_sending_oikotie_ftp"
-    )
-    def test_mapped_oikotie_saved_to_database(self):
-        # Test data contains three apartments with oikotie invalid data
+        assert elastic_oikotie_ap != apartments
+        assert expected_ap == apartments
+
+    @pytest.mark.usefixtures("not_sending_oikotie_ftp")
+    def test_mapped_oikotie_saved_to_database_with_publish_updated(self):
         call_command("send_oikotie_xml_file")
-        oikotie_mapped = MappedApartment.objects.filter(mapped_oikotie=True).count()
-        expected = len(get_elastic_apartments_for_sale_uuids())
+        oikotie_mapped = MappedApartment.objects.filter(
+            mapped_oikotie=True
+        ).values_list("apartment_uuid", flat=True)
 
-        assert oikotie_mapped == expected - 3
+        expected = list(
+            map(UUID, get_elastic_apartments_for_sale_published_on_oikotie_uuids())
+        )
+
+        assert sorted(oikotie_mapped) == sorted(expected)
 
         etuovi_mapped = MappedApartment.objects.filter(mapped_etuovi=True).count()
 
         assert etuovi_mapped == 0
+
+        # get not published oikotie apartments
+        not_published = get_elastic_apartments_for_sale_published_on_etuovi_uuids(
+            only_etuovi_published=True
+        )
+        expected_new = list(
+            map(
+                UUID, publish_elastic_apartments(not_published, publish_to_oikotie=True)
+            )
+        )
+
+        call_command("send_oikotie_xml_file")
+        oikotie_mapped_new = MappedApartment.objects.filter(
+            mapped_oikotie=True
+        ).values_list("apartment_uuid", flat=True)
+
+        assert oikotie_mapped_new != oikotie_mapped
+        # new apartments are 3 from only etuovi published
+        assert oikotie_mapped_new.count() - oikotie_mapped.count() == 3
+        assert sorted(expected_new) == sorted(oikotie_mapped_new)
+
+        etuovi_mapped = MappedApartment.objects.filter(mapped_etuovi=True).count()
+
+        assert etuovi_mapped == 0
+
+        # return data to original
+        unpublish_elastic_oikotie_apartments(not_published)
 
     def test_no_apartments_for_sale(self):
         """
@@ -331,7 +379,9 @@ class TestApartmentFetchingFromElasticAndMapping:
         no files are created
         """
         call_command("send_oikotie_xml_file")
-        expected = len(get_elastic_apartments_for_sale_uuids())
+        expected = list(
+            map(UUID, get_elastic_apartments_for_sale_published_on_oikotie_uuids())
+        )
 
         make_apartments_sold_in_elastic()
         apartments, housing_companies = fetch_apartments_for_sale()
@@ -339,11 +389,11 @@ class TestApartmentFetchingFromElasticAndMapping:
         call_command("send_oikotie_xml_file")
         oikotie_not_mapped = MappedApartment.objects.filter(
             mapped_oikotie=False
-        ).count()
+        ).values_list("apartment_uuid", flat=True)
 
         assert len(apartments) == 0
         assert len(housing_companies) == 0
-        assert oikotie_not_mapped == expected
+        assert sorted(oikotie_not_mapped) == sorted(expected)
 
         ap_file_name = create_xml_apartment_file(apartments)
         hc_file_name = create_xml_housing_company_file(housing_companies)
@@ -402,16 +452,46 @@ class TestSendOikotieXMLFileCommand:
         """
         Test that after calling send_oikotie_xml_file --send_only_type 2
         apartment file is created and no database entries are made.
+        Test that after adding more oikotie apartments to publish and running command
+        again database is updated.
         """
         call_command("send_oikotie_xml_file", "--send_only_type", 2)
         files = os.listdir(test_folder)
 
         assert any("APT" + settings.OIKOTIE_COMPANY_NAME in f for f in files)
 
-        oikotie_mapped = MappedApartment.objects.filter(mapped_oikotie=True)
-        expected = len(get_elastic_apartments_for_sale_uuids())
+        oikotie_mapped = MappedApartment.objects.filter(
+            mapped_oikotie=True
+        ).values_list("apartment_uuid", flat=True)
 
-        assert oikotie_mapped.count() == expected
+        expected = list(
+            map(UUID, get_elastic_apartments_for_sale_published_on_oikotie_uuids())
+        )
+
+        assert len(expected) == 6
+        assert sorted(oikotie_mapped) == sorted(expected)
+
+        not_published = get_elastic_apartments_for_sale_published_on_etuovi_uuids(
+            only_etuovi_published=True
+        )
+        # adds 3 new apartment not published before on oikotie
+        publish_elastic_apartments(not_published, publish_to_oikotie=True)
+
+        call_command("send_oikotie_xml_file", "--send_only_type", 2)
+
+        oikotie_mapped_new = MappedApartment.objects.filter(
+            mapped_oikotie=True
+        ).values_list("apartment_uuid", flat=True)
+
+        expected_new = list(
+            map(UUID, get_elastic_apartments_for_sale_published_on_oikotie_uuids())
+        )
+
+        assert sorted(oikotie_mapped_new) == sorted(expected_new)
+        assert len(expected_new) > len(expected)
+
+        # return data to original
+        unpublish_elastic_oikotie_apartments(not_published)
 
         for f in files:
             os.remove(os.path.join(test_folder, f))
@@ -428,10 +508,15 @@ class TestSendOikotieXMLFileCommand:
         assert any("APT" + settings.OIKOTIE_COMPANY_NAME in f for f in files)
         assert any("HOUSINGCOMPANY" + settings.OIKOTIE_COMPANY_NAME in f for f in files)
 
-        oikotie_mapped = MappedApartment.objects.filter(mapped_oikotie=True)
-        expected = len(get_elastic_apartments_for_sale_uuids())
+        oikotie_mapped = MappedApartment.objects.filter(
+            mapped_oikotie=True
+        ).values_list("apartment_uuid", flat=True)
 
-        assert oikotie_mapped.count() == expected
+        expected = list(
+            map(UUID, get_elastic_apartments_for_sale_published_on_oikotie_uuids())
+        )
+
+        assert sorted(oikotie_mapped) == sorted(expected)
 
         for f in files:
             os.remove(os.path.join(test_folder, f))
