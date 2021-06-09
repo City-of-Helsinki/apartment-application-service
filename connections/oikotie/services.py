@@ -22,6 +22,7 @@ def fetch_apartments_for_sale() -> Tuple[list, list]:
         Search()
         .query("match", _language="fi")
         .query("match", apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE)
+        .query("match", publish_on_oikotie=True)
     )
     s_obj.execute()
     scan = s_obj.scan()
