@@ -111,7 +111,7 @@ class ApartmentFactory(factory.Factory):
     uuid = fuzzy.FuzzyAttribute(get_uuid)
 
     apartment_address = fuzzy.FuzzyText()
-    apartment_number = fuzzy.FuzzyText()
+    apartment_number = fuzzy.FuzzyInteger(0, 99)
     housing_shares = fuzzy.FuzzyText()
     living_area = fuzzy.FuzzyFloat(0, 9999999999)
     floor = fuzzy.FuzzyInteger(0, 9999999999)
@@ -172,6 +172,7 @@ class ApartmentMinimalFactory(factory.Factory):
     project_building_type = "BLOCK_OF_FLATS"
     project_estate_agent = fuzzy.FuzzyText()
     project_estate_agent_email = Faker("email")
+    apartment_number = fuzzy.FuzzyInteger(0, 99)
 
     # optional fields for vendors
     project_district = fuzzy.FuzzyText()
