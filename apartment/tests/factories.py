@@ -85,3 +85,13 @@ class IdentifierFactory(factory.django.DjangoModelFactory):
     identifier = fuzzy.FuzzyText(length=36)
     project = factory.SubFactory(ProjectFactory)
     apartment = factory.SubFactory(ApartmentFactory)
+
+    @classmethod
+    def build_batch_for_att_schema(cls, size: int, uuids_list: list):
+        return [
+            cls.build(
+                identifier=uuids_list[i],
+                schema_type=IdentifierSchemaType.ATT_PROJECT_ES,
+            )
+            for i in range(size)
+        ]

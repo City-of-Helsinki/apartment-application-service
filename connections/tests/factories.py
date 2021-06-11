@@ -5,6 +5,7 @@ from datetime import date
 from django.utils import timezone
 from elasticsearch_dsl import Document
 from factory import Faker, fuzzy
+from typing import List
 
 from connections.elastic_models import Apartment
 from connections.enums import ApartmentStateOfSale, ProjectStateOfSale
@@ -190,3 +191,15 @@ class ApartmentMinimalFactory(factory.Factory):
     apartment_state_of_sale = fuzzy.FuzzyChoice(["RESERVED", "FOR_SALE"])
     project_description = fuzzy.FuzzyText(length=200)
     url = fuzzy.FuzzyText(length=20)
+
+    @classmethod
+    def build_for_sale_batch(cls, size: int) -> List[ApartmentTest]:
+        return [
+            cls.build(
+                publish_on_etuovi=True,
+                publish_on_oikotie=True,
+                apartment_state_of_sale="FOR_SALE",
+                _language="fi",
+            )
+            for _ in range(size)
+        ]

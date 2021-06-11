@@ -1,3 +1,4 @@
+from django.core.validators import MinLengthValidator
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from enumfields import EnumField
@@ -34,6 +35,12 @@ class Applicant(TimestampedModel):
     city = models.CharField(_("city"), max_length=50)
     postal_code = models.CharField(_("postal code"), max_length=10)
     age = models.PositiveSmallIntegerField(_("age"))
+    date_of_birth = models.DateField(_("date of birth"))
+    ssn_suffix = models.CharField(
+        "personal identity code suffix",
+        max_length=5,
+        validators=[MinLengthValidator(5)],
+    )
     contact_language = models.CharField(
         _("contact language"),
         max_length=2,
