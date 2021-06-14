@@ -16,7 +16,9 @@ class Application(TimestampedModel):
     )
     applicants_count = models.PositiveSmallIntegerField(_("applicants count"))
     type = EnumField(ApplicationType, max_length=15, verbose_name=_("application type"))
-    right_of_residence = models.CharField(_("right of residence number"), max_length=10)
+    right_of_residence = models.CharField(
+        _("right of residence number"), max_length=10, null=True
+    )
     has_children = models.BooleanField(_("has children"), default=False)
     profile = models.ForeignKey(Profile, on_delete=models.CASCADE)
     apartments = models.ManyToManyField(
