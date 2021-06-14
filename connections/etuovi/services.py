@@ -34,7 +34,7 @@ def fetch_apartments_for_sale() -> list:
         _logger.warning(
             "There were no apartments to map or could not map any apartments"
         )
-    _logger.info(f"Succefully mapped {len(items)} apartments for sale")
+    _logger.info(f"Successfully mapped {len(items)} apartments for sale")
     return items
 
 
