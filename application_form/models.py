@@ -27,6 +27,8 @@ class Application(TimestampedModel):
         blank=True,
     )
 
+    audit_log_id_field = "external_uuid"
+
 
 class Applicant(TimestampedModel):
     first_name = models.CharField(_("first name"), max_length=30)
