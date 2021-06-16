@@ -1,8 +1,8 @@
-import json
 import pytest
 from django.urls import reverse
 
 from application_form.tests.utils import create_application_data
+from audit_log.tests.utils import get_audit_log_event
 from users.tests.factories import ProfileFactory
 from users.tests.utils import _create_token
 
@@ -27,8 +27,8 @@ def test_application_post_writes_audit_log(api_client, caplog):
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
     data = create_application_data(profile)
     api_client.post(reverse("application_form:application-list"), data, format="json")
-    assert caplog.records, "no audit log entry was written"
-    audit_event = json.loads(caplog.records[-1].message)["audit_event"]
+    audit_event = get_audit_log_event(caplog)
+    assert audit_event is not None, "no audit log entry was written"
     assert audit_event["actor"] == {"role": "USER", "profile_id": str(profile.pk)}
     assert audit_event["operation"] == "CREATE"
     assert audit_event["target"] == {
@@ -53,8 +53,8 @@ def test_application_post_fails_if_not_authenticated(api_client):
 def test_application_post_writes_audit_log_if_not_authenticated(api_client, caplog):
     data = create_application_data(ProfileFactory())
     api_client.post(reverse("application_form:application-list"), data, format="json")
-    assert caplog.records, "no audit log entry was written"
-    audit_event = json.loads(caplog.records[-1].message)["audit_event"]
+    audit_event = get_audit_log_event(caplog)
+    assert audit_event is not None, "no audit log entry was written"
     assert audit_event["actor"] == {"role": "ANONYMOUS", "profile_id": None}
     assert audit_event["operation"] == "CREATE"
     assert audit_event["target"] == {"id": None, "type": "Application"}
