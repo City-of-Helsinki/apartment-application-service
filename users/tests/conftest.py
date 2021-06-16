@@ -16,7 +16,6 @@ PROFILE_TEST_DATA = {
     "city": "Helsinki",
     "postal_code": "00100",
     "date_of_birth": "1980-01-25",
-    "right_of_residence": "123456789",
     "contact_language": "fi",
 }
 

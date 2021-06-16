@@ -35,7 +35,6 @@ class ProfileSerializer(ModelSerializer):
             "date_of_birth",
             "city",
             "postal_code",
-            "right_of_residence",
             "contact_language",
         ]
 

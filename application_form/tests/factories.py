@@ -1,13 +1,24 @@
 import factory
 import random
 import string
-from factory import Faker, fuzzy
+from factory import Faker, fuzzy, LazyAttribute
 from typing import List
 
 from apartment.tests.factories import ApartmentFactory
 from application_form.enums import ApplicationType
 from application_form.models import Applicant, Application, ApplicationApartment
+from application_form.services import _calculate_age
 from users.tests.factories import ProfileFactory
+
+
+def calculate_ssn_suffix(obj) -> str:
+    date_string = obj.date_of_birth.strftime("%d%m%y")
+    century_sign = "+-A"[obj.date_of_birth.year // 100 - 18]
+    individual_number = f"{random.randint(3, 900):03d}"
+    index = int(date_string + individual_number) % 31
+    control_character = "0123456789ABCDEFHJKLMNPRSTUVWXY"[index]
+    ssn_suffix = century_sign + individual_number + control_character
+    return ssn_suffix
 
 
 class ApplicationFactory(factory.django.DjangoModelFactory):
@@ -33,7 +44,9 @@ class ApplicantFactory(factory.django.DjangoModelFactory):
     street_address = Faker("street_address")
     city = Faker("city")
     postal_code = Faker("postcode")
-    age = fuzzy.FuzzyInteger(18, 99)
+    date_of_birth = Faker("date_of_birth", minimum_age=18)
+    age = LazyAttribute(lambda o: _calculate_age(o.date_of_birth))
+    ssn_suffix = LazyAttribute(calculate_ssn_suffix)
     is_primary_applicant = Faker("boolean")
     application = factory.SubFactory(ApplicationFactory)
 

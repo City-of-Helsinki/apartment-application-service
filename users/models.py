@@ -34,7 +34,6 @@ class Profile(TimestampedModel):
     date_of_birth = models.DateField(_("date of birth"))
     city = models.CharField(_("city"), max_length=50)
     postal_code = models.CharField(_("postal code"), max_length=10)
-    right_of_residence = models.CharField(_("right of residence number"), max_length=10)
     contact_language = models.CharField(
         _("contact language"),
         max_length=2,

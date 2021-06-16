@@ -1,3 +1,4 @@
+from django.core.validators import MinLengthValidator
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from enumfields import EnumField
@@ -15,7 +16,9 @@ class Application(TimestampedModel):
     )
     applicants_count = models.PositiveSmallIntegerField(_("applicants count"))
     type = EnumField(ApplicationType, max_length=15, verbose_name=_("application type"))
-    right_of_residence = models.CharField(_("right of residence number"), max_length=10)
+    right_of_residence = models.CharField(
+        _("right of residence number"), max_length=10, null=True
+    )
     has_children = models.BooleanField(_("has children"), default=False)
     profile = models.ForeignKey(Profile, on_delete=models.CASCADE)
     apartments = models.ManyToManyField(
@@ -34,6 +37,12 @@ class Applicant(TimestampedModel):
     city = models.CharField(_("city"), max_length=50)
     postal_code = models.CharField(_("postal code"), max_length=10)
     age = models.PositiveSmallIntegerField(_("age"))
+    date_of_birth = models.DateField(_("date of birth"))
+    ssn_suffix = models.CharField(
+        "personal identity code suffix",
+        max_length=5,
+        validators=[MinLengthValidator(5)],
+    )
     contact_language = models.CharField(
         _("contact language"),
         max_length=2,
