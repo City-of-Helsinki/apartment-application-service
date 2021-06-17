@@ -34,6 +34,22 @@ Allow user to create test database
 
     sudo -u postgres psql -c 'ALTER USER "apartment-application" CREATEDB;'
 
+### Database encryption
+
+Some model fields are encrypted using `pgcrypto`, which requires a PGP keypair.
+For instructions on how to generate the keys, see the
+[pgcrypto documentation](https://postgresql.org/docs/12/pgcrypto.html#id-1.11.7.34.7.19):
+
+Use the PostgreSQL preferred key type ("DSA and Elgamal") and *at least* 2048 bits
+as the key size.
+
+To convert the multi-line PEM key into a single line (for `.env`), you can use this snippet:
+
+    cat your-key-file | awk '{print}' ORS='\\\\n'
+
+For local development, you can use the example keys in `.env.example`.
+**Do not use these example keys in production!**
+
 ### Daily running
 
 * Create `.env` file: `touch .env`

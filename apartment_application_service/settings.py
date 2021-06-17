@@ -72,6 +72,8 @@ env = environ.Env(
     APARTMENT_DATA_TRANSFER_PATH=(str, "transfer_files"),
     HASHIDS_SALT=(str, ""),
     AUDIT_LOG_FILENAME=(str, ""),
+    PUBLIC_PGP_KEY=(str, ""),
+    PRIVATE_PGP_KEY=(str, ""),
 )
 if os.path.exists(env_file):
     env.read_env(env_file)
@@ -142,6 +144,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "simple_history",
     "drf_spectacular",
+    "pgcrypto",
     # local apps
     "apartment",
     "application_form",
@@ -338,6 +341,9 @@ APARTMENT_DATA_TRANSFER_PATH = env("APARTMENT_DATA_TRANSFER_PATH")
 HASHIDS_SALT = env("HASHIDS_SALT")
 SIMPLE_JWT = {"ACCESS_TOKEN_LIFETIME": timedelta(minutes=30)}
 
+# For pgcrypto
+PUBLIC_PGP_KEY = env.str("PUBLIC_PGP_KEY", multiline=True)
+PRIVATE_PGP_KEY = env.str("PRIVATE_PGP_KEY", multiline=True)
 
 # local_settings.py can be used to override environment-specific settings
 # like database and email that differ between development and production.
