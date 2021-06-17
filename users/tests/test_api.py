@@ -1,4 +1,3 @@
-import json
 import pytest
 from django.contrib.auth import get_user_model
 from django.urls import reverse
@@ -6,6 +5,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from unittest.mock import patch
 from uuid import UUID
 
+from audit_log.tests.utils import get_audit_log_event
 from users.masking import mask_string, mask_uuid, unmask_string, unmask_uuid
 from users.models import Profile
 from users.tests.conftest import PROFILE_TEST_DATA, TEST_USER_PASSWORD
@@ -39,8 +39,8 @@ def test_profile_get_detail_writes_audit_log(profile, api_client, caplog):
     # A successful "READ" entry should be left when the user views their own profile
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
     api_client.get(reverse("users:profile-detail", args=(mask_uuid(profile.pk),)))
-    assert caplog.records, "no audit log entry was written"
-    audit_event = json.loads(caplog.records[-1].message)["audit_event"]
+    audit_event = get_audit_log_event(caplog)
+    assert audit_event is not None, "no audit log entry was written"
     assert audit_event["actor"] == {"role": "OWNER", "profile_id": str(profile.pk)}
     assert audit_event["operation"] == "READ"
     assert audit_event["target"] == {"id": str(profile.pk), "type": "Profile"}
@@ -67,8 +67,8 @@ def test_profile_get_detail_writes_audit_log_if_not_own_profile(
     # attemps to view someone else's profile.
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
     api_client.get(reverse("users:profile-detail", args=(mask_uuid(other_profile.pk),)))
-    assert caplog.records, "no audit log entry was written"
-    audit_event = json.loads(caplog.records[-1].message)["audit_event"]
+    audit_event = get_audit_log_event(caplog)
+    assert audit_event is not None, "no audit log entry was written"
     assert audit_event["actor"] == {"role": "USER", "profile_id": str(profile.pk)}
     assert audit_event["operation"] == "READ"
     assert audit_event["target"] == {"id": str(other_profile.pk), "type": "Profile"}
@@ -91,8 +91,8 @@ def test_profile_get_detail_writes_audit_log_if_not_authenticated(
     # A forbidden "READ" entry should be left if an unauthenticated user
     # tries to view somebody's profile.
     api_client.get(reverse("users:profile-detail", args=(mask_uuid(profile.pk),)))
-    assert caplog.records, "no audit log entry was written"
-    audit_event = json.loads(caplog.records[-1].message)["audit_event"]
+    audit_event = get_audit_log_event(caplog)
+    assert audit_event is not None, "no audit log entry was written"
     assert audit_event["actor"] == {"role": "ANONYMOUS", "profile_id": None}
     assert audit_event["operation"] == "READ"
     assert audit_event["target"] == {"id": str(profile.pk), "type": "Profile"}
@@ -123,8 +123,8 @@ def test_profile_post(api_client):
 def test_profile_post_writes_audit_log(api_client, caplog):
     api_client.post(reverse("users:profile-list"), PROFILE_TEST_DATA)
     profile = Profile.objects.get()
-    assert caplog.records, "no audit log entry was written"
-    audit_event = json.loads(caplog.records[-1].message)["audit_event"]
+    audit_event = get_audit_log_event(caplog)
+    assert audit_event is not None, "no audit log entry was written"
     assert audit_event["actor"] == {"role": "ANONYMOUS", "profile_id": None}
     assert audit_event["operation"] == "CREATE"
     assert audit_event["target"] == {"id": str(profile.pk), "type": "Profile"}
@@ -159,8 +159,8 @@ def test_profile_put_writes_audit_log(profile, api_client, caplog):
         reverse("users:profile-detail", args=(mask_uuid(profile.pk),)),
         {**PROFILE_TEST_DATA, "first_name": "Maija", "address": "Kauppakatu 23"},
     )
-    assert caplog.records, "no audit log entry was written"
-    audit_event = json.loads(caplog.records[-1].message)["audit_event"]
+    audit_event = get_audit_log_event(caplog)
+    assert audit_event is not None, "no audit log entry was written"
     assert audit_event["actor"] == {"role": "OWNER", "profile_id": str(profile.pk)}
     assert audit_event["operation"] == "UPDATE"
     assert audit_event["target"] == {"id": str(profile.pk), "type": "Profile"}
@@ -193,8 +193,8 @@ def test_profile_put_writes_audit_log_if_not_own_profile(
         url,
         {**PROFILE_TEST_DATA, "first_name": "Maija", "street_address": "Kauppakatu 23"},
     )
-    assert caplog.records, "no audit log entry was written"
-    audit_event = json.loads(caplog.records[-1].message)["audit_event"]
+    audit_event = get_audit_log_event(caplog)
+    assert audit_event is not None, "no audit log entry was written"
     assert audit_event["actor"] == {"role": "USER", "profile_id": str(profile.pk)}
     assert audit_event["operation"] == "UPDATE"
     assert audit_event["target"] == {"id": str(other_profile.pk), "type": "Profile"}
@@ -219,8 +219,8 @@ def test_profile_put_writes_audit_log_if_not_authenticated(profile, api_client, 
         reverse("users:profile-detail", args=(mask_uuid(profile.pk),)),
         PROFILE_TEST_DATA,
     )
-    assert caplog.records, "no audit log entry was written"
-    audit_event = json.loads(caplog.records[-1].message)["audit_event"]
+    audit_event = get_audit_log_event(caplog)
+    assert audit_event is not None, "no audit log entry was written"
     assert audit_event["actor"] == {"role": "ANONYMOUS", "profile_id": None}
     assert audit_event["operation"] == "UPDATE"
     assert audit_event["target"] == {"id": str(profile.pk), "type": "Profile"}
@@ -254,8 +254,8 @@ def test_profile_delete_writes_audit_log(profile, api_client, caplog):
     # A successful "DELETE" entry should be written if a user deletes their own profile
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
     api_client.delete(reverse("users:profile-detail", args=(mask_uuid(profile.pk),)))
-    assert caplog.records, "no audit log entry was written"
-    audit_event = json.loads(caplog.records[-1].message)["audit_event"]
+    audit_event = get_audit_log_event(caplog)
+    assert audit_event is not None, "no audit log entry was written"
     assert audit_event["actor"] == {"role": "OWNER", "profile_id": str(profile.pk)}
     assert audit_event["operation"] == "DELETE"
     assert audit_event["target"] == {"id": str(profile.pk), "type": "Profile"}
@@ -281,8 +281,8 @@ def test_profile_delete_writes_audit_log_if_not_own_profile(
     api_client.delete(
         reverse("users:profile-detail", args=(mask_uuid(other_profile.pk),))
     )
-    assert caplog.records, "no audit log entry was written"
-    audit_event = json.loads(caplog.records[-1].message)["audit_event"]
+    audit_event = get_audit_log_event(caplog)
+    assert audit_event is not None, "no audit log entry was written"
     assert audit_event["actor"] == {"role": "USER", "profile_id": str(profile.pk)}
     assert audit_event["operation"] == "DELETE"
     assert audit_event["target"] == {"id": str(other_profile.pk), "type": "Profile"}
@@ -309,8 +309,8 @@ def test_profile_delete_writes_audit_log_if_not_authenticated(
         reverse("users:profile-detail", args=(mask_uuid(profile.pk),)),
         PROFILE_TEST_DATA,
     )
-    assert caplog.records, "no audit log entry was written"
-    audit_event = json.loads(caplog.records[-1].message)["audit_event"]
+    audit_event = get_audit_log_event(caplog)
+    assert audit_event is not None, "no audit log entry was written"
     assert audit_event["actor"] == {"role": "ANONYMOUS", "profile_id": None}
     assert audit_event["operation"] == "DELETE"
     assert audit_event["target"] == {"id": str(profile.pk), "type": "Profile"}

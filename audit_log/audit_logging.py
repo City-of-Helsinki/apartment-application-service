@@ -61,10 +61,18 @@ def log(
             },
             "operation": str(operation.value),
             "target": {
-                "id": target and str(target.pk) or None,
+                "id": _get_target_id(target),
                 "type": target and str(target.__class__.__name__) or None,
             },
         },
     }
     logger = logging.getLogger("audit")
     logger.info(json.dumps(message))
+
+
+def _get_target_id(instance: Optional[Model]) -> Optional[str]:
+    if instance is None or instance.pk is None:
+        return None
+    field_name = getattr(instance, "audit_log_id_field", "pk")
+    audit_log_id = getattr(instance, field_name, None)
+    return str(audit_log_id)

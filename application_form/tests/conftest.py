@@ -9,7 +9,7 @@ from connections.tests.factories import ApartmentMinimalFactory
 faker.config.DEFAULT_LOCALE = "fi_FI"
 
 
-@fixture(scope="session")
+@fixture
 def api_client():
     return APIClient()
 
