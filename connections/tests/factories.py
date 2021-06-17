@@ -203,3 +203,15 @@ class ApartmentMinimalFactory(factory.Factory):
             )
             for _ in range(size)
         ]
+
+    @classmethod
+    def build_for_sale_batch(cls, size: int) -> List[ApartmentTest]:
+        return [
+            cls.build(
+                publish_on_etuovi=True,
+                publish_on_oikotie=True,
+                apartment_state_of_sale="FOR_SALE",
+                _language="fi",
+            )
+            for _ in range(size)
+        ]
