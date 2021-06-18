@@ -1,25 +1,38 @@
 from django.core.validators import MinLengthValidator
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
-from enumfields import EnumField
+from pgcrypto.fields import (
+    CharPGPPublicKeyField,
+    DatePGPPublicKeyField,
+    EmailPGPPublicKeyField,
+    IntegerPGPPublicKeyField,
+)
 from uuid import uuid4
 
 from apartment.models import Apartment
+from apartment_application_service.fields import (
+    BooleanPGPPublicKeyField,
+    EnumPGPPublicKeyField,
+    UUIDPGPPublicKeyField,
+)
 from apartment_application_service.models import TimestampedModel
 from application_form.enums import ApplicationType
 from users.models import Profile
 
 
 class Application(TimestampedModel):
-    external_uuid = models.UUIDField(
+    external_uuid = UUIDPGPPublicKeyField(
         _("application identifier"), default=uuid4, editable=False
     )
-    applicants_count = models.PositiveSmallIntegerField(_("applicants count"))
-    type = EnumField(ApplicationType, max_length=15, verbose_name=_("application type"))
-    right_of_residence = models.CharField(
+    applicants_count = IntegerPGPPublicKeyField(_("applicants count"))
+    type = EnumPGPPublicKeyField(
+        ApplicationType, max_length=15, verbose_name=_("application type")
+    )
+    right_of_residence = CharPGPPublicKeyField(
         _("right of residence number"), max_length=10, null=True
     )
-    has_children = models.BooleanField(_("has children"), default=False)
+    has_children = BooleanPGPPublicKeyField(_("has children"), default=False)
+
     profile = models.ForeignKey(Profile, on_delete=models.CASCADE)
     apartments = models.ManyToManyField(
         Apartment,
@@ -31,27 +44,30 @@ class Application(TimestampedModel):
 
 
 class Applicant(TimestampedModel):
-    first_name = models.CharField(_("first name"), max_length=30)
-    last_name = models.CharField(_("last name"), max_length=150)
-    email = models.EmailField(_("email"))
-    phone_number = models.CharField(_("phone number"), max_length=40, null=False)
-    street_address = models.CharField(_("street address"), max_length=200)
-    city = models.CharField(_("city"), max_length=50)
-    postal_code = models.CharField(_("postal code"), max_length=10)
-    age = models.PositiveSmallIntegerField(_("age"))
-    date_of_birth = models.DateField(_("date of birth"))
-    ssn_suffix = models.CharField(
+    first_name = CharPGPPublicKeyField(_("first name"), max_length=30)
+    last_name = CharPGPPublicKeyField(_("last name"), max_length=150)
+    email = EmailPGPPublicKeyField(_("email"))
+    phone_number = CharPGPPublicKeyField(_("phone number"), max_length=40, null=False)
+    street_address = CharPGPPublicKeyField(_("street address"), max_length=200)
+    city = CharPGPPublicKeyField(_("city"), max_length=50)
+    postal_code = CharPGPPublicKeyField(_("postal code"), max_length=10)
+    age = IntegerPGPPublicKeyField(_("age"))
+    date_of_birth = DatePGPPublicKeyField(_("date of birth"))
+    ssn_suffix = CharPGPPublicKeyField(
         "personal identity code suffix",
         max_length=5,
         validators=[MinLengthValidator(5)],
     )
-    contact_language = models.CharField(
+    contact_language = CharPGPPublicKeyField(
         _("contact language"),
         max_length=2,
         choices=Profile.CONTACT_LANGUAGE_CHOICES,
         null=True,
     )
-    is_primary_applicant = models.BooleanField(_("is primary applicant"), default=False)
+    is_primary_applicant = BooleanPGPPublicKeyField(
+        _("is primary applicant"), default=False
+    )
+
     application = models.ForeignKey(
         Application, on_delete=models.CASCADE, related_name="applicants"
     )
@@ -60,4 +76,4 @@ class Applicant(TimestampedModel):
 class ApplicationApartment(models.Model):
     application = models.ForeignKey(Application, on_delete=models.CASCADE)
     apartment = models.ForeignKey(Apartment, on_delete=models.CASCADE)
-    priority_number = models.PositiveSmallIntegerField(_("priority number"))
+    priority_number = IntegerPGPPublicKeyField(_("priority number"))
