@@ -12,11 +12,7 @@ def _create_token(profile: Profile) -> str:
 def _create_profile(profile_data: dict, password: str) -> Profile:
     """Create a new profile with the given data and user password."""
     data = profile_data.copy()
-    user = get_user_model().objects.create(
-        first_name=data.pop("first_name"),
-        last_name=data.pop("last_name"),
-        email=data.pop("email"),
-    )
+    user = get_user_model().objects.create()
     user.set_password(password)
     user.save(update_fields=["password"])
     profile = Profile.objects.create(user=user, **data)

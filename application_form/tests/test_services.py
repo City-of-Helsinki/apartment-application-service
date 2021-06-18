@@ -48,9 +48,9 @@ def test_create_application(num_applicants):
     # The application should always have a primary applicant
     assert application.applicants.filter(is_primary_applicant=True).count() == 1
     applicant1 = application.applicants.get(is_primary_applicant=True)
-    assert applicant1.first_name == profile.user.first_name
-    assert applicant1.last_name == profile.user.last_name
-    assert applicant1.email == profile.user.email
+    assert applicant1.first_name == profile.first_name
+    assert applicant1.last_name == profile.last_name
+    assert applicant1.email == profile.email
     assert applicant1.phone_number == profile.phone_number
     assert applicant1.street_address == profile.street_address
     assert applicant1.city == profile.city
