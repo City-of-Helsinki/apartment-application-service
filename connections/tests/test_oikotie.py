@@ -350,3 +350,105 @@ class TestApartmentFetchingFromElasticAndMapping:
 
         assert ap_file_name is None
         assert hc_file_name is None
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("client", "elastic_apartments")
+class TestSendOikotieXMLFileCommand:
+    """
+    Tests for django command send_oikotie_xml_file with different parameters
+    """
+
+    @pytest.mark.usefixtures("not_sending_oikotie_ftp")
+    def test_send_oikotie_xml_file_only_create_files(self, test_folder):
+        """
+        Test that after calling send_oikotie_xml_file --only_create_files
+        files are created but no database entries are made
+        """
+
+        call_command("send_oikotie_xml_file", "--only_create_files")
+        files = os.listdir(test_folder)
+
+        assert any("APT" + settings.OIKOTIE_COMPANY_NAME in f for f in files)
+        assert any("HOUSINGCOMPANY" + settings.OIKOTIE_COMPANY_NAME in f for f in files)
+
+        oikotie_mapped = MappedApartment.objects.filter(mapped_oikotie=True).count()
+
+        assert oikotie_mapped == 0
+
+        for f in files:
+            os.remove(os.path.join(test_folder, f))
+
+    @pytest.mark.usefixtures("not_sending_oikotie_ftp")
+    def test_send_oikotie_xml_file_send_only_type_1(self, test_folder):
+        """
+        Test that after calling send_oikotie_xml_file --send_only_type 1
+        housing company file is created but database entries are not made.
+        """
+        call_command("send_oikotie_xml_file", "--send_only_type", 1)
+        files = os.listdir(test_folder)
+
+        assert any("HOUSINGCOMPANY" + settings.OIKOTIE_COMPANY_NAME in f for f in files)
+
+        oikotie_mapped = MappedApartment.objects.filter(mapped_oikotie=True).count()
+
+        assert oikotie_mapped == 0
+
+        for f in files:
+            os.remove(os.path.join(test_folder, f))
+
+    @pytest.mark.usefixtures("not_sending_oikotie_ftp")
+    def test_send_oikotie_xml_file_send_only_type_2(self, test_folder):
+        """
+        Test that after calling send_oikotie_xml_file --send_only_type 2
+        apartment file is created and no database entries are made.
+        """
+        call_command("send_oikotie_xml_file", "--send_only_type", 2)
+        files = os.listdir(test_folder)
+
+        assert any("APT" + settings.OIKOTIE_COMPANY_NAME in f for f in files)
+
+        oikotie_mapped = MappedApartment.objects.filter(mapped_oikotie=True)
+        expected = len(get_elastic_apartments_for_sale_uuids())
+
+        assert oikotie_mapped.count() == expected
+
+        for f in files:
+            os.remove(os.path.join(test_folder, f))
+
+    @pytest.mark.usefixtures("not_sending_oikotie_ftp")
+    def test_send_oikotie_xml_no_arguments(self, test_folder):
+        """
+        Test that after calling send_oikotie_xml_file without arguments
+        files are created and database entries are made
+        """
+        call_command("send_oikotie_xml_file")
+        files = os.listdir(test_folder)
+
+        assert any("APT" + settings.OIKOTIE_COMPANY_NAME in f for f in files)
+        assert any("HOUSINGCOMPANY" + settings.OIKOTIE_COMPANY_NAME in f for f in files)
+
+        oikotie_mapped = MappedApartment.objects.filter(mapped_oikotie=True)
+        expected = len(get_elastic_apartments_for_sale_uuids())
+
+        assert oikotie_mapped.count() == expected
+
+        for f in files:
+            os.remove(os.path.join(test_folder, f))
+
+    @pytest.mark.usefixtures("not_sending_oikotie_ftp")
+    def test_send_oikotie_xml_no_apartments(self, test_folder):
+        """
+        Test that after calling send_oikotie_xml_file with no apartments to map,
+        no files are created and no database entries are made
+        """
+        make_apartments_sold_in_elastic()
+
+        call_command("send_oikotie_xml_file")
+        files = os.listdir(test_folder)
+
+        assert not files
+
+        oikotie_mapped = MappedApartment.objects.filter(mapped_oikotie=True).count()
+
+        assert oikotie_mapped == 0
