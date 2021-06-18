@@ -1,7 +1,9 @@
 from django.db import models
 
+from apartment_application_service.models import TimestampedModel
 
-class MappedApartment(models.Model):
+
+class MappedApartment(TimestampedModel):
     """
     Model class for saving data on succsesfully mapped apartments by
     Oikotie and Etuovi mappers.
