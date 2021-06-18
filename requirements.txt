@@ -42,6 +42,8 @@ django-mailer==2.1
     # via django-ilmoitin
 django-parler==1.9.2
     # via django-ilmoitin
+django-pgcrypto-fields==2.6.0
+    # via -r requirements.in
 django-simple-history==3.0.0
     # via -r requirements.in
 django==2.2.24
