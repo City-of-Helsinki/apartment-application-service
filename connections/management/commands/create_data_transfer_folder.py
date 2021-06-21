@@ -19,8 +19,8 @@ class Command(BaseCommand):  # pragma: no cover
         except FileExistsError:
             # directory already exists
             pass
-        except OSError:
-            _logger.error(f"Creation of the directory {path} failed")
+        except OSError as e:
+            _logger.error(f"Creation of the directory {path} failed", e)
             sys.exit(1)
         else:
             _logger.info(f"Successfully created the directory {path}")

@@ -1,8 +1,12 @@
+import os
 import pytest
+from django.conf import settings
+from django.core.management import call_command
 from django_etuovi.utils.testing import check_dataclass_typing
-from time import sleep
 
+from connections.models import MappedApartment
 from connections.oikotie.oikotie_mapper import (
+    form_description,
     map_address,
     map_apartment,
     map_apartment_pictures,
@@ -26,8 +30,17 @@ from connections.oikotie.oikotie_mapper import (
     map_water_fee,
     map_year_of_building,
 )
-from connections.oikotie.services import fetch_apartments_for_sale
+from connections.oikotie.services import (
+    create_xml_apartment_file,
+    create_xml_housing_company_file,
+    fetch_apartments_for_sale,
+)
 from connections.tests.factories import ApartmentFactory, ApartmentMinimalFactory
+from connections.tests.utils import (
+    get_elastic_apartments_for_sale_project_uuids,
+    get_elastic_apartments_for_sale_uuids,
+    make_apartments_sold_in_elastic,
+)
 
 
 class TestOikotieMapper:
@@ -175,6 +188,17 @@ class TestOikotieMapper:
             return
         raise Exception("Missing project_city should have thrown a ValueError")
 
+    def test_elastic_to_oikotie_missing__housing_company(self):
+        elastic_apartment = ApartmentMinimalFactory(project_housing_company=None)
+        try:
+            map_oikotie_housing_company(elastic_apartment)
+        except ValueError as e:
+            assert "project_housing_company" in str(e)
+            return
+        raise Exception(
+            "Missing project_housing_company should have thrown a ValueError"
+        )
+
     def test_elastic_to_oikotie_missing__housing_company__project_city(self):
         elastic_apartment = ApartmentMinimalFactory(project_city=None)
         try:
@@ -217,18 +241,49 @@ class TestOikotieMapper:
             return
         raise Exception("Missing project_postal_code should have thrown a ValueError")
 
+    @pytest.mark.parametrize(
+        "description,link,expected",
+        [
+            (
+                "full description",
+                "link_to_project",
+                "full description\n\nlink_to_project",
+            ),
+            (
+                None,
+                "link_to_project",
+                "Tarkemman kohde-esittelyn sekä varaustilanteen löydät täältä:"
+                + "\nlink_to_project",
+            ),
+            (
+                "full description",
+                None,
+                "full description",
+            ),
+        ],
+    )
+    def test_elastic_to_oikotie_missing__project_description(
+        self, description, link, expected
+    ):
+        elastic_apartment = ApartmentMinimalFactory(
+            project_description=description, url=link
+        )
+        formed_description = form_description(elastic_apartment)
 
+        assert formed_description.strip() == expected.strip()
+
+
+@pytest.mark.django_db
 @pytest.mark.usefixtures("client", "elastic_apartments")
-class TestApartmentFetchingFromElastic:
-    def test_apartments_for_sale_fetched_correctly(self, elastic_apartments):
-        expected = [
-            item
-            for item in elastic_apartments
-            if item["apartment_state_of_sale"] == "FOR_SALE"
-            and item["_language"] == "fi"
-        ]
-        expected_ap = [str(item["uuid"]) for item in expected]
-        expected_hc = [str(item["project_uuid"]) for item in expected]
+class TestApartmentFetchingFromElasticAndMapping:
+    """
+    Tests for fetching apartments from elasticsearch with Oikotie mapper, creating XML
+    files and saving correctly mapped apartments to database.
+    """
+
+    def test_apartments_for_sale_fetched_to_XML(self):
+        expected_ap = get_elastic_apartments_for_sale_uuids()
+        expected_hc = get_elastic_apartments_for_sale_project_uuids()
 
         apartments, housing_companies = fetch_apartments_for_sale()
 
@@ -238,12 +293,48 @@ class TestApartmentFetchingFromElastic:
         assert expected_ap == fetched_apartments
         assert expected_hc == fetched_housings
 
-    def test_no_apartments_for_sale(self, elastic_apartments):
-        for item in elastic_apartments:
-            if item["apartment_state_of_sale"] == "FOR_SALE":
-                item.delete()
-        sleep(3)
+        ap_path, ap_file_name = create_xml_apartment_file(apartments)
+        hc_path, hc_file_name = create_xml_housing_company_file(housing_companies)
+
+        assert ap_path == hc_path
+        assert "APT" + settings.OIKOTIE_COMPANY_NAME in os.path.join(
+            ap_path, ap_file_name
+        )
+        assert "HOUSINGCOMPANY" + settings.OIKOTIE_COMPANY_NAME in os.path.join(
+            hc_path, hc_file_name
+        )
+
+    @pytest.mark.usefixtures("invalid_data_elastic_apartments_for_sale")
+    def test_apartments_for_sale_mapped_correctly(self):
+        # Test data contains three apartments with oikotie invalid data
+        expected_ap = get_elastic_apartments_for_sale_uuids()
+        apartments, _ = fetch_apartments_for_sale()
+        assert len(expected_ap) - 3 == len(apartments)
+
+    @pytest.mark.usefixtures(
+        "invalid_data_elastic_apartments_for_sale", "not_sending_oikotie_ftp"
+    )
+    def test_mapped_oikotie_saved_to_database(self):
+        # Test data contains three apartments with oikotie invalid data
+        call_command("send_oikotie_xml_file")
+        oikotie_mapped = MappedApartment.objects.filter(mapped_oikotie=True).count()
+        expected = len(get_elastic_apartments_for_sale_uuids())
+
+        assert oikotie_mapped == expected - 3
+
+        etuovi_mapped = MappedApartment.objects.filter(mapped_etuovi=True).count()
+
+        assert etuovi_mapped == 0
+
+    def test_no_apartments_for_sale(self):
+        make_apartments_sold_in_elastic()
         apartments, housing_companies = fetch_apartments_for_sale()
 
         assert len(apartments) == 0
         assert len(housing_companies) == 0
+
+        _, ap_file_name = create_xml_apartment_file(apartments)
+        _, hc_file_name = create_xml_housing_company_file(housing_companies)
+
+        assert ap_file_name is None
+        assert hc_file_name is None

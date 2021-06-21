@@ -138,7 +138,7 @@ def map_balcony(elastic_apartment: ElasticApartment) -> Optional[Balcony]:
     if getattr(elastic_apartment, "has_balcony", None):
         return Balcony(
             value=elastic_apartment.has_balcony,
-            description=elastic_apartment.balcony_description,
+            description=getattr(elastic_apartment, "balcony_description", None),
         )
     else:
         return None
@@ -371,11 +371,14 @@ def form_description(elastic_apartment):
     """
     Fetch link to apartment presentation and add it to the end of project description
     """
+    optional_text = "Tarkemman kohde-esittelyn sekä varaustilanteen löydät täältä:"
     main_text = getattr(elastic_apartment, "project_description", None)
     link = getattr(elastic_apartment, "url", None)
 
+    if not main_text and link:
+        return "\n".join(filter(None, [optional_text, link]))
     if main_text or link:
-        return "\n".join(filter(None, [main_text, link]))
+        return "\n\n".join(filter(None, [main_text, link]))
     return None
 
 
@@ -467,7 +470,9 @@ def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:
         "showing_start_time2": map_showing_start_time(elastic_apartment, 1),
         "showing_end_time2": map_showing_end_time(elastic_apartment, 1),
         "showing_date_explanation2": map_showing_date_explanation(elastic_apartment, 1),
-        "application_url": getattr(elastic_apartment, "application_url", None),
+        # for now not using this option:
+        # getattr(elastic_apartment, "application_url", None)
+        "application_url": None,
         "rc_energyclass": getattr(elastic_apartment, "project_energy_class", None),
         "new_development_status": map_new_development_status(elastic_apartment),
         "time_of_completion": getattr(
@@ -557,6 +562,18 @@ def map_publication_time(time_value) -> Optional[date]:
         return None
 
 
+def map_project_housing_company(elastic_apartment: ElasticApartment) -> str:
+    project_housing_company = getattr(
+        elastic_apartment, "project_housing_company", None
+    )
+    if project_housing_company:
+        return project_housing_company
+    else:
+        raise ValueError(
+            _("could not map the project_housing_company %s") % project_housing_company
+        )
+
+
 def map_oikotie_housing_company(
     elastic_apartment: ElasticApartment,
 ) -> HousingCompany:
@@ -565,7 +582,7 @@ def map_oikotie_housing_company(
     """
     housing_company_field_dict = {
         "key": elastic_apartment.project_uuid,
-        "name": elastic_apartment.project_housing_company,
+        "name": map_project_housing_company(elastic_apartment),
         "real_estate_agent": map_real_estate_agent(elastic_apartment),
         "apartment": map_apartment(elastic_apartment),
         "address": map_address(elastic_apartment),

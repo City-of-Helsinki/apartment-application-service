@@ -2,6 +2,7 @@ import environ
 import os
 import sentry_sdk
 import subprocess
+from datetime import timedelta
 from django.utils.translation import ugettext_lazy as _
 from sentry_sdk.integrations.django import DjangoIntegration
 
@@ -52,6 +53,8 @@ env = environ.Env(
     SOCIAL_AUTH_TUNNISTAMO_OIDC_ENDPOINT=(str, ""),
     ELASTICSEARCH_URL=(str, "http://apartment-application-elasticsearch"),
     ELASTICSEARCH_PORT=(int, 9200),
+    ELASTICSEARCH_USERNAME=(str, ""),
+    ELASTICSEARCH_PASSWORD=(str, ""),
     APARTMENT_INDEX_NAME=(str, "asuntotuotanto-apartments"),
     ETUOVI_SUPPLIER_SOURCE_ITEMCODE=(str, ""),
     ETUOVI_COMPANY_NAME=(str, ""),
@@ -67,6 +70,10 @@ env = environ.Env(
     OIKOTIE_USER=(str, ""),
     OIKOTIE_PASSWORD=(str, ""),
     APARTMENT_DATA_TRANSFER_PATH=(str, "transfer_files"),
+    HASHIDS_SALT=(str, ""),
+    AUDIT_LOG_FILENAME=(str, ""),
+    PUBLIC_PGP_KEY=(str, ""),
+    PRIVATE_PGP_KEY=(str, ""),
 )
 if os.path.exists(env_file):
     env.read_env(env_file)
@@ -137,10 +144,13 @@ INSTALLED_APPS = [
     "rest_framework",
     "simple_history",
     "drf_spectacular",
+    "pgcrypto",
     # local apps
+    "apartment",
     "application_form",
     "connections",
     "users",
+    "audit_log",
 ]
 
 MIDDLEWARE = [
@@ -178,6 +188,32 @@ AUTH_USER_MODEL = "users.User"
 CORS_ORIGIN_WHITELIST = env.list("CORS_ORIGIN_WHITELIST")
 CORS_ORIGIN_ALLOW_ALL = env.bool("CORS_ORIGIN_ALLOW_ALL")
 
+AUDIT_LOG_FILENAME = env("AUDIT_LOG_FILENAME")
+
+if AUDIT_LOG_FILENAME:
+    if "X" in AUDIT_LOG_FILENAME:
+        import random
+        import re
+        import string
+
+        system_random = random.SystemRandom()
+        char_pool = string.ascii_lowercase + string.digits
+        AUDIT_LOG_FILENAME = re.sub(
+            "X", lambda x: system_random.choice(char_pool), AUDIT_LOG_FILENAME
+        )
+    _audit_log_handler = {
+        "class": "logging.handlers.RotatingFileHandler",
+        "filename": AUDIT_LOG_FILENAME,
+        "maxBytes": 100_000_000,
+        "backupCount": 1,
+        "delay": True,
+    }
+else:
+    _audit_log_handler = {
+        "class": "logging.StreamHandler",
+        "formatter": "verbose",
+    }
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -190,13 +226,20 @@ LOGGING = {
         "console": {
             "class": "logging.StreamHandler",
             "formatter": "verbose",
-        }
+        },
+        "audit": _audit_log_handler,
     },
     "loggers": {
         "": {
             "level": env("LOG_LEVEL"),
             "handlers": [
                 "console",
+            ],
+        },
+        "audit": {
+            "level": "INFO",  # Audit log only writes at INFO level
+            "handlers": [
+                "audit",
             ],
         },
         "django": {
@@ -242,6 +285,7 @@ SESSION_SERIALIZER = "django.contrib.sessions.serializers.PickleSerializer"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
         "helusers.oidc.ApiTokenAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ),
@@ -272,6 +316,8 @@ SOCIAL_AUTH_TUNNISTAMO_OIDC_ENDPOINT = env("SOCIAL_AUTH_TUNNISTAMO_OIDC_ENDPOINT
 # Elasticsearch
 ELASTICSEARCH_URL = env("ELASTICSEARCH_URL")
 ELASTICSEARCH_PORT = env("ELASTICSEARCH_PORT")
+ELASTICSEARCH_USERNAME = env("ELASTICSEARCH_USERNAME")
+ELASTICSEARCH_PASSWORD = env("ELASTICSEARCH_PASSWORD")
 APARTMENT_INDEX_NAME = env("APARTMENT_INDEX_NAME")
 
 # Etuovi settings
@@ -291,6 +337,13 @@ OIKOTIE_FTP_HOST = env("OIKOTIE_FTP_HOST")
 OIKOTIE_USER = env("OIKOTIE_USER")
 OIKOTIE_PASSWORD = env("OIKOTIE_PASSWORD")
 APARTMENT_DATA_TRANSFER_PATH = env("APARTMENT_DATA_TRANSFER_PATH")
+
+HASHIDS_SALT = env("HASHIDS_SALT")
+SIMPLE_JWT = {"ACCESS_TOKEN_LIFETIME": timedelta(minutes=30)}
+
+# For pgcrypto
+PUBLIC_PGP_KEY = env.str("PUBLIC_PGP_KEY", multiline=True)
+PRIVATE_PGP_KEY = env.str("PRIVATE_PGP_KEY", multiline=True)
 
 # local_settings.py can be used to override environment-specific settings
 # like database and email that differ between development and production.
