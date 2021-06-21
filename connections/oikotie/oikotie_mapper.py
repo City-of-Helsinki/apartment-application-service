@@ -367,7 +367,7 @@ def map_new_development_status(
         )
 
 
-def form_description(elastic_apartment):
+def form_description(elastic_apartment: ElasticApartment) -> Optional[str]:
     """
     Fetch link to apartment presentation and add it to the end of project description
     """

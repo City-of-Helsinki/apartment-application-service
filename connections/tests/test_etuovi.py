@@ -59,9 +59,11 @@ class TestApartmentFetchingFromElasticAndMapping:
 
         assert expected == fetched
 
-        filepath, file_name = create_xml(items)
+        file_name = create_xml(items)
 
-        assert settings.ETUOVI_COMPANY_NAME in os.path.join(filepath, file_name)
+        assert settings.ETUOVI_COMPANY_NAME in os.path.join(
+            settings.APARTMENT_DATA_TRANSFER_PATH, file_name
+        )
 
     @pytest.mark.usefixtures("invalid_data_elastic_apartments_for_sale")
     def test_apartments_for_sale_fetched_correctly(self):
@@ -92,6 +94,6 @@ class TestApartmentFetchingFromElasticAndMapping:
 
         assert len(items) == 0
 
-        _, file_name = create_xml(items)
+        file_name = create_xml(items)
 
         assert file_name is None

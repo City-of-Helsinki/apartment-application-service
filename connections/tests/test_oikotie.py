@@ -293,15 +293,14 @@ class TestApartmentFetchingFromElasticAndMapping:
         assert expected_ap == fetched_apartments
         assert expected_hc == fetched_housings
 
-        ap_path, ap_file_name = create_xml_apartment_file(apartments)
-        hc_path, hc_file_name = create_xml_housing_company_file(housing_companies)
+        ap_file_name = create_xml_apartment_file(apartments)
+        hc_file_name = create_xml_housing_company_file(housing_companies)
 
-        assert ap_path == hc_path
         assert "APT" + settings.OIKOTIE_COMPANY_NAME in os.path.join(
-            ap_path, ap_file_name
+            settings.APARTMENT_DATA_TRANSFER_PATH, ap_file_name
         )
         assert "HOUSINGCOMPANY" + settings.OIKOTIE_COMPANY_NAME in os.path.join(
-            hc_path, hc_file_name
+            settings.APARTMENT_DATA_TRANSFER_PATH, hc_file_name
         )
 
     @pytest.mark.usefixtures("invalid_data_elastic_apartments_for_sale")
@@ -333,8 +332,8 @@ class TestApartmentFetchingFromElasticAndMapping:
         assert len(apartments) == 0
         assert len(housing_companies) == 0
 
-        _, ap_file_name = create_xml_apartment_file(apartments)
-        _, hc_file_name = create_xml_housing_company_file(housing_companies)
+        ap_file_name = create_xml_apartment_file(apartments)
+        hc_file_name = create_xml_housing_company_file(housing_companies)
 
         assert ap_file_name is None
         assert hc_file_name is None

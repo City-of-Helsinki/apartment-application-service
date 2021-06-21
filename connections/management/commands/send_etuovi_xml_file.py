@@ -1,4 +1,5 @@
 import logging
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from django_etuovi.etuovi import send_items
 
@@ -21,8 +22,9 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        path = settings.APARTMENT_DATA_TRANSFER_PATH
         items = fetch_apartments_for_sale()
-        path, xml_file = create_xml(items)
+        xml_file = create_xml(items)
 
         if not options["only_create_file"] and xml_file:
             try:

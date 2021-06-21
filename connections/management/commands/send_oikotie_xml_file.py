@@ -1,4 +1,5 @@
 import logging
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from django_oikotie.oikotie import send_items
 
@@ -26,9 +27,10 @@ and send them via FTP"
         )
 
     def handle(self, *args, **options):
+        path = settings.APARTMENT_DATA_TRANSFER_PATH
         apartments, housing_companies = fetch_apartments_for_sale()
-        path, apartment_file = create_xml_apartment_file(apartments)
-        path, housing_file = create_xml_housing_company_file(housing_companies)
+        apartment_file = create_xml_apartment_file(apartments)
+        housing_file = create_xml_housing_company_file(housing_companies)
 
         if not options["only_create_files"] and apartment_file and housing_file:
             for f in [apartment_file, housing_file]:
