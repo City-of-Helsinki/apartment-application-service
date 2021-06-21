@@ -88,11 +88,18 @@ class TestApartmentFetchingFromElasticAndMapping:
 
         assert oikotie_mapped == 0
 
-    def test_no_apartments_for_sale_not_creating_file(self):
+    def test_no_apartments_for_sale_not_creating_file_and_updating_database(self):
+        call_command("send_etuovi_xml_file")
+        expected = len(get_elastic_apartments_for_sale_uuids())
+
         make_apartments_sold_in_elastic()
         items = fetch_apartments_for_sale()
 
+        call_command("send_etuovi_xml_file")
+        etuovi_not_mapped = MappedApartment.objects.filter(mapped_etuovi=False).count()
+
         assert len(items) == 0
+        assert etuovi_not_mapped == expected
 
         file_name = create_xml(items)
 

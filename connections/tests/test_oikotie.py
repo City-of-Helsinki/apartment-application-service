@@ -326,11 +326,24 @@ class TestApartmentFetchingFromElasticAndMapping:
         assert etuovi_mapped == 0
 
     def test_no_apartments_for_sale(self):
+        """
+        Test that after apartments are sold database is updated and
+        no files are created
+        """
+        call_command("send_oikotie_xml_file")
+        expected = len(get_elastic_apartments_for_sale_uuids())
+
         make_apartments_sold_in_elastic()
         apartments, housing_companies = fetch_apartments_for_sale()
 
+        call_command("send_oikotie_xml_file")
+        oikotie_not_mapped = MappedApartment.objects.filter(
+            mapped_oikotie=False
+        ).count()
+
         assert len(apartments) == 0
         assert len(housing_companies) == 0
+        assert oikotie_not_mapped == expected
 
         ap_file_name = create_xml_apartment_file(apartments)
         hc_file_name = create_xml_housing_company_file(housing_companies)

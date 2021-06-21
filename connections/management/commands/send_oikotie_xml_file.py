@@ -16,8 +16,10 @@ create_elastic_connection()
 
 
 class Command(BaseCommand):
-    help = "Generate apartments and housing companies XML files to be shown in Oikotie \
-and send them via FTP"
+    help = (
+        "Generate apartments and housing companies XML files to be shown in Oikotie "
+        "and send them via FTP"
+    )
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -32,7 +34,11 @@ and send them via FTP"
         apartment_file = create_xml_apartment_file(apartments)
         housing_file = create_xml_housing_company_file(housing_companies)
 
-        if not options["only_create_files"] and apartment_file and housing_file:
+        if options["only_create_files"]:
+            _logger.info("Not sending XML files to Oikotie")
+            return
+
+        if apartment_file and housing_file:
             for f in [apartment_file, housing_file]:
                 try:
                     send_items(path, f)
@@ -46,10 +52,12 @@ and send them via FTP"
                     )
                     raise e
 
-            for item in apartments:
-                MappedApartment.objects.update_or_create(
-                    apartment_uuid=item.key,
-                    defaults={"mapped_oikotie": True},
-                )
-        else:
-            _logger.info("Not sending XML files to Oikotie")
+        MappedApartment.objects.exclude(
+            pk__in=[item.key for item in apartments]
+        ).update(mapped_oikotie=False)
+
+        for item in apartments:
+            MappedApartment.objects.update_or_create(
+                apartment_uuid=item.key,
+                defaults={"mapped_oikotie": True},
+            )
