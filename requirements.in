@@ -3,8 +3,8 @@ django-cors-headers
 django-enumfields
 django-environ
 django-enumfields
-git+git://github.com/City-of-Helsinki/django-etuovi@v0.1.0#egg=django_etuovi  # TODO: change this when released in PyPI
-git+git://github.com/City-of-Helsinki/django-oikotie@v0.1.0#egg=django_oikotie  # TODO: change this when released in PyPI
+git+git://github.com/City-of-Helsinki/django-etuovi@v0.1.1#egg=django_etuovi  # TODO: change this when released in PyPI
+git+git://github.com/City-of-Helsinki/django-oikotie@v0.1.1#egg=django_oikotie  # TODO: change this when released in PyPI
 django-helusers<0.6.0  # TODO: update to version >=0.6.0
 django-ilmoitin~=0.5.0
 django-pgcrypto-fields
