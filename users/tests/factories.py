@@ -20,6 +20,9 @@ class ProfileFactory(factory.django.DjangoModelFactory):
         model = Profile
 
     id = factory.Faker("uuid4")
+    first_name = Faker("first_name")
+    last_name = Faker("last_name")
+    email = Faker("email")
     phone_number = Faker("phone_number")
     street_address = Faker("street_address")
     city = Faker("city")

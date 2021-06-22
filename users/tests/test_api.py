@@ -113,8 +113,6 @@ def test_profile_post(api_client):
     profile = Profile.objects.get(pk=unmask_uuid(response.data["profile_id"]))
     profile_data = PROFILE_TEST_DATA.copy()
     # The created profile should contain all the data from the request
-    for attr in ["first_name", "last_name", "email"]:
-        assert str(getattr(profile.user, attr)) == str(profile_data.pop(attr))
     for attr, value in profile_data.items():
         assert str(getattr(profile, attr)) == str(value)
 
@@ -145,8 +143,6 @@ def test_profile_put(profile, api_client):
     assert response.status_code == 200
     assert response.data == put_data
     profile.refresh_from_db()
-    for attr in ["first_name", "last_name", "email"]:
-        assert str(getattr(profile.user, attr)) == str(put_data.pop(attr))
     for attr, value in put_data.items():
         assert str(getattr(profile, attr)) == str(value)
 
@@ -347,7 +343,7 @@ def test_profile_update_is_rolled_back_on_profile_save_error(profile, api_client
             }
             api_client.put(url, put_data)
     profile.refresh_from_db()
-    assert profile.user.first_name == PROFILE_TEST_DATA["first_name"]
+    assert profile.first_name == PROFILE_TEST_DATA["first_name"]
     assert profile.street_address == PROFILE_TEST_DATA["street_address"]
 
 
