@@ -29,8 +29,8 @@ def fetch_apartments_for_sale() -> list:
     for hit in scan:
         try:
             items.append(map_apartment_to_item(hit))
-        except ValueError as e:
-            _logger.warning(f"Could not map apartment {hit.uuid}:", str(e))
+        except ValueError:
+            _logger.warning(f"Could not map apartment {hit.uuid}:", exc_info=True)
     if not items:
         _logger.warning(
             "There were no apartments to map or could not map any apartments"
