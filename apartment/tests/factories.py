@@ -1,6 +1,7 @@
 import factory
 import uuid
 from factory import Faker, fuzzy
+from string import ascii_letters, digits
 from typing import List
 
 from apartment.enums import IdentifierSchemaType
@@ -33,7 +34,7 @@ class ApartmentFactory(factory.django.DjangoModelFactory):
         model = Apartment
 
     street_address = Faker("street_address")
-    apartment_number = fuzzy.FuzzyInteger(0, 999)
+    apartment_number = fuzzy.FuzzyText(length=3, chars=ascii_letters + digits)
     project = factory.SubFactory(ProjectFactory)
 
     @factory.post_generation
