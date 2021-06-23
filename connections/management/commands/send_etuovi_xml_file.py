@@ -34,8 +34,8 @@ class Command(BaseCommand):
             try:
                 send_items(path, xml_file)
                 _logger.info(
-                    f"Succefully sent Etuovi XML file {path}/{xml_file} to Etuovi FTP "
-                    "server"
+                    f"Successfully sent Etuovi XML file {path}/{xml_file} to Etuovi "
+                    "FTP server"
                 )
             except Exception as e:
                 _logger.error(

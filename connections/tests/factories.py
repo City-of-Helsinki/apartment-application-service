@@ -154,6 +154,8 @@ class ApartmentFactory(factory.Factory):
     additional_information = fuzzy.FuzzyText()
     application_url = fuzzy.FuzzyText()
     image_urls = factory.List([fuzzy.FuzzyText() for _ in range(2)])
+    publish_on_etuovi = Faker("boolean")
+    publish_on_oikotie = Faker("boolean")
 
 
 class ApartmentMinimalFactory(factory.Factory):
@@ -187,10 +189,34 @@ class ApartmentMinimalFactory(factory.Factory):
     room_count = fuzzy.FuzzyInteger(0, 9999999999)
     sales_price = fuzzy.FuzzyInteger(0, 9999999999)
     debt_free_sales_price = fuzzy.FuzzyInteger(0, 9999999999)
-    project_state_of_sale = fuzzy.FuzzyChoice(["PRE_MARKETING", "FOR_SALE", "SOLD"])
-    apartment_state_of_sale = fuzzy.FuzzyChoice(["RESERVED", "FOR_SALE"])
+    project_state_of_sale = fuzzy.FuzzyChoice(ProjectStateOfSale)
+    apartment_state_of_sale = fuzzy.FuzzyChoice(ApartmentStateOfSale)
     project_description = fuzzy.FuzzyText(length=200)
     url = fuzzy.FuzzyText(length=20)
+    publish_on_etuovi = Faker("boolean")
+    publish_on_oikotie = Faker("boolean")
+
+    @classmethod
+    def build_batch_with_flags_published_and_state_of_sale(
+        cls,
+        size: int,
+        for_sale=False,
+        published_on_etuovi=False,
+        published_on_oikotie=False,
+    ) -> List[ApartmentTest]:
+        if for_sale:
+            for_sale = ApartmentStateOfSale.FOR_SALE
+        else:
+            for_sale = ApartmentStateOfSale.RESERVED
+        return [
+            cls.build(
+                publish_on_etuovi=published_on_etuovi,
+                publish_on_oikotie=published_on_oikotie,
+                apartment_state_of_sale=for_sale,
+                _language="fi",
+            )
+            for i in range(size)
+        ]
 
     @classmethod
     def build_for_sale_batch(cls, size: int) -> List[ApartmentTest]:

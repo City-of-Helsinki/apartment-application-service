@@ -19,6 +19,7 @@ def fetch_apartments_for_sale() -> list:
         Search()
         .query("match", _language="fi")
         .query("match", apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE)
+        .query("match", publish_on_etuovi=True)
     )
     s_obj.execute()
     scan = s_obj.scan()
@@ -34,7 +35,7 @@ def fetch_apartments_for_sale() -> list:
         _logger.warning(
             "There were no apartments to map or could not map any apartments"
         )
-    _logger.info(f"Succefully mapped {len(items)} apartments for sale")
+    _logger.info(f"Successfully mapped {len(items)} apartments for sale")
     return items
 
 
