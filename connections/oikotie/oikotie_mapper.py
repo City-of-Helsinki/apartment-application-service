@@ -113,7 +113,15 @@ def map_apartment_pictures(
             pictures.append(
                 ApartmentPicture(index=idx + 2, is_floor_plan=False, url=picture_url)
             )
-
+    floor_plan_image = getattr(elastic_apartment, "floor_plan_image", None)
+    if floor_plan_image:
+        pictures.append(
+            ApartmentPicture(
+                index=1,
+                is_floor_plan=True,
+                url=floor_plan_image,
+            )
+        )
     return pictures
 
 

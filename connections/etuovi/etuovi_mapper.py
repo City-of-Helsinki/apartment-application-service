@@ -408,6 +408,10 @@ def map_apartment_to_image_types(
             RealtyImageType.MAIN_IMAGE,
             getattr(elastic_apartment, "project_main_image_url", None),
         ),
+        (
+            RealtyImageType.FLOOR_PLAN,
+            getattr(elastic_apartment, "floor_plan_image", None),
+        ),
     ]
 
 
