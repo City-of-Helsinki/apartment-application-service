@@ -33,7 +33,7 @@ def fetch_apartments_for_sale() -> Tuple[list, list]:
         try:
             apartment = map_oikotie_apartment(hit)
         except ValueError:
-            _logger.warning(f"Could not map apartment {hit.uuid}")
+            _logger.warning(f"Could not map apartment {hit.uuid}", exc_info=True)
             continue
         try:
             housing = map_oikotie_housing_company(hit)

@@ -52,19 +52,20 @@ class Command(BaseCommand):
             return
 
         for oikotie_file in oikotie_files:
-            path = settings.APARTMENT_DATA_TRANSFER_PATH
-            try:
-                send_items(path, oikotie_file)
-                _logger.info(
-                    f"Successfully sent XML file {path}/{oikotie_file} to Oikotie FTP "
-                    "server"
-                )
-            except Exception as e:
-                _logger.error(
-                    f"File {path}/{oikotie_file} sending via FTP to Oikotie failed:",
-                    str(e),
-                )
-                raise e
+            if oikotie_file:
+                try:
+                    send_items(path, oikotie_file)
+                    _logger.info(
+                        f"Successfully sent XML file {path}/{oikotie_file} to Oikotie "
+                        "FTP server"
+                    )
+                except Exception as e:
+                    _logger.error(
+                        f"File {path}/{oikotie_file} sending via FTP to Oikotie "
+                        "failed:",
+                        str(e),
+                    )
+                    raise e
 
         if sending_apartments:
             MappedApartment.objects.exclude(
