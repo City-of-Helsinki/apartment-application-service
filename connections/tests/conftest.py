@@ -5,7 +5,6 @@ from elasticsearch.helpers.test import get_test_client, SkipTest
 from elasticsearch_dsl.connections import add_connection
 from pytest import fixture, skip
 from rest_framework.test import APIClient
-from time import sleep
 
 from connections.enums import ApartmentStateOfSale
 from connections.tests.factories import ApartmentMinimalFactory
@@ -15,6 +14,7 @@ from connections.tests.factories import ApartmentMinimalFactory
 def use_test_elasticsearch_envs(settings):
     settings.ELASTICSEARCH_PORT = os.environ.get("ELASTICSEARCH_HOST_PORT", 9200)
     settings.ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_HOST", "localhost")
+    settings.APARTMENT_INDEX_NAME = "test-apartment"
 
 
 @fixture()
@@ -56,18 +56,40 @@ def client():
 
 @fixture(scope="class")
 def elastic_apartments():
-    sale_apartments = []
-    while not sale_apartments:
-        elastic_apartments = ApartmentMinimalFactory.create_batch(20)
-        sale_apartments = [
-            item
-            for item in elastic_apartments
-            if item.apartment_state_of_sale == "FOR_SALE" and item._language == "fi"
-        ]
+    for_sale_none = (
+        ApartmentMinimalFactory.build_batch_with_flags_published_and_state_of_sale(3)
+    )
+    for_sale_all = (
+        ApartmentMinimalFactory.build_batch_with_flags_published_and_state_of_sale(
+            3, for_sale=True, published_on_etuovi=True, published_on_oikotie=True
+        )
+    )
+    for_sale_oikotie = (
+        ApartmentMinimalFactory.build_batch_with_flags_published_and_state_of_sale(
+            3, for_sale=True, published_on_oikotie=True
+        )
+    )
+    for_sale_etuovi = (
+        ApartmentMinimalFactory.build_batch_with_flags_published_and_state_of_sale(
+            3, for_sale=True, published_on_etuovi=True
+        )
+    )
+    only_for_sale = (
+        ApartmentMinimalFactory.build_batch_with_flags_published_and_state_of_sale(
+            3, for_sale=True
+        )
+    )
+
+    elastic_apartments = (
+        for_sale_none
+        + for_sale_all
+        + for_sale_oikotie
+        + for_sale_etuovi
+        + only_for_sale
+    )
     try:
         for item in elastic_apartments:
-            item.save()
-        sleep(3)
+            item.save(refresh="wait_for")
         yield elastic_apartments
     except SkipTest:
         skip()
@@ -95,12 +117,16 @@ def invalid_data_elastic_apartments_for_sale():
         project_new_development_status="some text",
         apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE,
         _language="fi",
+        publish_on_etuovi=True,
+        publish_on_oikotie=False,
     )
     # should fail with oikotie housing companies
     elastic_apartment_2 = ApartmentMinimalFactory.build(
         project_estate_agent_email="",
         apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE,
         _language="fi",
+        publish_on_etuovi=False,
+        publish_on_oikotie=True,
     )
     # should fail with oikotie apartments and housing companies
     elastic_apartment_3 = ApartmentMinimalFactory.build(
@@ -108,6 +134,8 @@ def invalid_data_elastic_apartments_for_sale():
         project_estate_agent_email="",
         apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE,
         _language="fi",
+        publish_on_etuovi=False,
+        publish_on_oikotie=True,
     )
 
     apartments = [
@@ -116,10 +144,8 @@ def invalid_data_elastic_apartments_for_sale():
         elastic_apartment_3,
     ]
     for item in apartments:
-        item.save()
-    sleep(1)
-    yield elastic_apartments
+        item.save(refresh="wait_for")
+    yield apartments
 
     for item in apartments:
-        item.delete()
-    sleep(1)
+        item.delete(refresh="wait_for")

@@ -45,7 +45,7 @@ as the key size.
 
 To convert the multi-line PEM key into a single line (for `.env`), you can use this snippet:
 
-    cat your-key-file | awk '{print}' ORS='\\\\n'
+    cat your-key-file | awk '{print}' ORS='\\n'
 
 For local development, you can use the example keys in `.env.example`.
 **Do not use these example keys in production!**

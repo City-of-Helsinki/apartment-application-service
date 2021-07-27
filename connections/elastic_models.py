@@ -119,6 +119,7 @@ class Apartment(ReadOnlyDocument):
     services_description = Keyword()
     additional_information = Keyword()
     application_url = Keyword()
+    floor_plan_image = Keyword()
     image_urls = Keyword(multi=True)
 
     class Index:

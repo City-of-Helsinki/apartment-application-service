@@ -1,4 +1,5 @@
 import logging
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from django_etuovi.etuovi import send_items
 
@@ -21,15 +22,20 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        path = settings.APARTMENT_DATA_TRANSFER_PATH
         items = fetch_apartments_for_sale()
-        path, xml_file = create_xml(items)
+        xml_file = create_xml(items)
 
-        if not options["only_create_file"] and xml_file:
+        if options["only_create_file"]:
+            _logger.info("Not sending XML files to Oikotie")
+            return
+
+        if xml_file:
             try:
                 send_items(path, xml_file)
                 _logger.info(
-                    f"Succefully sent Etuovi XML file {path}/{xml_file} to Etuovi FTP \
-                        server"
+                    f"Successfully sent Etuovi XML file {path}/{xml_file} to Etuovi "
+                    "FTP server"
                 )
             except Exception as e:
                 _logger.error(
@@ -37,10 +43,12 @@ class Command(BaseCommand):
                 )
                 raise e
 
-            for item in items:
-                MappedApartment.objects.update_or_create(
-                    apartment_uuid=item.cust_itemcode,
-                    defaults={"mapped_etuovi": True},
-                )
-        else:
-            _logger.info("Not sending XML file to Etuovi")
+        MappedApartment.objects.exclude(
+            pk__in=[item.cust_itemcode for item in items]
+        ).update(mapped_etuovi=False)
+
+        for item in items:
+            MappedApartment.objects.update_or_create(
+                apartment_uuid=item.cust_itemcode,
+                defaults={"mapped_etuovi": True},
+            )

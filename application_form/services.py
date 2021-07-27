@@ -42,9 +42,9 @@ def create_application(application_data: dict) -> Application:
         profile=profile,
     )
     Applicant.objects.create(
-        first_name=profile.user.first_name,
-        last_name=profile.user.last_name,
-        email=profile.user.email,
+        first_name=profile.first_name,
+        last_name=profile.last_name,
+        email=profile.email,
         phone_number=profile.phone_number,
         street_address=profile.street_address,
         city=profile.city,
