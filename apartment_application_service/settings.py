@@ -247,6 +247,7 @@ LOGGING = {
             "handlers": [
                 "console",
             ],
+            "propagate": False,
         },
         "connections": {
             "level": env("APPS_LOG_LEVEL"),
