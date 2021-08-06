@@ -2,7 +2,7 @@ import pytest
 from django.urls import reverse
 
 from application_form.tests.utils import create_application_data
-from audit_log.tests.utils import get_audit_log_event
+from audit_log.models import AuditLog
 from users.tests.factories import ProfileFactory
 from users.tests.utils import _create_token
 
@@ -22,13 +22,12 @@ def test_application_post(api_client):
 
 @pytest.mark.django_db
 @pytest.mark.usefixtures("elastic_apartments")
-def test_application_post_writes_audit_log(api_client, caplog):
+def test_application_post_writes_audit_log(api_client):
     profile = ProfileFactory()
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
     data = create_application_data(profile)
     api_client.post(reverse("application_form:application-list"), data, format="json")
-    audit_event = get_audit_log_event(caplog)
-    assert audit_event is not None, "no audit log entry was written"
+    audit_event = AuditLog.objects.get().message["audit_event"]
     assert audit_event["actor"] == {"role": "USER", "profile_id": str(profile.pk)}
     assert audit_event["operation"] == "CREATE"
     assert audit_event["target"] == {
@@ -50,11 +49,10 @@ def test_application_post_fails_if_not_authenticated(api_client):
 
 @pytest.mark.django_db
 @pytest.mark.usefixtures("elastic_apartments")
-def test_application_post_writes_audit_log_if_not_authenticated(api_client, caplog):
+def test_application_post_writes_audit_log_if_not_authenticated(api_client):
     data = create_application_data(ProfileFactory())
     api_client.post(reverse("application_form:application-list"), data, format="json")
-    audit_event = get_audit_log_event(caplog)
-    assert audit_event is not None, "no audit log entry was written"
+    audit_event = AuditLog.objects.get().message["audit_event"]
     assert audit_event["actor"] == {"role": "ANONYMOUS", "profile_id": None}
     assert audit_event["operation"] == "CREATE"
     assert audit_event["target"] == {"id": None, "type": "Application"}
