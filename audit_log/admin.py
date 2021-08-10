@@ -1,9 +1,7 @@
 import json
 from django.contrib import admin
+from django.utils.html import escape
 from django.utils.safestring import mark_safe
-from pygments import highlight
-from pygments.formatters.html import HtmlFormatter
-from pygments.lexers.data import JsonLexer
 
 from audit_log.models import AuditLog
 from audit_log.paginators import LargeTablePaginator
@@ -30,9 +28,7 @@ class AuditLogAdmin(admin.ModelAdmin):
     def message_prettified(self, instance):
         """Format the message to be a bit a more user-friendly."""
         message = json.dumps(instance.message, indent=2, sort_keys=True)
-        formatter = HtmlFormatter()
-        formatted_message = highlight(message, JsonLexer(), formatter)
-        content = f"<style>{formatter.get_style_defs()}</style>{formatted_message}"
+        content = f"<pre>{escape(message)}</pre>"
         return mark_safe(content)
 
     message_prettified.short_description = "message"
