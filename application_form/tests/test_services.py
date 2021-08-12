@@ -1,8 +1,9 @@
 import pytest
 from datetime import date
+from django.db import IntegrityError
 
 from apartment.enums import IdentifierSchemaType
-from apartment.models import Project
+from apartment.models import Identifier, Project
 from application_form.enums import ApplicationType
 from application_form.services import create_application, InvalidElasticDataError
 from application_form.tests.utils import create_validated_application_data
@@ -105,3 +106,38 @@ def test_create_application_raises_exception_if_project_data_does_not_exist():
     data["project_id"] = "this-does-not-exist"
     with pytest.raises(InvalidElasticDataError):
         create_application(data)
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("elastic_apartments")
+def test_create_application_does_not_fail_if_project_identifier_already_exists():
+    data = create_validated_application_data(ProfileFactory(), ApplicationType.HASO)
+    Identifier.objects.create(
+        schema_type=IdentifierSchemaType.ATT_PROJECT_ES,
+        identifier=data["project_id"],
+    )
+    try:
+        create_application(data)
+    except IntegrityError:
+        pytest.fail(
+            "The application creation should not crash "
+            "if the project identifier already exists."
+        )
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("elastic_apartments")
+def test_create_application_does_not_fail_if_apartment_identifier_already_exists():
+    data = create_validated_application_data(ProfileFactory(), ApplicationType.HASO)
+    for apartment in data["apartments"]:
+        Identifier.objects.create(
+            schema_type=IdentifierSchemaType.ATT_PROJECT_ES,
+            identifier=apartment["identifier"],
+        )
+    try:
+        create_application(data)
+    except IntegrityError:
+        pytest.fail(
+            "The application creation should not crash "
+            "if an apartment identifier already exists."
+        )
