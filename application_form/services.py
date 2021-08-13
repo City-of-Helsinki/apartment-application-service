@@ -30,7 +30,7 @@ def create_application(application_data: dict) -> Application:
     Identifier.objects.get_or_create(
         schema_type=IdentifierSchemaType.ATT_PROJECT_ES,
         identifier=project_id,
-        project=project,
+        defaults={"project": project},
     )
     additional_applicant_data = data.pop("additional_applicant")
     application = Application.objects.create(
@@ -86,7 +86,7 @@ def create_application(application_data: dict) -> Application:
         Identifier.objects.get_or_create(
             schema_type=IdentifierSchemaType.ATT_PROJECT_ES,
             identifier=apartment_item["identifier"],
-            apartment=apartment,
+            defaults={"apartment": apartment},
         )
     _logger.debug(
         "Application created with external UUID %s", application_data["external_uuid"]
