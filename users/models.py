@@ -1,6 +1,7 @@
 import logging
 from django.conf import settings
 from django.db import models
+from django.db.models import UUIDField
 from django.utils.translation import ugettext_lazy as _
 from helusers.models import AbstractUser
 from pgcrypto.fields import (
@@ -10,7 +11,6 @@ from pgcrypto.fields import (
 )
 from uuid import uuid4
 
-from apartment_application_service.fields import UUIDPGPPublicKeyField
 from apartment_application_service.models import TimestampedModel
 
 _logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ class Profile(TimestampedModel):
         ("en", _("English")),
     ]
 
-    id = UUIDPGPPublicKeyField(
+    id = UUIDField(
         _("user identifier"), primary_key=True, default=uuid4, editable=False
     )
     user = models.OneToOneField(
