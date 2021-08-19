@@ -28,8 +28,8 @@ class Application(TimestampedModel):
     type = EnumPGPPublicKeyField(
         ApplicationType, max_length=15, verbose_name=_("application type")
     )
-    right_of_residence = CharPGPPublicKeyField(
-        _("right of residence number"), max_length=10, null=True
+    right_of_residence = IntegerPGPPublicKeyField(
+        _("right of residence number"), null=True
     )
     has_children = BooleanPGPPublicKeyField(_("has children"), default=False)
 
