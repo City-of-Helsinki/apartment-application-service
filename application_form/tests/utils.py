@@ -40,7 +40,7 @@ def create_application_data(
         {"priority": index, "identifier": apartment.identifier}
         for index, apartment in enumerate(apartments)
     ]
-    right_of_residence = "123456" if application_type == ApplicationType.HASO else None
+    right_of_residence = 123456 if application_type == ApplicationType.HASO else None
 
     # Build application request data
     application_data = {

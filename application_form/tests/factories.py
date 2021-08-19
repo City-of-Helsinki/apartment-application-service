@@ -1,6 +1,5 @@
 import factory
 import random
-import string
 from factory import Faker, fuzzy, LazyAttribute
 from typing import List
 
@@ -28,7 +27,7 @@ class ApplicationFactory(factory.django.DjangoModelFactory):
     external_uuid = factory.Faker("uuid4")
     applicants_count = fuzzy.FuzzyInteger(1, 2)
     type = fuzzy.FuzzyChoice(list(ApplicationType))
-    right_of_residence = fuzzy.FuzzyText(length=10, chars=string.digits)
+    right_of_residence = fuzzy.FuzzyInteger(1, 1000000000)
     has_children = Faker("boolean")
     profile = factory.SubFactory(ProfileFactory)
 
