@@ -1,6 +1,7 @@
 from django.core.validators import MinLengthValidator
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
+from enumfields import EnumField
 from pgcrypto.fields import (
     CharPGPPublicKeyField,
     DatePGPPublicKeyField,
@@ -16,7 +17,7 @@ from apartment_application_service.fields import (
     UUIDPGPPublicKeyField,
 )
 from apartment_application_service.models import TimestampedModel
-from application_form.enums import ApplicationType
+from application_form.enums import ApplicationState, ApplicationType
 from users.models import Profile
 
 
@@ -27,6 +28,12 @@ class Application(TimestampedModel):
     applicants_count = IntegerPGPPublicKeyField(_("applicants count"))
     type = EnumPGPPublicKeyField(
         ApplicationType, max_length=15, verbose_name=_("application type")
+    )
+    state = EnumField(
+        ApplicationState,
+        max_length=15,
+        default=ApplicationState.SUBMITTED,
+        verbose_name=_("application state"),
     )
     right_of_residence = IntegerPGPPublicKeyField(
         _("right of residence number"), null=True
