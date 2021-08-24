@@ -40,7 +40,7 @@ class Application(TimestampedModel):
     )
     has_children = BooleanPGPPublicKeyField(_("has children"), default=False)
 
-    profile = models.ForeignKey(Profile, on_delete=models.CASCADE)
+    profile = models.ForeignKey(Profile, null=True, on_delete=models.SET_NULL)
     apartments = models.ManyToManyField(
         Apartment,
         through="ApplicationApartment",
