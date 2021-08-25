@@ -5,7 +5,10 @@ from django.db import IntegrityError
 from apartment.enums import IdentifierSchemaType
 from apartment.models import Identifier, Project
 from application_form.enums import ApplicationType
-from application_form.services import create_application, InvalidElasticDataError
+from application_form.services.application import (
+    create_application,
+    InvalidElasticDataError,
+)
 from application_form.tests.utils import create_validated_application_data
 from users.tests.factories import ProfileFactory
 
