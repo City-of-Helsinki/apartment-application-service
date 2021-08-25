@@ -46,7 +46,7 @@ def test_application_has_apartments_model():
 
     # get the set of applications where all apartments belong, should be one
     apartments_application = set(
-        [apartment.application_set.first() for apartment in Apartment.objects.all()]
+        [apartment.applications.first() for apartment in Apartment.objects.all()]
     )
 
     assert len(apartments_application) == 1

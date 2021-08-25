@@ -17,7 +17,11 @@ from apartment_application_service.fields import (
     UUIDPGPPublicKeyField,
 )
 from apartment_application_service.models import TimestampedModel
-from application_form.enums import ApplicationState, ApplicationType
+from application_form.enums import (
+    ApartmentQueueChangeEventType,
+    ApplicationState,
+    ApplicationType,
+)
 from users.models import Profile
 
 
@@ -39,7 +43,9 @@ class Application(TimestampedModel):
         Apartment,
         through="ApplicationApartment",
         blank=True,
+        related_name="applications",
     )
+    submitted_late = models.BooleanField("submitted late", default=False)
 
     audit_log_id_field = "external_uuid"
 
@@ -75,8 +81,12 @@ class Applicant(TimestampedModel):
 
 
 class ApplicationApartment(models.Model):
-    application = models.ForeignKey(Application, on_delete=models.CASCADE)
-    apartment = models.ForeignKey(Apartment, on_delete=models.CASCADE)
+    application = models.ForeignKey(
+        Application, on_delete=models.CASCADE, related_name="application_apartments"
+    )
+    apartment = models.ForeignKey(
+        Apartment, on_delete=models.CASCADE, related_name="application_apartments"
+    )
     priority_number = IntegerPGPPublicKeyField(_("priority number"))
     state = EnumField(
         ApplicationState,
@@ -84,3 +94,54 @@ class ApplicationApartment(models.Model):
         default=ApplicationState.SUBMITTED,
         verbose_name=_("application state"),
     )
+
+    class Meta:
+        unique_together = [("application", "priority_number")]
+
+
+class ApartmentQueue(models.Model):
+    apartment = models.OneToOneField(Apartment, models.CASCADE, related_name="queue")
+
+
+class ApartmentQueueApplication(models.Model):
+    queue = models.ForeignKey(
+        ApartmentQueue, models.CASCADE, related_name="queue_applications"
+    )
+    queue_position = models.IntegerField(_("position in queue"))
+    application_apartment = models.OneToOneField(
+        ApplicationApartment, models.CASCADE, related_name="queue_application"
+    )
+
+    class Meta:
+        unique_together = [("queue", "application_apartment")]
+
+
+class ApartmentQueueChangeEvent(models.Model):
+    queue_application = models.ForeignKey(
+        ApartmentQueueApplication, models.CASCADE, related_name="change_events"
+    )
+    type = EnumField(
+        ApartmentQueueChangeEventType,
+        max_length=15,
+        verbose_name=_("change type"),
+    )
+    comment = models.CharField(_("comment"), max_length=255)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+
+class LotteryEvent(models.Model):
+    apartment = models.ForeignKey(
+        Apartment, models.PROTECT, related_name="lottery_events"
+    )
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+
+class LotteryEventResult(models.Model):
+    event = models.ForeignKey(LotteryEvent, models.CASCADE, related_name="results")
+    application_apartment = models.ForeignKey(
+        ApplicationApartment, models.PROTECT, related_name="lottery_results"
+    )
+    result_position = models.IntegerField(_("result position"))
+
+    class Meta:
+        unique_together = [("event", "application_apartment")]
