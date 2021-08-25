@@ -29,12 +29,6 @@ class Application(TimestampedModel):
     type = EnumPGPPublicKeyField(
         ApplicationType, max_length=15, verbose_name=_("application type")
     )
-    state = EnumField(
-        ApplicationState,
-        max_length=15,
-        default=ApplicationState.SUBMITTED,
-        verbose_name=_("application state"),
-    )
     right_of_residence = IntegerPGPPublicKeyField(
         _("right of residence number"), null=True
     )
@@ -84,3 +78,9 @@ class ApplicationApartment(models.Model):
     application = models.ForeignKey(Application, on_delete=models.CASCADE)
     apartment = models.ForeignKey(Apartment, on_delete=models.CASCADE)
     priority_number = IntegerPGPPublicKeyField(_("priority number"))
+    state = EnumField(
+        ApplicationState,
+        max_length=15,
+        default=ApplicationState.SUBMITTED,
+        verbose_name=_("application state"),
+    )
