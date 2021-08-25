@@ -9,6 +9,7 @@ from application_form.services.application import (
     create_application,
     InvalidElasticDataError,
 )
+from application_form.services.queue import get_ordered_applications
 from application_form.tests.utils import create_validated_application_data
 from users.tests.factories import ProfileFactory
 
@@ -144,3 +145,23 @@ def test_create_application_does_not_fail_if_apartment_identifier_already_exists
             "The application creation should not crash "
             "if an apartment identifier already exists."
         )
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("elastic_apartments")
+def test_create_application_adds_haso_application_to_queue_by_right_of_residence():
+    data = create_validated_application_data(ProfileFactory(), ApplicationType.HASO)
+    application2 = create_application({**data, "right_of_residence": 2})
+    application1 = create_application({**data, "right_of_residence": 1})
+    for apartment in application1.apartments.all():
+        assert list(get_ordered_applications(apartment)) == [application1, application2]
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("elastic_apartments")
+def test_create_application_adds_hitas_application_to_queue_by_application_order():
+    data = create_validated_application_data(ProfileFactory(), ApplicationType.HITAS)
+    application2 = create_application({**data, "right_of_residence": 2})
+    application1 = create_application({**data, "right_of_residence": 1})
+    for apartment in application1.apartments.all():
+        assert list(get_ordered_applications(apartment)) == [application2, application1]

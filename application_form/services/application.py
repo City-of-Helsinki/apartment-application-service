@@ -7,6 +7,7 @@ from elasticsearch_dsl.response import Hit
 from apartment.enums import IdentifierSchemaType
 from apartment.models import Apartment, Identifier, Project
 from application_form.models import Applicant, Application, ApplicationApartment
+from application_form.services.queue import add_application_to_queues
 
 _logger = logging.getLogger(__name__)
 
@@ -91,6 +92,7 @@ def create_application(application_data: dict) -> Application:
     _logger.debug(
         "Application created with external UUID %s", application_data["external_uuid"]
     )
+    add_application_to_queues(application)
     return application
 
 
