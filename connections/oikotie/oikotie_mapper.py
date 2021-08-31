@@ -1,6 +1,6 @@
 from datetime import date, datetime, timedelta
 from django.conf import settings
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django_oikotie.enums import ApartmentType, NewDevelopmentStatusChoices
 from django_oikotie.xml_models.apartment import (
     Apartment,
