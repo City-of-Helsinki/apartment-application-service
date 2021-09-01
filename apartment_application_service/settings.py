@@ -31,7 +31,6 @@ env = environ.Env(
         "@localhost/apartment-application",
     ),
     CACHE_URL=(str, "locmemcache://"),
-    EMAIL_URL=(str, "consolemail://"),
     DEFAULT_FROM_EMAIL=(str, ""),
     MAIL_MAILGUN_KEY=(str, ""),
     MAIL_MAILGUN_DOMAIN=(str, ""),
@@ -90,8 +89,10 @@ USE_X_FORWARDED_HOST = env.bool("USE_X_FORWARDED_HOST")
 DATABASES = {"default": env.db()}
 
 CACHES = {"default": env.cache()}
-vars().update(env.email_url())  # EMAIL_BACKEND etc.
-MAILER_EMAIL_BACKEND = EMAIL_BACKEND  # noqa: F821
+
+EMAIL_CONFIG = env.email_url("EMAIL_URL", default="consolemail://")
+vars().update(EMAIL_CONFIG)
+MAILER_EMAIL_BACKEND = EMAIL_CONFIG["EMAIL_BACKEND"]
 MAILER_LOCK_PATH = env.str("MAILER_LOCK_PATH")
 EMAIL_BACKEND = "mailer.backend.DbBackend"
 if env.str("DEFAULT_FROM_EMAIL"):
@@ -192,42 +193,26 @@ LOGGING = {
     "disable_existing_loggers": False,
     "formatters": {
         "verbose": {
-            "format": "%(asctime)s p%(process)d %(name)s %(levelname)s: %(message)s",
+            "format": "%(asctime)s p%(process)d %(name)s %(levelname)s: %(message)s"
         }
     },
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-            "formatter": "verbose",
-        },
-    },
+    "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "verbose"}},
     "loggers": {
-        "": {
-            "level": env("LOG_LEVEL"),
-            "handlers": [
-                "console",
-            ],
-        },
+        "": {"level": env("LOG_LEVEL"), "handlers": ["console"]},
         "django": {
             "level": env("DJANGO_LOG_LEVEL"),
-            "handlers": [
-                "console",
-            ],
+            "handlers": ["console"],
             "propagate": False,
         },
         "connections": {
             "level": env("APPS_LOG_LEVEL"),
-            "handlers": [
-                "console",
-            ],
+            "handlers": ["console"],
             # required to avoid double logging with root logger
             "propagate": False,
         },
         "users": {
             "level": env("APPS_LOG_LEVEL"),
-            "handlers": [
-                "console",
-            ],
+            "handlers": ["console"],
             # required to avoid double logging with root logger
             "propagate": False,
         },
