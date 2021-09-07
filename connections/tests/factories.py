@@ -190,7 +190,7 @@ class ApartmentMinimalFactory(factory.Factory):
     project_new_housing = True
     project_apartment_count = fuzzy.FuzzyInteger(0, 9999999999)
     project_estimated_completion = fuzzy.FuzzyText()
-    room_count = fuzzy.FuzzyInteger(0, 9999999999)
+    room_count = fuzzy.FuzzyInteger(0, 99)
     sales_price = fuzzy.FuzzyInteger(0, 9999999999)
     debt_free_sales_price = fuzzy.FuzzyInteger(0, 9999999999)
     project_state_of_sale = fuzzy.FuzzyChoice(ProjectStateOfSale)
