@@ -6,7 +6,7 @@ from rest_framework.fields import CharField, IntegerField, UUIDField
 
 from application_form.enums import ApplicationType
 from application_form.models import Applicant, Application
-from application_form.services import create_application
+from application_form.services.application import create_application
 from application_form.validators import SSNSuffixValidator
 
 _logger = logging.getLogger(__name__)

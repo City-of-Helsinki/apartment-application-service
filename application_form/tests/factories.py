@@ -6,7 +6,7 @@ from typing import List
 from apartment.tests.factories import ApartmentFactory
 from application_form.enums import ApplicationType
 from application_form.models import Applicant, Application, ApplicationApartment
-from application_form.services import _calculate_age
+from application_form.services.application import _calculate_age
 from users.tests.factories import ProfileFactory
 
 
