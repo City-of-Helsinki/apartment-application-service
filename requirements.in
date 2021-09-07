@@ -5,7 +5,6 @@ django-environ~=0.4.5
 git+git://github.com/City-of-Helsinki/django-etuovi@v0.2.0#egg=django_etuovi  # TODO: change this when released in PyPI
 git+git://github.com/City-of-Helsinki/django-oikotie@v0.2.0#egg=django_oikotie  # TODO: change this when released in PyPI
 django-helusers~=0.7.0
-django-ilmoitin~=0.6.0
 django-pgcrypto-fields~=2.6.0
 django-simple-history~=3.0.0
 djangorestframework~=3.12.4
