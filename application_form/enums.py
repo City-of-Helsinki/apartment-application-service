@@ -4,6 +4,7 @@ from enum import Enum
 class ApplicationState(Enum):
     SUBMITTED = "submitted"
     RESERVED = "reserved"
+    OFFERED = "offered"
     CANCELED = "canceled"
     REVIEW = "review"
 
