@@ -7,22 +7,32 @@
 	"service": "django",
 	"workspaceFolder": "/workspace",
 	"settings": {
+		"editor.formatOnSave": true,
+		"git.inputValidation": "always",
+		"files.insertFinalNewline": true,
 		"[python]": {
 			"editor.codeActionsOnSave": {
-				"source.organizeImports.python": true
+				"source.organizeImports": true
 			}
 		},
 		"python.formatting.provider": "black",
+		"python.languageServer": "Pylance",
 		"python.linting.flake8Enabled": true,
-		"python.linting.pylintEnabled": false,
+		"python.linting.pylintEnabled": true,
 		"python.linting.enabled": true,
+		"python.linting.pylintArgs": [
+			"--load-plugins",
+			"pylint_django",
+			"--django-settings-module=apartment_application_service.settings"
+		],
 		"python.pythonPath": "/usr/local/bin/python",
-		"python.testing.pytestEnabled": true,
-		"terminal.integrated.shell.linux": null
+		"python.testing.pytestEnabled": true
 	},
 	"extensions": [
-		"ms-python.python"
+		"ms-python.python",
+		"ms-python.vscode-pylance"
 	],
 	"shutdownAction": "none",
-	"remoteUser": "appuser"
+	"remoteUser": "appuser",
+	"postCreateCommand": "pre-commit install --install-hooks"
 }
