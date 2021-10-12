@@ -15,6 +15,7 @@
 			}
 		},
 		"python.formatting.provider": "black",
+		"python.languageServer": "Pylance",
 		"python.linting.flake8Enabled": true,
 		"python.linting.pylintEnabled": true,
 		"python.linting.enabled": true,
@@ -27,7 +28,8 @@
 		"python.testing.pytestEnabled": true
 	},
 	"extensions": [
-		"ms-python.python"
+		"ms-python.python",
+		"ms-python.vscode-pylance"
 	],
 	"shutdownAction": "none",
 	"remoteUser": "appuser",
