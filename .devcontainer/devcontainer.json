@@ -8,6 +8,7 @@
 	"workspaceFolder": "/workspace",
 	"settings": {
 		"editor.formatOnSave": true,
+		"git.inputValidation": "always",
 		"files.insertFinalNewline": true,
 		"[python]": {
 			"editor.codeActionsOnSave": {
