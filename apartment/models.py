@@ -12,6 +12,7 @@ class Project(models.Model):
 class Apartment(models.Model):
     street_address = models.CharField(_("street address"), max_length=200)
     apartment_number = models.CharField(_("apartment number"), max_length=10)
+    room_count = models.PositiveIntegerField(_("room count"))
     project = models.ForeignKey(
         Project, on_delete=models.CASCADE, related_name="apartments"
     )

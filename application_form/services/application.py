@@ -77,6 +77,7 @@ def create_application(application_data: dict) -> Application:
         apartment, _ = Apartment.objects.get_or_create(
             street_address=elastic_apartment.project_street_address,
             apartment_number=elastic_apartment.apartment_number,
+            room_count=elastic_apartment.room_count,
             project=project,
         )
         ApplicationApartment.objects.create(

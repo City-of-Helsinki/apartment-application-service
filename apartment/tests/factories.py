@@ -36,6 +36,7 @@ class ApartmentFactory(factory.django.DjangoModelFactory):
     street_address = Faker("street_address")
     apartment_number = fuzzy.FuzzyText(length=3, chars=ascii_letters + digits)
     project = factory.SubFactory(ProjectFactory)
+    room_count = fuzzy.FuzzyInteger(1, 10)
 
     @factory.post_generation
     def identifiers(self, create, extracted, **kwargs):
