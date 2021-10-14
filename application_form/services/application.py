@@ -1,14 +1,12 @@
 import logging
 from datetime import date
 from django.db import transaction
-from elasticsearch_dsl import Search
-from elasticsearch_dsl.response import Hit
 
 from apartment.enums import IdentifierSchemaType
-from apartment.models import Apartment, Identifier, Project
+from apartment.models import Identifier
 from application_form.models import Applicant, Application, ApplicationApartment
 from application_form.services.queue import add_application_to_queues
-from connections.service.elastic import InvalidElasticDataError
+from connections.service.elastic import get_and_update_apartment, get_and_update_project
 
 _logger = logging.getLogger(__name__)
 
@@ -22,9 +20,7 @@ def create_application(application_data: dict) -> Application:
     data = application_data.copy()
     profile = data.pop("profile")
     project_id = data.pop("project_id")
-    project, _ = Project.objects.get_or_create(
-        street_address=_get_elastic_project_data(project_id)
-    )
+    project = get_and_update_project(project_id)
     Identifier.objects.get_or_create(
         schema_type=IdentifierSchemaType.ATT_PROJECT_ES,
         identifier=project_id,
@@ -70,13 +66,7 @@ def create_application(application_data: dict) -> Application:
         )
     apartment_data = data.pop("apartments")
     for apartment_item in apartment_data:
-        elastic_apartment = _get_elastic_apartment_data(apartment_item["identifier"])
-        apartment, _ = Apartment.objects.get_or_create(
-            street_address=elastic_apartment.project_street_address,
-            apartment_number=elastic_apartment.apartment_number,
-            room_count=elastic_apartment.room_count,
-            project=project,
-        )
+        apartment = get_and_update_apartment(apartment_item["identifier"])
         ApplicationApartment.objects.create(
             application=application,
             apartment=apartment,
@@ -92,36 +82,6 @@ def create_application(application_data: dict) -> Application:
     )
     add_application_to_queues(application)
     return application
-
-
-def _get_elastic_apartment_data(identifier: str) -> Hit:
-    s = Search().query("match", uuid=identifier)
-    s.execute()
-    objects = list(s.scan())
-
-    if len(objects) != 1:
-        _logger.error(
-            f"There was a problem fetching apartment data from Elasticsearch. "
-            f"There should be only one apartment with the UUID {identifier}, but "
-            f"{len(objects)} apartments were found."
-        )
-        raise InvalidElasticDataError
-
-    _logger.debug(f"Successfully fetched data for apartment {identifier}")
-    return objects[0]
-
-
-def _get_elastic_project_data(identifier: str) -> Hit:
-    s = Search().query("match", project_uuid=identifier)
-    s.execute()
-    objects = list(s.scan())
-
-    if len(objects) < 1:
-        _logger.error(f"There are no apartments with the project UUID {identifier}")
-        raise InvalidElasticDataError
-
-    _logger.debug(f"Successfully fetched data for project {identifier}")
-    return objects[0]
 
 
 def _calculate_age(dob: date) -> int:
