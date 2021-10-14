@@ -3,6 +3,7 @@ import uuid
 from elasticsearch_dsl import Search
 
 from apartment.models import Apartment, Project
+from connections.elastic_mapper import map_project_ownership_type
 from connections.elastic_models import Apartment as ElasticApartment
 
 _logger = logging.getLogger(__name__)
@@ -49,7 +50,12 @@ def _create_or_update_apartment(elastic_apartment: ElasticApartment) -> Apartmen
 def _create_or_update_project(elastic_project: ElasticApartment) -> Project:
     project, _ = Project.objects.update_or_create(
         uuid=elastic_project.project_uuid,
-        defaults={"street_address": elastic_project.project_street_address},
+        defaults={
+            "ownership_type": map_project_ownership_type(
+                elastic_project.project_ownership_type
+            ),
+            "street_address": elastic_project.project_street_address,
+        },
     )
     return project
 

@@ -53,6 +53,7 @@ class ApartmentFactory(ElasticFactory):
     project_id = fuzzy.FuzzyInteger(0, 999)
     project_uuid = str(uuid.uuid4())
 
+    project_ownership_type = fuzzy.FuzzyChoice(["Haso", "Hitas", "Puolihitas"])
     project_housing_company = fuzzy.FuzzyText()
     project_holding_type = "RIGHT_OF_RESIDENCE_APARTMENT"
     project_street_address = fuzzy.FuzzyText()
@@ -184,6 +185,7 @@ class ApartmentMinimalFactory(ElasticFactory):
     # mandatory fields for vendors:
     project_uuid = str(uuid.uuid4())
     uuid = fuzzy.FuzzyAttribute(get_uuid)
+    project_ownership_type = fuzzy.FuzzyChoice(["Haso", "Hitas", "Puolihitas"])
     project_housing_company = fuzzy.FuzzyText()
     project_holding_type = "RIGHT_OF_RESIDENCE_APARTMENT"
     project_street_address = fuzzy.FuzzyText()
