@@ -30,7 +30,22 @@ def get_uuid():
     return str(uuid.uuid4())
 
 
-class ApartmentFactory(factory.Factory):
+class ElasticFactory(factory.Factory):
+    @classmethod
+    def build_and_save_elastic(cls):
+        item = cls.build()
+        item.save(refresh="wait_for")
+        return item
+
+    @classmethod
+    def build_batch_and_save_elastic(cls, size):
+        items = cls.build_batch(size)
+        for item in items:
+            item.save(refresh="wait_for")
+        return items
+
+
+class ApartmentFactory(ElasticFactory):
     class Meta:
         model = ApartmentTest
 
@@ -160,7 +175,7 @@ class ApartmentFactory(factory.Factory):
     publish_on_oikotie = Faker("boolean")
 
 
-class ApartmentMinimalFactory(factory.Factory):
+class ApartmentMinimalFactory(ElasticFactory):
     class Meta:
         model = ApartmentTest
 
