@@ -8,12 +8,9 @@ from apartment.enums import IdentifierSchemaType
 from apartment.models import Apartment, Identifier, Project
 from application_form.models import Applicant, Application, ApplicationApartment
 from application_form.services.queue import add_application_to_queues
+from connections.service.elastic import InvalidElasticDataError
 
 _logger = logging.getLogger(__name__)
-
-
-class InvalidElasticDataError(RuntimeError):
-    """Raised if invalid hits were returned from Elasticsearch."""
 
 
 @transaction.atomic
