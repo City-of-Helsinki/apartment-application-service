@@ -3,14 +3,12 @@ from pytest import mark
 from apartment.tests.factories import ApartmentFactory, ProjectFactory
 from application_form.enums import ApplicationState, ApplicationType
 from application_form.models import LotteryEventResult
-from application_form.services.haso import (
+from application_form.services.application import (
     cancel_haso_application,
-    distribute_haso_apartments,
-)
-from application_form.services.queue import (
-    add_application_to_queues,
     get_ordered_applications,
 )
+from application_form.services.lottery.haso import distribute_haso_apartments
+from application_form.services.queue import add_application_to_queues
 from application_form.tests.factories import ApplicationFactory
 
 
@@ -180,7 +178,7 @@ def test_winning_cancels_lower_priority_applications_if_not_reserved():
 
 
 @mark.django_db
-def test_winning_does_not_cancel_lower_priority_applications_if_reserved():
+def test_winning_does_not_cancel_lower_priority_apartments_if_reserved():
     # If an application wins an apartment but has already won a different apartment
     # with a lower priority, then we should not automatically cancel the reserved
     # application despite it being lower priority. This kind of situation needs to
@@ -204,7 +202,7 @@ def test_winning_does_not_cancel_lower_priority_applications_if_reserved():
 
 
 @mark.django_db
-def test_winning_does_not_cancel_lower_priority_applications_first_in_queue():
+def test_winning_does_not_cancel_lower_priority_apartments_first_in_queue():
     # If an application wins an apartment but is also first in queue for a different
     # apartment with a lower priority, then we should not automatically cancel the
     # lower priority application. This kind of situation needs to be handled manually

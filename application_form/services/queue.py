@@ -1,25 +1,12 @@
 from django.db import transaction
-from django.db.models import F, QuerySet
+from django.db.models import F
 
-from apartment.models import Apartment
 from application_form.enums import (
     ApartmentQueueChangeEventType,
     ApplicationState,
     ApplicationType,
 )
 from application_form.models import ApartmentQueue, Application, ApplicationApartment
-
-
-def get_ordered_applications(apartment: Apartment) -> QuerySet:
-    """
-    Returns a list of all applications for the given apartment, ordered by their
-    position in the queue.
-    """
-    return apartment.applications.filter(
-        application_apartments__in=apartment.application_apartments.exclude(
-            queue_application__change_events__type=ApartmentQueueChangeEventType.REMOVED
-        )
-    ).order_by("application_apartments__queue_application__queue_position")
 
 
 def add_application_to_queues(application: Application, comment: str = "") -> None:
