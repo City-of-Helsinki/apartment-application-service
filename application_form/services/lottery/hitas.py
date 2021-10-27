@@ -53,30 +53,30 @@ def _shuffle_applications(apartment: Apartment) -> None:
         apps_with_children = apartment_apps.filter(application__has_children=True)
         apps_without_children = apartment_apps.exclude(application__has_children=True)
         with transaction.atomic():
-            # The first positions go to applications with children, in random order
-            _shuffle_queue_positions(apps_with_children)
-            # The remaining positions go to applications without children
-            _shuffle_queue_positions(apps_without_children, apps_with_children.count())
+            # The first queue segment go to applications with children, in random order
+            _shuffle_queue_segment(apps_with_children)
+            # The remaining segment go to applications without children
+            _shuffle_queue_segment(apps_without_children, apps_with_children.count())
     else:
         # Each application stays in the same pool and is assigned a random position
-        _shuffle_queue_positions(apartment_apps)
+        _shuffle_queue_segment(apartment_apps)
 
 
 @transaction.atomic
-def _shuffle_queue_positions(
+def _shuffle_queue_segment(
     application_apartments: QuerySet,
     start_position: int = 0,
 ) -> None:
     """
-    Randomizes the queue positions of the given applications, starting at the given
+    Randomizes the queue segment of the given applications, starting at the given
     position. A unique queue position between start_position (inclusive) and
     start_position + number of application apartments (exclusive) will be assigned
     randomly for each application in the queue.
     """
-    end_position = start_position + application_apartments.count() - 1
+    end_position = start_position + application_apartments.count()
 
     # Create a list of all possible queue positions between start and end position
-    possible_positions = list(range(start_position, end_position + 1))
+    possible_positions = list(range(start_position, end_position))
 
     for app_apartment in application_apartments.all():
         # Remove a random queue position from the list assign it to the application
