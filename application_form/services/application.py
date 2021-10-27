@@ -143,6 +143,11 @@ def _cancel_lower_priority_apartments(
     same project that has a lower priority than the reserved apartment, no matter what
     position they are in the queue. The canceled application is removed from the queue
     of the corresponding apartment.
+
+    An applicant can only have one apartment reserved at a time. If the applicant has,
+    for example, priority 2 apartment reserved, then the lower priority apartments will
+    be given to other applicants. However, the applicant will still be queuing for the
+    first-priority apartment.
     """
     states_to_cancel = [ApplicationState.SUBMITTED]
     if cancel_reserved:
