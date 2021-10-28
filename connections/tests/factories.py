@@ -30,14 +30,30 @@ def get_uuid():
     return str(uuid.uuid4())
 
 
-class ApartmentFactory(factory.Factory):
+class ElasticFactory(factory.Factory):
+    @classmethod
+    def build_and_save_elastic(cls):
+        item = cls.build()
+        item.save(refresh="wait_for")
+        return item
+
+    @classmethod
+    def build_batch_and_save_elastic(cls, size):
+        items = cls.build_batch(size)
+        for item in items:
+            item.save(refresh="wait_for")
+        return items
+
+
+class ApartmentFactory(ElasticFactory):
     class Meta:
         model = ApartmentTest
 
     _language = fuzzy.FuzzyChoice(["en", "fi", "sv"])
-    project_id = fuzzy.FuzzyInteger(0, 9999999999)
+    project_id = fuzzy.FuzzyInteger(0, 999)
     project_uuid = str(uuid.uuid4())
 
+    project_ownership_type = fuzzy.FuzzyChoice(["Haso", "Hitas", "Puolihitas"])
     project_housing_company = fuzzy.FuzzyText()
     project_holding_type = "RIGHT_OF_RESIDENCE_APARTMENT"
     project_street_address = fuzzy.FuzzyText()
@@ -50,8 +66,8 @@ class ApartmentFactory(factory.Factory):
         NEW_DEVELOPMENT_STATUS_MAPPING.keys()
     )
     project_new_housing = True
-    project_apartment_count = fuzzy.FuzzyInteger(0, 9999999999)
-    project_parkingplace_count = fuzzy.FuzzyInteger(0, 9999999999)
+    project_apartment_count = fuzzy.FuzzyInteger(0, 999)
+    project_parkingplace_count = fuzzy.FuzzyInteger(0, 999)
 
     project_has_elevator = True
     project_has_sauna = True
@@ -117,8 +133,8 @@ class ApartmentFactory(factory.Factory):
     )
     housing_shares = fuzzy.FuzzyText()
     living_area = fuzzy.FuzzyFloat(0, 9999999999)
-    floor = fuzzy.FuzzyInteger(0, 9999999999)
-    floor_max = fuzzy.FuzzyInteger(0, 9999999999)
+    floor = fuzzy.FuzzyInteger(0, 999)
+    floor_max = fuzzy.FuzzyInteger(0, 999)
     showing_times = factory.List(
         [
             fuzzy.FuzzyDateTime(timezone.now()).fuzz().strftime("%Y-%m-%dT%H:%M:%S%z")
@@ -126,7 +142,7 @@ class ApartmentFactory(factory.Factory):
         ]
     )
     apartment_structure = fuzzy.FuzzyText()
-    room_count = fuzzy.FuzzyInteger(0, 9999999999)
+    room_count = fuzzy.FuzzyInteger(0, 999)
     condition = "Uusi"
     kitchen_appliances = fuzzy.FuzzyText()
     has_yard = True
@@ -138,18 +154,18 @@ class ApartmentFactory(factory.Factory):
     has_apartment_sauna = True
     apartment_holding_type = "RIGHT_OF_RESIDENCE_APARTMENT"
     view_description = fuzzy.FuzzyText()
-    sales_price = fuzzy.FuzzyInteger(0, 9999999999)
-    debt_free_sales_price = fuzzy.FuzzyInteger(0, 9999999999)
-    loan_share = fuzzy.FuzzyInteger(0, 9999999999)
-    price_m2 = fuzzy.FuzzyInteger(0, 9999999999)
-    housing_company_fee = fuzzy.FuzzyInteger(0, 9999999999)
-    financing_fee = fuzzy.FuzzyInteger(0, 9999999999)
-    financing_fee_m2 = fuzzy.FuzzyInteger(0, 9999999999)
-    maintenance_fee = fuzzy.FuzzyInteger(0, 9999999999)
-    maintenance_fee_m2 = fuzzy.FuzzyInteger(0, 9999999999)
-    water_fee = fuzzy.FuzzyInteger(0, 9999999999)
+    sales_price = fuzzy.FuzzyInteger(0, 999)
+    debt_free_sales_price = fuzzy.FuzzyInteger(0, 999)
+    loan_share = fuzzy.FuzzyInteger(0, 999)
+    price_m2 = fuzzy.FuzzyInteger(0, 999)
+    housing_company_fee = fuzzy.FuzzyInteger(0, 999)
+    financing_fee = fuzzy.FuzzyInteger(0, 999)
+    financing_fee_m2 = fuzzy.FuzzyInteger(0, 999)
+    maintenance_fee = fuzzy.FuzzyInteger(0, 999)
+    maintenance_fee_m2 = fuzzy.FuzzyInteger(0, 999)
+    water_fee = fuzzy.FuzzyInteger(0, 999)
     water_fee_explanation = fuzzy.FuzzyText()
-    parking_fee = fuzzy.FuzzyInteger(0, 9999999999)
+    parking_fee = fuzzy.FuzzyInteger(0, 999)
     parking_fee_explanation = fuzzy.FuzzyText()
     other_fees = fuzzy.FuzzyText()
     services_description = fuzzy.FuzzyText()
@@ -160,15 +176,16 @@ class ApartmentFactory(factory.Factory):
     publish_on_oikotie = Faker("boolean")
 
 
-class ApartmentMinimalFactory(factory.Factory):
+class ApartmentMinimalFactory(ElasticFactory):
     class Meta:
         model = ApartmentTest
 
     _language = fuzzy.FuzzyChoice(["en", "fi"])
-    project_id = fuzzy.FuzzyInteger(0, 9999999999)
+    project_id = fuzzy.FuzzyInteger(0, 999)
     # mandatory fields for vendors:
     project_uuid = str(uuid.uuid4())
     uuid = fuzzy.FuzzyAttribute(get_uuid)
+    project_ownership_type = fuzzy.FuzzyChoice(["Haso", "Hitas", "Puolihitas"])
     project_housing_company = fuzzy.FuzzyText()
     project_holding_type = "RIGHT_OF_RESIDENCE_APARTMENT"
     project_street_address = fuzzy.FuzzyText()
@@ -188,11 +205,11 @@ class ApartmentMinimalFactory(factory.Factory):
         NEW_DEVELOPMENT_STATUS_MAPPING.keys()
     )
     project_new_housing = True
-    project_apartment_count = fuzzy.FuzzyInteger(0, 9999999999)
+    project_apartment_count = fuzzy.FuzzyInteger(0, 999)
     project_estimated_completion = fuzzy.FuzzyText()
     room_count = fuzzy.FuzzyInteger(0, 99)
-    sales_price = fuzzy.FuzzyInteger(0, 9999999999)
-    debt_free_sales_price = fuzzy.FuzzyInteger(0, 9999999999)
+    sales_price = fuzzy.FuzzyInteger(0, 999)
+    debt_free_sales_price = fuzzy.FuzzyInteger(0, 999)
     project_state_of_sale = fuzzy.FuzzyChoice(ProjectStateOfSale)
     apartment_state_of_sale = fuzzy.FuzzyChoice(ApartmentStateOfSale)
     project_description = fuzzy.FuzzyText(length=200)

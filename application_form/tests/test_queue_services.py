@@ -5,9 +5,9 @@ from unittest.mock import Mock
 from apartment.tests.factories import ApartmentFactory
 from application_form.enums import ApartmentQueueChangeEventType, ApplicationType
 from application_form.models import ApartmentQueue, ApartmentQueueChangeEvent
+from application_form.services.application import get_ordered_applications
 from application_form.services.queue import (
     add_application_to_queues,
-    get_ordered_applications,
     remove_application_from_queue,
 )
 from application_form.tests.factories import ApplicationFactory

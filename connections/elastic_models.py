@@ -21,6 +21,7 @@ class Apartment(ReadOnlyDocument):
     project_id = Long(required=True)
     project_uuid = Keyword(required=True)
 
+    project_ownership_type = Keyword(required=True)
     project_housing_company = Keyword(required=True)
     project_holding_type = Keyword(required=True)
     project_street_address = Keyword(required=True)

@@ -4,14 +4,12 @@ from unittest.mock import patch
 from apartment.tests.factories import ApartmentFactory, ProjectFactory
 from application_form.enums import ApplicationState, ApplicationType
 from application_form.models import LotteryEventResult
-from application_form.services.hitas import (
+from application_form.services.application import (
     cancel_hitas_application,
-    distribute_hitas_apartments,
-)
-from application_form.services.queue import (
-    add_application_to_queues,
     get_ordered_applications,
 )
+from application_form.services.lottery.hitas import distribute_hitas_apartments
+from application_form.services.queue import add_application_to_queues
 from application_form.tests.factories import ApplicationFactory
 
 
