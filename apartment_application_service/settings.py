@@ -3,7 +3,7 @@ import os
 import sentry_sdk
 import subprocess
 from datetime import timedelta
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from sentry_sdk.integrations.django import DjangoIntegration
 
 checkout_dir = environ.Path(__file__) - 2
@@ -136,10 +136,6 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "corsheaders",
-    "parler",
-    "anymail",
-    "mailer",
-    "django_ilmoitin",
     "social_django",
     "rest_framework",
     "simple_history",
@@ -220,8 +216,6 @@ LOGGING = {
 }
 
 SITE_ID = 1
-
-PARLER_LANGUAGES = {SITE_ID: ({"code": "fi"}, {"code": "en"}, {"code": "sv"})}
 
 # Authentication
 
