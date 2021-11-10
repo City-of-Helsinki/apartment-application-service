@@ -147,6 +147,7 @@ INSTALLED_APPS = [
     "connections",
     "users",
     "audit_log",
+    "utils",
 ]
 
 MIDDLEWARE = [
