@@ -146,6 +146,7 @@ INSTALLED_APPS = [
     "apartment",
     "application_form",
     "connections",
+    "customer",
     "users",
     "audit_log",
     "utils",
