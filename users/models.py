@@ -33,7 +33,7 @@ class Profile(TimestampedModel):
         _("user identifier"), primary_key=True, default=uuid4, editable=False
     )
     user = models.OneToOneField(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=False
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True
     )
     first_name = CharPGPPublicKeyField(_("first name"), max_length=30, blank=True)
     last_name = CharPGPPublicKeyField(_("last name"), max_length=150, blank=True)
@@ -52,7 +52,8 @@ class Profile(TimestampedModel):
     def delete(self, *args, **kwargs):
         pk = self.pk
         _logger.info(f"Deleting profile {pk}")
-        self.user.delete()
+        if self.user:
+            self.user.delete()
         result = super().delete(*args, **kwargs)
         _logger.info(f"Profile {pk} deleted")
         return result
