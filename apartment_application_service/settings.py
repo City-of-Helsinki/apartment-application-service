@@ -87,6 +87,7 @@ ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
 USE_X_FORWARDED_HOST = env.bool("USE_X_FORWARDED_HOST")
 
 DATABASES = {"default": env.db()}
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 CACHES = {"default": env.cache()}
 
