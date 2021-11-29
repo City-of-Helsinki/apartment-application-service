@@ -1,5 +1,6 @@
 import logging
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import UUIDField
 from django.utils.translation import gettext_lazy as _
@@ -9,6 +10,7 @@ from pgcrypto.fields import (
     DatePGPPublicKeyField,
     EmailPGPPublicKeyField,
 )
+from stdnum import fi
 from uuid import uuid4
 
 from apartment_application_service.models import TimestampedModel
@@ -33,14 +35,22 @@ class Profile(TimestampedModel):
         _("user identifier"), primary_key=True, default=uuid4, editable=False
     )
     user = models.OneToOneField(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=False
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True
     )
     first_name = CharPGPPublicKeyField(_("first name"), max_length=30, blank=True)
+    middle_name = CharPGPPublicKeyField(_("middle name"), max_length=30, blank=True)
     last_name = CharPGPPublicKeyField(_("last name"), max_length=150, blank=True)
+    calling_name = CharPGPPublicKeyField(_("calling name"), max_length=50, blank=True)
     email = EmailPGPPublicKeyField(_("email address"), blank=True)
     phone_number = CharPGPPublicKeyField(_("phone number"), max_length=40, null=False)
+    phone_number_nightly = CharPGPPublicKeyField(
+        _("phone number nightly"), max_length=50, blank=True
+    )
     street_address = CharPGPPublicKeyField(_("street address"), max_length=200)
     date_of_birth = DatePGPPublicKeyField(_("date of birth"))
+    national_identification_number = CharPGPPublicKeyField(
+        _("national identification number"), max_length=11, blank=True
+    )
     city = CharPGPPublicKeyField(_("city"), max_length=50)
     postal_code = CharPGPPublicKeyField(_("postal code"), max_length=10)
     contact_language = CharPGPPublicKeyField(
@@ -49,16 +59,28 @@ class Profile(TimestampedModel):
         choices=CONTACT_LANGUAGE_CHOICES,
     )
 
+    def clean(self):
+        if self.national_identification_number:
+            try:
+                fi.personalid.validate(self.national_identification_number)
+            except Exception as ex:
+                raise ValidationError(message=ex.message)
+
     def delete(self, *args, **kwargs):
         pk = self.pk
         _logger.info(f"Deleting profile {pk}")
-        self.user.delete()
+        if self.user:
+            self.user.delete()
         result = super().delete(*args, **kwargs)
         _logger.info(f"Profile {pk} deleted")
         return result
 
+    def save(self, *args, **kwargs):
+        self.clean()
+        super(Profile, self).save(*args, **kwargs)
+
     def __str__(self):
-        return str(self.user)
+        return f"{self.first_name} {self.last_name}"
 
     class Meta:
         verbose_name = _("profile")
