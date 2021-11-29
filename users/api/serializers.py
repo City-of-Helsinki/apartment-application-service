@@ -1,8 +1,9 @@
 import logging
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
-from rest_framework.fields import CharField, UUIDField
+from rest_framework.fields import BooleanField, CharField, UUIDField
 from rest_framework.serializers import ModelSerializer, Serializer
 from rest_framework_simplejwt.serializers import (
     PasswordField,
@@ -11,6 +12,7 @@ from rest_framework_simplejwt.serializers import (
 from typing import Optional
 from uuid import UUID
 
+from users.enums import Roles
 from users.masking import unmask_string, unmask_uuid
 from users.models import Profile
 
@@ -19,6 +21,7 @@ _logger = logging.getLogger(__name__)
 
 class ProfileSerializer(ModelSerializer):
     id = UUIDField(source="pk")
+    is_salesperson = BooleanField()
 
     class Meta:
         model = Profile
@@ -33,12 +36,18 @@ class ProfileSerializer(ModelSerializer):
             "city",
             "postal_code",
             "contact_language",
+            "is_salesperson",
         ]
 
     @transaction.atomic
     def create(self, validated_data):
         _logger.info("Creating a new profile")
         user = get_user_model().objects.create()
+
+        if validated_data.pop("is_salesperson", False):
+            group = Group.objects.get(name__iexact=Roles.SALESPERSON.name)
+            group.user_set.add(user)
+
         profile = Profile.objects.create(user=user, **validated_data)
         _logger.info(f"Profile {profile.pk} created")
         return profile
@@ -49,6 +58,15 @@ class ProfileSerializer(ModelSerializer):
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
+
+        if "is_salesperson" in validated_data:
+            is_salesperson = validated_data.pop("is_salesperson")
+            group = Group.objects.get(name__iexact=Roles.SALESPERSON.name)
+            if is_salesperson:
+                group.user_set.add(instance.user)
+            else:
+                group.user_set.remove(instance.user)
+
         _logger.info(f"Profile {instance.pk} updated")
         return instance
 
