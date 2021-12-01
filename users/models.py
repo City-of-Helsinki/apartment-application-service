@@ -38,18 +38,25 @@ class Profile(TimestampedModel):
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True
     )
     first_name = CharPGPPublicKeyField(_("first name"), max_length=30, blank=True)
-    middle_name = CharPGPPublicKeyField(_("middle name"), max_length=30, blank=True)
+    middle_name = CharPGPPublicKeyField(
+        _("middle name"), max_length=30, blank=True, null=True
+    )
     last_name = CharPGPPublicKeyField(_("last name"), max_length=150, blank=True)
-    calling_name = CharPGPPublicKeyField(_("calling name"), max_length=50, blank=True)
+    calling_name = CharPGPPublicKeyField(
+        _("calling name"), max_length=50, blank=True, null=True
+    )
     email = EmailPGPPublicKeyField(_("email address"), blank=True)
     phone_number = CharPGPPublicKeyField(_("phone number"), max_length=40, null=False)
     phone_number_nightly = CharPGPPublicKeyField(
-        _("phone number nightly"), max_length=50, blank=True
+        _("phone number nightly"), max_length=50, blank=True, null=True
     )
     street_address = CharPGPPublicKeyField(_("street address"), max_length=200)
     date_of_birth = DatePGPPublicKeyField(_("date of birth"))
     national_identification_number = CharPGPPublicKeyField(
-        _("national identification number"), max_length=11, blank=True
+        _("national identification number"),
+        max_length=11,
+        blank=True,
+        null=True,
     )
     city = CharPGPPublicKeyField(_("city"), max_length=50)
     postal_code = CharPGPPublicKeyField(_("postal code"), max_length=10)
