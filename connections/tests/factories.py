@@ -7,12 +7,12 @@ from elasticsearch_dsl import Document
 from factory import Faker, fuzzy
 from typing import List
 
-from connections.elastic_models import Apartment
+from apartment.elastic.documents import ApartmentDocument
 from connections.enums import ApartmentStateOfSale, ProjectStateOfSale
 from connections.oikotie.field_mapper import NEW_DEVELOPMENT_STATUS_MAPPING
 
 
-class ApartmentTest(Apartment):
+class ApartmentTest(ApartmentDocument):
     def save(self, **kwargs):
         return Document.save(self, **kwargs)
 

@@ -37,7 +37,7 @@ from django_oikotie.xml_models.housing_company import Picture as HousingCompanyP
 from django_oikotie.xml_models.housing_company import RealEstateAgent
 from typing import List, Optional
 
-from connections.elastic_models import Apartment as ElasticApartment
+from apartment.elastic.documents import ApartmentDocument as ElasticApartment
 from connections.enums import Currency, Unit
 from connections.oikotie.field_mapper import (
     APARTMENT_TYPE_MAPPING,

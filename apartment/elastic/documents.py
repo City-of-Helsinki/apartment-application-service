@@ -17,7 +17,7 @@ class ReadOnlyDocument(Document):
         raise NotImplementedError()
 
 
-class Apartment(ReadOnlyDocument):
+class ApartmentDocument(ReadOnlyDocument):
     project_id = Long(required=True)
     project_uuid = Keyword(required=True)
 
