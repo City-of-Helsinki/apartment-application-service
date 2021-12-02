@@ -6,6 +6,6 @@ from apartment.api.views import ProjectAPIView
 router = DefaultRouter()
 
 urlpatterns = [
-    path("projects/", ProjectAPIView.as_view(), name="project-list"),
+    path("sales/projects/", ProjectAPIView.as_view(), name="project-list"),
     path("", include(router.urls)),
 ]
