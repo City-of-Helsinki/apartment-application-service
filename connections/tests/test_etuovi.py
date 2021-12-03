@@ -5,10 +5,11 @@ from django.core.management import call_command
 from django_etuovi.utils.testing import check_dataclass_typing
 from uuid import UUID
 
+from apartment.tests.factories import ApartmentDocumentFactory
 from connections.etuovi.etuovi_mapper import map_apartment_to_item
 from connections.etuovi.services import create_xml, fetch_apartments_for_sale
 from connections.models import MappedApartment
-from connections.tests.factories import ApartmentFactory, ApartmentMinimalFactory
+from connections.tests.factories import ApartmentMinimalFactory
 from connections.tests.utils import (
     get_elastic_apartments_for_sale_published_on_etuovi_uuids,
     get_elastic_apartments_for_sale_published_on_oikotie_uuids,
@@ -19,7 +20,7 @@ from connections.tests.utils import (
 
 class TestEtuoviMapper:
     def test_apartment_to_item_mapping_types(self):
-        apartment = ApartmentFactory()
+        apartment = ApartmentDocumentFactory()
         item = map_apartment_to_item(apartment)
         check_dataclass_typing(item)
 
