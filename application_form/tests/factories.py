@@ -13,7 +13,7 @@ from users.tests.factories import ProfileFactory
 def calculate_ssn_suffix(obj) -> str:
     date_string = obj.date_of_birth.strftime("%d%m%y")
     century_sign = "+-A"[obj.date_of_birth.year // 100 - 18]
-    individual_number = f"{random.randint(3, 900):03d}"
+    individual_number = f"{random.randint(3, 899):03d}"
     index = int(date_string + individual_number) % 31
     control_character = "0123456789ABCDEFHJKLMNPRSTUVWXY"[index]
     ssn_suffix = century_sign + individual_number + control_character
