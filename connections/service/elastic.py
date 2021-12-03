@@ -2,9 +2,9 @@ import logging
 import uuid
 from elasticsearch_dsl import Search
 
+from apartment.elastic.documents import ApartmentDocument as ElasticApartment
 from apartment.models import Apartment, Project
 from connections.elastic_mapper import map_project_ownership_type
-from connections.elastic_models import Apartment as ElasticApartment
 
 _logger = logging.getLogger(__name__)
 

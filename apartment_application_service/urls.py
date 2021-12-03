@@ -6,6 +6,7 @@ from drf_spectacular.views import (
 )
 from helusers.admin_site import admin
 
+from apartment import urls as apartment_urls
 from application_form import urls as applications_urls
 from audit_log import urls as auditlogs_api_urls
 from connections import urls as connections_api_urls
@@ -14,6 +15,10 @@ from users.api.views import MaskedTokenObtainPairView, MaskedTokenRefreshView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path(
+        "v1/",
+        include((apartment_urls, "apartment"), namespace="v1/apartments"),
+    ),
     path(
         "v1/",
         include((auditlogs_api_urls, "audit_log"), namespace="v1/auditlogs"),

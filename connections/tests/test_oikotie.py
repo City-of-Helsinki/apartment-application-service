@@ -5,6 +5,7 @@ from django.core.management import call_command
 from django_etuovi.utils.testing import check_dataclass_typing
 from uuid import UUID
 
+from apartment.tests.factories import ApartmentDocumentFactory
 from connections.models import MappedApartment
 from connections.oikotie.oikotie_mapper import (
     form_description,
@@ -36,7 +37,7 @@ from connections.oikotie.services import (
     create_xml_housing_company_file,
     fetch_apartments_for_sale,
 )
-from connections.tests.factories import ApartmentFactory, ApartmentMinimalFactory
+from connections.tests.factories import ApartmentMinimalFactory
 from connections.tests.utils import (
     get_elastic_apartments_for_sale_project_uuids,
     get_elastic_apartments_for_sale_published_on_etuovi_uuids,
@@ -49,7 +50,7 @@ from connections.tests.utils import (
 
 class TestOikotieMapper:
     def test_elastic_to_oikotie_apartment_mapping_types(self):
-        elastic_apartment = ApartmentFactory()
+        elastic_apartment = ApartmentDocumentFactory()
         oikotie_apartment = map_oikotie_apartment(elastic_apartment)
         check_dataclass_typing(oikotie_apartment)
 
@@ -59,109 +60,109 @@ class TestOikotieMapper:
         check_dataclass_typing(oikotie_apartment)
 
     def test_elastic_to_oikotie__housing_company__mapping_types(self):
-        elastic_apartment = ApartmentFactory()
+        elastic_apartment = ApartmentDocumentFactory()
         oikotie_housing_company = map_oikotie_housing_company(elastic_apartment)
         check_dataclass_typing(oikotie_housing_company)
 
     def test_elastic_to_oikotie__address__mapping_types(self):
-        elastic_apartment = ApartmentFactory()
+        elastic_apartment = ApartmentDocumentFactory()
         oikotie_address = map_address(elastic_apartment)
         check_dataclass_typing(oikotie_address)
 
     def test_elastic_to_oikotie__balcony__mapping_types(self):
-        elastic_apartment = ApartmentFactory()
+        elastic_apartment = ApartmentDocumentFactory()
         oikotie_balcony = map_balcony(elastic_apartment)
         check_dataclass_typing(oikotie_balcony)
 
     def test_elastic_to_oikotie__car_parking_charge__mapping_types(self):
-        elastic_apartment = ApartmentFactory()
+        elastic_apartment = ApartmentDocumentFactory()
         oikotie_car_parking_charge = map_car_parking_charge(elastic_apartment)
         check_dataclass_typing(oikotie_car_parking_charge)
 
     def test_elastic_to_oikotie__city__mapping_types(self):
-        elastic_apartment = ApartmentFactory()
+        elastic_apartment = ApartmentDocumentFactory()
         oikotie_city = map_city(elastic_apartment)
         check_dataclass_typing(oikotie_city)
 
     def test_elastic_to_oikotie__coordinates__mapping_types(self):
-        elastic_apartment = ApartmentFactory()
+        elastic_apartment = ApartmentDocumentFactory()
         oikotie_coordinates = map_coordinates(elastic_apartment)
         check_dataclass_typing(oikotie_coordinates)
 
     def test_elastic_to_oikotie__financing_fee__mapping_types(self):
-        elastic_apartment = ApartmentFactory()
+        elastic_apartment = ApartmentDocumentFactory()
         oikotie_financing_fee = map_financing_fee(elastic_apartment)
         check_dataclass_typing(oikotie_financing_fee)
 
     def test_elastic_to_oikotie__floor_location__mapping_types(self):
-        elastic_apartment = ApartmentFactory()
+        elastic_apartment = ApartmentDocumentFactory()
         oikotie_floor_location = map_floor_location(elastic_apartment)
         check_dataclass_typing(oikotie_floor_location)
 
     def test_elastic_to_oikotie__housing_company_apartment__mapping_types(self):
-        elastic_apartment = ApartmentFactory()
+        elastic_apartment = ApartmentDocumentFactory()
         oikotie_housing_company_apartment = map_apartment(elastic_apartment)
         check_dataclass_typing(oikotie_housing_company_apartment)
 
     def test_elastic_to_oikotie__lift__mapping_types(self):
-        elastic_apartment = ApartmentFactory()
+        elastic_apartment = ApartmentDocumentFactory()
         oikotie_lift = map_lift(elastic_apartment)
         check_dataclass_typing(oikotie_lift)
 
     def test_elastic_to_oikotie__living_area__mapping_types(self):
-        elastic_apartment = ApartmentFactory()
+        elastic_apartment = ApartmentDocumentFactory()
         oikotie_living_area = map_living_area(elastic_apartment)
         check_dataclass_typing(oikotie_living_area)
 
     def test_elastic_to_oikotie__maintenance_fee__mapping_types(self):
-        elastic_apartment = ApartmentFactory()
+        elastic_apartment = ApartmentDocumentFactory()
         oikotie_maintenance_fee = map_maintenance_fee(elastic_apartment)
         check_dataclass_typing(oikotie_maintenance_fee)
 
     def test_elastic_to_oikotie__mode_of_habitation__mapping_types(self):
-        elastic_apartment = ApartmentFactory()
+        elastic_apartment = ApartmentDocumentFactory()
         oikotie_mode_of_habitation = map_mode_of_habitation(elastic_apartment)
         check_dataclass_typing(oikotie_mode_of_habitation)
 
     def test_elastic_to_oikotie__pictures__mapping_types(self):
-        elastic_apartment = ApartmentFactory()
+        elastic_apartment = ApartmentDocumentFactory()
         oikotie_pictures = map_apartment_pictures(elastic_apartment)
         check_dataclass_typing(oikotie_pictures[0])
 
     def test_elastic_to_oikotie__real_estate_agent__mapping_types(self):
-        elastic_apartment = ApartmentFactory()
+        elastic_apartment = ApartmentDocumentFactory()
         oikotie_real_estate_agent = map_real_estate_agent(elastic_apartment)
         check_dataclass_typing(oikotie_real_estate_agent)
 
     def test_elastic_to_oikotie__sales_price__mapping_types(self):
-        elastic_apartment = ApartmentFactory()
+        elastic_apartment = ApartmentDocumentFactory()
         oikotie_sales_price = map_sales_price(elastic_apartment)
         check_dataclass_typing(oikotie_sales_price)
 
     def test_elastic_to_oikotie__sauna__mapping_types(self):
-        elastic_apartment = ApartmentFactory()
+        elastic_apartment = ApartmentDocumentFactory()
         oikotie_sauna = map_sauna(elastic_apartment)
         check_dataclass_typing(oikotie_sauna)
 
     def test_elastic_to_oikotie__site_area__mapping_types(self):
-        elastic_apartment = ApartmentFactory()
+        elastic_apartment = ApartmentDocumentFactory()
         oikotie_site_area = map_site_area(elastic_apartment)
         check_dataclass_typing(oikotie_site_area)
 
     def test_elastic_to_oikotie__unencumbered_sales_price__mapping_types(self):
-        elastic_apartment = ApartmentFactory()
+        elastic_apartment = ApartmentDocumentFactory()
         oikotie_unencumbered_sales_price = map_unencumbered_sales_price(
             elastic_apartment
         )
         check_dataclass_typing(oikotie_unencumbered_sales_price)
 
     def test_elastic_to_oikotie__water_fee__mapping_types(self):
-        elastic_apartment = ApartmentFactory()
+        elastic_apartment = ApartmentDocumentFactory()
         oikotie_water_fee = map_water_fee(elastic_apartment)
         check_dataclass_typing(oikotie_water_fee)
 
     def test_elastic_to_oikotie__year_of_building__mapping_types(self):
-        elastic_apartment = ApartmentFactory()
+        elastic_apartment = ApartmentDocumentFactory()
         oikotie_year_of_building = map_year_of_building(elastic_apartment)
         check_dataclass_typing(oikotie_year_of_building)
 
