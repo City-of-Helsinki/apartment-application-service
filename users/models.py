@@ -14,6 +14,7 @@ from stdnum import fi
 from uuid import uuid4
 
 from apartment_application_service.models import TimestampedModel
+from users.enums import Roles
 
 _logger = logging.getLogger(__name__)
 
@@ -85,6 +86,9 @@ class Profile(TimestampedModel):
     def save(self, *args, **kwargs):
         self.clean()
         super(Profile, self).save(*args, **kwargs)
+
+    def is_salesperson(self) -> bool:
+        return self.user.groups.filter(name__iexact=Roles.SALESPERSON.name).exists()
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
