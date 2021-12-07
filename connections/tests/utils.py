@@ -2,11 +2,12 @@ from django.conf import settings
 from elasticsearch_dsl import Search, UpdateByQuery
 from time import sleep
 
+from apartment.elastic.documents import ApartmentDocument
 from connections.enums import ApartmentStateOfSale
 
 
 def make_apartments_sold_in_elastic() -> None:
-    s_obj = Search(index=settings.APARTMENT_INDEX_NAME).query(
+    s_obj = ApartmentDocument.search().query(
         "match", apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE
     )
     s_obj.delete()
@@ -21,7 +22,7 @@ def get_elastic_apartments_for_sale_published_on_etuovi_uuids(
     If oikotie_published is False exclude apartments published on Oikotie
     """
     s_obj = (
-        Search()
+        ApartmentDocument.search()
         .query("match", _language="fi")
         .query("match", apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE)
         .query("match", publish_on_etuovi=True)
@@ -45,7 +46,7 @@ def get_elastic_apartments_for_sale_published_on_oikotie_uuids(
     If etuovi_published is False exclude apartments published on Etuovi
     """
     s_obj = (
-        Search()
+        ApartmentDocument.search()
         .query("match", _language="fi")
         .query("match", apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE)
         .query("match", publish_on_oikotie=True)
@@ -66,7 +67,7 @@ def get_elastic_apartments_for_sale_published_uuids() -> list:
     Get apartments for sale and published both on Oikotie and Etuovi
     """
     s_obj = (
-        Search()
+        ApartmentDocument.search()
         .query("match", _language="fi")
         .query("match", apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE)
         .query("match", publish_on_etuovi=True)
@@ -86,7 +87,7 @@ def get_elastic_apartments_for_sale_only_uuids() -> list:
     Get apartments only for sale but not to published
     """
     s_obj = (
-        Search()
+        ApartmentDocument.search()
         .query("match", _language="fi")
         .query("match", apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE)
         .query("match", publish_on_etuovi=False)
@@ -106,7 +107,7 @@ def get_elastic_apartments_not_for_sale():
     Get apartments not for sale but with published flags
     """
     s_obj = (
-        Search()
+        ApartmentDocument.search()
         .query("match", publish_on_oikotie=True)
         .query("match", publish_on_etuovi=True)
         .query("match", apartment_state_of_sale=ApartmentStateOfSale.RESERVED)
@@ -122,7 +123,7 @@ def get_elastic_apartments_not_for_sale():
 def get_elastic_apartments_for_sale_project_uuids() -> list:
     """Used only in oikotie tests for fetching expected housing companies"""
     s_obj = (
-        Search()
+        ApartmentDocument.search()
         .query("match", _language="fi")
         .query("match", apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE)
         .query("match", publish_on_oikotie=True)

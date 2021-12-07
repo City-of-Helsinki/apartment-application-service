@@ -1,6 +1,5 @@
 import logging
 import uuid
-from elasticsearch_dsl import Search
 
 from apartment.elastic.documents import ApartmentDocument as ElasticApartment
 from apartment.models import Apartment, Project
@@ -61,7 +60,7 @@ def _create_or_update_project(elastic_project: ElasticApartment) -> Project:
 
 
 def _get_elastic_apartment_data(identifier: uuid.UUID) -> ElasticApartment:
-    s = Search().query("match", uuid=identifier)
+    s = ElasticApartment.search().query("match", uuid=identifier)
     s.execute()
     objects = list(s.scan())
 
@@ -84,7 +83,7 @@ def _get_elastic_apartment_data(identifier: uuid.UUID) -> ElasticApartment:
 
 
 def _get_elastic_project_data(identifier: uuid.UUID) -> ElasticApartment:
-    s = Search().query("match", project_uuid=identifier)
+    s = ElasticApartment.search().query("match", project_uuid=identifier)
     s.execute()
     objects = list(s.scan())
 
