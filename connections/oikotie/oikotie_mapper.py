@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from django_oikotie.enums import ApartmentType, NewDevelopmentStatusChoices
@@ -295,10 +295,9 @@ def map_showing_date1(elastic_apartment: ElasticApartment) -> Optional[ShowingDa
         getattr(elastic_apartment, "showing_times", None)
         and len(elastic_apartment.showing_times) > 0
     ):
+        value = elastic_apartment.showing_times[0]
         return ShowingDate1(
-            value=datetime.strptime(
-                elastic_apartment.showing_times[0], "%Y-%m-%dT%H:%M:%S%z"
-            ),
+            value=value,
             first_showing=True,
         )
     else:
@@ -310,9 +309,7 @@ def map_showing_date2(elastic_apartment: ElasticApartment) -> Optional[date]:
         getattr(elastic_apartment, "showing_times", None)
         and len(elastic_apartment.showing_times) > 1
     ):
-        return datetime.strptime(
-            elastic_apartment.showing_times[0], "%Y-%m-%dT%H:%M:%S%z"
-        )
+        return elastic_apartment.showing_times[0]
     else:
         return None
 
@@ -324,9 +321,7 @@ def map_showing_start_time(
         getattr(elastic_apartment, "showing_times", None)
         and len(elastic_apartment.showing_times) > index
     ):
-        return datetime.strptime(
-            elastic_apartment.showing_times[index], "%Y-%m-%dT%H:%M:%S%z"
-        ).strftime("%H:%M")
+        return elastic_apartment.showing_times[index].strftime("%H:%M")
     else:
         return None
 
@@ -338,9 +333,7 @@ def map_showing_end_time(
         getattr(elastic_apartment, "showing_times", None)
         and len(elastic_apartment.showing_times) > index
     ):
-        estimated_end_time = datetime.strptime(
-            elastic_apartment.showing_times[index], "%Y-%m-%dT%H:%M:%S%z"
-        ) + timedelta(hours=1)
+        estimated_end_time = elastic_apartment.showing_times[index] + timedelta(hours=1)
         return estimated_end_time.strftime("%H:%M")
     else:
         return None
@@ -565,7 +558,7 @@ def map_housing_company_pictures(
 
 def map_publication_time(time_value) -> Optional[date]:
     if time_value:
-        return datetime.strptime(time_value, "%Y-%m-%dT%H:%M:%S%z")
+        return time_value
     else:
         return None
 
