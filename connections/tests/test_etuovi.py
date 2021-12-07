@@ -30,8 +30,8 @@ class TestEtuoviMapper:
         check_dataclass_typing(item)
 
     def test_elastic_to_etuovi_missing_apartment_project_holding_type(self):
-        elastic_apartment = ApartmentMinimalFactory(project_holding_type=None)
         try:
+            elastic_apartment = ApartmentMinimalFactory(project_holding_type=None)
             map_apartment_to_item(elastic_apartment)
         except ValueError as e:
             assert "project_holding_type" in str(e)
