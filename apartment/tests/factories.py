@@ -125,18 +125,11 @@ def get_uuid():
 
 
 class ElasticFactory(factory.Factory):
-    @classmethod
-    def build_and_save_elastic(cls):
-        item = cls.build()
-        item.save(refresh="wait_for")
-        return item
-
-    @classmethod
-    def build_batch_and_save_elastic(cls, size):
-        items = cls.build_batch(size)
-        for item in items:
-            item.save(refresh="wait_for")
-        return items
+    @factory.post_generation
+    def save_to_elastic(obj, create, extracted, **kwargs):
+        if not create:
+            return
+        obj.save(refresh="wait_for")
 
 
 class ApartmentDocumentFactory(ElasticFactory):

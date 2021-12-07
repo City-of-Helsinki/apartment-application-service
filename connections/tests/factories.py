@@ -50,7 +50,7 @@ class ApartmentMinimalFactory(ElasticFactory):
     publish_on_oikotie = Faker("boolean")
 
     @classmethod
-    def build_batch_with_flags_published_and_state_of_sale(
+    def create_batch_with_flags_published_and_state_of_sale(
         cls,
         size: int,
         for_sale=False,
@@ -62,7 +62,7 @@ class ApartmentMinimalFactory(ElasticFactory):
         else:
             for_sale = ApartmentStateOfSale.RESERVED
         return [
-            cls.build(
+            cls.create(
                 publish_on_etuovi=published_on_etuovi,
                 publish_on_oikotie=published_on_oikotie,
                 apartment_state_of_sale=for_sale,
@@ -72,9 +72,9 @@ class ApartmentMinimalFactory(ElasticFactory):
         ]
 
     @classmethod
-    def build_for_sale_batch(cls, size: int) -> List[ApartmentDocumentTest]:
+    def create_for_sale_batch(cls, size: int) -> List[ApartmentDocumentTest]:
         return [
-            cls.build(
+            cls.create(
                 publish_on_etuovi=True,
                 publish_on_oikotie=True,
                 apartment_state_of_sale="FOR_SALE",
