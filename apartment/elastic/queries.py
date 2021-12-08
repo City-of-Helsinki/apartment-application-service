@@ -3,6 +3,23 @@ from elasticsearch_dsl import Q
 from apartment.elastic.documents import ApartmentDocument
 
 
+def get_apartments(project_uuid=None):
+    search = ApartmentDocument.search()
+
+    # Filters
+    if project_uuid:
+        search = search.query("match", project_uuid=project_uuid)
+
+    # Exclude project fields
+    search = search.source(excludes=["project_*"])
+
+    # Get all items
+    count = search.count()
+    response = search[0:count].execute()
+
+    return response
+
+
 def get_projects():
     # Project data needs to exist in apartment data
     query = Q("bool", must=Q("exists", field="project_id"))
