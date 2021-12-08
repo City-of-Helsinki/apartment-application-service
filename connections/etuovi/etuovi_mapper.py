@@ -63,10 +63,9 @@ def map_price(
     are saved as cents in ElasticSearch so convert the value to Euros.
     """
     elastic_value = getattr(elastic_apartment, field_name, None)
-    if elastic_value:
+    if elastic_value is not None:
         return convert_price_from_cents_to_eur(elastic_value)
-    else:
-        return None
+    return None
 
 
 def get_showing_datetime_with_index(
