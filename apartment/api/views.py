@@ -1,6 +1,4 @@
 from rest_framework import permissions
-from rest_framework.generics import GenericAPIView
-from rest_framework.mixins import ListModelMixin
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -25,12 +23,10 @@ class ApartmentAPIView(APIView):
         return Response(serializer.data)
 
 
-class ProjectAPIView(ListModelMixin, GenericAPIView):
+class ProjectAPIView(APIView):
     permission_classes = [IsAuthenticated]
-    serializer_class = ProjectDocumentSerializer
 
-    def get_queryset(self):
-        return get_projects()
-
-    def get(self, request, *args, **kwargs):
-        return self.list(request, *args, **kwargs)
+    def get(self, request):
+        projects = get_projects()
+        serializer = ProjectDocumentSerializer(projects, many=True)
+        return Response(serializer.data)
