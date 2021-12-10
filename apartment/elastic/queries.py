@@ -1,5 +1,3 @@
-from elasticsearch_dsl import Q
-
 from apartment.elastic.documents import ApartmentDocument
 
 
@@ -8,7 +6,7 @@ def get_apartments(project_uuid=None):
 
     # Filters
     if project_uuid:
-        search = search.query("match", project_uuid=project_uuid)
+        search = search.filter("term", project_uuid__keyword=project_uuid)
 
     # Exclude project fields
     search = search.source(excludes=["project_*"])
@@ -28,7 +26,7 @@ def get_projects(project_uuid=None):
         search = search.filter("term", project_uuid__keyword=project_uuid)
 
     # Project data needs to exist in apartment data
-    search = search.query(Q("bool", must=Q("exists", field="project_id")))
+    search = search.filter("exists", field="project_id")
 
     # Get only most recent apartment which has project data
     search = search.extra(
