@@ -40,5 +40,8 @@ def get_projects():
     # Retrieve only project fields
     search = search.source(["project_*"])
 
-    response = search.execute()
+    # Get all items
+    count = search.count()
+    response = search[0:count].execute()
+
     return response
