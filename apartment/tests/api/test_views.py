@@ -21,7 +21,6 @@ def test_apartment_list_get(api_client):
 @pytest.mark.usefixtures("elastic_apartments")
 def test_apartment_list_get_with_project_uuid(api_client):
     apartment = ApartmentDocumentFactory(project_uuid=uuid.uuid4())
-    # apartment.save(refresh="wait_for")
     profile = ProfileFactory()
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
     data = {"project_uuid": apartment.project_uuid}
