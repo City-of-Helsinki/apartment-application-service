@@ -20,10 +20,15 @@ def get_apartments(project_uuid=None):
     return response
 
 
-def get_projects():
+def get_projects(project_uuid=None):
+    search = ApartmentDocument.search()
+
+    # Filters
+    if project_uuid:
+        search = search.filter("term", project_uuid__keyword=project_uuid)
+
     # Project data needs to exist in apartment data
-    query = Q("bool", must=Q("exists", field="project_id"))
-    search = ApartmentDocument.search().query(query)
+    search = search.query(Q("bool", must=Q("exists", field="project_id")))
 
     # Get only most recent apartment which has project data
     search = search.extra(

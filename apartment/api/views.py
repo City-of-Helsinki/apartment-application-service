@@ -29,6 +29,7 @@ class ProjectAPIView(APIView):
     http_method_names = ["get"]
 
     def get(self, request):
-        projects = get_projects()
+        project_uuid = request.GET.get("project_uuid", None)
+        projects = get_projects(project_uuid)
         serializer = ProjectDocumentSerializer(projects, many=True)
         return Response(serializer.data)
