@@ -18,6 +18,8 @@ env:
   OIKOTIE_VENDOR_ID: test
   ELASTICSEARCH_VERSION: '7.9.1'
   ELASTICSEARCH_HOST: localhost
+  ELASTICSEARCH_URL: http://localhost
+  APARTMENT_INDEX_NAME: test-apartment
   PUBLIC_PGP_KEY: |
     -----BEGIN PGP PUBLIC KEY BLOCK-----
 

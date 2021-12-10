@@ -2,9 +2,9 @@ import logging
 import os
 from django.conf import settings
 from django_etuovi.etuovi import create_xml_file
-from elasticsearch_dsl import Search
 from typing import Optional
 
+from apartment.elastic.documents import ApartmentDocument
 from connections.enums import ApartmentStateOfSale
 from connections.etuovi.etuovi_mapper import map_apartment_to_item
 
@@ -16,7 +16,7 @@ def fetch_apartments_for_sale() -> list:
     Fetch apartments for sale from elasticsearch and map them for Etuovi
     """
     s_obj = (
-        Search()
+        ApartmentDocument.search()
         .query("match", _language="fi")
         .query("match", apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE)
         .query("match", publish_on_etuovi=True)

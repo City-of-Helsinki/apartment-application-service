@@ -1,6 +1,6 @@
 import faker.config
 from elasticsearch.helpers.test import get_test_client, SkipTest
-from elasticsearch_dsl.connections import add_connection
+from elasticsearch_dsl.connections import add_connection, get_connection
 from pytest import fixture, skip
 from rest_framework.test import APIClient
 
@@ -21,11 +21,12 @@ def elastic_client():
         connection = get_test_client()
         add_connection("default", connection)
         yield connection
-        connection.indices.delete("test-*", ignore=404)
     except SkipTest:
         skip()
 
 
 @fixture(scope="session")
 def elastic_apartments():
-    yield ApartmentDocumentFactory.build_batch_and_save_elastic(10)
+    connection = get_connection()
+    connection.indices.delete("test-*", ignore=404)
+    yield ApartmentDocumentFactory.create_batch(10)

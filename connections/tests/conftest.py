@@ -2,19 +2,12 @@ import os
 import shutil
 from django.conf import settings
 from elasticsearch.helpers.test import get_test_client, SkipTest
-from elasticsearch_dsl.connections import add_connection
+from elasticsearch_dsl.connections import add_connection, get_connection
 from pytest import fixture, skip
 from rest_framework.test import APIClient
 
 from connections.enums import ApartmentStateOfSale
 from connections.tests.factories import ApartmentMinimalFactory
-
-
-@fixture(autouse=True)
-def use_test_elasticsearch_envs(settings):
-    settings.ELASTICSEARCH_PORT = os.environ.get("ELASTICSEARCH_HOST_PORT", 9200)
-    settings.ELASTICSEARCH_URL = os.environ.get("ELASTICSEARCH_HOST", "localhost")
-    settings.APARTMENT_INDEX_NAME = "test-apartment"
 
 
 @fixture()
@@ -49,33 +42,34 @@ def client():
         connection = get_test_client()
         add_connection("default", connection)
         yield connection
-        connection.indices.delete("test-*", ignore=404)
     except SkipTest:
         skip()
 
 
 @fixture(scope="class")
 def elastic_apartments():
+    connection = get_connection()
+    connection.indices.delete("test-*", ignore=404)
     for_sale_none = (
-        ApartmentMinimalFactory.build_batch_with_flags_published_and_state_of_sale(3)
+        ApartmentMinimalFactory.create_batch_with_flags_published_and_state_of_sale(3)
     )
     for_sale_all = (
-        ApartmentMinimalFactory.build_batch_with_flags_published_and_state_of_sale(
+        ApartmentMinimalFactory.create_batch_with_flags_published_and_state_of_sale(
             3, for_sale=True, published_on_etuovi=True, published_on_oikotie=True
         )
     )
     for_sale_oikotie = (
-        ApartmentMinimalFactory.build_batch_with_flags_published_and_state_of_sale(
+        ApartmentMinimalFactory.create_batch_with_flags_published_and_state_of_sale(
             3, for_sale=True, published_on_oikotie=True
         )
     )
     for_sale_etuovi = (
-        ApartmentMinimalFactory.build_batch_with_flags_published_and_state_of_sale(
+        ApartmentMinimalFactory.create_batch_with_flags_published_and_state_of_sale(
             3, for_sale=True, published_on_etuovi=True
         )
     )
     only_for_sale = (
-        ApartmentMinimalFactory.build_batch_with_flags_published_and_state_of_sale(
+        ApartmentMinimalFactory.create_batch_with_flags_published_and_state_of_sale(
             3, for_sale=True
         )
     )
@@ -87,12 +81,8 @@ def elastic_apartments():
         + for_sale_etuovi
         + only_for_sale
     )
-    try:
-        for item in elastic_apartments:
-            item.save(refresh="wait_for")
-        yield elastic_apartments
-    except SkipTest:
-        skip()
+
+    yield elastic_apartments
 
 
 @fixture(scope="session", autouse=True)

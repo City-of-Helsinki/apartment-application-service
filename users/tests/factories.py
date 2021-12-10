@@ -14,7 +14,7 @@ def fake_national_identification_number(birthday: datetime.date) -> str:
     """
     birth_string = birthday.strftime("%d%m%y")
     century_sign = "+-A"[birthday.year // 100 - 18]
-    individual_number = f"{random.randint(3, 900):03d}"
+    individual_number = f"{random.randint(3, 899):03d}"
     index = int(birth_string + individual_number) % 31
     control_character = "0123456789ABCDEFHJKLMNPRSTUVWXY"[index]
     ssn = birth_string + century_sign + individual_number + control_character

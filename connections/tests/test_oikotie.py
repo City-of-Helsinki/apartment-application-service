@@ -176,8 +176,8 @@ class TestOikotieMapper:
         raise Exception("Missing project_building_type should have thrown a ValueError")
 
     def test_elastic_to_oikotie_missing__apartment__project_holding_type(self):
-        elastic_apartment = ApartmentMinimalFactory(project_holding_type=None)
         try:
+            elastic_apartment = ApartmentMinimalFactory(project_holding_type=None)
             map_oikotie_apartment(elastic_apartment)
         except ValueError as e:
             assert "project_holding_type" in str(e)
@@ -185,8 +185,8 @@ class TestOikotieMapper:
         raise Exception("Missing project_holding_type should have thrown a ValueError")
 
     def test_elastic_to_oikotie_missing__apartment__project_city(self):
-        elastic_apartment = ApartmentMinimalFactory(project_city=None)
         try:
+            elastic_apartment = ApartmentMinimalFactory(project_city=None)
             map_oikotie_apartment(elastic_apartment)
         except ValueError as e:
             assert "project_city" in str(e)
@@ -194,8 +194,8 @@ class TestOikotieMapper:
         raise Exception("Missing project_city should have thrown a ValueError")
 
     def test_elastic_to_oikotie_missing__housing_company(self):
-        elastic_apartment = ApartmentMinimalFactory(project_housing_company=None)
         try:
+            elastic_apartment = ApartmentMinimalFactory(project_housing_company=None)
             map_oikotie_housing_company(elastic_apartment)
         except ValueError as e:
             assert "project_housing_company" in str(e)
@@ -205,8 +205,8 @@ class TestOikotieMapper:
         )
 
     def test_elastic_to_oikotie_missing__housing_company__project_city(self):
-        elastic_apartment = ApartmentMinimalFactory(project_city=None)
         try:
+            elastic_apartment = ApartmentMinimalFactory(project_city=None)
             map_oikotie_housing_company(elastic_apartment)
         except ValueError as e:
             assert "project_city" in str(e)
@@ -227,8 +227,8 @@ class TestOikotieMapper:
         )
 
     def test_elastic_to_oikotie_missing__housing_company__project_street_address(self):
-        elastic_apartment = ApartmentMinimalFactory(project_street_address=None)
         try:
+            elastic_apartment = ApartmentMinimalFactory(project_street_address=None)
             map_oikotie_housing_company(elastic_apartment)
         except ValueError as e:
             assert "project_street_address" in str(e)
@@ -238,8 +238,8 @@ class TestOikotieMapper:
         )
 
     def test_elastic_to_oikotie_missing__housing_company__project_postal_code(self):
-        elastic_apartment = ApartmentMinimalFactory(project_postal_code=None)
         try:
+            elastic_apartment = ApartmentMinimalFactory(project_postal_code=None)
             map_oikotie_housing_company(elastic_apartment)
         except ValueError as e:
             assert "project_postal_code" in str(e)

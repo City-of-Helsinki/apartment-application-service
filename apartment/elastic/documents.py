@@ -41,7 +41,7 @@ class ApartmentDocument(ReadOnlyDocument):
     project_roof_material = Keyword()
     project_heating_options = Keyword(multi=True)
     project_energy_class = Keyword()
-    project_site_area = Long()
+    project_site_area = Float()
     project_site_owner = Keyword()
     project_site_renter = Keyword()
     project_sanitation = Keyword()
