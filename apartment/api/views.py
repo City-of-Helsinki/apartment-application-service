@@ -1,5 +1,4 @@
 from rest_framework import permissions
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -24,7 +23,10 @@ class ApartmentAPIView(APIView):
 
 
 class ProjectAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [
+        permissions.AllowAny,
+    ]
+    http_method_names = ["get"]
 
     def get(self, request):
         projects = get_projects()
