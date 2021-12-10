@@ -60,6 +60,7 @@ class ProjectDocumentSerializer(serializers.Serializer):
     new_housing = serializers.BooleanField(source="project_new_housing")
     apartment_count = serializers.IntegerField(source="project_apartment_count")
     parkingplace_count = serializers.IntegerField(source="project_parkingplace_count")
+    state_of_sale = serializers.CharField(source="project_state_of_sale")
     has_elevator = serializers.BooleanField(source="project_has_elevator")
     has_sauna = serializers.BooleanField(source="project_has_sauna")
     construction_materials = serializers.ListField(

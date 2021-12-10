@@ -155,6 +155,9 @@ class ApartmentDocumentFactory(ElasticFactory):
     project_new_housing = True
     project_apartment_count = fuzzy.FuzzyInteger(0, 999)
     project_parkingplace_count = fuzzy.FuzzyInteger(0, 999)
+    project_state_of_sale = fuzzy.FuzzyChoice(
+        ["PRE_MARKETING", "FOR_SALE", "PROCESSING", "READY"]
+    )
 
     project_has_elevator = True
     project_has_sauna = True
