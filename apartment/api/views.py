@@ -29,8 +29,7 @@ class ProjectAPIView(APIView):
     ]
     http_method_names = ["get"]
 
-    def get(self, request):
-        project_uuid = request.GET.get("project_uuid", None)
+    def get(self, request, project_uuid=None):
         many = project_uuid is None
         project_data = get_projects(project_uuid)
         if not many:

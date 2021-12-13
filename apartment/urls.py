@@ -7,6 +7,15 @@ router = DefaultRouter()
 
 urlpatterns = [
     path("sales/apartments/", ApartmentAPIView.as_view(), name="apartment-list"),
-    path("sales/projects/", ProjectAPIView.as_view(), name="project-list"),
+    path(
+        "sales/projects/",
+        ProjectAPIView.as_view(),
+        name="project-list",
+    ),
+    path(
+        "sales/projects/(?<uuid:project_uuid>)/",
+        ProjectAPIView.as_view(),
+        name="project-list",
+    ),
     path("", include(router.urls)),
 ]
