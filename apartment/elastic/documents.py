@@ -34,6 +34,7 @@ class ApartmentDocument(ReadOnlyDocument):
     project_new_housing = Boolean(required=True)
     project_apartment_count = Long(required=True)
     project_parkingplace_count = Long()
+    project_state_of_sale = Keyword()
 
     project_has_elevator = Boolean()
     project_has_sauna = Boolean()
