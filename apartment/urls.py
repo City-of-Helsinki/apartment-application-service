@@ -13,7 +13,7 @@ urlpatterns = [
         name="project-list",
     ),
     path(
-        "sales/projects/(?<uuid:project_uuid>)/",
+        "sales/projects/<uuid:project_uuid>/",
         ProjectAPIView.as_view(),
         name="project-list",
     ),
