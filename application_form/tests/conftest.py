@@ -1,7 +1,8 @@
 import faker.config
-from elasticsearch.helpers.test import get_test_client, SkipTest
-from elasticsearch_dsl.connections import add_connection, get_connection
-from pytest import fixture, skip
+from django.conf import settings
+from elasticsearch.helpers.test import get_test_client
+from elasticsearch_dsl.connections import add_connection
+from pytest import fixture
 from rest_framework.test import APIClient
 
 from connections.tests.factories import ApartmentMinimalFactory
@@ -14,18 +15,27 @@ def api_client():
     return APIClient()
 
 
-@fixture(autouse=True, scope="session")
-def elastic_client():
-    try:
-        connection = get_test_client()
-        add_connection("default", connection)
-        yield connection
-    except SkipTest:
-        skip()
+def setup_elasticsearch():
+    test_client = get_test_client()
+    add_connection("default", test_client)
+    if test_client.indices.exists(index=settings.APARTMENT_INDEX_NAME):
+        test_client.indices.delete(index=settings.APARTMENT_INDEX_NAME)
+    test_client.indices.create(index=settings.APARTMENT_INDEX_NAME)
+    return test_client
 
 
-@fixture(scope="session")
-def elastic_apartments():
-    connection = get_connection()
-    connection.indices.delete("test-*", ignore=404)
+def teardown_elasticsearch(test_client):
+    if test_client.indices.exists(index=settings.APARTMENT_INDEX_NAME):
+        test_client.indices.delete(index=settings.APARTMENT_INDEX_NAME)
+
+
+@fixture(scope="module")
+def elasticsearch():
+    test_client = setup_elasticsearch()
+    yield test_client
+    teardown_elasticsearch(test_client)
+
+
+@fixture(scope="module")
+def elastic_apartments(elasticsearch):
     yield ApartmentMinimalFactory.create_for_sale_batch(10)
