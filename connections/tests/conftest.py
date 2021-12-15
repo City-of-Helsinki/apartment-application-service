@@ -1,16 +1,16 @@
 import os
 import shutil
 from django.conf import settings
-from elasticsearch.helpers.test import get_test_client, SkipTest
-from elasticsearch_dsl.connections import add_connection, get_connection
-from pytest import fixture, skip
+from elasticsearch.helpers.test import get_test_client
+from elasticsearch_dsl.connections import add_connection
+from pytest import fixture
 from rest_framework.test import APIClient
 
 from connections.enums import ApartmentStateOfSale
 from connections.tests.factories import ApartmentMinimalFactory
 
 
-@fixture()
+@fixture
 def not_sending_oikotie_ftp(monkeypatch):
     from django_oikotie import oikotie
 
@@ -20,7 +20,7 @@ def not_sending_oikotie_ftp(monkeypatch):
     monkeypatch.setattr(oikotie, "send_items", send_items)
 
 
-@fixture()
+@fixture
 def not_sending_etuovi_ftp(monkeypatch):
     from django_etuovi import etuovi
 
@@ -36,20 +36,29 @@ def api_client():
     return api_client
 
 
-@fixture(scope="class")
-def client():
-    try:
-        connection = get_test_client()
-        add_connection("default", connection)
-        yield connection
-    except SkipTest:
-        skip()
+def setup_elasticsearch():
+    test_client = get_test_client()
+    add_connection("default", test_client)
+    if test_client.indices.exists(index=settings.APARTMENT_INDEX_NAME):
+        test_client.indices.delete(index=settings.APARTMENT_INDEX_NAME)
+    test_client.indices.create(index=settings.APARTMENT_INDEX_NAME)
+    return test_client
 
 
-@fixture(scope="class")
-def elastic_apartments():
-    connection = get_connection()
-    connection.indices.delete("test-*", ignore=404)
+def teardown_elasticsearch(test_client):
+    if test_client.indices.exists(index=settings.APARTMENT_INDEX_NAME):
+        test_client.indices.delete(index=settings.APARTMENT_INDEX_NAME)
+
+
+@fixture(scope="module")
+def elasticsearch():
+    test_client = setup_elasticsearch()
+    yield test_client
+    teardown_elasticsearch(test_client)
+
+
+@fixture
+def elastic_apartments(elasticsearch):
     for_sale_none = (
         ApartmentMinimalFactory.create_batch_with_flags_published_and_state_of_sale(3)
     )
@@ -84,6 +93,13 @@ def elastic_apartments():
 
     yield elastic_apartments
 
+    for apartment in elastic_apartments:
+        if apartment.exists(apartment.meta.id):
+            # apartment data can be changed on unit tests which affects version control
+            # in ElasticSearch
+            apartment_latest = apartment.get(apartment.meta.id)
+            apartment_latest.delete(refresh=True)
+
 
 @fixture(scope="session", autouse=True)
 def test_folder():
@@ -95,7 +111,7 @@ def test_folder():
     shutil.rmtree(temp_file)
 
 
-@fixture()
+@fixture
 def invalid_data_elastic_apartments_for_sale():
     # etuovi (and oikotie apartment) invalid data is in project_holding_type
     # oikotie apartment invalid data data is in project_new_development_status
