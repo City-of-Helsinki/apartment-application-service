@@ -118,7 +118,7 @@ def invalid_data_elastic_apartments_for_sale():
     # oikotie housing company invalid data is in project_estate_agent_email
 
     # should fail with oikotie apartments and etuovi
-    elastic_apartment_1 = ApartmentMinimalFactory.build(
+    elastic_apartment_1 = ApartmentMinimalFactory.create(
         project_holding_type="some text",
         project_new_development_status="some text",
         apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE,
@@ -127,7 +127,7 @@ def invalid_data_elastic_apartments_for_sale():
         publish_on_oikotie=False,
     )
     # should fail with oikotie housing companies
-    elastic_apartment_2 = ApartmentMinimalFactory.build(
+    elastic_apartment_2 = ApartmentMinimalFactory.create(
         project_estate_agent_email="",
         apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE,
         _language="fi",
@@ -135,7 +135,7 @@ def invalid_data_elastic_apartments_for_sale():
         publish_on_oikotie=True,
     )
     # should fail with oikotie apartments and housing companies
-    elastic_apartment_3 = ApartmentMinimalFactory.build(
+    elastic_apartment_3 = ApartmentMinimalFactory.create(
         project_new_development_status="some text",
         project_estate_agent_email="",
         apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE,
@@ -149,8 +149,7 @@ def invalid_data_elastic_apartments_for_sale():
         elastic_apartment_2,
         elastic_apartment_3,
     ]
-    for item in apartments:
-        item.save(refresh="wait_for")
+
     yield apartments
 
     for item in apartments:
