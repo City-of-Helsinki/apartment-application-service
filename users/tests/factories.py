@@ -1,8 +1,10 @@
 import factory
 import random
 from datetime import datetime
-from factory import Faker, fuzzy, LazyAttribute
+from django.contrib.auth.models import Group
+from factory import Faker, fuzzy, LazyAttribute, post_generation
 
+from users.enums import Roles
 from users.models import Profile, User
 
 CONTACT_LANGUAGE_CHOICES = ["fi", "sv", "en"]
@@ -51,3 +53,13 @@ class ProfileFactory(factory.django.DjangoModelFactory):
     )
     contact_language = fuzzy.FuzzyChoice(list(CONTACT_LANGUAGE_CHOICES))
     user = factory.SubFactory(UserFactory)
+
+
+class SalespersonProfileFactory(ProfileFactory):
+    @post_generation
+    def post(obj, create, extracted, **kwargs):
+        if not create:
+            return
+
+        group = Group.objects.get(name__iexact=Roles.SALESPERSON.name)
+        group.user_set.add(obj.user)

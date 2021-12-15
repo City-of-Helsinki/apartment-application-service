@@ -93,6 +93,10 @@ class ApplicationSerializer(serializers.ModelSerializer):
         return create_application(validated_data)
 
 
+class ProjectUUIDSerializer(serializers.Serializer):
+    project_uuid = UUIDField()
+
+
 class SalesApplicationSerializer(ApplicationSerializer):
     profile = serializers.PrimaryKeyRelatedField(
         queryset=Profile.objects.all(), write_only=True

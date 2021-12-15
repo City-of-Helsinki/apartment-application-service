@@ -1,7 +1,11 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from application_form.api.views import ApplicationViewSet, SalesApplicationViewSet
+from application_form.api.views import (
+    ApplicationViewSet,
+    execute_lottery_for_project,
+    SalesApplicationViewSet,
+)
 
 router = DefaultRouter()
 router.register(r"applications", ApplicationViewSet)
@@ -10,5 +14,10 @@ router.register(
 )
 
 urlpatterns = [
+    path(
+        r"sales/execute_lottery_for_project",
+        execute_lottery_for_project,
+        name="execute_lottery_for_project",
+    ),
     path("", include(router.urls)),
 ]
