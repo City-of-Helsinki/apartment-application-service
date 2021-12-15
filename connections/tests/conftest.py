@@ -112,7 +112,7 @@ def test_folder():
 
 
 @fixture
-def invalid_data_elastic_apartments_for_sale():
+def invalid_data_elastic_apartments_for_sale(elastic_apartments):
     # etuovi (and oikotie apartment) invalid data is in project_holding_type
     # oikotie apartment invalid data data is in project_new_development_status
     # oikotie housing company invalid data is in project_estate_agent_email
@@ -152,5 +152,5 @@ def invalid_data_elastic_apartments_for_sale():
 
     yield apartments
 
-    for item in apartments:
-        item.delete(refresh="wait_for")
+    for apartment in apartments:
+        apartment.delete(refresh=True)
