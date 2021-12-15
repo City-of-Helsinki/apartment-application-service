@@ -1,6 +1,6 @@
 from django.conf import settings
 from elasticsearch_dsl import Search, UpdateByQuery
-from time import sleep
+from elasticsearch_dsl.connections import get_connection
 
 from apartment.elastic.documents import ApartmentDocument
 from connections.enums import ApartmentStateOfSale
@@ -11,7 +11,8 @@ def make_apartments_sold_in_elastic() -> None:
         "match", apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE
     )
     s_obj.delete()
-    sleep(3)
+
+    get_connection().indices.refresh(index=settings.APARTMENT_INDEX_NAME)
 
 
 def get_elastic_apartments_for_sale_published_on_etuovi_uuids(
@@ -157,7 +158,8 @@ def publish_elastic_apartments(
     elif publish_to_etuovi:
         u_obj = u_obj.script(source="ctx._source.publish_on_etuovi = true")
     u_obj.execute()
-    sleep(3)
+
+    get_connection().indices.refresh(index=settings.APARTMENT_INDEX_NAME)
 
     s_obj = (
         Search()
@@ -187,4 +189,5 @@ def unpublish_elastic_oikotie_apartments(uuids: list) -> list:
 
     u_obj = u_obj.script(source="ctx._source.publish_on_oikotie = false")
     u_obj.execute()
-    sleep(3)
+
+    get_connection().indices.refresh(index=settings.APARTMENT_INDEX_NAME)
