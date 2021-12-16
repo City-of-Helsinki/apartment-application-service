@@ -15,9 +15,8 @@ from users.tests.factories import ProfileFactory
 
 
 @pytest.mark.django_db
-@pytest.mark.usefixtures("elastic_apartments")
 @pytest.mark.parametrize("num_applicants", [1, 2])
-def test_create_application(num_applicants):
+def test_create_application(num_applicants, elastic_single_project_with_apartments):
     profile = ProfileFactory()
     data = create_validated_application_data(
         profile, ApplicationType.HASO, num_applicants
@@ -85,9 +84,10 @@ def test_create_application(num_applicants):
 
 
 @pytest.mark.django_db
-@pytest.mark.usefixtures("elastic_apartments")
 @pytest.mark.parametrize("application_type", list(ApplicationType))
-def test_create_application_type(application_type):
+def test_create_application_type(
+    application_type, elastic_single_project_with_apartments
+):
     profile = ProfileFactory()
     data = create_validated_application_data(profile, application_type)
     application = create_application(data)
@@ -95,8 +95,9 @@ def test_create_application_type(application_type):
 
 
 @pytest.mark.django_db
-@pytest.mark.usefixtures("elastic_apartments")
-def test_create_application_raises_exception_if_apartment_data_does_not_exist():
+def test_create_application_raises_exception_if_apartment_data_does_not_exist(
+    elastic_single_project_with_apartments,
+):
     data = create_validated_application_data(ProfileFactory(), ApplicationType.HASO)
     data["apartments"] = [{"priority": 1, "identifier": "this-does-not-exist"}]
     with pytest.raises(InvalidElasticDataError):
@@ -104,8 +105,9 @@ def test_create_application_raises_exception_if_apartment_data_does_not_exist():
 
 
 @pytest.mark.django_db
-@pytest.mark.usefixtures("elastic_apartments")
-def test_create_application_raises_exception_if_project_data_does_not_exist():
+def test_create_application_raises_exception_if_project_data_does_not_exist(
+    elastic_single_project_with_apartments,
+):
     data = create_validated_application_data(ProfileFactory(), ApplicationType.HASO)
     data["project_id"] = "this-does-not-exist"
     with pytest.raises(InvalidElasticDataError):
@@ -113,8 +115,9 @@ def test_create_application_raises_exception_if_project_data_does_not_exist():
 
 
 @pytest.mark.django_db
-@pytest.mark.usefixtures("elastic_apartments")
-def test_create_application_does_not_fail_if_project_identifier_already_exists():
+def test_create_application_does_not_fail_if_project_identifier_already_exists(
+    elastic_single_project_with_apartments,
+):
     data = create_validated_application_data(ProfileFactory(), ApplicationType.HASO)
     Identifier.objects.create(
         schema_type=IdentifierSchemaType.ATT_PROJECT_ES,
@@ -130,8 +133,9 @@ def test_create_application_does_not_fail_if_project_identifier_already_exists()
 
 
 @pytest.mark.django_db
-@pytest.mark.usefixtures("elastic_apartments")
-def test_create_application_does_not_fail_if_apartment_identifier_already_exists():
+def test_create_application_does_not_fail_if_apartment_identifier_already_exists(
+    elastic_single_project_with_apartments,
+):
     data = create_validated_application_data(ProfileFactory(), ApplicationType.HASO)
     for apartment in data["apartments"]:
         Identifier.objects.create(
@@ -148,8 +152,9 @@ def test_create_application_does_not_fail_if_apartment_identifier_already_exists
 
 
 @pytest.mark.django_db
-@pytest.mark.usefixtures("elastic_apartments")
-def test_create_application_adds_haso_application_to_queue_by_right_of_residence():
+def test_create_application_adds_haso_application_to_queue_by_right_of_residence(
+    elastic_single_project_with_apartments,
+):
     data = create_validated_application_data(ProfileFactory(), ApplicationType.HASO)
     application2 = create_application({**data, "right_of_residence": 2})
     application1 = create_application({**data, "right_of_residence": 1})
@@ -158,8 +163,9 @@ def test_create_application_adds_haso_application_to_queue_by_right_of_residence
 
 
 @pytest.mark.django_db
-@pytest.mark.usefixtures("elastic_apartments")
-def test_create_application_adds_hitas_application_to_queue_by_application_order():
+def test_create_application_adds_hitas_application_to_queue_by_application_order(
+    elastic_single_project_with_apartments,
+):
     data = create_validated_application_data(ProfileFactory(), ApplicationType.HITAS)
     application2 = create_application({**data, "right_of_residence": 2})
     application1 = create_application({**data, "right_of_residence": 1})

@@ -39,3 +39,26 @@ def elasticsearch():
 @fixture(scope="module")
 def elastic_apartments(elasticsearch):
     yield ApartmentMinimalFactory.create_for_sale_batch(10)
+
+
+@fixture
+def elastic_single_project_with_apartments(elasticsearch):
+    apartments = []
+    apartments.append(
+        ApartmentMinimalFactory(
+            apartment_state_of_sale="FOR_SALE",
+            _language="fi",
+        )
+    )
+    for _ in range(10):
+        apartments.append(
+            ApartmentMinimalFactory(
+                apartment_state_of_sale="FOR_SALE",
+                _language="fi",
+                project_uuid=apartments[0].project_uuid,
+            )
+        )
+    yield apartments
+
+    for apartment in apartments:
+        apartment.delete(refresh=True)
