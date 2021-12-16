@@ -98,7 +98,7 @@ class IdentifierFactory(factory.django.DjangoModelFactory):
     def build_batch_for_att_schema(cls, size: int, uuids_list: list):
         return [
             cls.build(
-                identifier=uuids_list[i],
+                identifier=str(uuids_list[i]),
                 schema_type=IdentifierSchemaType.ATT_PROJECT_ES,
             )
             for i in range(size)
