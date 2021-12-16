@@ -22,11 +22,12 @@ def get_elastic_apartments_uuids() -> Tuple[str, List[str]]:
     s_obj.execute()
     scan = s_obj.scan()
     uuids = []
-    project_uuid = ""
-    while len(uuids) <= 5:
-        for hit in scan:
-            uuids.append(str(hit.uuid))
+    project_uuid = None
+    for hit in scan:
+        if not project_uuid:
             project_uuid = str(hit.project_uuid)
+        if project_uuid == hit.project_uuid:
+            uuids.append(str(hit.uuid))
     return project_uuid, uuids
 
 
