@@ -45,7 +45,7 @@ class ApplicantSerializer(serializers.ModelSerializer):
 
 class ApplicationApartmentSerializer(serializers.Serializer):
     priority = IntegerField(min_value=0, max_value=5)
-    identifier = CharField()
+    identifier = UUIDField()
 
 
 class ApplicationSerializer(serializers.ModelSerializer):
