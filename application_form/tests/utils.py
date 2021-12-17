@@ -16,8 +16,8 @@ _logger = logging.getLogger(__name__)
 def get_elastic_apartments_uuids() -> Tuple[uuid.UUID, List[uuid.UUID]]:
     s_obj = (
         Search()
-        .query("match", _language="fi")
-        .query("match", apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE)
+        .filter("term", _language__keyword="fi")
+        .filter("term", apartment_state_of_sale__keyword=ApartmentStateOfSale.FOR_SALE)
     )
     s_obj.execute()
     scan = s_obj.scan()
