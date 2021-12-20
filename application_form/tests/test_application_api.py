@@ -8,8 +8,7 @@ from users.tests.utils import _create_token
 
 
 @pytest.mark.django_db
-@pytest.mark.usefixtures("elastic_apartments")
-def test_application_post(api_client):
+def test_application_post(api_client, elastic_single_project_with_apartments):
     profile = ProfileFactory()
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
     data = create_application_data(profile)
@@ -21,8 +20,9 @@ def test_application_post(api_client):
 
 
 @pytest.mark.django_db
-@pytest.mark.usefixtures("elastic_apartments")
-def test_application_post_writes_audit_log(api_client):
+def test_application_post_writes_audit_log(
+    api_client, elastic_single_project_with_apartments
+):
     profile = ProfileFactory()
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
     data = create_application_data(profile)
@@ -38,8 +38,9 @@ def test_application_post_writes_audit_log(api_client):
 
 
 @pytest.mark.django_db
-@pytest.mark.usefixtures("elastic_apartments")
-def test_application_post_fails_if_not_authenticated(api_client):
+def test_application_post_fails_if_not_authenticated(
+    api_client, elastic_single_project_with_apartments
+):
     data = create_application_data(ProfileFactory())
     response = api_client.post(
         reverse("application_form:application-list"), data, format="json"
@@ -48,8 +49,9 @@ def test_application_post_fails_if_not_authenticated(api_client):
 
 
 @pytest.mark.django_db
-@pytest.mark.usefixtures("elastic_apartments")
-def test_application_post_writes_audit_log_if_not_authenticated(api_client):
+def test_application_post_writes_audit_log_if_not_authenticated(
+    api_client, elastic_single_project_with_apartments
+):
     data = create_application_data(ProfileFactory())
     api_client.post(reverse("application_form:application-list"), data, format="json")
     audit_event = AuditLog.objects.get().message["audit_event"]

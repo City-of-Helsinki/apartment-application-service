@@ -1,9 +1,9 @@
+import factory
 import string
-import uuid
 from factory import Faker, fuzzy
 from typing import List
 
-from apartment.tests.factories import ApartmentDocumentTest, ElasticFactory, get_uuid
+from apartment.tests.factories import ApartmentDocumentTest, ElasticFactory
 from connections.enums import ApartmentStateOfSale, ProjectStateOfSale
 from connections.oikotie.field_mapper import NEW_DEVELOPMENT_STATUS_MAPPING
 
@@ -15,8 +15,8 @@ class ApartmentMinimalFactory(ElasticFactory):
     _language = fuzzy.FuzzyChoice(["en", "fi"])
     project_id = fuzzy.FuzzyInteger(0, 999)
     # mandatory fields for vendors:
-    project_uuid = str(uuid.uuid4())
-    uuid = fuzzy.FuzzyAttribute(get_uuid)
+    project_uuid = factory.Faker("uuid4")
+    uuid = factory.Faker("uuid4")
     project_ownership_type = fuzzy.FuzzyChoice(["Haso", "Hitas", "Puolihitas"])
     project_housing_company = fuzzy.FuzzyText()
     project_holding_type = "RIGHT_OF_RESIDENCE_APARTMENT"

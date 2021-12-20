@@ -60,7 +60,7 @@ def _create_or_update_project(elastic_project: ElasticApartment) -> Project:
 
 
 def _get_elastic_apartment_data(identifier: uuid.UUID) -> ElasticApartment:
-    s = ElasticApartment.search().query("match", uuid=identifier)
+    s = ElasticApartment.search().filter("term", uuid__keyword=identifier)
     s.execute()
     objects = list(s.scan())
 
@@ -83,7 +83,7 @@ def _get_elastic_apartment_data(identifier: uuid.UUID) -> ElasticApartment:
 
 
 def _get_elastic_project_data(identifier: uuid.UUID) -> ElasticApartment:
-    s = ElasticApartment.search().query("match", project_uuid=identifier)
+    s = ElasticApartment.search().filter("term", project_uuid__keyword=identifier)
     s.execute()
     objects = list(s.scan())
 

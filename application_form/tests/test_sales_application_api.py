@@ -10,8 +10,9 @@ from users.tests.utils import _create_token
 
 
 @pytest.mark.django_db
-@pytest.mark.usefixtures("elastic_apartments")
-def test_sales_application_post_without_permission(api_client):
+def test_sales_application_post_without_permission(
+    api_client, elastic_single_project_with_apartments
+):
     profile = ProfileFactory()
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
     data = create_application_data(profile)
@@ -22,8 +23,7 @@ def test_sales_application_post_without_permission(api_client):
 
 
 @pytest.mark.django_db
-@pytest.mark.usefixtures("elastic_apartments")
-def test_sales_application_post(api_client):
+def test_sales_application_post(api_client, elastic_single_project_with_apartments):
     salesperson_profile = ProfileFactory()
     salesperson_group = Group.objects.get(name__iexact=Roles.SALESPERSON.name)
     salesperson_group.user_set.add(salesperson_profile.user)

@@ -1,8 +1,8 @@
 import logging
+import uuid
 from elasticsearch_dsl import Search
 from typing import List, Tuple
 from unittest.mock import Mock
-from uuid import uuid4
 
 from apartment.tests.factories import IdentifierFactory
 from application_form.api.serializers import ApplicationSerializer
@@ -13,20 +13,21 @@ from connections.enums import ApartmentStateOfSale
 _logger = logging.getLogger(__name__)
 
 
-def get_elastic_apartments_uuids() -> Tuple[str, List[str]]:
+def get_elastic_apartments_uuids() -> Tuple[uuid.UUID, List[uuid.UUID]]:
     s_obj = (
         Search()
-        .query("match", _language="fi")
-        .query("match", apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE)
+        .filter("term", _language__keyword="fi")
+        .filter("term", apartment_state_of_sale__keyword=ApartmentStateOfSale.FOR_SALE)
     )
     s_obj.execute()
     scan = s_obj.scan()
     uuids = []
-    project_uuid = ""
-    while len(uuids) <= 5:
-        for hit in scan:
-            uuids.append(str(hit.uuid))
-            project_uuid = str(hit.project_uuid)
+    project_uuid = None
+    for hit in scan:
+        if not project_uuid:
+            project_uuid = uuid.UUID(hit.project_uuid)
+        if project_uuid == uuid.UUID(hit.project_uuid):
+            uuids.append(uuid.UUID(hit.uuid))
     return project_uuid, uuids
 
 
@@ -44,13 +45,13 @@ def create_application_data(
 
     # Build application request data
     application_data = {
-        "application_uuid": str(uuid4()),
+        "application_uuid": str(uuid.uuid4()),
         "application_type": application_type.value,
         "ssn_suffix": calculate_ssn_suffix(profile),
         "has_children": True,
         "right_of_residence": right_of_residence,
         "additional_applicant": None,
-        "project_id": project_uuid,
+        "project_id": str(project_uuid),
         "apartments": apartments_data,
     }
     # Add a second applicant if needed

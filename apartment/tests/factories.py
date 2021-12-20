@@ -1,6 +1,5 @@
 import factory
 import string
-import uuid
 from datetime import date
 from django.utils import timezone
 from elasticsearch_dsl import Document
@@ -71,7 +70,7 @@ class ApartmentFactory(factory.django.DjangoModelFactory):
         if identifier_schema == "att":
             identifiers = [
                 IdentifierFactory(
-                    identifier=factory.Sequence(lambda n: "%s" % uuid.uuid4()),
+                    identifier=factory.Faker("uuid4"),
                     schema_type=IdentifierSchemaType.ATT_PROJECT_ES,
                     apartment=None,
                     project=None,
@@ -99,7 +98,7 @@ class IdentifierFactory(factory.django.DjangoModelFactory):
     def build_batch_for_att_schema(cls, size: int, uuids_list: list):
         return [
             cls.build(
-                identifier=uuids_list[i],
+                identifier=str(uuids_list[i]),
                 schema_type=IdentifierSchemaType.ATT_PROJECT_ES,
             )
             for i in range(size)
@@ -120,10 +119,6 @@ class ApartmentDocumentTest(ApartmentDocument):
         name = "test-apartment"
 
 
-def get_uuid():
-    return str(uuid.uuid4())
-
-
 class ElasticFactory(factory.Factory):
     @factory.post_generation
     def save_to_elastic(obj, create, extracted, **kwargs):
@@ -138,7 +133,7 @@ class ApartmentDocumentFactory(ElasticFactory):
 
     _language = fuzzy.FuzzyChoice(["en", "fi", "sv"])
     project_id = fuzzy.FuzzyInteger(0, 999)
-    project_uuid = str(uuid.uuid4())
+    project_uuid = factory.Faker("uuid4")
 
     project_ownership_type = fuzzy.FuzzyChoice(["Haso", "Hitas", "Puolihitas"])
     project_housing_company = fuzzy.FuzzyText()
@@ -225,7 +220,7 @@ class ApartmentDocumentFactory(ElasticFactory):
         ]
     )
 
-    uuid = fuzzy.FuzzyAttribute(get_uuid)
+    uuid = factory.Faker("uuid4")
 
     apartment_address = fuzzy.FuzzyText()
     apartment_number = fuzzy.FuzzyText(

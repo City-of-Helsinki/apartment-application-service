@@ -84,7 +84,7 @@ def _shuffle_queue_segment(
     # Create a list of all possible queue positions between start and end position
     possible_positions = list(range(start_position, end_position))
 
-    for app_apartment in application_apartments.all():
+    for app_apartment in application_apartments.order_by("id").all():
         # Remove a random queue position from the list assign it to the application
         random_index = secrets.randbelow(len(possible_positions))
         position = possible_positions.pop(random_index)
