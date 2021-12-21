@@ -6,7 +6,8 @@ from application_form.enums import (
     ApplicationState,
     ApplicationType,
 )
-from application_form.models import ApartmentQueue, Application, ApplicationApartment
+from application_form.models.application import Application, ApplicationApartment
+from application_form.models.reservation import ApartmentQueue
 
 
 def add_application_to_queues(application: Application, comment: str = "") -> None:

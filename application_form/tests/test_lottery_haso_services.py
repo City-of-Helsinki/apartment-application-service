@@ -2,7 +2,7 @@ from pytest import mark
 
 from apartment.tests.factories import ApartmentFactory, ProjectFactory
 from application_form.enums import ApplicationState, ApplicationType
-from application_form.models import LotteryEventResult
+from application_form.models.lottery import LotteryEventResult
 from application_form.services.application import (
     cancel_haso_application,
     get_ordered_applications,

@@ -3,7 +3,7 @@ from django.db import transaction
 from django.db.models import Q
 
 from apartment.models import Apartment, Identifier, Project
-from application_form.models import Application, ApplicationApartment
+from application_form.models.application import Application, ApplicationApartment
 from audit_log.models import AuditLog
 from users.models import Profile, User
 

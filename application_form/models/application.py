@@ -17,11 +17,7 @@ from apartment_application_service.fields import (
     UUIDPGPPublicKeyField,
 )
 from apartment_application_service.models import TimestampedModel
-from application_form.enums import (
-    ApartmentQueueChangeEventType,
-    ApplicationState,
-    ApplicationType,
-)
+from application_form.enums import ApplicationState, ApplicationType
 from users.models import Profile
 
 
@@ -97,51 +93,3 @@ class ApplicationApartment(models.Model):
 
     class Meta:
         unique_together = [("application", "priority_number")]
-
-
-class ApartmentQueue(models.Model):
-    apartment = models.OneToOneField(Apartment, models.CASCADE, related_name="queue")
-
-
-class ApartmentQueueApplication(models.Model):
-    queue = models.ForeignKey(
-        ApartmentQueue, models.CASCADE, related_name="queue_applications"
-    )
-    queue_position = models.IntegerField(_("position in queue"))
-    application_apartment = models.OneToOneField(
-        ApplicationApartment, models.CASCADE, related_name="queue_application"
-    )
-
-    class Meta:
-        unique_together = [("queue", "application_apartment")]
-
-
-class ApartmentQueueChangeEvent(models.Model):
-    queue_application = models.ForeignKey(
-        ApartmentQueueApplication, models.CASCADE, related_name="change_events"
-    )
-    type = EnumField(
-        ApartmentQueueChangeEventType,
-        max_length=15,
-        verbose_name=_("change type"),
-    )
-    comment = models.CharField(_("comment"), max_length=255)
-    timestamp = models.DateTimeField(auto_now_add=True)
-
-
-class LotteryEvent(models.Model):
-    apartment = models.ForeignKey(
-        Apartment, models.PROTECT, related_name="lottery_events"
-    )
-    timestamp = models.DateTimeField(auto_now_add=True)
-
-
-class LotteryEventResult(models.Model):
-    event = models.ForeignKey(LotteryEvent, models.CASCADE, related_name="results")
-    application_apartment = models.ForeignKey(
-        ApplicationApartment, models.PROTECT, related_name="lottery_results"
-    )
-    result_position = models.IntegerField(_("result position"))
-
-    class Meta:
-        unique_together = [("event", "application_apartment")]

@@ -3,7 +3,11 @@ import uuid
 
 from apartment.models import Apartment
 from apartment.tests.factories import ApartmentFactory
-from application_form.models import Applicant, Application, ApplicationApartment
+from application_form.models.application import (
+    Applicant,
+    Application,
+    ApplicationApartment,
+)
 from application_form.tests.factories import (
     ApplicationApartmentFactory,
     ApplicationFactory,
