@@ -24,7 +24,10 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunPython(set_invalid_right_of_residence_values_to_none),
+        migrations.RunPython(
+            set_invalid_right_of_residence_values_to_none,
+            reverse_code=migrations.RunPython.noop,
+        ),
         migrations.AlterField(
             model_name="application",
             name="right_of_residence",

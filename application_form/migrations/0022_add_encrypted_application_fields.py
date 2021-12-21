@@ -187,7 +187,7 @@ class Migration(migrations.Migration):
                 null=True, verbose_name="priority number"
             ),
         ),
-        migrations.RunPython(copy_values),
+        migrations.RunPython(copy_values, reverse_code=migrations.RunPython.noop),
         migrations.AlterField(
             model_name="applicant",
             name="encrypted_age",
