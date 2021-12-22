@@ -7,13 +7,9 @@ from application_form.enums import ApartmentQueueChangeEventType
 from application_form.models import ApplicationApartment
 
 
-class ApartmentQueue(models.Model):
-    apartment = models.OneToOneField(Apartment, models.CASCADE, related_name="queue")
-
-
 class ApartmentQueueApplication(models.Model):
-    queue = models.ForeignKey(
-        ApartmentQueue, models.CASCADE, related_name="queue_applications"
+    apartment = models.ForeignKey(
+        Apartment, models.PROTECT, "queue_applications", blank=True, null=True
     )
     queue_position = models.IntegerField(_("position in queue"))
     application_apartment = models.OneToOneField(
@@ -21,7 +17,7 @@ class ApartmentQueueApplication(models.Model):
     )
 
     class Meta:
-        unique_together = [("queue", "application_apartment")]
+        unique_together = [("apartment", "application_apartment")]
 
 
 class ApartmentQueueChangeEvent(models.Model):

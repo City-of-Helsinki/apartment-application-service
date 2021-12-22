@@ -13,7 +13,7 @@ def _save_application_order(apartment: Apartment) -> None:
     if apartment.lottery_events.exists():
         return  # don't record it twice
     event = apartment.lottery_events.create(apartment=apartment)
-    queue_applications = apartment.queue.queue_applications.all()
+    queue_applications = apartment.queue_applications.all()
     for queue_application in queue_applications:
         event.results.create(
             application_apartment=queue_application.application_apartment,

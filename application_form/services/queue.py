@@ -1,13 +1,13 @@
 from django.db import transaction
 from django.db.models import F
 
+from apartment.models import Apartment
 from application_form.enums import (
     ApartmentQueueChangeEventType,
     ApplicationState,
     ApplicationType,
 )
 from application_form.models.application import Application, ApplicationApartment
-from application_form.models.reservation import ApartmentQueue
 
 
 def add_application_to_queues(application: Application, comment: str = "") -> None:
@@ -15,26 +15,24 @@ def add_application_to_queues(application: Application, comment: str = "") -> No
     Adds the given application to the queues of all the apartments applied to.
     """
     for application_apartment in application.application_apartments.all():
-        queue, _ = ApartmentQueue.objects.get_or_create(
-            apartment=application_apartment.apartment
-        )
+        apartment = application_apartment.apartment
         with transaction.atomic():
             if application.type == ApplicationType.HASO:
                 # For HASO applications, the queue position is determined by the
                 # right of residence number.
-                position = _calculate_queue_position(queue, application_apartment)
-                _shift_queue_positions(queue, position)
+                position = _calculate_queue_position(apartment, application_apartment)
+                _shift_queue_positions(apartment, position)
             elif application.type in [
                 ApplicationType.HITAS,
                 ApplicationType.PUOLIHITAS,
             ]:
                 # HITAS and PUOLIHITAS work the same way from the apartment lottery
                 # perspective, and should always be added to the end of the queue.
-                position = queue.queue_applications.count()
+                position = apartment.queue_applications.count()
             else:
                 raise ValueError(f"unsupported application type {application.type}")
 
-            queue_application = queue.queue_applications.create(
+            queue_application = apartment.queue_applications.create(
                 queue_position=position,
                 application_apartment=application_apartment,
             )
@@ -56,7 +54,7 @@ def remove_application_from_queue(
     """
     queue_application = application_apartment.queue_application
     _shift_queue_positions(
-        queue_application.queue,
+        queue_application.apartment,
         queue_application.queue_position,
         deleted=True,
     )
@@ -68,7 +66,7 @@ def remove_application_from_queue(
 
 
 def _calculate_queue_position(
-    queue: ApartmentQueue,
+    apartment: Apartment,
     application_apartment: ApplicationApartment,
 ) -> int:
     """
@@ -80,7 +78,7 @@ def _calculate_queue_position(
     """
     right_of_residence = application_apartment.application.right_of_residence
     submitted_late = application_apartment.application.submitted_late
-    all_applications_in_queue = queue.queue_applications.only(
+    all_applications_in_queue = apartment.queue_applications.only(
         "queue_position", "application_apartment__application__right_of_residence"
     )
     queue_applications = all_applications_in_queue.filter(
@@ -94,14 +92,14 @@ def _calculate_queue_position(
 
 
 def _shift_queue_positions(
-    queue: ApartmentQueue, from_position: int, deleted: bool = False
+    apartment: Apartment, from_position: int, deleted: bool = False
 ) -> None:
     """
     Shifts all items in the queue by one by either incrementing or decrementing their
     positions, depending on whether the item was added or deleted from the queue.
     """
     # We only need to update the positions in the queue that are >= from_position
-    queue_applications = queue.queue_applications.filter(
+    queue_applications = apartment.queue_applications.filter(
         queue_position__gte=from_position
     )
     # When deleting, we have to decrement each position. When adding, increment instead.

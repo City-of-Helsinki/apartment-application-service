@@ -5,7 +5,7 @@ from unittest.mock import Mock
 from apartment.tests.factories import ApartmentFactory
 from application_form.enums import ApartmentQueueChangeEventType, ApplicationType
 from application_form.models.reservation import (
-    ApartmentQueue,
+    ApartmentQueueApplication,
     ApartmentQueueChangeEvent,
 )
 from application_form.services.application import get_ordered_applications
@@ -33,13 +33,14 @@ def test_get_ordered_applications_returns_applications_sorted_by_position():
     app2 = ApplicationFactory()
     app3 = ApplicationFactory()
     applications = [app3, app1, app2]
-    queue = ApartmentQueue.objects.create(apartment=apartment)
-    for position, app in enumerate(applications):
-        app_apartment = app.application_apartments.create(
+    for position, application in enumerate(applications):
+        application_apartment = application.application_apartments.create(
             apartment=apartment, priority_number=1
         )
-        queue.queue_applications.create(
-            queue_position=position, application_apartment=app_apartment
+        ApartmentQueueApplication.objects.create(
+            queue_position=position,
+            application_apartment=application_apartment,
+            apartment=apartment,
         )
     # Should be sorted by queue position
     assert list(get_ordered_applications(apartment)) == applications
@@ -159,7 +160,7 @@ def test_adding_application_to_queue_creates_change_event():
     add_application_to_queues(application, comment=change_comment)
     # An "ADDED" change event with comment should have been created
     assert ApartmentQueueChangeEvent.objects.filter(
-        queue_application__queue=apartment.queue,
+        queue_application__apartment=apartment,
         type=ApartmentQueueChangeEventType.ADDED,
         comment=change_comment,
     ).exists()
@@ -175,13 +176,14 @@ def test_remove_application_from_queue():
         ApplicationFactory(right_of_residence=2),
         ApplicationFactory(right_of_residence=3),
     ]
-    queue = ApartmentQueue.objects.create(apartment=apartment)
-    for position, app in enumerate(applications):
-        app_apartment = app.application_apartments.create(
+    for position, application in enumerate(applications):
+        application_apartment = application.application_apartments.create(
             apartment=apartment, priority_number=1
         )
-        queue.queue_applications.create(
-            queue_position=position, application_apartment=app_apartment
+        ApartmentQueueApplication.objects.create(
+            queue_position=position,
+            application_apartment=application_apartment,
+            apartment=apartment,
         )
     apartment_application = applications[0].application_apartments.get(
         apartment=apartment
@@ -204,7 +206,7 @@ def test_removing_application_from_queue_creates_change_event():
     remove_application_from_queue(apartment_application, comment=change_comment)
     # A "REMOVED" change event with comment should have been created
     assert ApartmentQueueChangeEvent.objects.filter(
-        queue_application__queue=apartment.queue,
+        queue_application__apartment=apartment,
         type=ApartmentQueueChangeEventType.REMOVED,
         comment=change_comment,
     ).exists()
