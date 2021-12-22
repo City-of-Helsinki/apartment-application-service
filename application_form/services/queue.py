@@ -28,11 +28,11 @@ def add_application_to_queues(application: Application, comment: str = "") -> No
             ]:
                 # HITAS and PUOLIHITAS work the same way from the apartment lottery
                 # perspective, and should always be added to the end of the queue.
-                position = apartment.queue_applications.count()
+                position = apartment.reservations.count()
             else:
                 raise ValueError(f"unsupported application type {application.type}")
 
-            apartment_reservation = apartment.queue_applications.create(
+            apartment_reservation = apartment.reservations.create(
                 queue_position=position,
                 application_apartment=application_apartment,
             )
@@ -80,17 +80,17 @@ def _calculate_queue_position(
     """
     right_of_residence = application_apartment.application.right_of_residence
     submitted_late = application_apartment.application.submitted_late
-    all_applications_in_queue = apartment.queue_applications.only(
+    all_reservations = apartment.reservations.only(
         "queue_position", "application_apartment__application__right_of_residence"
     )
-    queue_applications = all_applications_in_queue.filter(
+    reservations = all_reservations.filter(
         application_apartment__application__submitted_late=submitted_late
     ).order_by("queue_position")
-    for apartment_reservation in queue_applications:
+    for apartment_reservation in reservations:
         other_application = apartment_reservation.application_apartment.application
         if right_of_residence < other_application.right_of_residence:
             return apartment_reservation.queue_position
-    return all_applications_in_queue.count()
+    return all_reservations.count()
 
 
 def _shift_queue_positions(
@@ -101,9 +101,7 @@ def _shift_queue_positions(
     positions, depending on whether the item was added or deleted from the queue.
     """
     # We only need to update the positions in the queue that are >= from_position
-    queue_applications = apartment.queue_applications.filter(
-        queue_position__gte=from_position
-    )
+    reservations = apartment.reservations.filter(queue_position__gte=from_position)
     # When deleting, we have to decrement each position. When adding, increment instead.
     position_change = -1 if deleted else 1
-    queue_applications.update(queue_position=F("queue_position") + position_change)
+    reservations.update(queue_position=F("queue_position") + position_change)

@@ -16,7 +16,7 @@ class ApartmentReservation(models.Model):
     """
 
     apartment = models.ForeignKey(
-        Apartment, models.PROTECT, "queue_applications", blank=True, null=True
+        Apartment, models.PROTECT, "reservations", blank=True, null=True
     )
     queue_position = models.IntegerField(_("position in queue"))
     application_apartment = models.OneToOneField(
