@@ -22,7 +22,7 @@ class Migration(migrations.Migration):
             name="state",
             field=enumfields.fields.EnumField(
                 default="submitted",
-                enum=application_form.enums.ApplicationState,
+                enum=application_form.enums.ApartmentReservationState,
                 max_length=15,
                 verbose_name="application state",
             ),

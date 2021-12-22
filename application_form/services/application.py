@@ -6,7 +6,10 @@ from typing import Iterable, List, Optional
 
 from apartment.enums import IdentifierSchemaType
 from apartment.models import Apartment, Identifier
-from application_form.enums import ApartmentQueueChangeEventType, ApplicationState
+from application_form.enums import (
+    ApartmentQueueChangeEventType,
+    ApartmentReservationState,
+)
 from application_form.models import Applicant, Application, ApplicationApartment
 from application_form.services.queue import (
     add_application_to_queues,
@@ -24,9 +27,9 @@ def cancel_haso_application(application_apartment: ApplicationApartment) -> None
     If the application has already won the apartment, then the winner for the apartment
     will be recalculated.
     """
-    was_reserved = application_apartment.state in [
-        ApplicationState.RESERVED,
-        ApplicationState.REVIEW,
+    was_reserved = application_apartment.queue_application.state in [
+        ApartmentReservationState.RESERVED,
+        ApartmentReservationState.REVIEW,
     ]
     apartment = application_apartment.apartment
     remove_application_from_queue(application_apartment)
@@ -40,9 +43,9 @@ def cancel_hitas_application(application_apartment: ApplicationApartment) -> Non
     won an apartment, then the winner for that apartment must be recalculated.
     """
     apartment = application_apartment.apartment
-    was_reserved = application_apartment.state in [
-        ApplicationState.RESERVED,
-        ApplicationState.OFFERED,
+    was_reserved = application_apartment.queue_application.state in [
+        ApartmentReservationState.RESERVED,
+        ApartmentReservationState.OFFERED,
     ]
     remove_application_from_queue(application_apartment)
     if was_reserved:
@@ -149,13 +152,13 @@ def _cancel_lower_priority_apartments(
     be given to other applicants. However, the applicant will still be queuing for the
     first-priority apartment.
     """
-    states_to_cancel = [ApplicationState.SUBMITTED]
+    states_to_cancel = [ApartmentReservationState.SUBMITTED]
     if cancel_reserved:
-        states_to_cancel.append(ApplicationState.RESERVED)
+        states_to_cancel.append(ApartmentReservationState.RESERVED)
     app_apartments = application_apartment.application.application_apartments.all()
     lower_priority_app_apartments = app_apartments.filter(
         priority_number__gt=application_apartment.priority_number,
-        state__in=states_to_cancel,
+        queue_application__state__in=states_to_cancel,
     )
     canceled_winners = []
     for app_apartment in lower_priority_app_apartments:
@@ -225,13 +228,15 @@ def _update_reservation_state(applications: QuerySet, apartment: Apartment) -> N
     Update the state of the apartment application to either "RESERVED" or "REVIEW",
     depending on whether there is one or more winning candidates.
     """
-    application_state = ApplicationState.RESERVED
+    application_state = ApartmentReservationState.RESERVED
     if applications.count() > 1:
-        application_state = ApplicationState.REVIEW
-    for app in applications:
-        app_apartment = app.application_apartments.get(apartment=apartment)
-        app_apartment.state = application_state
-        app_apartment.save(update_fields=["state"])
+        application_state = ApartmentReservationState.REVIEW
+    for application in applications:
+        application_apartment = application.application_apartments.get(
+            apartment=apartment
+        )
+        application_apartment.queue_application.state = application_state
+        application_apartment.queue_application.save(update_fields=["state"])
 
 
 def _reserve_apartment(apartment: Apartment) -> Optional[ApplicationApartment]:
@@ -239,10 +244,12 @@ def _reserve_apartment(apartment: Apartment) -> Optional[ApplicationApartment]:
     winning_application = get_ordered_applications(apartment).first()
     if winning_application is None:
         return None
-    app_apartment = winning_application.application_apartments.get(apartment=apartment)
-    app_apartment.state = ApplicationState.RESERVED
-    app_apartment.save(update_fields=["state"])
-    return app_apartment
+    application_apartment = winning_application.application_apartments.get(
+        apartment=apartment
+    )
+    application_apartment.queue_application.state = ApartmentReservationState.RESERVED
+    application_apartment.queue_application.save(update_fields=["state"])
+    return application_apartment
 
 
 def _cancel_lower_priority_haso_applications(
@@ -260,7 +267,7 @@ def _cancel_lower_priority_haso_applications(
         priority = app_apartments.get(apartment=reserved_apartment).priority_number
         low_priority_app_apartments = app_apartments.filter(
             priority_number__gt=priority,
-            state=ApplicationState.SUBMITTED,
+            queue_application__state=ApartmentReservationState.SUBMITTED,
             queue_application__queue_position__gt=0,
         )
         for app_apartment in low_priority_app_apartments:

@@ -1,7 +1,7 @@
 from pytest import mark
 
 from apartment.tests.factories import ApartmentFactory, ProjectFactory
-from application_form.enums import ApplicationState, ApplicationType
+from application_form.enums import ApartmentReservationState, ApplicationType
 from application_form.models.lottery import LotteryEventResult
 from application_form.services.application import (
     cancel_haso_application,
@@ -26,7 +26,7 @@ def test_single_application_should_win_an_apartment():
     assert list(get_ordered_applications(apartment)) == [app]
     app_apartment.refresh_from_db()
     # The application state also should have changed
-    assert app_apartment.state == ApplicationState.RESERVED
+    assert app_apartment.queue_application.state == ApartmentReservationState.RESERVED
 
 
 @mark.django_db
@@ -52,8 +52,10 @@ def test_application_with_the_smallest_right_of_residence_number_wins():
     ]
     winner.refresh_from_db()
     # The application state also should have changed
-    state = winner.application_apartments.get(apartment=apartment).state
-    assert state == ApplicationState.RESERVED
+    state = winner.application_apartments.get(
+        apartment=apartment
+    ).queue_application.state
+    assert state == ApartmentReservationState.RESERVED
 
 
 @mark.django_db
@@ -99,7 +101,7 @@ def test_canceling_application_sets_application_state_to_canceled():
     distribute_haso_apartments(apt.project)
     cancel_haso_application(app_apt)
     app_apt.refresh_from_db()
-    assert app_apt.state == ApplicationState.CANCELED
+    assert app_apt.queue_application.state == ApartmentReservationState.CANCELED
 
 
 @mark.django_db
@@ -118,13 +120,19 @@ def test_removing_application_from_queue_cancels_application_and_decides_new_win
     distribute_haso_apartments(apartment.project)
     assert list(get_ordered_applications(apartment)) == [old_winner, new_winner]
     old_app_apartment = old_winner.application_apartments.get(apartment=apartment)
-    assert old_app_apartment.state == ApplicationState.RESERVED
+    assert (
+        old_app_apartment.queue_application.state == ApartmentReservationState.RESERVED
+    )
     cancel_haso_application(old_app_apartment)
     old_app_apartment.refresh_from_db()
-    assert old_app_apartment.state == ApplicationState.CANCELED
+    assert (
+        old_app_apartment.queue_application.state == ApartmentReservationState.CANCELED
+    )
     assert list(get_ordered_applications(apartment)) == [new_winner]
     new_app_apartment = new_winner.application_apartments.get(apartment=apartment)
-    assert new_app_apartment.state == ApplicationState.RESERVED
+    assert (
+        new_app_apartment.queue_application.state == ApartmentReservationState.RESERVED
+    )
 
 
 @mark.django_db
@@ -146,9 +154,9 @@ def test_winners_with_same_right_of_residence_number_are_marked_for_review():
     app_apt1.refresh_from_db()
     app_apt2.refresh_from_db()
     app_apt3.refresh_from_db()
-    assert app_apt1.state == ApplicationState.REVIEW
-    assert app_apt2.state == ApplicationState.REVIEW
-    assert app_apt3.state == ApplicationState.SUBMITTED
+    assert app_apt1.queue_application.state == ApartmentReservationState.REVIEW
+    assert app_apt2.queue_application.state == ApartmentReservationState.REVIEW
+    assert app_apt3.queue_application.state == ApartmentReservationState.SUBMITTED
 
 
 @mark.django_db
@@ -172,9 +180,9 @@ def test_winning_cancels_lower_priority_applications_if_not_reserved():
     app_apt1.refresh_from_db()
     app_apt2.refresh_from_db()
     app_apt3.refresh_from_db()
-    assert app_apt1.state == ApplicationState.RESERVED
-    assert app_apt2.state == ApplicationState.CANCELED
-    assert app_apt3.state == ApplicationState.RESERVED
+    assert app_apt1.queue_application.state == ApartmentReservationState.RESERVED
+    assert app_apt2.queue_application.state == ApartmentReservationState.CANCELED
+    assert app_apt3.queue_application.state == ApartmentReservationState.RESERVED
 
 
 @mark.django_db
@@ -190,15 +198,15 @@ def test_winning_does_not_cancel_lower_priority_apartments_if_reserved():
     app_apt1 = app.application_apartments.create(apartment=apt1, priority_number=0)
     app_apt2 = app.application_apartments.create(apartment=apt2, priority_number=1)
     add_application_to_queues(app)
-    app_apt2.state = ApplicationState.RESERVED
-    app_apt2.save(update_fields=["state"])
+    app_apt2.queue_application.state = ApartmentReservationState.RESERVED
+    app_apt2.queue_application.save(update_fields=["state"])
     distribute_haso_apartments(project)
     assert list(get_ordered_applications(apt1)) == [app]
     assert list(get_ordered_applications(apt2)) == [app]
     app_apt1.refresh_from_db()
     app_apt2.refresh_from_db()
-    assert app_apt1.state == ApplicationState.RESERVED
-    assert app_apt2.state == ApplicationState.RESERVED
+    assert app_apt1.queue_application.state == ApartmentReservationState.RESERVED
+    assert app_apt2.queue_application.state == ApartmentReservationState.RESERVED
 
 
 @mark.django_db
@@ -219,8 +227,8 @@ def test_winning_does_not_cancel_lower_priority_apartments_first_in_queue():
     assert list(get_ordered_applications(apt2)) == [app]
     app_apt1.refresh_from_db()
     app_apt2.refresh_from_db()
-    assert app_apt1.state == ApplicationState.RESERVED
-    assert app_apt2.state == ApplicationState.RESERVED
+    assert app_apt1.queue_application.state == ApartmentReservationState.RESERVED
+    assert app_apt2.queue_application.state == ApartmentReservationState.RESERVED
 
 
 @mark.django_db
@@ -243,6 +251,6 @@ def test_winning_does_not_cancel_higher_priority_applications():
     app_apt1.refresh_from_db()
     app_apt2.refresh_from_db()
     app_apt3.refresh_from_db()
-    assert app_apt1.state == ApplicationState.RESERVED
-    assert app_apt2.state == ApplicationState.SUBMITTED
-    assert app_apt3.state == ApplicationState.RESERVED
+    assert app_apt1.queue_application.state == ApartmentReservationState.RESERVED
+    assert app_apt2.queue_application.state == ApartmentReservationState.SUBMITTED
+    assert app_apt3.queue_application.state == ApartmentReservationState.RESERVED

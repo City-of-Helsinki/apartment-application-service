@@ -3,7 +3,10 @@ from django.utils.translation import gettext_lazy as _
 from enumfields import EnumField
 
 from apartment.models import Apartment
-from application_form.enums import ApartmentQueueChangeEventType
+from application_form.enums import (
+    ApartmentQueueChangeEventType,
+    ApartmentReservationState,
+)
 from application_form.models import ApplicationApartment
 
 
@@ -18,6 +21,12 @@ class ApartmentReservation(models.Model):
     queue_position = models.IntegerField(_("position in queue"))
     application_apartment = models.OneToOneField(
         ApplicationApartment, models.CASCADE, related_name="queue_application"
+    )
+    state = EnumField(
+        ApartmentReservationState,
+        max_length=15,
+        default=ApartmentReservationState.SUBMITTED,
+        verbose_name=_("apartment reservation state"),
     )
 
     class Meta:

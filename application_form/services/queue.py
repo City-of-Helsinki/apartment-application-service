@@ -4,7 +4,7 @@ from django.db.models import F
 from apartment.models import Apartment
 from application_form.enums import (
     ApartmentQueueChangeEventType,
-    ApplicationState,
+    ApartmentReservationState,
     ApplicationType,
 )
 from application_form.models.application import Application, ApplicationApartment
@@ -58,8 +58,8 @@ def remove_application_from_queue(
         queue_application.queue_position,
         deleted=True,
     )
-    application_apartment.state = ApplicationState.CANCELED
-    application_apartment.save(update_fields=["state"])
+    application_apartment.queue_application.state = ApartmentReservationState.CANCELED
+    application_apartment.queue_application.save(update_fields=["state"])
     queue_application.change_events.create(
         type=ApartmentQueueChangeEventType.REMOVED, comment=comment
     )
