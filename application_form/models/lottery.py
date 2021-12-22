@@ -14,9 +14,7 @@ class LotteryEvent(models.Model):
 
 class LotteryEventResult(models.Model):
     event = models.ForeignKey(LotteryEvent, models.CASCADE, related_name="results")
-    application_apartment = models.ForeignKey(
-        ApplicationApartment, models.PROTECT, related_name="lottery_results"
-    )
+    application_apartment = models.OneToOneField(ApplicationApartment, models.PROTECT)
     result_position = models.IntegerField(_("result position"))
 
     class Meta:
