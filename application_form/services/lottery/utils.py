@@ -14,8 +14,8 @@ def _save_application_order(apartment: Apartment) -> None:
         return  # don't record it twice
     event = apartment.lottery_events.create(apartment=apartment)
     queue_applications = apartment.queue_applications.all()
-    for queue_application in queue_applications:
+    for apartment_reservation in queue_applications:
         event.results.create(
-            application_apartment=queue_application.application_apartment,
-            result_position=queue_application.queue_position,
+            application_apartment=apartment_reservation.application_apartment,
+            result_position=apartment_reservation.queue_position,
         )

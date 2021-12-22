@@ -27,7 +27,7 @@ def cancel_haso_application(application_apartment: ApplicationApartment) -> None
     If the application has already won the apartment, then the winner for the apartment
     will be recalculated.
     """
-    was_reserved = application_apartment.queue_application.state in [
+    was_reserved = application_apartment.apartment_reservation.state in [
         ApartmentReservationState.RESERVED,
         ApartmentReservationState.REVIEW,
     ]
@@ -43,7 +43,7 @@ def cancel_hitas_application(application_apartment: ApplicationApartment) -> Non
     won an apartment, then the winner for that apartment must be recalculated.
     """
     apartment = application_apartment.apartment
-    was_reserved = application_apartment.queue_application.state in [
+    was_reserved = application_apartment.apartment_reservation.state in [
         ApartmentReservationState.RESERVED,
         ApartmentReservationState.OFFERED,
     ]
@@ -132,9 +132,9 @@ def get_ordered_applications(apartment: Apartment) -> QuerySet:
     """
     return apartment.applications.filter(
         application_apartments__in=apartment.application_apartments.exclude(
-            queue_application__change_events__type=ApartmentQueueChangeEventType.REMOVED
+            apartment_reservation__change_events__type=ApartmentQueueChangeEventType.REMOVED  # noqa: E501
         )
-    ).order_by("application_apartments__queue_application__queue_position")
+    ).order_by("application_apartments__apartment_reservation__queue_position")
 
 
 def _cancel_lower_priority_apartments(
@@ -158,11 +158,11 @@ def _cancel_lower_priority_apartments(
     app_apartments = application_apartment.application.application_apartments.all()
     lower_priority_app_apartments = app_apartments.filter(
         priority_number__gt=application_apartment.priority_number,
-        queue_application__state__in=states_to_cancel,
+        apartment_reservation__state__in=states_to_cancel,
     )
     canceled_winners = []
     for app_apartment in lower_priority_app_apartments:
-        if app_apartment.queue_application.queue_position == 0:
+        if app_apartment.apartment_reservation.queue_position == 0:
             canceled_winners.append(app_apartment)
         cancel_hitas_application(app_apartment)
     return canceled_winners
@@ -235,8 +235,8 @@ def _update_reservation_state(applications: QuerySet, apartment: Apartment) -> N
         application_apartment = application.application_apartments.get(
             apartment=apartment
         )
-        application_apartment.queue_application.state = application_state
-        application_apartment.queue_application.save(update_fields=["state"])
+        application_apartment.apartment_reservation.state = application_state
+        application_apartment.apartment_reservation.save(update_fields=["state"])
 
 
 def _reserve_apartment(apartment: Apartment) -> Optional[ApplicationApartment]:
@@ -247,8 +247,10 @@ def _reserve_apartment(apartment: Apartment) -> Optional[ApplicationApartment]:
     application_apartment = winning_application.application_apartments.get(
         apartment=apartment
     )
-    application_apartment.queue_application.state = ApartmentReservationState.RESERVED
-    application_apartment.queue_application.save(update_fields=["state"])
+    application_apartment.apartment_reservation.state = (
+        ApartmentReservationState.RESERVED
+    )
+    application_apartment.apartment_reservation.save(update_fields=["state"])
     return application_apartment
 
 
@@ -267,8 +269,8 @@ def _cancel_lower_priority_haso_applications(
         priority = app_apartments.get(apartment=reserved_apartment).priority_number
         low_priority_app_apartments = app_apartments.filter(
             priority_number__gt=priority,
-            queue_application__state=ApartmentReservationState.SUBMITTED,
-            queue_application__queue_position__gt=0,
+            apartment_reservation__state=ApartmentReservationState.SUBMITTED,
+            apartment_reservation__queue_position__gt=0,
         )
         for app_apartment in low_priority_app_apartments:
             cancel_haso_application(app_apartment)

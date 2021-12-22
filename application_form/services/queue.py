@@ -32,11 +32,11 @@ def add_application_to_queues(application: Application, comment: str = "") -> No
             else:
                 raise ValueError(f"unsupported application type {application.type}")
 
-            queue_application = apartment.queue_applications.create(
+            apartment_reservation = apartment.queue_applications.create(
                 queue_position=position,
                 application_apartment=application_apartment,
             )
-            queue_application.change_events.create(
+            apartment_reservation.change_events.create(
                 type=ApartmentQueueChangeEventType.ADDED,
                 comment=comment,
             )
@@ -52,15 +52,17 @@ def remove_application_from_queue(
     means that the application for this specific apartment was canceled, so the state
     of the application for this apartment will also be updated to "CANCELED".
     """
-    queue_application = application_apartment.queue_application
+    apartment_reservation = application_apartment.apartment_reservation
     _shift_queue_positions(
-        queue_application.apartment,
-        queue_application.queue_position,
+        apartment_reservation.apartment,
+        apartment_reservation.queue_position,
         deleted=True,
     )
-    application_apartment.queue_application.state = ApartmentReservationState.CANCELED
-    application_apartment.queue_application.save(update_fields=["state"])
-    queue_application.change_events.create(
+    application_apartment.apartment_reservation.state = (
+        ApartmentReservationState.CANCELED
+    )
+    application_apartment.apartment_reservation.save(update_fields=["state"])
+    apartment_reservation.change_events.create(
         type=ApartmentQueueChangeEventType.REMOVED, comment=comment
     )
 
@@ -84,10 +86,10 @@ def _calculate_queue_position(
     queue_applications = all_applications_in_queue.filter(
         application_apartment__application__submitted_late=submitted_late
     ).order_by("queue_position")
-    for queue_application in queue_applications:
-        other_application = queue_application.application_apartment.application
+    for apartment_reservation in queue_applications:
+        other_application = apartment_reservation.application_apartment.application
         if right_of_residence < other_application.right_of_residence:
-            return queue_application.queue_position
+            return apartment_reservation.queue_position
     return all_applications_in_queue.count()
 
 

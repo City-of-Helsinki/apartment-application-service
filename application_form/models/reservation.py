@@ -20,7 +20,7 @@ class ApartmentReservation(models.Model):
     )
     queue_position = models.IntegerField(_("position in queue"))
     application_apartment = models.OneToOneField(
-        ApplicationApartment, models.CASCADE, related_name="queue_application"
+        ApplicationApartment, models.CASCADE, related_name="apartment_reservation"
     )
     state = EnumField(
         ApartmentReservationState,

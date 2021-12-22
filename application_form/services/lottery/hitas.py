@@ -88,6 +88,6 @@ def _shuffle_queue_segment(
         # Remove a random queue position from the list assign it to the application
         random_index = secrets.randbelow(len(possible_positions))
         position = possible_positions.pop(random_index)
-        queue_application = app_apartment.queue_application
-        queue_application.queue_position = position
-        queue_application.save(update_fields=["queue_position"])
+        apartment_reservation = app_apartment.apartment_reservation
+        apartment_reservation.queue_position = position
+        apartment_reservation.save(update_fields=["queue_position"])

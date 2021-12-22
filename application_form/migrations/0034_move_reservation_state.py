@@ -9,10 +9,10 @@ import application_form.enums
 def forwards_func(apps, schema_editor):
     application_apartment = apps.get_model("application_form", "ApplicationApartment")
     for item in application_apartment.objects.all():
-        item.queue_application.state = application_form.enums.ApartmentReservationState(
-            item.state.value
+        item.apartment_reservation.state = (
+            application_form.enums.ApartmentReservationState(item.state.value)
         )
-        item.queue_application.save()
+        item.apartment_reservation.save()
 
 
 def reverse_func(apps, schema_editor):

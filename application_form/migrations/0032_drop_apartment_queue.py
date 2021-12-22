@@ -7,8 +7,8 @@ from django.db import migrations, models
 def forwards_func(apps, schema_editor):
     application_apartment = apps.get_model("application_form", "ApplicationApartment")
     for item in application_apartment.objects.all():
-        item.queue_application.apartment = item.apartment
-        item.queue_application.save()
+        item.apartment_reservation.apartment = item.apartment
+        item.apartment_reservation.save()
 
 
 def reverse_func(apps, schema_editor):
@@ -20,8 +20,8 @@ def reverse_func(apps, schema_editor):
             queue = apartment_queue.objects.create(
                 apartment=application_apartment.apartment
             )
-        item.queue_application.queue = queue
-        item.queue_application.save()
+        item.apartment_reservation.queue = queue
+        item.apartment_reservation.save()
 
 
 class Migration(migrations.Migration):
