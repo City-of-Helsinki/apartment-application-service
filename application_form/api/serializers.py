@@ -8,7 +8,6 @@ from application_form.enums import ApplicationType
 from application_form.models import Applicant, Application
 from application_form.services.application import create_application
 from application_form.validators import SSNSuffixValidator
-from users.models import Profile
 
 _logger = logging.getLogger(__name__)
 
@@ -90,30 +89,4 @@ class ApplicationSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data["profile"] = self.context["request"].user.profile
-        return create_application(validated_data)
-
-
-class ProjectUUIDSerializer(serializers.Serializer):
-    project_uuid = UUIDField()
-
-
-class SalesApplicationSerializer(ApplicationSerializer):
-    profile = serializers.PrimaryKeyRelatedField(
-        queryset=Profile.objects.all(), write_only=True
-    )
-
-    class Meta(ApplicationSerializer.Meta):
-        fields = [
-            "application_uuid",
-            "application_type",
-            "ssn_suffix",
-            "has_children",
-            "additional_applicant",
-            "right_of_residence",
-            "project_id",
-            "apartments",
-            "profile",
-        ]
-
-    def create(self, validated_data):
         return create_application(validated_data)
