@@ -5,8 +5,8 @@ from unittest.mock import Mock
 from apartment.tests.factories import ApartmentFactory
 from application_form.enums import ApartmentQueueChangeEventType, ApplicationType
 from application_form.models.reservation import (
-    ApartmentQueueApplication,
     ApartmentQueueChangeEvent,
+    ApartmentReservation,
 )
 from application_form.services.application import get_ordered_applications
 from application_form.services.queue import (
@@ -37,7 +37,7 @@ def test_get_ordered_applications_returns_applications_sorted_by_position():
         application_apartment = application.application_apartments.create(
             apartment=apartment, priority_number=1
         )
-        ApartmentQueueApplication.objects.create(
+        ApartmentReservation.objects.create(
             queue_position=position,
             application_apartment=application_apartment,
             apartment=apartment,
@@ -180,7 +180,7 @@ def test_remove_application_from_queue():
         application_apartment = application.application_apartments.create(
             apartment=apartment, priority_number=1
         )
-        ApartmentQueueApplication.objects.create(
+        ApartmentReservation.objects.create(
             queue_position=position,
             application_apartment=application_apartment,
             apartment=apartment,

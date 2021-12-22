@@ -7,7 +7,11 @@ from application_form.enums import ApartmentQueueChangeEventType
 from application_form.models import ApplicationApartment
 
 
-class ApartmentQueueApplication(models.Model):
+class ApartmentReservation(models.Model):
+    """
+    Stores an applicant's reservation for the apartment.
+    """
+
     apartment = models.ForeignKey(
         Apartment, models.PROTECT, "queue_applications", blank=True, null=True
     )
@@ -22,7 +26,7 @@ class ApartmentQueueApplication(models.Model):
 
 class ApartmentQueueChangeEvent(models.Model):
     queue_application = models.ForeignKey(
-        ApartmentQueueApplication, models.CASCADE, related_name="change_events"
+        ApartmentReservation, models.CASCADE, related_name="change_events"
     )
     type = EnumField(
         ApartmentQueueChangeEventType,
