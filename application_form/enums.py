@@ -1,7 +1,7 @@
 from enum import Enum
 
 
-class ApplicationState(Enum):
+class ApartmentReservationState(Enum):
     SUBMITTED = "submitted"
     RESERVED = "reserved"
     OFFERED = "offered"

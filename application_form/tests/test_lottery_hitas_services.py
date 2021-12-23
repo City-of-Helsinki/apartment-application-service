@@ -2,8 +2,8 @@ from pytest import mark
 from unittest.mock import patch
 
 from apartment.tests.factories import ApartmentFactory, ProjectFactory
-from application_form.enums import ApplicationState, ApplicationType
-from application_form.models import LotteryEventResult
+from application_form.enums import ApartmentReservationState, ApplicationType
+from application_form.models.lottery import LotteryEventResult
 from application_form.services.application import (
     cancel_hitas_application,
     get_ordered_applications,
@@ -25,7 +25,9 @@ def test_single_application_should_win_an_apartment():
     assert list(get_ordered_applications(apt)) == [app]
     app_apartment.refresh_from_db()
     # The application state also should have changed
-    assert app_apartment.state == ApplicationState.RESERVED
+    assert (
+        app_apartment.apartment_reservation.state == ApartmentReservationState.RESERVED
+    )
 
 
 @mark.django_db
@@ -56,9 +58,9 @@ def test_lottery_for_small_apartment_does_not_prioritize_applications_with_child
     # The single person should have been randomly picked as the winner
     assert list(get_ordered_applications(apt)) == [single, family]
     # The application state also should have changed
-    assert single_app.state == ApplicationState.RESERVED
+    assert single_app.apartment_reservation.state == ApartmentReservationState.RESERVED
     # The loser's state should have stayed the same
-    assert family_app.state == ApplicationState.SUBMITTED
+    assert family_app.apartment_reservation.state == ApartmentReservationState.SUBMITTED
 
 
 @mark.django_db
@@ -85,9 +87,9 @@ def test_lottery_for_large_apartment_prioritizes_applications_with_children():
     # The family should have been picked as the winner
     assert list(get_ordered_applications(apt)) == [family, single]
     # The application state also should have changed
-    assert family_app.state == ApplicationState.RESERVED
+    assert family_app.apartment_reservation.state == ApartmentReservationState.RESERVED
     # The loser's state should have stayed the same
-    assert single_app.state == ApplicationState.SUBMITTED
+    assert single_app.apartment_reservation.state == ApartmentReservationState.SUBMITTED
 
 
 @mark.django_db
@@ -148,7 +150,7 @@ def test_canceling_application_sets_state_to_canceled():
 
     # The state should now be "CANCELED"
     app_apt.refresh_from_db()
-    assert app_apt.state == ApplicationState.CANCELED
+    assert app_apt.apartment_reservation.state == ApartmentReservationState.CANCELED
 
 
 @mark.django_db
@@ -182,7 +184,7 @@ def test_canceling_winning_application_marks_next_application_in_queue_as_reserv
 
     # The family winner should win the apartment
     assert list(get_ordered_applications(apartment)) == [family, single]
-    assert family_app.state == ApplicationState.RESERVED
+    assert family_app.apartment_reservation.state == ApartmentReservationState.RESERVED
 
     # The family rejects the apartment
     cancel_hitas_application(family_app)
@@ -193,8 +195,8 @@ def test_canceling_winning_application_marks_next_application_in_queue_as_reserv
     # The family should have been removed from the queue, and the other application
     # should have become the new winner.
     assert list(get_ordered_applications(apartment)) == [single]
-    assert family_app.state == ApplicationState.CANCELED
-    assert single_app.state == ApplicationState.RESERVED
+    assert family_app.apartment_reservation.state == ApartmentReservationState.CANCELED
+    assert single_app.apartment_reservation.state == ApartmentReservationState.RESERVED
 
 
 @mark.django_db
@@ -228,11 +230,11 @@ def test_becoming_first_after_lottery_does_not_cancel_low_priority_reservation()
 
     # The family should have won the big apartment
     assert list(get_ordered_applications(big)) == [family, single]
-    assert family_big.state == ApplicationState.RESERVED
+    assert family_big.apartment_reservation.state == ApartmentReservationState.RESERVED
 
     # The single applicant's low priority application should be "RESERVED"
     assert list(get_ordered_applications(tiny)) == [single]
-    assert single_tiny.state == ApplicationState.RESERVED
+    assert single_tiny.apartment_reservation.state == ApartmentReservationState.RESERVED
 
     # The family later rejects the big apartment
     cancel_hitas_application(family_big)
@@ -241,12 +243,12 @@ def test_becoming_first_after_lottery_does_not_cancel_low_priority_reservation()
     # the reserved application should not have been canceled.
     assert list(get_ordered_applications(tiny)) == [single]
     single_tiny.refresh_from_db()
-    assert single_tiny.state == ApplicationState.RESERVED
+    assert single_tiny.apartment_reservation.state == ApartmentReservationState.RESERVED
 
     # The single applicant should be be the winner of the big apartment
     assert list(get_ordered_applications(big)) == [single]
     single_big.refresh_from_db()
-    assert single_big.state == ApplicationState.RESERVED
+    assert single_big.apartment_reservation.state == ApartmentReservationState.RESERVED
 
 
 @mark.django_db
@@ -277,11 +279,11 @@ def test_winning_high_priority_apartment_cancels_lower_priority_applications():
 
     # The application should be number one in the first priority apartment
     assert list(get_ordered_applications(apt1)) == [app]
-    assert app_apt1.state == ApplicationState.RESERVED
+    assert app_apt1.apartment_reservation.state == ApartmentReservationState.RESERVED
 
     # The second application should have been removed from the queue
     assert list(get_ordered_applications(apt2)) == []
-    assert app_apt2.state == ApplicationState.CANCELED
+    assert app_apt2.apartment_reservation.state == ApartmentReservationState.CANCELED
 
 
 @mark.django_db
@@ -339,16 +341,16 @@ def test_winning_high_priority_apartment_redistributes_apartments_if_winner_chan
         app_apt.refresh_from_db()
 
     # All the winners should have been marked as "RESERVED"
-    assert app1_apt1.state == ApplicationState.RESERVED
-    assert app3_apt2.state == ApplicationState.RESERVED
-    assert app2_apt3.state == ApplicationState.RESERVED
+    assert app1_apt1.apartment_reservation.state == ApartmentReservationState.RESERVED
+    assert app3_apt2.apartment_reservation.state == ApartmentReservationState.RESERVED
+    assert app2_apt3.apartment_reservation.state == ApartmentReservationState.RESERVED
 
     # All the canceled applications should have been marked as "CANCELED"
-    assert app1_apt2.state == ApplicationState.CANCELED
-    assert app1_apt3.state == ApplicationState.CANCELED
-    assert app2_apt1.state == ApplicationState.CANCELED
-    assert app2_apt2.state == ApplicationState.CANCELED
-    assert app3_apt3.state == ApplicationState.CANCELED
+    assert app1_apt2.apartment_reservation.state == ApartmentReservationState.CANCELED
+    assert app1_apt3.apartment_reservation.state == ApartmentReservationState.CANCELED
+    assert app2_apt1.apartment_reservation.state == ApartmentReservationState.CANCELED
+    assert app2_apt2.apartment_reservation.state == ApartmentReservationState.CANCELED
+    assert app3_apt3.apartment_reservation.state == ApartmentReservationState.CANCELED
 
 
 @mark.django_db
@@ -381,11 +383,13 @@ def test_winning_low_priority_apartment_does_not_cancel_higher_priority_applicat
 
     # The family should have won the big apartment
     assert list(get_ordered_applications(big)) == [family, single]
-    assert family_app.state == ApplicationState.RESERVED
+    assert family_app.apartment_reservation.state == ApartmentReservationState.RESERVED
 
     # The single applicant should win the second apartment at low priority
     assert list(get_ordered_applications(tiny)) == [single]
-    assert single_low.state == ApplicationState.RESERVED
+    assert single_low.apartment_reservation.state == ApartmentReservationState.RESERVED
 
     # The other application should still be in the queue, since it was higher priority
-    assert single_high.state == ApplicationState.SUBMITTED
+    assert (
+        single_high.apartment_reservation.state == ApartmentReservationState.SUBMITTED
+    )

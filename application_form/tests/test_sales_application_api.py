@@ -2,7 +2,7 @@ import pytest
 from django.contrib.auth.models import Group
 from django.urls import reverse
 
-from application_form.models import Application
+from application_form.models.application import Application
 from application_form.tests.utils import create_application_data
 from users.enums import Roles
 from users.tests.factories import ProfileFactory

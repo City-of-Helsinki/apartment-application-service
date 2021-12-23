@@ -3,7 +3,7 @@ from django.core.management import call_command
 
 from apartment.models import Apartment, Project
 from apartment.tests.factories import ApartmentFactory, ProjectFactory
-from application_form.models import Application, ApplicationApartment
+from application_form.models.application import Application, ApplicationApartment
 from application_form.tests.factories import (
     ApplicationApartmentFactory,
     ApplicationFactory,
