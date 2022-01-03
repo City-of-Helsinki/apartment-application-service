@@ -4,8 +4,15 @@ from factory import Faker, fuzzy, LazyAttribute
 from typing import List
 
 from apartment.tests.factories import ApartmentFactory
-from application_form.enums import ApplicationType
-from application_form.models import Applicant, Application, ApplicationApartment
+from application_form.enums import ApartmentReservationState, ApplicationType
+from application_form.models import (
+    ApartmentReservation,
+    Applicant,
+    Application,
+    ApplicationApartment,
+    LotteryEvent,
+    LotteryEventResult,
+)
 from application_form.services.application import _calculate_age
 from users.tests.factories import ProfileFactory
 
@@ -72,7 +79,7 @@ class ApplicationApartmentFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = ApplicationApartment
 
-    priority_number = 1
+    priority_number = fuzzy.FuzzyInteger(1, 5)
     apartment = factory.SubFactory(ApartmentFactory)
     application = factory.SubFactory(ApplicationWithApplicantsFactory)
 
@@ -90,3 +97,29 @@ class ApplicationApartmentFactory(factory.django.DjangoModelFactory):
             )
             apartments_application.append(apartment_application)
         return apartments_application
+
+
+class ApartmentReservationFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = ApartmentReservation
+
+    apartment = factory.SubFactory(ApartmentFactory)
+    queue_position = fuzzy.FuzzyInteger(1)
+    application_apartment = factory.SubFactory(ApplicationApartmentFactory)
+    state = fuzzy.FuzzyChoice(list(ApartmentReservationState))
+
+
+class LotteryEventFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = LotteryEvent
+
+    apartment = factory.SubFactory(ApartmentFactory)
+
+
+class LotteryEventResultFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = LotteryEventResult
+
+    event = factory.SubFactory(LotteryEventFactory)
+    application_apartment = factory.SubFactory(ApplicationApartmentFactory)
+    result_position = fuzzy.FuzzyInteger(1)
