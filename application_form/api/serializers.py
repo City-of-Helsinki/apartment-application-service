@@ -4,8 +4,8 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.fields import CharField, IntegerField, UUIDField
 
-from application_form.enums import ApplicationType
-from application_form.models import Applicant, Application
+from application_form.enums import ApartmentReservationState, ApplicationType
+from application_form.models import ApartmentReservation, Applicant, Application
 from application_form.services.application import create_application
 from application_form.validators import SSNSuffixValidator
 
@@ -90,3 +90,20 @@ class ApplicationSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data["profile"] = self.context["request"].user.profile
         return create_application(validated_data)
+
+
+class ApartmentReservationSerializer(serializers.ModelSerializer):
+    apartment_uuid = UUIDField(source="apartment.uuid")
+    lottery_position = IntegerField(
+        source="application_apartment.lotteryeventresult.result_position"
+    )
+    state = EnumField(ApartmentReservationState)
+
+    class Meta:
+        model = ApartmentReservation
+        fields = [
+            "apartment_uuid",
+            "lottery_position",
+            "queue_position",
+            "state",
+        ]
