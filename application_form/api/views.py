@@ -1,7 +1,12 @@
 from rest_framework import permissions
+from rest_framework.generics import GenericAPIView
+from rest_framework.response import Response
 
-from application_form.api.serializers import ApplicationSerializer
-from application_form.models import Application
+from application_form.api.serializers import (
+    ApartmentReservationSerializer,
+    ApplicationSerializer,
+)
+from application_form.models import ApartmentReservation, Application
 from audit_log.viewsets import AuditLoggingModelViewSet
 
 
@@ -11,3 +16,22 @@ class ApplicationViewSet(AuditLoggingModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     lookup_field = "external_uuid"
     http_method_names = ["post"]
+
+
+class ListProjectReservations(GenericAPIView):
+    """
+    Public: Returns a list of the user's apartment reservations from a specific project.
+    """
+
+    serializer_class = ApartmentReservationSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ["get"]
+
+    def get(self, request, project_uuid):
+        profile_uuid = request.user.profile.id
+        reservations = ApartmentReservation.objects.filter(
+            apartment__project__uuid=project_uuid,
+            application_apartment__application__profile__id=profile_uuid,
+        )
+        serializer = self.get_serializer(reservations, many=True)
+        return Response(serializer.data)

@@ -18,6 +18,7 @@ class ProjectFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = Project
 
+    uuid = factory.Faker("uuid4")
     street_address = Faker("street_address")
 
     @factory.post_generation
