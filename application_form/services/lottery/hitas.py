@@ -3,8 +3,6 @@ from django.db import transaction
 from django.db.models import QuerySet
 
 from apartment.models import Apartment, Project
-from application_form.exceptions import ProjectDoesNotHaveApplicationsException
-from application_form.models import Application
 from application_form.services.application import _reserve_apartments
 from application_form.services.lottery.utils import _save_application_order
 
@@ -21,10 +19,6 @@ def distribute_hitas_apartments(project: Project) -> None:
     each, and marks the winning application as reserved. Before declaring a winner, the
     state of the apartment queue will be persisted to the database.
     """
-
-    application_count = Application.objects.filter(apartments__project=project).count()
-    if application_count == 0:
-        raise ProjectDoesNotHaveApplicationsException()
 
     apartments = project.apartments.all()
 

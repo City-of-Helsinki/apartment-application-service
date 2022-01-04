@@ -2,11 +2,17 @@ from django.utils.translation import ugettext_lazy as _
 
 from apartment.enums import OwnershipType
 from apartment.models import Project
+from application_form.exceptions import ProjectDoesNotHaveApplicationsException
+from application_form.models import Application
 from application_form.services.lottery.haso import distribute_haso_apartments
 from application_form.services.lottery.hitas import distribute_hitas_apartments
 
 
 def distribute_apartments(project: Project) -> None:
+    application_count = Application.objects.filter(apartments__project=project).count()
+    if application_count == 0:
+        raise ProjectDoesNotHaveApplicationsException()
+
     if project.ownership_type is OwnershipType.HASO:
         distribute_haso_apartments(project)
     elif project.ownership_type in [OwnershipType.HITAS, OwnershipType.HALF_HITAS]:
