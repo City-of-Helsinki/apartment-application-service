@@ -80,3 +80,36 @@ def test_execute_hitas_lottery_for_project_post_without_applications(api_client)
         reverse("application_form:execute_lottery_for_project"), data, format="json"
     )
     assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("elastic_apartments")
+def test_execute_haso_lottery_for_project_post(api_client):
+    profile = SalespersonProfileFactory()
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
+
+    apartment = ApartmentFactory(project__ownership_type=OwnershipType.HASO)
+    app = ApplicationFactory(type=ApplicationType.HASO)
+    app.application_apartments.create(apartment=apartment, priority_number=0)
+    add_application_to_queues(app)
+
+    data = {"project_uuid": apartment.project.uuid}
+    response = api_client.post(
+        reverse("application_form:execute_lottery_for_project"), data, format="json"
+    )
+    assert response.status_code == status.HTTP_200_OK
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("elastic_apartments")
+def test_execute_haso_lottery_for_project_post_without_applications(api_client):
+    profile = SalespersonProfileFactory()
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
+
+    apartment = ApartmentFactory(project__ownership_type=OwnershipType.HASO)
+
+    data = {"project_uuid": apartment.project.uuid}
+    response = api_client.post(
+        reverse("application_form:execute_lottery_for_project"), data, format="json"
+    )
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
