@@ -44,7 +44,7 @@ django-pgcrypto-fields==2.6.0
     # via -r requirements.in
 django-simple-history==3.0.0
     # via -r requirements.in
-django==3.2.6
+django==2.2.26
     # via
     #   -r requirements.in
     #   django-cors-headers
