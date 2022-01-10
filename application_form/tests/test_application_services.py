@@ -9,7 +9,7 @@ from application_form.services.application import (
     create_application,
     get_ordered_applications,
 )
-from application_form.tests.utils import create_validated_application_data
+from application_form.tests.conftest import create_validated_application_data
 from connections.service.elastic import InvalidElasticDataError
 from users.tests.factories import ProfileFactory
 

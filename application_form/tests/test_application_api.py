@@ -1,7 +1,7 @@
 import pytest
 from django.urls import reverse
 
-from application_form.tests.utils import create_application_data
+from application_form.tests.conftest import create_application_data
 from audit_log.models import AuditLog
 from users.tests.factories import ProfileFactory
 from users.tests.utils import _create_token
