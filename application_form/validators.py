@@ -1,5 +1,9 @@
 from datetime import date
 from rest_framework.exceptions import ValidationError
+from typing import List, Tuple, Union
+from uuid import UUID
+
+from application_form.models import Applicant
 
 
 class SSNSuffixValidator:
@@ -48,3 +52,33 @@ class SSNSuffixValidator:
         number = int(self.date_of_birth.strftime("%d%m%y") + individual_number)
         index = number % len(alphabet)
         return alphabet[index]
+
+
+class ProjectApplicantValidator:
+    def __call__(
+        self,
+        project_uuid: UUID,
+        date_of_birth_and_ssn_suffix: Union[Tuple[date, str], List[Tuple[date, str]]],
+    ):
+        if isinstance(date_of_birth_and_ssn_suffix, Tuple):
+            date_of_birth_and_ssn_suffix = [date_of_birth_and_ssn_suffix]
+        if isinstance(date_of_birth_and_ssn_suffix, List):
+            date_of_birth_and_ssn_suffix = date_of_birth_and_ssn_suffix.copy()
+
+        if not date_of_birth_and_ssn_suffix:
+            return
+
+        date_of_birth, ssn_suffix = date_of_birth_and_ssn_suffix.pop()
+        queryset = Applicant.objects.filter(
+            date_of_birth=date_of_birth, ssn_suffix=ssn_suffix
+        )
+        for item in date_of_birth_and_ssn_suffix:
+            date_of_birth, ssn_suffix = item
+            queryset = queryset | Applicant.objects.filter(
+                date_of_birth=date_of_birth, ssn_suffix=ssn_suffix
+            )
+        queryset = queryset & Applicant.objects.filter(
+            application__apartments__project__uuid=project_uuid
+        )
+        if queryset.exists():
+            raise ValidationError("Applicant(s) have already applied to project.")
