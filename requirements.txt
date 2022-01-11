@@ -55,9 +55,9 @@ django==3.2.6
     #   djangorestframework-simplejwt
     #   drf-oidc-auth
     #   drf-spectacular
-git+git://github.com/City-of-Helsinki/django-etuovi@v0.2.0#egg=django_etuovi
+git+https://github.com/City-of-Helsinki/django-etuovi@v0.2.0#egg=django_etuovi
     # via -r requirements.in
-git+git://github.com/City-of-Helsinki/django-oikotie@v0.2.0#egg=django_oikotie
+git+https://github.com/City-of-Helsinki/django-oikotie@v0.2.0#egg=django_oikotie
     # via -r requirements.in
 djangorestframework-simplejwt==4.7.2
     # via -r requirements.in

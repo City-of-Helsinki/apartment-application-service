@@ -67,6 +67,12 @@ class Profile(TimestampedModel):
         choices=CONTACT_LANGUAGE_CHOICES,
     )
 
+    @property
+    def ssn_suffix(cls):
+        if cls.national_identification_number:
+            return cls.national_identification_number[6:]
+        return None
+
     def clean(self):
         if self.national_identification_number:
             try:

@@ -7,7 +7,7 @@ from rest_framework.fields import CharField, IntegerField, UUIDField
 from application_form.enums import ApartmentReservationState, ApplicationType
 from application_form.models import ApartmentReservation, Applicant, Application
 from application_form.services.application import create_application
-from application_form.validators import SSNSuffixValidator
+from application_form.validators import ProjectApplicantValidator, SSNSuffixValidator
 
 _logger = logging.getLogger(__name__)
 
@@ -90,6 +90,27 @@ class ApplicationSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data["profile"] = self.context["request"].user.profile
         return create_application(validated_data)
+
+    def validate(self, attrs):
+        project_uuid = attrs["project_id"]
+        applicants = []
+        profile = self.context["request"].user.profile
+        applicants.append((profile.date_of_birth, attrs["ssn_suffix"]))
+        is_additional_applicant = (
+            "additional_applicant" in attrs
+            and attrs["additional_applicant"] is not None
+        )
+        if is_additional_applicant:
+            applicants.append(
+                (
+                    attrs["additional_applicant"]["date_of_birth"],
+                    attrs["additional_applicant"]["ssn_suffix"],
+                )
+            )
+        validator = ProjectApplicantValidator()
+        validator(project_uuid, applicants)
+
+        return super().validate(attrs)
 
 
 class ApartmentReservationSerializer(serializers.ModelSerializer):

@@ -14,17 +14,8 @@ from application_form.models import (
     LotteryEventResult,
 )
 from application_form.services.application import _calculate_age
+from application_form.tests.utils import calculate_ssn_suffix
 from users.tests.factories import ProfileFactory
-
-
-def calculate_ssn_suffix(obj) -> str:
-    date_string = obj.date_of_birth.strftime("%d%m%y")
-    century_sign = "+-A"[obj.date_of_birth.year // 100 - 18]
-    individual_number = f"{random.randint(3, 899):03d}"
-    index = int(date_string + individual_number) % 31
-    control_character = "0123456789ABCDEFHJKLMNPRSTUVWXY"[index]
-    ssn_suffix = century_sign + individual_number + control_character
-    return ssn_suffix
 
 
 class ApplicationFactory(factory.django.DjangoModelFactory):
@@ -52,7 +43,7 @@ class ApplicantFactory(factory.django.DjangoModelFactory):
     postal_code = Faker("postcode")
     date_of_birth = Faker("date_of_birth", minimum_age=18)
     age = LazyAttribute(lambda o: _calculate_age(o.date_of_birth))
-    ssn_suffix = LazyAttribute(calculate_ssn_suffix)
+    ssn_suffix = LazyAttribute(lambda o: calculate_ssn_suffix(o.date_of_birth))
     is_primary_applicant = Faker("boolean")
     application = factory.SubFactory(ApplicationFactory)
 
