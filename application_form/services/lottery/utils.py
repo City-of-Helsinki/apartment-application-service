@@ -1,6 +1,8 @@
 import uuid
 
-from application_form.models import ApartmentReservation, LotteryEvent
+from apartment.elastic.queries import get_apartment_uuids
+from application_form.exceptions import ProjectDoesNotHaveApplicationsException
+from application_form.models import ApartmentReservation, Application, LotteryEvent
 
 
 def _save_application_order(apartment_uuid: uuid.UUID) -> None:
@@ -21,3 +23,12 @@ def _save_application_order(apartment_uuid: uuid.UUID) -> None:
             application_apartment=apartment_reservation.application_apartment,
             result_position=apartment_reservation.queue_position,
         )
+
+
+def _validate_project_has_applications(project_uuid: uuid.UUID):
+    apartment_uuids = get_apartment_uuids(project_uuid)
+    application_count = Application.objects.filter(
+        application_apartments__apartment_uuid__in=apartment_uuids
+    ).count()
+    if application_count == 0:
+        raise ProjectDoesNotHaveApplicationsException()
