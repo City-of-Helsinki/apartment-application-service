@@ -16,6 +16,9 @@ from application_form.api.sales.serializers import (
 )
 from application_form.api.views import ApplicationViewSet
 from application_form.exceptions import ProjectDoesNotHaveApplicationsException
+from application_form.services.lottery.exceptions import (
+    ApplicationTimeNotFinishedException,
+)
 from application_form.services.lottery.machine import distribute_apartments
 from users.permissions import IsSalesperson
 
@@ -42,6 +45,8 @@ def execute_lottery_for_project(request):
         distribute_apartments(project_uuid)
     except ProjectDoesNotHaveApplicationsException as ex:
         raise ValidationError(detail="Project does not have applications.") from ex
+    except ApplicationTimeNotFinishedException as ex:
+        raise ValidationError(detail=str(ex)) from ex
 
     return Response({"status": "success"}, status=status.HTTP_200_OK)
 

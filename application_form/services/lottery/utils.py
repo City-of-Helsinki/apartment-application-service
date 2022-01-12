@@ -1,8 +1,12 @@
 import uuid
+from django.utils import timezone
 
-from apartment.elastic.queries import get_apartment_uuids
+from apartment.elastic.queries import get_apartment_uuids, get_projects
 from application_form.exceptions import ProjectDoesNotHaveApplicationsException
 from application_form.models import ApartmentReservation, Application, LotteryEvent
+from application_form.services.lottery.exceptions import (
+    ApplicationTimeNotFinishedException,
+)
 
 
 def _save_application_order(apartment_uuid: uuid.UUID) -> None:
@@ -32,3 +36,12 @@ def _validate_project_has_applications(project_uuid: uuid.UUID):
     ).count()
     if application_count == 0:
         raise ProjectDoesNotHaveApplicationsException()
+
+
+def _validate_project_application_time_has_finished(project_uuid: uuid.UUID):
+    project = get_projects(project_uuid)[0]
+    if (
+        not project.project_application_end_time
+        or project.project_application_end_time >= timezone.now()
+    ):
+        raise ApplicationTimeNotFinishedException()

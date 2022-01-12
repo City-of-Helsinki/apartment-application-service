@@ -1,6 +1,8 @@
 import faker.config
 import uuid
+from datetime import timedelta
 from django.conf import settings
+from django.utils import timezone
 from elasticsearch.helpers.test import get_test_client
 from elasticsearch_dsl.connections import add_connection
 from factory.faker import faker
@@ -181,6 +183,35 @@ def elastic_haso_project_with_5_apartments(elasticsearch):
 
     for apartment in apartments:
         apartment.delete(refresh=True)
+
+
+@fixture
+def elastic_project_application_time_active():
+    apartment = ApartmentDocumentFactory(
+        project_application_end_time=timezone.now() + timedelta(days=1)
+    )
+    yield apartment.project_uuid, apartment
+    apartment.delete(refresh=True)
+
+
+@fixture
+def elastic_hitas_project_application_end_time_finished(elasticsearch):
+    apartment = ApartmentDocumentFactory(
+        project_ownership_type="Hitas",
+        project_application_end_time=timezone.now() - timedelta(days=1),
+    )
+    yield apartment.project_uuid, apartment
+    apartment.delete(refresh=True)
+
+
+@fixture
+def elastic_haso_project_application_end_time_finished(elasticsearch):
+    apartment = ApartmentDocumentFactory(
+        project_ownership_type="Haso",
+        project_application_end_time=timezone.now() - timedelta(days=1),
+    )
+    yield apartment.project_uuid, apartment
+    apartment.delete(refresh=True)
 
 
 def create_application_data(
