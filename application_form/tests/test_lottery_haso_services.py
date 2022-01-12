@@ -6,7 +6,7 @@ from application_form.services.application import (
     cancel_haso_application,
     get_ordered_applications,
 )
-from application_form.services.lottery.haso import distribute_haso_apartments
+from application_form.services.lottery.haso import _distribute_haso_apartments
 from application_form.services.queue import add_application_to_queues
 from application_form.tests.factories import ApplicationFactory
 
@@ -23,7 +23,7 @@ def test_single_application_should_win_an_apartment(
         apartment_uuid=first_apartment_uuid, priority_number=0
     )
     add_application_to_queues(app)
-    distribute_haso_apartments(project_uuid)
+    _distribute_haso_apartments(project_uuid)
     # There should be exactly one winner
     assert list(get_ordered_applications(first_apartment_uuid)) == [app]
     app_apartment.refresh_from_db()
@@ -52,7 +52,7 @@ def test_application_with_the_smallest_right_of_residence_number_wins(
             apartment_uuid=first_apartment_uuid, priority_number=0
         )
         add_application_to_queues(app)
-    distribute_haso_apartments(project_uuid)
+    _distribute_haso_apartments(project_uuid)
     # The smallest right of residence number should be the winner
     assert list(get_ordered_applications(first_apartment_uuid)) == [
         winner,
@@ -88,7 +88,7 @@ def test_original_application_order_is_persisted_before_distribution(
     )
     for app in applications:
         add_application_to_queues(app)
-    distribute_haso_apartments(project_uuid)
+    _distribute_haso_apartments(project_uuid)
     # There should be an event corresponding to the apartment
     lottery_event = LotteryEvent.objects.filter(apartment_uuid=first_apartment_uuid)
     assert lottery_event.exists()
@@ -110,8 +110,8 @@ def test_application_order_is_not_persisted_twice(
         apartment_uuid=first_apartment_uuid, priority_number=0
     )
     add_application_to_queues(app)
-    distribute_haso_apartments(project_uuid)
-    distribute_haso_apartments(project_uuid)
+    _distribute_haso_apartments(project_uuid)
+    _distribute_haso_apartments(project_uuid)
     assert LotteryEvent.objects.filter(apartment_uuid=first_apartment_uuid).count() == 1
 
 
@@ -126,7 +126,7 @@ def test_canceling_application_sets_application_state_to_canceled(
         apartment_uuid=first_apartment_uuid, priority_number=0
     )
     add_application_to_queues(app)
-    distribute_haso_apartments(project_uuid)
+    _distribute_haso_apartments(project_uuid)
     cancel_haso_application(app_apt)
     app_apt.refresh_from_db()
     assert app_apt.apartment_reservation.state == ApartmentReservationState.CANCELED
@@ -152,7 +152,7 @@ def test_removing_application_from_queue_cancels_application_and_decides_new_win
     )
     add_application_to_queues(old_winner)
     add_application_to_queues(new_winner)
-    distribute_haso_apartments(project_uuid)
+    _distribute_haso_apartments(project_uuid)
     assert list(get_ordered_applications(first_apartment_uuid)) == [
         old_winner,
         new_winner,
@@ -203,7 +203,7 @@ def test_winners_with_same_right_of_residence_number_are_marked_for_review(
     add_application_to_queues(app1)
     add_application_to_queues(app2)
     add_application_to_queues(app3)
-    distribute_haso_apartments(project_uuid)
+    _distribute_haso_apartments(project_uuid)
     assert list(get_ordered_applications(first_apartment_uuid)) == [app1, app2, app3]
     app_apt1.refresh_from_db()
     app_apt2.refresh_from_db()
@@ -236,7 +236,7 @@ def test_winning_cancels_lower_priority_applications_if_not_reserved(
     )
     add_application_to_queues(app1)
     add_application_to_queues(app2)
-    distribute_haso_apartments(project_uuid)
+    _distribute_haso_apartments(project_uuid)
     assert list(get_ordered_applications(first_apartment_uuid)) == [app1]
     assert list(get_ordered_applications(second_apartment_uuid)) == [app2]
     app_apt1.refresh_from_db()
@@ -268,7 +268,7 @@ def test_winning_does_not_cancel_lower_priority_apartments_if_reserved(
     add_application_to_queues(app)
     app_apt2.apartment_reservation.state = ApartmentReservationState.RESERVED
     app_apt2.apartment_reservation.save(update_fields=["state"])
-    distribute_haso_apartments(project_uuid)
+    _distribute_haso_apartments(project_uuid)
     assert list(get_ordered_applications(first_apartment_uuid)) == [app]
     assert list(get_ordered_applications(second_apartment_uuid)) == [app]
     app_apt1.refresh_from_db()
@@ -296,7 +296,7 @@ def test_winning_does_not_cancel_lower_priority_apartments_first_in_queue(
         apartment_uuid=second_apartment_uuid, priority_number=1
     )
     add_application_to_queues(app)
-    distribute_haso_apartments(project_uuid)
+    _distribute_haso_apartments(project_uuid)
     assert list(get_ordered_applications(first_apartment_uuid)) == [app]
     assert list(get_ordered_applications(second_apartment_uuid)) == [app]
     app_apt1.refresh_from_db()
@@ -327,7 +327,7 @@ def test_winning_does_not_cancel_higher_priority_applications(
     )
     add_application_to_queues(app1)
     add_application_to_queues(app2)
-    distribute_haso_apartments(project_uuid)
+    _distribute_haso_apartments(project_uuid)
     assert list(get_ordered_applications(first_apartment_uuid)) == [app1, app2]
     assert list(get_ordered_applications(second_apartment_uuid)) == [app2]
     app_apt1.refresh_from_db()

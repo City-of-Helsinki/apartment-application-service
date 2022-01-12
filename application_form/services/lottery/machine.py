@@ -5,8 +5,8 @@ from apartment.elastic.queries import get_apartment_uuids, get_projects
 from apartment.enums import OwnershipType
 from application_form.exceptions import ProjectDoesNotHaveApplicationsException
 from application_form.models import Application
-from application_form.services.lottery.haso import distribute_haso_apartments
-from application_form.services.lottery.hitas import distribute_hitas_apartments
+from application_form.services.lottery.haso import _distribute_haso_apartments
+from application_form.services.lottery.hitas import _distribute_hitas_apartments
 
 
 def distribute_apartments(project_uuid: uuid.UUID) -> None:
@@ -19,12 +19,12 @@ def distribute_apartments(project_uuid: uuid.UUID) -> None:
 
     project = get_projects(project_uuid)[0]
     if project.project_ownership_type.lower() == OwnershipType.HASO.value:
-        distribute_haso_apartments(project_uuid)
+        _distribute_haso_apartments(project_uuid)
     elif project.project_ownership_type.lower() in [
         OwnershipType.HITAS.value,
         OwnershipType.HALF_HITAS.value,
     ]:
-        distribute_hitas_apartments(project_uuid)
+        _distribute_hitas_apartments(project_uuid)
     else:
         raise NotImplementedError(
             _(

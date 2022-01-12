@@ -13,7 +13,7 @@ from application_form.services.lottery.utils import _save_application_order
 _PRIORITIZE_CHILDREN_ROOM_THRESHOLD = 3
 
 
-def distribute_hitas_apartments(project_uuid: uuid.UUID) -> None:
+def _distribute_hitas_apartments(project_uuid: uuid.UUID) -> None:
     """
     Declares a winner for each apartment in the project.
 

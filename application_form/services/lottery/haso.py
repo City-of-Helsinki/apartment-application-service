@@ -5,7 +5,7 @@ from application_form.services.application import _reserve_haso_apartment
 from application_form.services.lottery.utils import _save_application_order
 
 
-def distribute_haso_apartments(project_uuid: uuid.UUID) -> None:
+def _distribute_haso_apartments(project_uuid: uuid.UUID) -> None:
     """
     Declares a winner for each apartment in the project.
 
