@@ -239,6 +239,7 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.SessionAuthentication",
     ),
     "DEFAULT_SCHEMA_CLASS": "apartment_application_service.openapi.AutoSchema",
+    "EXCEPTION_HANDLER": "apartment_application_service.exceptions.drf_exception_handler",  # noqa: E501
 }
 
 SPECTACULAR_SETTINGS = {
