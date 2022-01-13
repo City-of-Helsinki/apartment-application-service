@@ -3,6 +3,7 @@ from datetime import datetime
 from django.urls import reverse
 from rest_framework import status
 
+from application_form import error_codes
 from application_form.tests.conftest import create_application_data
 from audit_log.models import AuditLog
 from users.tests.factories import ProfileFactory
@@ -83,7 +84,9 @@ def test_application_post_fails_if_applicant_have_already_applied_to_project(
     response = api_client.post(
         reverse("application_form:application-list"), application_data, format="json"
     )
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+    assert response.data["code"] == error_codes.E1001_APPLICANT_HAS_ALREADY_APPLIED
+    assert len(response.data["message"]) > 0
 
 
 @pytest.mark.django_db
@@ -106,7 +109,9 @@ def test_application_post_fails_if_applicants_have_already_applied_to_project(
     response = api_client.post(
         reverse("application_form:application-list"), application_data, format="json"
     )
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+    assert response.data["code"] == error_codes.E1001_APPLICANT_HAS_ALREADY_APPLIED
+    assert len(response.data["message"]) > 0
 
 
 @pytest.mark.django_db
@@ -139,7 +144,9 @@ def test_application_post_fails_if_partner_applicant_have_already_applied_to_pro
         second_application_data,
         format="json",
     )
-    assert response.status_code == 400
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+    assert response.data["code"] == error_codes.E1001_APPLICANT_HAS_ALREADY_APPLIED
+    assert len(response.data["message"]) > 0
 
 
 @pytest.mark.django_db
@@ -175,4 +182,6 @@ def test_application_post_fails_if_partner_profile_have_already_applied_to_proje
         partner_application_data,
         format="json",
     )
-    assert response.status_code == 400
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+    assert response.data["code"] == error_codes.E1001_APPLICANT_HAS_ALREADY_APPLIED
+    assert len(response.data["message"]) > 0

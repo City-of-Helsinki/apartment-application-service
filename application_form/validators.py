@@ -1,8 +1,9 @@
 from datetime import date
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from typing import List, Tuple, Union
 from uuid import UUID
 
+from application_form import error_codes
 from application_form.models import Applicant
 
 
@@ -81,4 +82,7 @@ class ProjectApplicantValidator:
             application__apartments__project__uuid=project_uuid
         )
         if queryset.exists():
-            raise ValidationError("Applicant(s) have already applied to project.")
+            raise PermissionDenied(
+                detail="Applicant(s) have already applied to project.",
+                code=error_codes.E1001_APPLICANT_HAS_ALREADY_APPLIED,
+            )
