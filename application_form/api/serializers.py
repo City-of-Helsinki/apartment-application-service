@@ -4,6 +4,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.fields import CharField, IntegerField, UUIDField
 
+from application_form import error_codes
 from application_form.enums import ApartmentReservationState, ApplicationType
 from application_form.models import ApartmentReservation, Applicant, Application
 from application_form.services.application import create_application
@@ -38,7 +39,12 @@ class ApplicantSerializer(serializers.ModelSerializer):
         try:
             validator(attrs.get("ssn_suffix", ""))
         except ValidationError as e:
-            _logger.warning("Invalid SSN suffix for applicant was received: %s", e)
+            message = f"Invalid SSN suffix for applicant was received: {e.args[0]}"
+            _logger.warning(message)
+            raise ValidationError(
+                detail={"ssn_suffix": message},
+                code=error_codes.E1000_SSN_SUFFIX_IS_NOT_VALID,
+            )
         return attrs
 
 
@@ -82,8 +88,12 @@ class ApplicationSerializer(serializers.ModelSerializer):
         try:
             validator(value)
         except ValidationError as e:
-            _logger.warning(
-                "Invalid SSN suffix for the primary applicant was received: %s", e
+            message = f"""Invalid SSN suffix for the primary applicant was
+            received: {e.args[0]}"""
+            _logger.warning(message)
+            raise ValidationError(
+                detail=message,
+                code=error_codes.E1000_SSN_SUFFIX_IS_NOT_VALID,
             )
         return value
 
