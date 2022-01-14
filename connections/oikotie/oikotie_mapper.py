@@ -153,7 +153,7 @@ def map_balcony(elastic_apartment: ElasticApartment) -> Optional[Balcony]:
 
 
 def map_living_area(elastic_apartment: ElasticApartment) -> Optional[LivingArea]:
-    if getattr(elastic_apartment, "living_area", None):
+    if elastic_apartment.living_area is not None:
         return LivingArea(unit=Unit.M2.value, area=elastic_apartment.living_area)
     else:
         return None
@@ -210,7 +210,7 @@ def map_site_area(elastic_apartment: ElasticApartment) -> Optional[SiteArea]:
 
 
 def map_financing_fee(elastic_apartment: ElasticApartment) -> Optional[FinancingFee]:
-    if getattr(elastic_apartment, "financing_fee", None):
+    if elastic_apartment.financing_fee is not None:
         return FinancingFee(
             value=convert_price_from_cents_to_eur(elastic_apartment.financing_fee),
             unit=Unit.EUR_KK.value,
@@ -222,7 +222,7 @@ def map_financing_fee(elastic_apartment: ElasticApartment) -> Optional[Financing
 def map_maintenance_fee(
     elastic_apartment: ElasticApartment,
 ) -> Optional[MaintenanceFee]:
-    if getattr(elastic_apartment, "maintenance_fee", None):
+    if elastic_apartment.maintenance_fee is not None:
         return MaintenanceFee(
             value=convert_price_from_cents_to_eur(elastic_apartment.maintenance_fee),
             unit=Unit.EUR_KK.value,
@@ -232,7 +232,7 @@ def map_maintenance_fee(
 
 
 def map_water_fee(elastic_apartment: ElasticApartment) -> Optional[WaterFee]:
-    if getattr(elastic_apartment, "water_fee", None):
+    if elastic_apartment.water_fee is not None:
         return WaterFee(
             value=convert_price_from_cents_to_eur(elastic_apartment.water_fee),
             unit=Unit.EUR_KK.value,
@@ -244,7 +244,7 @@ def map_water_fee(elastic_apartment: ElasticApartment) -> Optional[WaterFee]:
 def map_unencumbered_sales_price(
     elastic_apartment: ElasticApartment,
 ) -> Optional[UnencumberedSalesPrice]:
-    if getattr(elastic_apartment, "debt_free_sales_price", None):
+    if elastic_apartment.debt_free_sales_price is not None:
         return UnencumberedSalesPrice(
             value=convert_price_from_cents_to_eur(
                 elastic_apartment.debt_free_sales_price
@@ -256,7 +256,7 @@ def map_unencumbered_sales_price(
 
 
 def map_sales_price(elastic_apartment: ElasticApartment) -> Optional[SalesPrice]:
-    if getattr(elastic_apartment, "sales_price", None):
+    if elastic_apartment.sales_price is not None:
         return SalesPrice(
             value=convert_price_from_cents_to_eur(elastic_apartment.sales_price),
             currency=Currency.EUR.value,
@@ -281,7 +281,7 @@ def map_sauna(elastic_apartment: ElasticApartment) -> Optional[Sauna]:
 def map_car_parking_charge(
     elastic_apartment: ElasticApartment,
 ) -> Optional[CarParkingCharge]:
-    if getattr(elastic_apartment, "parking_fee", None):
+    if elastic_apartment.parking_fee is not None:
         return CarParkingCharge(
             value=convert_price_from_cents_to_eur(elastic_apartment.parking_fee),
             unit=Unit.EUR_KK.value,
@@ -524,9 +524,9 @@ def map_address(elastic_apartment: ElasticApartment) -> Address:
 
 
 def map_coordinates(elastic_apartment: ElasticApartment) -> Optional[Coordinates]:
-    latitude = getattr(elastic_apartment, "project_coordinate_lat", None)
-    longitude = getattr(elastic_apartment, "project_coordinate_lon", None)
-    if latitude and longitude:
+    latitude = elastic_apartment.project_coordinate_lat
+    longitude = elastic_apartment.project_coordinate_lon
+    if latitude is not None and longitude is not None:
         return Coordinates(
             latitude=latitude,
             longitude=longitude,
