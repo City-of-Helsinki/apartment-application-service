@@ -9,7 +9,6 @@ from pgcrypto.fields import (
 )
 from uuid import uuid4
 
-from apartment.models import Apartment
 from apartment_application_service.fields import (
     BooleanPGPPublicKeyField,
     EnumPGPPublicKeyField,
@@ -32,14 +31,7 @@ class Application(TimestampedModel):
         _("right of residence number"), null=True
     )
     has_children = BooleanPGPPublicKeyField(_("has children"), default=False)
-
     profile = models.ForeignKey(Profile, null=True, on_delete=models.SET_NULL)
-    apartments = models.ManyToManyField(
-        Apartment,
-        through="ApplicationApartment",
-        blank=True,
-        related_name="applications",
-    )
     submitted_late = models.BooleanField("submitted late", default=False)
 
     audit_log_id_field = "external_uuid"
@@ -79,9 +71,7 @@ class ApplicationApartment(models.Model):
     application = models.ForeignKey(
         Application, on_delete=models.CASCADE, related_name="application_apartments"
     )
-    apartment = models.ForeignKey(
-        Apartment, on_delete=models.CASCADE, related_name="application_apartments"
-    )
+    apartment_uuid = models.UUIDField(verbose_name=_("apartment uuid"))
     priority_number = IntegerPGPPublicKeyField(_("priority number"))
 
     class Meta:
