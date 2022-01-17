@@ -4,6 +4,7 @@ from django.db import transaction
 from django.db.models import QuerySet
 from typing import Iterable, List, Optional
 
+from apartment.elastic.utils import get_and_update_apartment, get_and_update_project
 from apartment.enums import IdentifierSchemaType
 from apartment.models import Apartment, Identifier
 from application_form.enums import (
@@ -15,7 +16,6 @@ from application_form.services.queue import (
     add_application_to_queues,
     remove_application_from_queue,
 )
-from connections.service.elastic import get_and_update_apartment, get_and_update_project
 
 _logger = logging.getLogger(__name__)
 

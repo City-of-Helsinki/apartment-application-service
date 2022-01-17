@@ -1,7 +1,7 @@
 import pytest
 
+from apartment.elastic.utils import get_and_update_apartment, get_and_update_project
 from apartment.tests.factories import ApartmentDocumentFactory
-from connections.service.elastic import get_and_update_apartment, get_and_update_project
 
 
 @pytest.mark.usefixtures("client")

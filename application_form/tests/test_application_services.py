@@ -2,6 +2,7 @@ import pytest
 from datetime import date
 from django.db import IntegrityError
 
+from apartment.elastic.utils import InvalidElasticDataError
 from apartment.enums import IdentifierSchemaType
 from apartment.models import Identifier, Project
 from application_form.enums import ApplicationType
@@ -10,7 +11,6 @@ from application_form.services.application import (
     get_ordered_applications,
 )
 from application_form.tests.conftest import create_validated_application_data
-from connections.service.elastic import InvalidElasticDataError
 from users.tests.factories import ProfileFactory
 
 
