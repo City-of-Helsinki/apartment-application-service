@@ -1,14 +1,11 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from apartment.models import Apartment
 from application_form.models.application import ApplicationApartment
 
 
 class LotteryEvent(models.Model):
-    apartment = models.ForeignKey(
-        Apartment, models.PROTECT, related_name="lottery_events"
-    )
+    apartment_uuid = models.UUIDField(verbose_name=_("apartment uuid"))
     timestamp = models.DateTimeField(auto_now_add=True)
 
 
