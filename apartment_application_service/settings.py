@@ -149,6 +149,7 @@ INSTALLED_APPS = [
     "customer",
     "users",
     "audit_log",
+    "invoicing",
     "utils",
 ]
 
