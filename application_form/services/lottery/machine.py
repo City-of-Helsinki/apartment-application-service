@@ -19,7 +19,7 @@ def distribute_apartments(project_uuid: uuid.UUID) -> None:
 
     project = get_projects(project_uuid)[0]
     if project.project_ownership_type.lower() == OwnershipType.HASO.value:
-        distribute_haso_apartments(project)
+        distribute_haso_apartments(project_uuid)
     elif project.project_ownership_type.lower() in [
         OwnershipType.HITAS.value,
         OwnershipType.HALF_HITAS.value,

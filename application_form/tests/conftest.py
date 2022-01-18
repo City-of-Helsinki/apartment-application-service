@@ -109,6 +109,25 @@ def elastic_hitas_project_with_5_apartments(elasticsearch):
         apartment.delete(refresh=True)
 
 
+@fixture
+def elastic_haso_project_with_5_apartments(elasticsearch):
+    apartments = []
+
+    apartment = ApartmentDocumentFactory(project_ownership_type="Haso")
+    apartments.append(apartment)
+
+    for _ in range(4):
+        apartments.append(
+            ApartmentDocumentFactory(
+                project_uuid=apartment.project_uuid, project_ownership_type="Haso"
+            )
+        )
+    yield apartment.project_uuid, apartments
+
+    for apartment in apartments:
+        apartment.delete(refresh=True)
+
+
 def create_application_data(
     profile, application_type=ApplicationType.HASO, num_applicants=2
 ):

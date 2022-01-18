@@ -197,7 +197,7 @@ def _reserve_apartments(
             apartments_to_process.update(app.apartment for app in canceled_winners)
 
 
-def _reserve_haso_apartment(apartment: Apartment) -> None:
+def _reserve_haso_apartment(apartment_uuid: uuid.UUID) -> None:
     """
     Declare a winner for the given apartment.
 
@@ -211,22 +211,24 @@ def _reserve_haso_apartment(apartment: Apartment) -> None:
     respective queues, unless their state is already "RESERVED".
     """
     # Get the applications in the queue, ordered by their queue position
-    applications = get_ordered_applications(apartment)
+    applications = get_ordered_applications(apartment_uuid)
 
     # There can be a single winner, or multiple winners if there are several
     # winning candidates with the same right of residence number.
     winning_applications = _find_winning_candidates(applications)
 
     # Set the reservation state to either "RESERVED" or "REVIEW"
-    _update_reservation_state(winning_applications, apartment)
+    _update_reservation_state(winning_applications, apartment_uuid)
 
     # At this point the winner has been decided, but the winner may have outstanding
     # applications to other apartments. If they are lower priority, they should be
     # marked as "CANCELED" and deleted from the respective queues.
-    _cancel_lower_priority_haso_applications(winning_applications, apartment)
+    _cancel_lower_priority_haso_applications(winning_applications, apartment_uuid)
 
 
-def _update_reservation_state(applications: QuerySet, apartment: Apartment) -> None:
+def _update_reservation_state(
+    applications: QuerySet, apartment_uuid: uuid.UUID
+) -> None:
     """
     Update the state of the apartment application to either "RESERVED" or "REVIEW",
     depending on whether there is one or more winning candidates.
@@ -236,7 +238,7 @@ def _update_reservation_state(applications: QuerySet, apartment: Apartment) -> N
         application_state = ApartmentReservationState.REVIEW
     for application in applications:
         application_apartment = application.application_apartments.get(
-            apartment=apartment
+            apartment_uuid=apartment_uuid
         )
         application_apartment.apartment_reservation.state = application_state
         application_apartment.apartment_reservation.save(update_fields=["state"])
@@ -259,7 +261,7 @@ def _reserve_apartment(apartment_uuid: uuid.UUID) -> Optional[ApplicationApartme
 
 def _cancel_lower_priority_haso_applications(
     winning_applications: QuerySet,
-    reserved_apartment: Apartment,
+    reserved_apartment_uuid: uuid.UUID,
 ) -> None:
     """
     Go through the given winning applications, and cancel each application made for
@@ -269,7 +271,9 @@ def _cancel_lower_priority_haso_applications(
     """
     for app in winning_applications:
         app_apartments = app.application_apartments.all()
-        priority = app_apartments.get(apartment=reserved_apartment).priority_number
+        priority = app_apartments.get(
+            apartment_uuid=reserved_apartment_uuid
+        ).priority_number
         low_priority_app_apartments = app_apartments.filter(
             priority_number__gt=priority,
             apartment_reservation__state=ApartmentReservationState.SUBMITTED,
