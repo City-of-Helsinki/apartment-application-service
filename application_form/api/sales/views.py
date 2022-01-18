@@ -1,6 +1,10 @@
 from django.views.decorators.http import require_http_methods
 from rest_framework import permissions, status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import (
+    api_view,
+    authentication_classes,
+    permission_classes,
+)
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
 
@@ -17,6 +21,7 @@ from users.permissions import IsSalesperson
 
 @api_view(http_method_names=["POST"])
 @permission_classes([permissions.AllowAny])
+@authentication_classes([])
 @require_http_methods(["POST"])  # For SonarCloud
 def execute_lottery_for_project(request):
     """
