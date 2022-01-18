@@ -37,5 +37,5 @@ class ProjectAPIView(APIView):
                 project_data = project_data[0]
             else:
                 raise NotFound()
-        serializer = ProjectDocumentSerializer(project_data, many=many)
+        serializer = ProjectDocumentSerializer(project_data, many=many, _many=many)
         return Response(serializer.data)

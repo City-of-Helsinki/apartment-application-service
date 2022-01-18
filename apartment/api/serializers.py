@@ -1,5 +1,8 @@
 from rest_framework import serializers
 
+from invoicing.models import ProjectInstallmentTemplate
+from invoicing.serializers import ProjectInstallmentTemplateSerializer
+
 
 class ApartmentDocumentSerializer(serializers.Serializer):
     uuid = serializers.UUIDField()
@@ -125,3 +128,19 @@ class ProjectDocumentSerializer(serializers.Serializer):
     estate_agent_phone = serializers.CharField(source="project_estate_agent_phone")
     coordinate_lat = serializers.FloatField(source="project_coordinate_lat")
     coordinate_lon = serializers.FloatField(source="project_coordinate_lon")
+    installment_templates = serializers.SerializerMethodField()
+
+    def __init__(self, *args, **kwargs):
+        # the actual "many" is not available here so we need this stupid workaround
+        many = kwargs.pop("_many", None)
+        super().__init__(*args, **kwargs)
+        if many:
+            self.fields.pop("installment_templates")
+
+    def get_installment_templates(self, obj):
+        installment_templates = ProjectInstallmentTemplate.objects.filter(
+            project_uuid=obj["project_uuid"]
+        )
+        return ProjectInstallmentTemplateSerializer(
+            installment_templates, many=True
+        ).data

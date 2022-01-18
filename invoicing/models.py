@@ -29,6 +29,12 @@ class InstallmentBase(models.Model):
     class Meta:
         abstract = True
 
+    def get_amount(self):
+        return self.value if self.unit == InstallmentUnit.EURO else None
+
+    def get_percentage(self):
+        return self.value if self.unit == InstallmentUnit.PERCENT else None
+
 
 class ProjectInstallmentTemplate(InstallmentBase):
     project_uuid = models.UUIDField(verbose_name=_("project UUID"))
