@@ -110,7 +110,7 @@ def create_application(application_data: dict) -> Application:
         apartment = get_and_update_apartment(apartment_item["identifier"])
         ApplicationApartment.objects.create(
             application=application,
-            apartment=apartment,
+            apartment_uuid=apartment_item["identifier"],
             priority_number=apartment_item["priority"],
         )
         Identifier.objects.get_or_create(
