@@ -34,7 +34,9 @@ def add_application_to_queues(application: Application, comment: str = "") -> No
             ]:
                 # HITAS and PUOLIHITAS work the same way from the apartment lottery
                 # perspective, and should always be added to the end of the queue.
-                position = ApartmentReservation.objects.apartment.reservations.count()
+                position = ApartmentReservation.objects.filter(
+                    apartment_uuid=apartment_uuid
+                ).count()
             else:
                 raise ValueError(f"unsupported application type {application.type}")
 

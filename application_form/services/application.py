@@ -1,4 +1,5 @@
 import logging
+import uuid
 from datetime import date
 from django.db import transaction
 from django.db.models import QuerySet
@@ -125,13 +126,15 @@ def create_application(application_data: dict) -> Application:
     return application
 
 
-def get_ordered_applications(apartment: Apartment) -> QuerySet:
+def get_ordered_applications(apartment_uuid: uuid.UUID) -> QuerySet:
     """
     Returns a list of all applications for the given apartment, ordered by their
     position in the queue.
     """
-    return apartment.applications.filter(
-        application_apartments__in=apartment.application_apartments.exclude(
+    return Application.objects.filter(
+        application_apartments__in=ApplicationApartment.objects.filter(
+            apartment_uuid=apartment_uuid
+        ).exclude(
             apartment_reservation__change_events__type=ApartmentQueueChangeEventType.REMOVED  # noqa: E501
         )
     ).order_by("application_apartments__apartment_reservation__queue_position")
