@@ -8,7 +8,7 @@ from pytest import fixture
 from rest_framework.test import APIClient
 from unittest.mock import Mock
 
-from apartment.tests.factories import IdentifierFactory
+from apartment.tests.factories import ApartmentDocumentFactory, IdentifierFactory
 from application_form.api.serializers import ApplicationSerializer
 from application_form.enums import ApplicationType
 from application_form.tests.factories import ApplicantFactory
@@ -70,6 +70,21 @@ def elastic_single_project_with_apartments(elasticsearch):
             )
         )
     yield apartments
+
+    for apartment in apartments:
+        apartment.delete(refresh=True)
+
+
+@fixture
+def elastic_project_with_5_apartments(elasticsearch):
+    apartments = []
+
+    apartment = ApartmentDocumentFactory()
+    apartments.append(apartment)
+
+    for _ in range(4):
+        apartments.append(ApartmentDocumentFactory(project_uuid=apartment.project_uuid))
+    yield apartment.project_uuid, apartments
 
     for apartment in apartments:
         apartment.delete(refresh=True)

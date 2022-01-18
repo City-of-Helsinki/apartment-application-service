@@ -2,6 +2,7 @@ from rest_framework import permissions
 from rest_framework.generics import GenericAPIView
 from rest_framework.response import Response
 
+from apartment.elastic.queries import get_apartment_uuids
 from application_form.api.serializers import (
     ApartmentReservationSerializer,
     ApplicationSerializer,
@@ -28,9 +29,10 @@ class ListProjectReservations(GenericAPIView):
     http_method_names = ["get"]
 
     def get(self, request, project_uuid):
+        apartment_uuid_list = get_apartment_uuids(project_uuid)
         profile_uuid = request.user.profile.id
         reservations = ApartmentReservation.objects.filter(
-            apartment__project__uuid=project_uuid,
+            apartment_uuid__in=apartment_uuid_list,
             application_apartment__application__profile__id=profile_uuid,
         )
         serializer = self.get_serializer(reservations, many=True)

@@ -124,7 +124,6 @@ class ApplicationSerializer(serializers.ModelSerializer):
 
 
 class ApartmentReservationSerializer(serializers.ModelSerializer):
-    apartment_uuid = UUIDField(source="apartment.uuid")
     lottery_position = IntegerField(
         source="application_apartment.lotteryeventresult.result_position"
     )

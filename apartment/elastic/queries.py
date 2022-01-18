@@ -18,6 +18,21 @@ def get_apartments(project_uuid=None):
     return response
 
 
+def get_apartment_uuids(project_uuid):
+    search = ApartmentDocument.search()
+
+    # Filters
+    search = search.filter("term", project_uuid__keyword=project_uuid)
+
+    # Include only apartment uuid and project uuid
+    search = search.source(includes=["uuid", "project_uuid"])
+
+    # Get all apartment uuids
+    result = [hit.uuid for hit in search.scan()]
+
+    return result
+
+
 def get_projects(project_uuid=None):
     search = ApartmentDocument.search()
 
