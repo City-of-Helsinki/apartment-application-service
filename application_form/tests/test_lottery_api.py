@@ -50,17 +50,21 @@ def test_execute_lottery_for_project_post_not_found(api_client):
 
 
 @pytest.mark.django_db
-@pytest.mark.usefixtures("elastic_apartments")
-def test_execute_hitas_lottery_for_project_post(api_client):
+def test_execute_hitas_lottery_for_project_post(
+    api_client, elastic_hitas_project_with_5_apartments
+):
     profile = SalespersonProfileFactory()
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
 
-    apartment = ApartmentFactory(project__ownership_type=OwnershipType.HITAS)
+    project_uuid, apartments = elastic_hitas_project_with_5_apartments
+
     app = ApplicationFactory(type=ApplicationType.HITAS)
-    app.application_apartments.create(apartment=apartment, priority_number=0)
+    app.application_apartments.create(
+        apartment_uuid=apartments[0].uuid, priority_number=0
+    )
     add_application_to_queues(app)
 
-    data = {"project_uuid": apartment.project.uuid}
+    data = {"project_uuid": project_uuid}
     response = api_client.post(
         reverse("application_form:execute_lottery_for_project"), data, format="json"
     )
@@ -69,13 +73,15 @@ def test_execute_hitas_lottery_for_project_post(api_client):
 
 @pytest.mark.django_db
 @pytest.mark.usefixtures("elastic_apartments")
-def test_execute_hitas_lottery_for_project_post_without_applications(api_client):
+def test_execute_hitas_lottery_for_project_post_without_applications(
+    api_client, elastic_hitas_project_with_5_apartments
+):
     profile = SalespersonProfileFactory()
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
 
-    apartment = ApartmentFactory(project__ownership_type=OwnershipType.HITAS)
+    project_uuid, apartments = elastic_hitas_project_with_5_apartments
 
-    data = {"project_uuid": apartment.project.uuid}
+    data = {"project_uuid": project_uuid}
     response = api_client.post(
         reverse("application_form:execute_lottery_for_project"), data, format="json"
     )

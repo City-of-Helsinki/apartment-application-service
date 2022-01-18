@@ -242,13 +242,13 @@ def _update_reservation_state(applications: QuerySet, apartment: Apartment) -> N
         application_apartment.apartment_reservation.save(update_fields=["state"])
 
 
-def _reserve_apartment(apartment: Apartment) -> Optional[ApplicationApartment]:
+def _reserve_apartment(apartment_uuid: uuid.UUID) -> Optional[ApplicationApartment]:
     # The winning application is whoever is at first position in the queue
-    winning_application = get_ordered_applications(apartment).first()
+    winning_application = get_ordered_applications(apartment_uuid).first()
     if winning_application is None:
         return None
     application_apartment = winning_application.application_apartments.get(
-        apartment=apartment
+        apartment_uuid=apartment_uuid
     )
     application_apartment.apartment_reservation.state = (
         ApartmentReservationState.RESERVED

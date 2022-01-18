@@ -1,6 +1,21 @@
 from apartment.elastic.documents import ApartmentDocument
 
 
+def get_apartment(apartment_uuid):
+    search = ApartmentDocument.search()
+
+    # Filters
+    search = search.filter("term", uuid__keyword=apartment_uuid)
+
+    # Exclude project fields
+    search = search.source(excludes=["project_*"])
+
+    # Get item
+    apartment = search.execute()[0]
+
+    return apartment
+
+
 def get_apartments(project_uuid=None):
     search = ApartmentDocument.search()
 
