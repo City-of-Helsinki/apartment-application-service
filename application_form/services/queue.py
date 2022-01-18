@@ -63,7 +63,7 @@ def remove_application_from_queue(
     """
     apartment_reservation = application_apartment.apartment_reservation
     _shift_queue_positions(
-        apartment_reservation.apartment,
+        apartment_reservation.apartment_uuid,
         apartment_reservation.queue_position,
         deleted=True,
     )

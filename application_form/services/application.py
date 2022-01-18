@@ -32,10 +32,10 @@ def cancel_haso_application(application_apartment: ApplicationApartment) -> None
         ApartmentReservationState.RESERVED,
         ApartmentReservationState.REVIEW,
     ]
-    apartment = application_apartment.apartment
+    apartment_uuid = application_apartment.apartment_uuid
     remove_application_from_queue(application_apartment)
     if was_reserved:
-        _reserve_haso_apartment(apartment)
+        _reserve_haso_apartment(apartment_uuid)
 
 
 def cancel_hitas_application(application_apartment: ApplicationApartment) -> None:
