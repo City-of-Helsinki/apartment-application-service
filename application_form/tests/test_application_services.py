@@ -39,13 +39,12 @@ def test_create_application(num_applicants, elastic_single_project_with_apartmen
     assert application.right_of_residence == data["right_of_residence"]
     assert application.has_children == data["has_children"]
     assert application.profile == profile
-    assert application.apartments.count() == 5
+    assert application.application_apartments.count() == 5
 
     # The application should have linked apartments for each priority number
     for apartment_data in data["apartments"]:
-        application_apartments = application.apartments.filter(
-            identifiers__identifier=apartment_data["identifier"],
-            identifiers__schema_type=IdentifierSchemaType.ATT_PROJECT_ES,
+        application_apartments = application.application_apartments.filter(
+            apartment_uuid=apartment_data["identifier"],
         )
         assert application_apartments.count() == 1
 
