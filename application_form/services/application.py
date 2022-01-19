@@ -5,9 +5,6 @@ from django.db import transaction
 from django.db.models import QuerySet
 from typing import Iterable, List, Optional
 
-from apartment.elastic.utils import get_and_update_apartment, get_and_update_project
-from apartment.enums import IdentifierSchemaType
-from apartment.models import Identifier
 from application_form.enums import (
     ApartmentQueueChangeEventType,
     ApartmentReservationState,
@@ -61,13 +58,6 @@ def create_application(application_data: dict) -> Application:
     )
     data = application_data.copy()
     profile = data.pop("profile")
-    project_id = data.pop("project_id")
-    project = get_and_update_project(project_id)
-    Identifier.objects.get_or_create(
-        schema_type=IdentifierSchemaType.ATT_PROJECT_ES,
-        identifier=project_id,
-        defaults={"project": project},
-    )
     additional_applicant_data = data.pop("additional_applicant")
     application = Application.objects.create(
         external_uuid=data.pop("external_uuid"),
@@ -108,17 +98,12 @@ def create_application(application_data: dict) -> Application:
         )
     apartment_data = data.pop("apartments")
     for apartment_item in apartment_data:
-        apartment = get_and_update_apartment(apartment_item["identifier"])
         ApplicationApartment.objects.create(
             application=application,
             apartment_uuid=apartment_item["identifier"],
             priority_number=apartment_item["priority"],
         )
-        Identifier.objects.get_or_create(
-            schema_type=IdentifierSchemaType.ATT_PROJECT_ES,
-            identifier=apartment_item["identifier"],
-            defaults={"apartment": apartment},
-        )
+
     _logger.debug(
         "Application created with external UUID %s", application_data["external_uuid"]
     )

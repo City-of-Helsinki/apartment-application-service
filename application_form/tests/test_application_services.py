@@ -1,10 +1,6 @@
 import pytest
 from datetime import date
-from django.db import IntegrityError
 
-from apartment.elastic.utils import InvalidElasticDataError
-from apartment.enums import IdentifierSchemaType
-from apartment.models import Identifier, Project
 from application_form.enums import ApplicationType
 from application_form.services.application import (
     create_application,
@@ -22,14 +18,6 @@ def test_create_application(num_applicants, elastic_single_project_with_apartmen
         profile, ApplicationType.HASO, num_applicants
     )
     application = create_application(data)
-
-    # A new project should have been created
-    assert Project.objects.count() == 1
-    project = Project.objects.get()
-    assert project.identifiers.count() == 1
-    project_identifier = project.identifiers.get()
-    assert project_identifier.schema_type == IdentifierSchemaType.ATT_PROJECT_ES
-    assert project_identifier.identifier == str(data["project_id"])
 
     # A new application should have been created
     assert application.external_uuid == data["external_uuid"]
@@ -91,63 +79,6 @@ def test_create_application_type(
     data = create_validated_application_data(profile, application_type)
     application = create_application(data)
     assert application.type == application_type
-
-
-@pytest.mark.django_db
-def test_create_application_raises_exception_if_apartment_data_does_not_exist(
-    elastic_single_project_with_apartments,
-):
-    data = create_validated_application_data(ProfileFactory(), ApplicationType.HASO)
-    data["apartments"] = [{"priority": 1, "identifier": "this-does-not-exist"}]
-    with pytest.raises(InvalidElasticDataError):
-        create_application(data)
-
-
-@pytest.mark.django_db
-def test_create_application_raises_exception_if_project_data_does_not_exist(
-    elastic_single_project_with_apartments,
-):
-    data = create_validated_application_data(ProfileFactory(), ApplicationType.HASO)
-    data["project_id"] = "this-does-not-exist"
-    with pytest.raises(InvalidElasticDataError):
-        create_application(data)
-
-
-@pytest.mark.django_db
-def test_create_application_does_not_fail_if_project_identifier_already_exists(
-    elastic_single_project_with_apartments,
-):
-    data = create_validated_application_data(ProfileFactory(), ApplicationType.HASO)
-    Identifier.objects.create(
-        schema_type=IdentifierSchemaType.ATT_PROJECT_ES,
-        identifier=data["project_id"],
-    )
-    try:
-        create_application(data)
-    except IntegrityError:
-        pytest.fail(
-            "The application creation should not crash "
-            "if the project identifier already exists."
-        )
-
-
-@pytest.mark.django_db
-def test_create_application_does_not_fail_if_apartment_identifier_already_exists(
-    elastic_single_project_with_apartments,
-):
-    data = create_validated_application_data(ProfileFactory(), ApplicationType.HASO)
-    for apartment in data["apartments"]:
-        Identifier.objects.create(
-            schema_type=IdentifierSchemaType.ATT_PROJECT_ES,
-            identifier=apartment["identifier"],
-        )
-    try:
-        create_application(data)
-    except IntegrityError:
-        pytest.fail(
-            "The application creation should not crash "
-            "if an apartment identifier already exists."
-        )
 
 
 @pytest.mark.django_db

@@ -8,7 +8,7 @@ from pytest import fixture
 from rest_framework.test import APIClient
 from unittest.mock import Mock
 
-from apartment.tests.factories import ApartmentDocumentFactory, IdentifierFactory
+from apartment.tests.factories import ApartmentDocumentFactory
 from application_form.api.serializers import ApplicationSerializer
 from application_form.enums import ApplicationType
 from application_form.tests.factories import ApplicantFactory
@@ -186,12 +186,11 @@ def elastic_haso_project_with_5_apartments(elasticsearch):
 def create_application_data(
     profile, application_type=ApplicationType.HASO, num_applicants=2
 ):
-    # Build apartments by creating identifiers
+    # Build apartments
     project_uuid, apartment_uuids = get_elastic_apartments_uuids()
-    apartments = IdentifierFactory.build_batch_for_att_schema(5, apartment_uuids)
     apartments_data = [
-        {"priority": index, "identifier": apartment.identifier}
-        for index, apartment in enumerate(apartments)
+        {"priority": index, "identifier": apartment_uuid}
+        for index, apartment_uuid in enumerate(apartment_uuids[0:5])
     ]
     right_of_residence = 123456 if application_type == ApplicationType.HASO else None
 
