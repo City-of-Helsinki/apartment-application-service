@@ -110,6 +110,61 @@ def elastic_hitas_project_with_5_apartments(elasticsearch):
 
 
 @fixture
+def elastic_hitas_project_with_tiny_and_big_apartment(elasticsearch):
+    tiny_apartment = ApartmentDocumentFactory(
+        project_ownership_type="Hitas", room_count=1
+    )
+    big_apartment = ApartmentDocumentFactory(
+        project_uuid=tiny_apartment.project_uuid,
+        project_ownership_type="Hitas",
+        room_count=10,
+    )
+    yield tiny_apartment.project_uuid, tiny_apartment, big_apartment
+
+    tiny_apartment.delete(refresh=True)
+    big_apartment.delete(refresh=True)
+
+
+@fixture
+def elastic_hitas_project_with_3_tiny_apartments(elasticsearch):
+    apartments = []
+
+    apartment = ApartmentDocumentFactory(project_ownership_type="Hitas", room_count=1)
+    apartments.append(apartment)
+
+    for _ in range(2):
+        apartments.append(
+            ApartmentDocumentFactory(
+                project_uuid=apartment.project_uuid,
+                project_ownership_type="Hitas",
+                room_count=1,
+            )
+        )
+    yield apartment.project_uuid, apartments
+
+    for apartment in apartments:
+        apartment.delete(refresh=True)
+
+
+@fixture
+def elastic_hitas_project_with_apartment_room_count_2(elasticsearch):
+    apartment = ApartmentDocumentFactory(project_ownership_type="Hitas", room_count=2)
+
+    yield apartment.project_uuid, apartment
+
+    apartment.delete(refresh=True)
+
+
+@fixture
+def elastic_hitas_project_with_apartment_room_count_10(elasticsearch):
+    apartment = ApartmentDocumentFactory(project_ownership_type="Hitas", room_count=10)
+
+    yield apartment.project_uuid, apartment
+
+    apartment.delete(refresh=True)
+
+
+@fixture
 def elastic_haso_project_with_5_apartments(elasticsearch):
     apartments = []
 

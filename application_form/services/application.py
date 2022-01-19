@@ -7,7 +7,7 @@ from typing import Iterable, List, Optional
 
 from apartment.elastic.utils import get_and_update_apartment, get_and_update_project
 from apartment.enums import IdentifierSchemaType
-from apartment.models import Apartment, Identifier
+from apartment.models import Identifier
 from application_form.enums import (
     ApartmentQueueChangeEventType,
     ApartmentReservationState,
@@ -43,14 +43,14 @@ def cancel_hitas_application(application_apartment: ApplicationApartment) -> Non
     Cancel a HITAS application for a specific apartment. If the application has already
     won an apartment, then the winner for that apartment must be recalculated.
     """
-    apartment = application_apartment.apartment
+    apartment_uuid = application_apartment.apartment_uuid
     was_reserved = application_apartment.apartment_reservation.state in [
         ApartmentReservationState.RESERVED,
         ApartmentReservationState.OFFERED,
     ]
     remove_application_from_queue(application_apartment)
     if was_reserved:
-        _reserve_apartments([apartment], False)
+        _reserve_apartments([apartment_uuid], False)
 
 
 @transaction.atomic
@@ -177,15 +177,15 @@ def _calculate_age(dob: date) -> int:
 
 
 def _reserve_apartments(
-    apartments: Iterable[Apartment],
+    apartment_uuids: Iterable[uuid.UUID],
     cancel_lower_priority_reserved: bool = True,
 ) -> None:
-    apartments_to_process = set(list(apartments))
+    apartments_to_process = set(list(apartment_uuids))
     while apartments_to_process:
-        for apartment in apartments_to_process.copy():
-            apartments_to_process.remove(apartment)
+        for apartment_uuid in apartments_to_process.copy():
+            apartments_to_process.remove(apartment_uuid)
             # Mark the winner as "RESERVED"
-            winner = _reserve_apartment(apartment)
+            winner = _reserve_apartment(apartment_uuid)
             if winner is None:
                 continue
             # If the winner has lower priority applications, we should cancel them.
@@ -194,7 +194,7 @@ def _reserve_apartments(
             canceled_winners = _cancel_lower_priority_apartments(
                 winner, cancel_lower_priority_reserved
             )
-            apartments_to_process.update(app.apartment for app in canceled_winners)
+            apartments_to_process.update(app.apartment_uuid for app in canceled_winners)
 
 
 def _reserve_haso_apartment(apartment_uuid: uuid.UUID) -> None:
