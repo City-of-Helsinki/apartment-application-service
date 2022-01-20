@@ -21,7 +21,7 @@ urlpatterns = [
     path(
         "sales/projects/<uuid:project_uuid>/installments/",
         ProjectInstallmentAPIView.as_view(),
-        name="project-installments",
+        name="project-installment-template-list",
     ),
     path("", include(router.urls)),
 ]
