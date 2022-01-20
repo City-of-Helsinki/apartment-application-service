@@ -1,6 +1,6 @@
 import pytest
 from datetime import date
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apartment.tests.factories import ApartmentFactory, ProjectFactory
 from application_form.tests.factories import (
@@ -81,11 +81,11 @@ def test_project_applicant_validator(
     for applicant in applicants:
         applicant_list.append((applicant.date_of_birth, applicant.ssn_suffix))
     validator = ProjectApplicantValidator()
-    with pytest.raises(ValidationError):
+    with pytest.raises(PermissionDenied):
         validator(project.uuid, applicant_list)
 
     # Single applicant exists
-    with pytest.raises(ValidationError):
+    with pytest.raises(PermissionDenied):
         validator(project.uuid, applicant_list[1])
 
     # Applicant not exists
