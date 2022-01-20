@@ -2,6 +2,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from apartment.api.views import ApartmentAPIView, ProjectAPIView
+from invoicing.api.views import ProjectInstallmentAPIView
 
 router = DefaultRouter()
 
@@ -16,6 +17,11 @@ urlpatterns = [
         "sales/projects/<uuid:project_uuid>/",
         ProjectAPIView.as_view(),
         name="project-list",
+    ),
+    path(
+        "sales/projects/<uuid:project_uuid>/installments/",
+        ProjectInstallmentAPIView.as_view(),
+        name="project-installments",
     ),
     path("", include(router.urls)),
 ]

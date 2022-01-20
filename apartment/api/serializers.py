@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
+from invoicing.api.serializers import ProjectInstallmentTemplateSerializer
 from invoicing.models import ProjectInstallmentTemplate
-from invoicing.serializers import ProjectInstallmentTemplateSerializer
 
 
 class ApartmentDocumentSerializer(serializers.Serializer):

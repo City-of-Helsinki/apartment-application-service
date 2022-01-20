@@ -1,10 +1,10 @@
 from decimal import Decimal
 from django.utils.translation import gettext_lazy as _
 from enumfields.drf.serializers import EnumSupportSerializerMixin
-from rest_framework import serializers
+from rest_framework import exceptions, serializers
 
-from .enums import InstallmentUnit
-from .models import ProjectInstallmentTemplate
+from ..enums import InstallmentUnit
+from ..models import ProjectInstallmentTemplate
 
 
 class NormalizedDecimalField(serializers.DecimalField):
@@ -53,6 +53,39 @@ class ProjectInstallmentTemplateSerializer(
             "account_number",
             "due_date",
         )
+
+    def create(self, validated_data):
+        amount = validated_data.pop("get_amount", None)
+        percentage = validated_data.pop("get_percentage", None)
+        percentage_specifier = validated_data.pop("percentage_specifier", None)
+
+        if (amount and percentage) or not (amount or percentage):
+            raise exceptions.ValidationError(
+                "Either amount or percentage is required but not both."
+            )
+
+        if amount:
+            validated_data.update(
+                {
+                    "value": amount,
+                    "unit": InstallmentUnit.EURO,
+                }
+            )
+        else:
+            if not percentage_specifier:
+                raise exceptions.ValidationError(
+                    "percentage_specifier is required when providing percentage."
+                )
+
+            validated_data.update(
+                {
+                    "value": percentage,
+                    "unit": InstallmentUnit.PERCENT,
+                    "percentage_specifier": percentage_specifier,
+                }
+            )
+
+        return super().create(validated_data)
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
