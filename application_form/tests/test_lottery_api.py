@@ -52,7 +52,9 @@ def test_execute_lottery_for_project_post_fails_application_time_not_finished(
         reverse("application_form:execute_lottery_for_project"), data, format="json"
     )
     assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert response.data[0] == "Project's application time is not finished."
+    assert (
+        response.json()[0]["message"] == "Project's application time is not finished."
+    )
 
 
 @pytest.mark.django_db
