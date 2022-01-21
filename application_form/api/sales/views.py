@@ -1,3 +1,4 @@
+from django.core.exceptions import ObjectDoesNotExist
 from django.views.decorators.http import require_http_methods
 from rest_framework import permissions, status
 from rest_framework.decorators import (
@@ -32,7 +33,9 @@ def execute_lottery_for_project(request):
 
     project_uuid = serializer.data.get("project_uuid")
 
-    if not get_projects(project_uuid):
+    try:
+        get_projects(project_uuid)
+    except ObjectDoesNotExist:
         raise NotFound(detail="Project not found.")
 
     try:

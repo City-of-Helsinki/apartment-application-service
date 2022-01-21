@@ -1,3 +1,5 @@
+from django.core.exceptions import ObjectDoesNotExist
+
 from apartment.elastic.documents import ApartmentDocument
 
 
@@ -76,5 +78,8 @@ def get_projects(project_uuid=None):
     # Get all items
     count = search.count()
     response = search[0:count].execute()
+
+    if project_uuid and not response:
+        raise ObjectDoesNotExist("Project does not exist in ElasticSearch.")
 
     return response
