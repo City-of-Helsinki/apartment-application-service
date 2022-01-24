@@ -5,7 +5,8 @@ from rest_framework.views import APIView
 
 from apartment.api.serializers import (
     ApartmentDocumentSerializer,
-    ProjectDocumentSerializer,
+    ProjectDocumentDetailSerializer,
+    ProjectDocumentListSerializer,
 )
 from apartment.elastic.queries import get_apartments, get_projects
 
@@ -37,5 +38,8 @@ class ProjectAPIView(APIView):
                 project_data = project_data[0]
             else:
                 raise NotFound()
-        serializer = ProjectDocumentSerializer(project_data, many=many)
+        serializer_class = (
+            ProjectDocumentListSerializer if many else ProjectDocumentDetailSerializer
+        )
+        serializer = serializer_class(project_data, many=many)
         return Response(serializer.data)

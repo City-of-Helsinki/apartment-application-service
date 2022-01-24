@@ -52,7 +52,7 @@ def test_project_get_with_project_uuid(api_client):
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
     response = api_client.get(
         reverse(
-            "apartment:project-list", kwargs={"project_uuid": apartment.project_uuid}
+            "apartment:project-detail", kwargs={"project_uuid": apartment.project_uuid}
         ),
         format="json",
     )
@@ -67,7 +67,7 @@ def test_project_get_with_project_uuid_not_exist(api_client):
     profile = ProfileFactory()
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
     response = api_client.get(
-        reverse("apartment:project-list", kwargs={"project_uuid": uuid.uuid4()}),
+        reverse("apartment:project-detail", kwargs={"project_uuid": uuid.uuid4()}),
         format="json",
     )
     assert response.status_code == 404

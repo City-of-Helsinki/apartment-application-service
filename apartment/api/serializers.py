@@ -1,5 +1,8 @@
 from rest_framework import serializers
 
+from invoicing.api.serializers import ProjectInstallmentTemplateSerializer
+from invoicing.models import ProjectInstallmentTemplate
+
 
 class ApartmentDocumentSerializer(serializers.Serializer):
     uuid = serializers.UUIDField()
@@ -42,7 +45,7 @@ class ApartmentDocumentSerializer(serializers.Serializer):
     image_urls = serializers.ListField()
 
 
-class ProjectDocumentSerializer(serializers.Serializer):
+class ProjectDocumentSerializerBase(serializers.Serializer):
     id = serializers.IntegerField(source="project_id")
     uuid = serializers.UUIDField(source="project_uuid")
     ownership_type = serializers.CharField(source="project_ownership_type")
@@ -125,3 +128,19 @@ class ProjectDocumentSerializer(serializers.Serializer):
     estate_agent_phone = serializers.CharField(source="project_estate_agent_phone")
     coordinate_lat = serializers.FloatField(source="project_coordinate_lat")
     coordinate_lon = serializers.FloatField(source="project_coordinate_lon")
+
+
+class ProjectDocumentListSerializer(ProjectDocumentSerializerBase):
+    pass
+
+
+class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
+    installment_templates = serializers.SerializerMethodField()
+
+    def get_installment_templates(self, obj):
+        installment_templates = ProjectInstallmentTemplate.objects.filter(
+            project_uuid=obj["project_uuid"]
+        )
+        return ProjectInstallmentTemplateSerializer(
+            installment_templates, many=True
+        ).data
