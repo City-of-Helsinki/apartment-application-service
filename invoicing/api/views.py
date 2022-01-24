@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.utils.timezone import now
 from rest_framework import generics
 
 from ..api.serializers import ProjectInstallmentTemplateSerializer
@@ -25,4 +26,5 @@ class ProjectInstallmentAPIView(generics.ListCreateAPIView):
     @transaction.atomic
     def perform_create(self, serializer):
         self.get_queryset().delete()
-        serializer.save(project_uuid=self.kwargs["project_uuid"])
+        # created_at is set here to get exactly the same timestamp on all instances
+        serializer.save(project_uuid=self.kwargs["project_uuid"], created_at=now())

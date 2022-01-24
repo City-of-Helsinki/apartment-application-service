@@ -5,11 +5,8 @@ from decimal import Decimal
 from django.urls import reverse
 
 from apartment.tests.factories import ApartmentDocumentFactory
-from ..enums import (
-    InstallmentPercentageSpecifier,
-    InstallmentType,
-    InstallmentUnit,
-)
+
+from ..enums import InstallmentPercentageSpecifier, InstallmentType, InstallmentUnit
 from ..models import ProjectInstallmentTemplate
 from .factories import ProjectInstallmentTemplateFactory
 

@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from enumfields import EnumField
 
@@ -10,7 +11,9 @@ from invoicing.enums import (
 
 
 class InstallmentBase(models.Model):
-    created_at = models.DateTimeField(verbose_name=_("created at"), auto_now_add=True)
+    created_at = models.DateTimeField(
+        verbose_name=_("created at"), default=now, editable=False
+    )
     type = EnumField(InstallmentType, verbose_name=_("type"), max_length=32)
     value = models.DecimalField(
         verbose_name=_("value"), max_digits=16, decimal_places=2
