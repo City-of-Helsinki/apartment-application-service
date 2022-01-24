@@ -45,7 +45,7 @@ class ApartmentDocumentSerializer(serializers.Serializer):
     image_urls = serializers.ListField()
 
 
-class ProjectDocumentSerializer(serializers.Serializer):
+class ProjectDocumentSerializerBase(serializers.Serializer):
     id = serializers.IntegerField(source="project_id")
     uuid = serializers.UUIDField(source="project_uuid")
     ownership_type = serializers.CharField(source="project_ownership_type")
@@ -128,14 +128,14 @@ class ProjectDocumentSerializer(serializers.Serializer):
     estate_agent_phone = serializers.CharField(source="project_estate_agent_phone")
     coordinate_lat = serializers.FloatField(source="project_coordinate_lat")
     coordinate_lon = serializers.FloatField(source="project_coordinate_lon")
-    installment_templates = serializers.SerializerMethodField()
 
-    def __init__(self, *args, **kwargs):
-        # the actual "many" is not available here so we need this stupid workaround
-        many = kwargs.pop("_many", None)
-        super().__init__(*args, **kwargs)
-        if many:
-            self.fields.pop("installment_templates")
+
+class ProjectDocumentListSerializer(ProjectDocumentSerializerBase):
+    pass
+
+
+class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
+    installment_templates = serializers.SerializerMethodField()
 
     def get_installment_templates(self, obj):
         installment_templates = ProjectInstallmentTemplate.objects.filter(
