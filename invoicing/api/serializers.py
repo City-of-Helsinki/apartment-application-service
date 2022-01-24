@@ -1,9 +1,11 @@
 from decimal import Decimal
 from django.utils.translation import gettext_lazy as _
+from drf_spectacular.utils import extend_schema_serializer, OpenApiExample
+from enumfields.drf.fields import EnumField
 from enumfields.drf.serializers import EnumSupportSerializerMixin
 from rest_framework import exceptions, serializers
 
-from ..enums import InstallmentUnit
+from ..enums import InstallmentPercentageSpecifier, InstallmentUnit
 from ..models import ProjectInstallmentTemplate
 
 
@@ -33,14 +35,47 @@ class IntegerCentsField(serializers.IntegerField):
         return int(value * 100)
 
 
+@extend_schema_serializer(
+    examples=[
+        OpenApiExample(
+            "Project installment template example 1",
+            value=[
+                {
+                    "type": "PAYMENT_1",
+                    "percentage": "6.5",
+                    "percentage_specifier": "SALES_PRICE",
+                    "account_number": "FI49 5000 9420 0287 30",
+                    "due_date": "2022-02-18",
+                },
+                {
+                    "type": "REFUND",
+                    "amount": 10000,
+                    "account_number": "FI49 5000 9420 0287 30",
+                    "due_date": None,
+                },
+            ],
+        ),
+    ]
+)
 class ProjectInstallmentTemplateSerializer(
     EnumSupportSerializerMixin, serializers.ModelSerializer
 ):
     amount = IntegerCentsField(
-        source="get_amount", required=False, help_text=_("In cents.")
+        source="get_amount",
+        required=False,
+        help_text=_("Value in cents. Either this or `percentage` is required."),
     )
     percentage = NormalizedDecimalField(
-        max_digits=16, decimal_places=2, source="get_percentage", required=False
+        max_digits=16,
+        decimal_places=2,
+        source="get_percentage",
+        required=False,
+        help_text=_("Either this or `amount` is required."),
+    )
+    percentage_specifier = EnumField(
+        InstallmentPercentageSpecifier,
+        help_text=_("This is required with `percentage`."),
+        required=False,
     )
 
     class Meta:
