@@ -1,3 +1,4 @@
+from django.core.exceptions import ObjectDoesNotExist
 from rest_framework import permissions
 from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
@@ -32,12 +33,12 @@ class ProjectAPIView(APIView):
 
     def get(self, request, project_uuid=None):
         many = project_uuid is None
-        project_data = get_projects(project_uuid)
-        if not many:
-            if len(project_data) == 1:
+        try:
+            project_data = get_projects(project_uuid)
+            if not many:
                 project_data = project_data[0]
-            else:
-                raise NotFound()
+        except ObjectDoesNotExist:
+            raise NotFound()
         serializer_class = (
             ProjectDocumentListSerializer if many else ProjectDocumentDetailSerializer
         )

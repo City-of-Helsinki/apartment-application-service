@@ -3,6 +3,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from typing import List, Tuple, Union
 from uuid import UUID
 
+from apartment.elastic.queries import get_apartment_uuids
 from application_form import error_codes
 from application_form.models import Applicant
 
@@ -78,8 +79,9 @@ class ProjectApplicantValidator:
             queryset = queryset | Applicant.objects.filter(
                 date_of_birth=date_of_birth, ssn_suffix=ssn_suffix
             )
+        apartment_uuids = get_apartment_uuids(project_uuid)
         queryset = queryset & Applicant.objects.filter(
-            application__apartments__project__uuid=project_uuid
+            application__application_apartments__apartment_uuid__in=apartment_uuids
         )
         if queryset.exists():
             raise PermissionDenied(

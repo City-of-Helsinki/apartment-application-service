@@ -8,7 +8,7 @@ from pytest import fixture
 from rest_framework.test import APIClient
 from unittest.mock import Mock
 
-from apartment.tests.factories import IdentifierFactory
+from apartment.tests.factories import ApartmentDocumentFactory
 from application_form.api.serializers import ApplicationSerializer
 from application_form.enums import ApplicationType
 from application_form.tests.factories import ApplicantFactory
@@ -75,15 +75,122 @@ def elastic_single_project_with_apartments(elasticsearch):
         apartment.delete(refresh=True)
 
 
+@fixture
+def elastic_project_with_5_apartments(elasticsearch):
+    apartments = []
+
+    apartment = ApartmentDocumentFactory()
+    apartments.append(apartment)
+
+    for _ in range(4):
+        apartments.append(ApartmentDocumentFactory(project_uuid=apartment.project_uuid))
+    yield apartment.project_uuid, apartments
+
+    for apartment in apartments:
+        apartment.delete(refresh=True)
+
+
+@fixture
+def elastic_hitas_project_with_5_apartments(elasticsearch):
+    apartments = []
+
+    apartment = ApartmentDocumentFactory(project_ownership_type="Hitas")
+    apartments.append(apartment)
+
+    for _ in range(4):
+        apartments.append(
+            ApartmentDocumentFactory(
+                project_uuid=apartment.project_uuid, project_ownership_type="Hitas"
+            )
+        )
+    yield apartment.project_uuid, apartments
+
+    for apartment in apartments:
+        apartment.delete(refresh=True)
+
+
+@fixture
+def elastic_hitas_project_with_tiny_and_big_apartment(elasticsearch):
+    tiny_apartment = ApartmentDocumentFactory(
+        project_ownership_type="Hitas", room_count=1
+    )
+    big_apartment = ApartmentDocumentFactory(
+        project_uuid=tiny_apartment.project_uuid,
+        project_ownership_type="Hitas",
+        room_count=10,
+    )
+    yield tiny_apartment.project_uuid, tiny_apartment, big_apartment
+
+    tiny_apartment.delete(refresh=True)
+    big_apartment.delete(refresh=True)
+
+
+@fixture
+def elastic_hitas_project_with_3_tiny_apartments(elasticsearch):
+    apartments = []
+
+    apartment = ApartmentDocumentFactory(project_ownership_type="Hitas", room_count=1)
+    apartments.append(apartment)
+
+    for _ in range(2):
+        apartments.append(
+            ApartmentDocumentFactory(
+                project_uuid=apartment.project_uuid,
+                project_ownership_type="Hitas",
+                room_count=1,
+            )
+        )
+    yield apartment.project_uuid, apartments
+
+    for apartment in apartments:
+        apartment.delete(refresh=True)
+
+
+@fixture
+def elastic_hitas_project_with_apartment_room_count_2(elasticsearch):
+    apartment = ApartmentDocumentFactory(project_ownership_type="Hitas", room_count=2)
+
+    yield apartment.project_uuid, apartment
+
+    apartment.delete(refresh=True)
+
+
+@fixture
+def elastic_hitas_project_with_apartment_room_count_10(elasticsearch):
+    apartment = ApartmentDocumentFactory(project_ownership_type="Hitas", room_count=10)
+
+    yield apartment.project_uuid, apartment
+
+    apartment.delete(refresh=True)
+
+
+@fixture
+def elastic_haso_project_with_5_apartments(elasticsearch):
+    apartments = []
+
+    apartment = ApartmentDocumentFactory(project_ownership_type="Haso")
+    apartments.append(apartment)
+
+    for _ in range(4):
+        apartments.append(
+            ApartmentDocumentFactory(
+                project_uuid=apartment.project_uuid, project_ownership_type="Haso"
+            )
+        )
+    yield apartment.project_uuid, apartments
+
+    for apartment in apartments:
+        apartment.delete(refresh=True)
+
+
 def create_application_data(
     profile, application_type=ApplicationType.HASO, num_applicants=2
 ):
-    # Build apartments by creating identifiers
+    # Build apartments
     project_uuid, apartment_uuids = get_elastic_apartments_uuids()
-    apartments = IdentifierFactory.build_batch_for_att_schema(5, apartment_uuids)
     apartments_data = [
-        {"priority": index, "identifier": apartment.identifier}
-        for index, apartment in enumerate(apartments)
+        {"priority": index, "identifier": apartment_uuid}
+        for index, apartment_uuid in enumerate(apartment_uuids[0:5])
     ]
     right_of_residence = 123456 if application_type == ApplicationType.HASO else None
 

@@ -1,4 +1,21 @@
+from django.core.exceptions import ObjectDoesNotExist
+
 from apartment.elastic.documents import ApartmentDocument
+
+
+def get_apartment(apartment_uuid):
+    search = ApartmentDocument.search()
+
+    # Filters
+    search = search.filter("term", uuid__keyword=apartment_uuid)
+
+    # Exclude project fields
+    search = search.source(excludes=["project_*"])
+
+    # Get item
+    apartment = search.execute()[0]
+
+    return apartment
 
 
 def get_apartments(project_uuid=None):
@@ -16,6 +33,21 @@ def get_apartments(project_uuid=None):
     response = search[0:count].execute()
 
     return response
+
+
+def get_apartment_uuids(project_uuid):
+    search = ApartmentDocument.search()
+
+    # Filters
+    search = search.filter("term", project_uuid__keyword=project_uuid)
+
+    # Include only apartment uuid and project uuid
+    search = search.source(includes=["uuid", "project_uuid"])
+
+    # Get all apartment uuids
+    result = [hit.uuid for hit in search.scan()]
+
+    return result
 
 
 def get_projects(project_uuid=None):
@@ -46,5 +78,8 @@ def get_projects(project_uuid=None):
     # Get all items
     count = search.count()
     response = search[0:count].execute()
+
+    if project_uuid and not response:
+        raise ObjectDoesNotExist("Project does not exist in ElasticSearch.")
 
     return response

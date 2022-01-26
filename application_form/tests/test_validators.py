@@ -2,7 +2,6 @@ import pytest
 from datetime import date
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
-from apartment.tests.factories import ApartmentFactory, ProjectFactory
 from application_form.tests.factories import (
     ApplicantFactory,
     ApplicationApartmentFactory,
@@ -64,17 +63,18 @@ def test_ssn_suffix_validator_invalid_control_character():
 
 
 @pytest.mark.django_db
-def test_project_applicant_validator(
-    api_client, elastic_single_project_with_apartments
-):
+def test_project_applicant_validator(elastic_project_with_5_apartments):
     """
     Applicants can apply only once to the project.
     """
-    project = ProjectFactory()
-    apartment = ApartmentFactory(project=project)
+    project_uuid, apartments = elastic_project_with_5_apartments
+    first_apartment_uuid = apartments[0].uuid
+
     application = ApplicationFactory()
     applicants = ApplicantFactory.create_batch(2, application=application)
-    ApplicationApartmentFactory(apartment=apartment, application=application)
+    ApplicationApartmentFactory(
+        apartment_uuid=first_apartment_uuid, application=application
+    )
 
     # Both applicant exists
     applicant_list = list()
@@ -82,11 +82,11 @@ def test_project_applicant_validator(
         applicant_list.append((applicant.date_of_birth, applicant.ssn_suffix))
     validator = ProjectApplicantValidator()
     with pytest.raises(PermissionDenied):
-        validator(project.uuid, applicant_list)
+        validator(project_uuid, applicant_list)
 
     # Single applicant exists
     with pytest.raises(PermissionDenied):
-        validator(project.uuid, applicant_list[1])
+        validator(project_uuid, applicant_list[1])
 
     # Applicant not exists
-    validator(project.uuid, (date(2000, 2, 29), "TAAAA"))
+    validator(project_uuid, (date(2000, 2, 29), "TAAAA"))

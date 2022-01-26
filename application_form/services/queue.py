@@ -1,13 +1,17 @@
+import uuid
 from django.db import transaction
 from django.db.models import F
 
-from apartment.models import Apartment
 from application_form.enums import (
     ApartmentQueueChangeEventType,
     ApartmentReservationState,
     ApplicationType,
 )
-from application_form.models.application import Application, ApplicationApartment
+from application_form.models import (
+    ApartmentReservation,
+    Application,
+    ApplicationApartment,
+)
 
 
 def add_application_to_queues(application: Application, comment: str = "") -> None:
@@ -15,26 +19,31 @@ def add_application_to_queues(application: Application, comment: str = "") -> No
     Adds the given application to the queues of all the apartments applied to.
     """
     for application_apartment in application.application_apartments.all():
-        apartment = application_apartment.apartment
+        apartment_uuid = application_apartment.apartment_uuid
         with transaction.atomic():
             if application.type == ApplicationType.HASO:
                 # For HASO applications, the queue position is determined by the
                 # right of residence number.
-                position = _calculate_queue_position(apartment, application_apartment)
-                _shift_queue_positions(apartment, position)
+                position = _calculate_queue_position(
+                    apartment_uuid, application_apartment
+                )
+                _shift_queue_positions(apartment_uuid, position)
             elif application.type in [
                 ApplicationType.HITAS,
                 ApplicationType.PUOLIHITAS,
             ]:
                 # HITAS and PUOLIHITAS work the same way from the apartment lottery
                 # perspective, and should always be added to the end of the queue.
-                position = apartment.reservations.count()
+                position = ApartmentReservation.objects.filter(
+                    apartment_uuid=apartment_uuid
+                ).count()
             else:
                 raise ValueError(f"unsupported application type {application.type}")
 
-            apartment_reservation = apartment.reservations.create(
+            apartment_reservation = ApartmentReservation.objects.create(
                 queue_position=position,
                 application_apartment=application_apartment,
+                apartment_uuid=apartment_uuid,
             )
             apartment_reservation.change_events.create(
                 type=ApartmentQueueChangeEventType.ADDED,
@@ -54,7 +63,7 @@ def remove_application_from_queue(
     """
     apartment_reservation = application_apartment.apartment_reservation
     _shift_queue_positions(
-        apartment_reservation.apartment,
+        apartment_reservation.apartment_uuid,
         apartment_reservation.queue_position,
         deleted=True,
     )
@@ -68,7 +77,7 @@ def remove_application_from_queue(
 
 
 def _calculate_queue_position(
-    apartment: Apartment,
+    apartment_uuid: uuid.UUID,
     application_apartment: ApplicationApartment,
 ) -> int:
     """
@@ -80,9 +89,9 @@ def _calculate_queue_position(
     """
     right_of_residence = application_apartment.application.right_of_residence
     submitted_late = application_apartment.application.submitted_late
-    all_reservations = apartment.reservations.only(
-        "queue_position", "application_apartment__application__right_of_residence"
-    )
+    all_reservations = ApartmentReservation.objects.filter(
+        apartment_uuid=apartment_uuid
+    ).only("queue_position", "application_apartment__application__right_of_residence")
     reservations = all_reservations.filter(
         application_apartment__application__submitted_late=submitted_late
     ).order_by("queue_position")
@@ -94,14 +103,16 @@ def _calculate_queue_position(
 
 
 def _shift_queue_positions(
-    apartment: Apartment, from_position: int, deleted: bool = False
+    apartment_uuid: uuid.UUID, from_position: int, deleted: bool = False
 ) -> None:
     """
     Shifts all items in the queue by one by either incrementing or decrementing their
     positions, depending on whether the item was added or deleted from the queue.
     """
     # We only need to update the positions in the queue that are >= from_position
-    reservations = apartment.reservations.filter(queue_position__gte=from_position)
+    reservations = ApartmentReservation.objects.filter(
+        apartment_uuid=apartment_uuid, queue_position__gte=from_position
+    )
     # When deleting, we have to decrement each position. When adding, increment instead.
     position_change = -1 if deleted else 1
     reservations.update(queue_position=F("queue_position") + position_change)

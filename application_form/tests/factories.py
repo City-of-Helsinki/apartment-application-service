@@ -1,9 +1,9 @@
 import factory
 import random
+import uuid
 from factory import Faker, fuzzy, LazyAttribute
 from typing import List
 
-from apartment.tests.factories import ApartmentFactory
 from application_form.enums import ApartmentReservationState, ApplicationType
 from application_form.models import (
     ApartmentReservation,
@@ -71,19 +71,19 @@ class ApplicationApartmentFactory(factory.django.DjangoModelFactory):
         model = ApplicationApartment
 
     priority_number = fuzzy.FuzzyInteger(1, 5)
-    apartment = factory.SubFactory(ApartmentFactory)
+    apartment_uuid = factory.Faker("uuid4")
     application = factory.SubFactory(ApplicationWithApplicantsFactory)
 
     @classmethod
     def create_application_with_apartments(
-        cls, apartments: List[ApartmentFactory], application: application
+        cls, apartment_uuids: List[uuid.UUID], application: application
     ) -> List[ApplicationApartment]:
 
         apartments_application = []
-        for i in range(len(apartments)):
+        for i in range(len(apartment_uuids)):
             apartment_application = cls.create(
                 priority_number=i + 1,
-                apartment=apartments[i],
+                apartment_uuid=apartment_uuids[i],
                 application=application,
             )
             apartments_application.append(apartment_application)
@@ -94,7 +94,7 @@ class ApartmentReservationFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = ApartmentReservation
 
-    apartment = factory.SubFactory(ApartmentFactory)
+    apartment_uuid = factory.Faker("uuid4")
     queue_position = fuzzy.FuzzyInteger(1)
     application_apartment = factory.SubFactory(ApplicationApartmentFactory)
     state = fuzzy.FuzzyChoice(list(ApartmentReservationState))
@@ -104,7 +104,7 @@ class LotteryEventFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = LotteryEvent
 
-    apartment = factory.SubFactory(ApartmentFactory)
+    apartment_uuid = factory.Faker("uuid4")
 
 
 class LotteryEventResultFactory(factory.django.DjangoModelFactory):

@@ -1,3 +1,4 @@
+from django.core.exceptions import ObjectDoesNotExist
 from django.views.decorators.http import require_http_methods
 from rest_framework import permissions, status
 from rest_framework.decorators import (
@@ -8,7 +9,7 @@ from rest_framework.decorators import (
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
 
-from apartment.models import Project
+from apartment.elastic.queries import get_projects
 from application_form.api.sales.serializers import (
     ProjectUUIDSerializer,
     SalesApplicationSerializer,
@@ -30,13 +31,15 @@ def execute_lottery_for_project(request):
     serializer = ProjectUUIDSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
 
-    try:
-        project = Project.objects.get(uuid=serializer.data.get("project_uuid"))
-    except Project.DoesNotExist as ex:
-        raise NotFound(detail="Project not found.") from ex
+    project_uuid = serializer.data.get("project_uuid")
 
     try:
-        distribute_apartments(project)
+        get_projects(project_uuid)
+    except ObjectDoesNotExist:
+        raise NotFound(detail="Project not found.")
+
+    try:
+        distribute_apartments(project_uuid)
     except ProjectDoesNotHaveApplicationsException as ex:
         raise ValidationError(detail="Project does not have applications.") from ex
 
