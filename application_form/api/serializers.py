@@ -13,7 +13,7 @@ from application_form.validators import ProjectApplicantValidator, SSNSuffixVali
 _logger = logging.getLogger(__name__)
 
 
-class ApplicantSerializer(serializers.ModelSerializer):
+class ApplicantSerializerBase(serializers.ModelSerializer):
     date_of_birth = serializers.DateField(write_only=True)
 
     class Meta:
@@ -32,6 +32,8 @@ class ApplicantSerializer(serializers.ModelSerializer):
         ]
         extra_kwargs = {"age": {"read_only": True}}
 
+
+class ApplicantSerializer(ApplicantSerializerBase):
     def validate(self, attrs):
         super().validate(attrs)
         date_of_birth = attrs.get("date_of_birth")
@@ -53,17 +55,16 @@ class ApplicationApartmentSerializer(serializers.Serializer):
     identifier = UUIDField()
 
 
-class ApplicationSerializer(serializers.ModelSerializer):
+class ApplicationSerializerBase(serializers.ModelSerializer):
     application_uuid = UUIDField(source="external_uuid")
     application_type = EnumField(ApplicationType, source="type", write_only=True)
-    additional_applicant = ApplicantSerializer(write_only=True, allow_null=True)
     project_id = UUIDField(write_only=True)
     ssn_suffix = CharField(write_only=True, min_length=5, max_length=5)
     apartments = ApplicationApartmentSerializer(write_only=True, many=True)
 
     class Meta:
         model = Application
-        fields = [
+        fields = (
             "application_uuid",
             "application_type",
             "ssn_suffix",
@@ -72,7 +73,7 @@ class ApplicationSerializer(serializers.ModelSerializer):
             "right_of_residence",
             "project_id",
             "apartments",
-        ]
+        )
         extra_kwargs = {
             # We only support creating applications for now,
             # and only the application UUID will be returned
@@ -82,23 +83,7 @@ class ApplicationSerializer(serializers.ModelSerializer):
             "project_id": {"write_only": True},
         }
 
-    def validate_ssn_suffix(self, value):
-        date_of_birth = self.context["request"].user.profile.date_of_birth
-        validator = SSNSuffixValidator(date_of_birth)
-        try:
-            validator(value)
-        except ValidationError as e:
-            message = f"""Invalid SSN suffix for the primary applicant was
-            received: {e.args[0]}"""
-            _logger.warning(message)
-            raise ValidationError(
-                detail=message,
-                code=error_codes.E1000_SSN_SUFFIX_IS_NOT_VALID,
-            )
-        return value
-
     def create(self, validated_data):
-        validated_data["profile"] = self.context["request"].user.profile
         return create_application(validated_data)
 
     def validate(self, attrs):
@@ -121,6 +106,30 @@ class ApplicationSerializer(serializers.ModelSerializer):
         validator(project_uuid, applicants)
 
         return super().validate(attrs)
+
+
+class ApplicationSerializer(ApplicationSerializerBase):
+    additional_applicant = ApplicantSerializer(write_only=True, allow_null=True)
+    project_id = UUIDField(write_only=True)
+
+    def create(self, validated_data):
+        validated_data["profile"] = self.context["request"].user.profile
+        return super().create(validated_data)
+
+    def validate_ssn_suffix(self, value):
+        date_of_birth = self.context["request"].user.profile.date_of_birth
+        validator = SSNSuffixValidator(date_of_birth)
+        try:
+            validator(value)
+        except ValidationError as e:
+            message = f"""Invalid SSN suffix for the primary applicant was
+            received: {e.args[0]}"""
+            _logger.warning(message)
+            raise ValidationError(
+                detail=message,
+                code=error_codes.E1000_SSN_SUFFIX_IS_NOT_VALID,
+            )
+        return value
 
 
 class ApartmentReservationSerializer(serializers.ModelSerializer):
