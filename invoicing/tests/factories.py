@@ -1,5 +1,7 @@
 import factory
 
+from application_form.tests.factories import ApartmentReservationFactory
+
 from ..enums import InstallmentPercentageSpecifier, InstallmentType, InstallmentUnit
 from ..models import ApartmentInstallment, InstallmentBase, ProjectInstallmentTemplate
 
@@ -26,7 +28,7 @@ class ProjectInstallmentTemplateFactory(InstallmentBaseFactory):
 
 
 class ApartmentInstallmentFactory(InstallmentBaseFactory):
-    apartment_uuid = factory.Faker("uuid4")
+    apartment_reservation = factory.SubFactory(ApartmentReservationFactory)
     reference_number = factory.Faker("uuid4")
 
     class Meta:
