@@ -19,7 +19,7 @@ urlpatterns = [
         name="project-detail",
     ),
     path(
-        "sales/projects/<uuid:project_uuid>/installments/",
+        "sales/projects/<uuid:project_uuid>/installment_templates/",
         ProjectInstallmentTemplateAPIView.as_view(),
         name="project-installment-template-list",
     ),
