@@ -95,8 +95,11 @@ def test_project_detail_installments_field_and_installments_endpoint_data(
     ]
 
 
+@pytest.mark.parametrize("has_old_installments", (False, True))
 @pytest.mark.django_db
-def test_set_project_installments(apartment_document, profile_api_client):
+def test_set_project_installments(
+    apartment_document, profile_api_client, has_old_installments
+):
     project_uuid = apartment_document.project_uuid
     data = [
         {
@@ -117,7 +120,12 @@ def test_set_project_installments(apartment_document, profile_api_client):
     # just to make sure other projects' installment templates aren't affected
     other_project_installment_template = ProjectInstallmentTemplateFactory()
 
-    assert ProjectInstallmentTemplate.objects.count() == 1
+    if has_old_installments:
+        ProjectInstallmentTemplateFactory.create_batch(2, project_uuid=project_uuid)
+
+    assert (
+        ProjectInstallmentTemplate.objects.count() == 3 if has_old_installments else 1
+    )
 
     response = profile_api_client.post(
         reverse(
