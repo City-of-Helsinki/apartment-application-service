@@ -5,10 +5,11 @@ from decimal import Decimal
 from django.urls import reverse
 
 from apartment.tests.factories import ApartmentDocumentFactory
+from application_form.tests.factories import ApartmentReservationFactory
 
 from ..enums import InstallmentPercentageSpecifier, InstallmentType, InstallmentUnit
-from ..models import ProjectInstallmentTemplate
-from .factories import ProjectInstallmentTemplateFactory
+from ..models import ApartmentInstallment, ProjectInstallmentTemplate
+from .factories import ApartmentInstallmentFactory, ProjectInstallmentTemplateFactory
 
 
 @pytest.fixture
@@ -94,8 +95,11 @@ def test_project_detail_installments_field_and_installments_endpoint_data(
     ]
 
 
+@pytest.mark.parametrize("has_old_installments", (False, True))
 @pytest.mark.django_db
-def test_set_project_installments(apartment_document, profile_api_client):
+def test_set_project_installments(
+    apartment_document, profile_api_client, has_old_installments
+):
     project_uuid = apartment_document.project_uuid
     data = [
         {
@@ -116,7 +120,12 @@ def test_set_project_installments(apartment_document, profile_api_client):
     # just to make sure other projects' installment templates aren't affected
     other_project_installment_template = ProjectInstallmentTemplateFactory()
 
-    assert ProjectInstallmentTemplate.objects.count() == 1
+    if has_old_installments:
+        ProjectInstallmentTemplateFactory.create_batch(2, project_uuid=project_uuid)
+
+    assert (
+        ProjectInstallmentTemplate.objects.count() == 3 if has_old_installments else 1
+    )
 
     response = profile_api_client.post(
         reverse(
@@ -234,3 +243,120 @@ def test_set_project_installments_errors(
     )
     assert response.status_code == 400
     assert expected_error in str(response.data)
+
+
+@pytest.mark.django_db
+def test_apartment_installments_endpoint_data(apartment_document, profile_api_client):
+    reservation = ApartmentReservationFactory()
+    ApartmentInstallmentFactory(
+        apartment_reservation=reservation,
+        **{
+            "type": InstallmentType.PAYMENT_1,
+            "value": "1000.00",
+            "unit": InstallmentUnit.EURO,
+            "account_number": "123123123-123",
+            "due_date": "2022-02-19",
+            "reference_number": "REFERENCE-123",
+        }
+    )
+    ApartmentInstallmentFactory(
+        apartment_reservation=reservation,
+        **{
+            "type": InstallmentType.REFUND,
+            "value": "100.55",
+            "unit": InstallmentUnit.EURO,
+            "account_number": "123123123-123",
+            "reference_number": "REFERENCE-321",
+        }
+    )
+
+    url = reverse(
+        "application_form:apartment-installment-list",
+        kwargs={"apartment_reservation_id": reservation.id},
+    )
+    response = profile_api_client.get(url, format="json")
+
+    assert response.status_code == 200
+    assert response.data == [
+        {
+            "type": "PAYMENT_1",
+            "amount": 100000,
+            "account_number": "123123123-123",
+            "due_date": "2022-02-19",
+            "reference_number": "REFERENCE-123",
+        },
+        {
+            "type": "REFUND",
+            "amount": 10055,
+            "account_number": "123123123-123",
+            "due_date": None,
+            "reference_number": "REFERENCE-321",
+        },
+    ]
+
+
+@pytest.mark.parametrize("has_old_installments", (False, True))
+@pytest.mark.django_db
+def test_set_apartment_installments(profile_api_client, has_old_installments):
+    reservation = ApartmentReservationFactory()
+
+    data = [
+        {
+            "type": "PAYMENT_1",
+            "amount": 100000,
+            "account_number": "123123123-123",
+            "due_date": "2022-02-19",
+            "reference_number": "REFERENCE-123",
+        },
+        {
+            "type": "REFUND",
+            "amount": 10055,
+            "account_number": "123123123-123",
+            "due_date": None,
+            "reference_number": "REFERENCE-321",
+        },
+    ]
+
+    # just to make sure other reservations' installments aren't affected
+    other_reservation_installment = ApartmentInstallmentFactory()
+
+    if has_old_installments:
+        ApartmentInstallmentFactory.create_batch(2, apartment_reservation=reservation)
+
+    assert ApartmentInstallment.objects.count() == 3 if has_old_installments else 1
+
+    response = profile_api_client.post(
+        reverse(
+            "application_form:apartment-installment-list",
+            kwargs={"apartment_reservation_id": reservation.id},
+        ),
+        data=data,
+        format="json",
+    )
+    assert response.status_code == 201
+    assert response.data == data
+
+    assert ApartmentInstallment.objects.count() == 3
+    assert (
+        ApartmentInstallment.objects.exclude(
+            id=other_reservation_installment.id
+        ).count()
+        == 2
+    )
+
+    installments = ApartmentInstallment.objects.order_by("id")
+    installment_1, installment_2 = installments[1:]
+
+    assert installment_1.type == InstallmentType.PAYMENT_1
+    assert installment_1.value == Decimal("1000.00")
+    assert installment_1.unit == InstallmentUnit.EURO
+    assert installment_1.account_number == "123123123-123"
+    assert installment_1.due_date == datetime.date(2022, 2, 19)
+    assert installment_1.reference_number == "REFERENCE-123"
+
+    assert installment_2.type == InstallmentType.REFUND
+    assert installment_2.value == Decimal("100.55")
+    assert installment_2.unit == InstallmentUnit.EURO
+    assert installment_2.account_number == "123123123-123"
+    assert installment_2.due_date is None
+    assert installment_2.reference_number == "REFERENCE-321"

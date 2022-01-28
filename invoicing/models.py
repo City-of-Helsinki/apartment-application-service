@@ -3,6 +3,7 @@ from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from enumfields import EnumField
 
+from application_form.models import ApartmentReservation
 from invoicing.enums import (
     InstallmentPercentageSpecifier,
     InstallmentType,
@@ -44,7 +45,12 @@ class ProjectInstallmentTemplate(InstallmentBase):
 
 
 class ApartmentInstallment(InstallmentBase):
-    apartment_uuid = models.UUIDField(verbose_name=_("apartment UUID"))
+    apartment_reservation = models.ForeignKey(
+        ApartmentReservation,
+        verbose_name=_("apartment reservation"),
+        related_name="apartment_installments",
+        on_delete=models.PROTECT,
+    )
     reference_number = models.CharField(
         max_length=64, verbose_name=_("reference number"), blank=True
     )
