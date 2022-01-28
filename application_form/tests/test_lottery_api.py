@@ -36,6 +36,29 @@ def test_execute_lottery_for_project_post_badly_formatted_project_uuid(api_clien
 
 @pytest.mark.django_db
 @pytest.mark.usefixtures("elastic_apartments")
+def test_execute_lottery_for_project_post_fails_application_time_not_finished(
+    api_client, elastic_project_application_time_active
+):
+    project_uuid, apartment = elastic_project_application_time_active
+    profile = SalespersonProfileFactory()
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
+
+    app = ApplicationFactory(type=ApplicationType.HITAS)
+    app.application_apartments.create(apartment_uuid=apartment.uuid, priority_number=0)
+    add_application_to_queues(app)
+
+    data = {"project_uuid": project_uuid}
+    response = api_client.post(
+        reverse("application_form:execute_lottery_for_project"), data, format="json"
+    )
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert (
+        response.json()[0]["message"] == "Project's application time is not finished."
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("elastic_apartments")
 def test_execute_lottery_for_project_post_not_found(api_client):
     profile = SalespersonProfileFactory()
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
@@ -49,17 +72,14 @@ def test_execute_lottery_for_project_post_not_found(api_client):
 
 @pytest.mark.django_db
 def test_execute_hitas_lottery_for_project_post(
-    api_client, elastic_hitas_project_with_5_apartments
+    api_client, elastic_hitas_project_application_end_time_finished
 ):
     profile = SalespersonProfileFactory()
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
-
-    project_uuid, apartments = elastic_hitas_project_with_5_apartments
+    project_uuid, apartment = elastic_hitas_project_application_end_time_finished
 
     app = ApplicationFactory(type=ApplicationType.HITAS)
-    app.application_apartments.create(
-        apartment_uuid=apartments[0].uuid, priority_number=0
-    )
+    app.application_apartments.create(apartment_uuid=apartment.uuid, priority_number=0)
     add_application_to_queues(app)
 
     data = {"project_uuid": project_uuid}
@@ -87,16 +107,14 @@ def test_execute_hitas_lottery_for_project_post_without_applications(
 
 @pytest.mark.django_db
 def test_execute_haso_lottery_for_project_post(
-    api_client, elastic_haso_project_with_5_apartments
+    api_client, elastic_haso_project_application_end_time_finished
 ):
     profile = SalespersonProfileFactory()
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
+    project_uuid, apartment = elastic_haso_project_application_end_time_finished
 
-    project_uuid, apartments = elastic_haso_project_with_5_apartments
     app = ApplicationFactory(type=ApplicationType.HASO)
-    app.application_apartments.create(
-        apartment_uuid=apartments[0].uuid, priority_number=0
-    )
+    app.application_apartments.create(apartment_uuid=apartment.uuid, priority_number=0)
     add_application_to_queues(app)
 
     data = {"project_uuid": project_uuid}

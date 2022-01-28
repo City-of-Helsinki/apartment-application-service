@@ -7,7 +7,7 @@ from application_form.services.application import (
     cancel_hitas_application,
     get_ordered_applications,
 )
-from application_form.services.lottery.hitas import distribute_hitas_apartments
+from application_form.services.lottery.hitas import _distribute_hitas_apartments
 from application_form.services.queue import add_application_to_queues
 from application_form.tests.factories import ApplicationFactory
 
@@ -24,7 +24,7 @@ def test_single_application_should_win_an_apartment(
         apartment_uuid=first_apartment_uuid, priority_number=0
     )
     add_application_to_queues(app)
-    distribute_hitas_apartments(project_uuid)
+    _distribute_hitas_apartments(project_uuid)
     # The only applicant should have won the apartment
     assert list(get_ordered_applications(first_apartment_uuid)) == [app]
     app_apartment.refresh_from_db()
@@ -60,7 +60,7 @@ def test_lottery_for_small_apartment_does_not_prioritize_applications_with_child
     # Either the family or the single applicant can win the apartment,
     # so the shuffling needs to be mocked to get deterministic results.
     with patch("secrets.randbelow", return_value=0):
-        distribute_hitas_apartments(project_uuid)
+        _distribute_hitas_apartments(project_uuid)
 
     family_app.refresh_from_db()
     single_app.refresh_from_db()
@@ -95,7 +95,7 @@ def test_lottery_for_large_apartment_prioritizes_applications_with_children(
     add_application_to_queues(family)
 
     # Decide the winner
-    distribute_hitas_apartments(project_uuid)
+    _distribute_hitas_apartments(project_uuid)
 
     family_app.refresh_from_db()
     single_app.refresh_from_db()
@@ -126,7 +126,7 @@ def test_lottery_result_is_persisted_before_apartment_distribution(
         add_application_to_queues(app)
 
     # Deciding the winner should trigger the queue to be recorded
-    distribute_hitas_apartments(project_uuid)
+    _distribute_hitas_apartments(project_uuid)
 
     # There should be an event corresponding to the apartment
     lottery_event = LotteryEvent.objects.filter(apartment_uuid=first_apartment_uuid)
@@ -154,8 +154,8 @@ def test_lottery_result_is_not_persisted_twice(elastic_hitas_project_with_5_apar
         apartment_uuid=first_apartment_uuid, priority_number=0
     )
     add_application_to_queues(application)
-    distribute_hitas_apartments(project_uuid)
-    distribute_hitas_apartments(project_uuid)  # Should not record another event
+    _distribute_hitas_apartments(project_uuid)
+    _distribute_hitas_apartments(project_uuid)  # Should not record another event
     assert LotteryEvent.objects.filter(apartment_uuid=first_apartment_uuid).count() == 1
 
 
@@ -172,7 +172,7 @@ def test_canceling_application_sets_state_to_canceled(
     add_application_to_queues(app)
 
     # This will mark the application for the apartment as "RESERVED"
-    distribute_hitas_apartments(project_uuid)
+    _distribute_hitas_apartments(project_uuid)
 
     # Cancel the application for the apartment
     cancel_hitas_application(app_apt)
@@ -211,7 +211,7 @@ def test_canceling_winning_application_marks_next_application_in_queue_as_reserv
     add_application_to_queues(single)
 
     # Decide the result
-    distribute_hitas_apartments(project_uuid)
+    _distribute_hitas_apartments(project_uuid)
 
     family_app.refresh_from_db()
     single_app.refresh_from_db()
@@ -263,7 +263,7 @@ def test_becoming_first_after_lottery_does_not_cancel_low_priority_reservation(
     add_application_to_queues(single)
 
     # Perform lottery
-    distribute_hitas_apartments(project_uuid)
+    _distribute_hitas_apartments(project_uuid)
 
     family_big.refresh_from_db()
     single_big.refresh_from_db()
@@ -319,7 +319,7 @@ def test_winning_high_priority_apartment_cancels_lower_priority_applications(
     assert list(get_ordered_applications(second_apartment_uuid)) == [app]
 
     # Decide the result
-    distribute_hitas_apartments(project_uuid)
+    _distribute_hitas_apartments(project_uuid)
 
     app_apt1.refresh_from_db()
     app_apt2.refresh_from_db()
@@ -397,7 +397,7 @@ def test_winning_high_priority_apartment_redistributes_apartments_if_winner_chan
     # Decide the result. We need a predictable result here, so the queue positions
     # will be determined based on the application order.
     with patch("secrets.randbelow", return_value=0):
-        distribute_hitas_apartments(project_uuid)
+        _distribute_hitas_apartments(project_uuid)
 
     assert list(get_ordered_applications(first_apartment_uuid)) == [app1, app3]
     assert list(get_ordered_applications(second_apartment_uuid)) == [app3]
@@ -451,7 +451,7 @@ def test_winning_low_priority_apartment_does_not_cancel_higher_priority_applicat
     add_application_to_queues(single)
 
     # Decide the result
-    distribute_hitas_apartments(project_uuid)
+    _distribute_hitas_apartments(project_uuid)
 
     family_app.refresh_from_db()
     single_high.refresh_from_db()
