@@ -38,6 +38,38 @@ class IntegerCentsField(serializers.IntegerField):
 class InstallmentSerializerBase(
     EnumSupportSerializerMixin, serializers.ModelSerializer
 ):
+    class Meta:
+        fields = (
+            "type",
+            "amount",
+            "account_number",
+            "due_date",
+        )
+
+
+@extend_schema_serializer(
+    examples=[
+        OpenApiExample(
+            "Project installment template example 1",
+            value=[
+                {
+                    "type": "PAYMENT_1",
+                    "percentage": "6.5",
+                    "percentage_specifier": "SALES_PRICE",
+                    "account_number": "FI49 5000 9420 0287 30",
+                    "due_date": "2022-02-18",
+                },
+                {
+                    "type": "REFUND",
+                    "amount": 10000,
+                    "account_number": "FI49 5000 9420 0287 30",
+                    "due_date": None,
+                },
+            ],
+        ),
+    ]
+)
+class ProjectInstallmentTemplateSerializer(InstallmentSerializerBase):
     amount = IntegerCentsField(
         source="get_amount",
         required=False,
@@ -56,14 +88,12 @@ class InstallmentSerializerBase(
         required=False,
     )
 
-    class Meta:
-        fields = (
-            "type",
+    class Meta(InstallmentSerializerBase.Meta):
+        model = ProjectInstallmentTemplate
+        fields = InstallmentSerializerBase.Meta.fields + (
             "amount",
             "percentage",
             "percentage_specifier",
-            "account_number",
-            "due_date",
         )
 
     def create(self, validated_data):
@@ -118,33 +148,6 @@ class InstallmentSerializerBase(
 @extend_schema_serializer(
     examples=[
         OpenApiExample(
-            "Project installment template example 1",
-            value=[
-                {
-                    "type": "PAYMENT_1",
-                    "percentage": "6.5",
-                    "percentage_specifier": "SALES_PRICE",
-                    "account_number": "FI49 5000 9420 0287 30",
-                    "due_date": "2022-02-18",
-                },
-                {
-                    "type": "REFUND",
-                    "amount": 10000,
-                    "account_number": "FI49 5000 9420 0287 30",
-                    "due_date": None,
-                },
-            ],
-        ),
-    ]
-)
-class ProjectInstallmentTemplateSerializer(InstallmentSerializerBase):
-    class Meta(InstallmentSerializerBase.Meta):
-        model = ProjectInstallmentTemplate
-
-
-@extend_schema_serializer(
-    examples=[
-        OpenApiExample(
             "Apartment installment example 1",
             value=[
                 {
@@ -166,6 +169,12 @@ class ProjectInstallmentTemplateSerializer(InstallmentSerializerBase):
     ]
 )
 class ApartmentInstallmentSerializer(InstallmentSerializerBase):
+    amount = IntegerCentsField(
+        source="value",
+        required=False,
+        help_text=_("Value in cents."),
+    )
+
     class Meta(InstallmentSerializerBase.Meta):
         model = ApartmentInstallment
         fields = InstallmentSerializerBase.Meta.fields + ("reference_number",)

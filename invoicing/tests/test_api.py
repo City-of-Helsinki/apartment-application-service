@@ -253,7 +253,6 @@ def test_apartment_installments_endpoint_data(apartment_document, profile_api_cl
         **{
             "type": InstallmentType.PAYMENT_1,
             "value": "1000.00",
-            "unit": InstallmentUnit.EURO,
             "account_number": "123123123-123",
             "due_date": "2022-02-19",
             "reference_number": "REFERENCE-123",
@@ -264,7 +263,6 @@ def test_apartment_installments_endpoint_data(apartment_document, profile_api_cl
         **{
             "type": InstallmentType.REFUND,
             "value": "100.55",
-            "unit": InstallmentUnit.EURO,
             "account_number": "123123123-123",
             "reference_number": "REFERENCE-321",
         }
@@ -349,14 +347,12 @@ def test_set_apartment_installments(profile_api_client, has_old_installments):
 
     assert installment_1.type == InstallmentType.PAYMENT_1
     assert installment_1.value == Decimal("1000.00")
-    assert installment_1.unit == InstallmentUnit.EURO
     assert installment_1.account_number == "123123123-123"
     assert installment_1.due_date == datetime.date(2022, 2, 19)
     assert installment_1.reference_number == "REFERENCE-123"
 
     assert installment_2.type == InstallmentType.REFUND
     assert installment_2.value == Decimal("100.55")
-    assert installment_2.unit == InstallmentUnit.EURO
     assert installment_2.account_number == "123123123-123"
     assert installment_2.due_date is None
     assert installment_2.reference_number == "REFERENCE-321"

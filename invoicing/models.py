@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import UniqueConstraint
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from enumfields import EnumField
@@ -19,6 +20,15 @@ class InstallmentBase(models.Model):
     value = models.DecimalField(
         verbose_name=_("value"), max_digits=16, decimal_places=2
     )
+    account_number = models.CharField(max_length=255, verbose_name=_("account number"))
+    due_date = models.DateField(verbose_name=_("due date"), blank=True, null=True)
+
+    class Meta:
+        abstract = True
+
+
+class ProjectInstallmentTemplate(InstallmentBase):
+    project_uuid = models.UUIDField(verbose_name=_("project UUID"))
     unit = EnumField(InstallmentUnit, verbose_name=_("unit"), max_length=32)
     percentage_specifier = EnumField(
         InstallmentPercentageSpecifier,
@@ -27,21 +37,19 @@ class InstallmentBase(models.Model):
         blank=True,
         null=True,
     )
-    account_number = models.CharField(max_length=255, verbose_name=_("account number"))
-    due_date = models.DateField(verbose_name=_("due date"), blank=True, null=True)
 
     class Meta:
-        abstract = True
+        constraints = [
+            UniqueConstraint(
+                fields=["project_uuid", "type"], name="unique_project_type"
+            )
+        ]
 
     def get_amount(self):
         return self.value if self.unit == InstallmentUnit.EURO else None
 
     def get_percentage(self):
         return self.value if self.unit == InstallmentUnit.PERCENT else None
-
-
-class ProjectInstallmentTemplate(InstallmentBase):
-    project_uuid = models.UUIDField(verbose_name=_("project UUID"))
 
 
 class ApartmentInstallment(InstallmentBase):
@@ -54,3 +62,10 @@ class ApartmentInstallment(InstallmentBase):
     reference_number = models.CharField(
         max_length=64, verbose_name=_("reference number"), blank=True
     )
+
+    class Meta:
+        constraints = [
+            UniqueConstraint(
+                fields=["apartment_reservation", "type"], name="unique_reservation_type"
+            )
+        ]
