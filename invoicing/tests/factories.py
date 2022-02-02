@@ -9,10 +9,6 @@ from ..models import ApartmentInstallment, InstallmentBase, ProjectInstallmentTe
 class InstallmentBaseFactory(factory.django.DjangoModelFactory):
     type = factory.Faker("random_element", elements=list(InstallmentType))
     value = factory.Faker("random_int", min=1000, max=9999)
-    unit = factory.Faker("random_element", elements=list(InstallmentUnit))
-    percentage_specifier = factory.Faker(
-        "random_element", elements=list(InstallmentPercentageSpecifier)
-    )
     account_number = factory.Faker("iban")
 
     class Meta:
@@ -22,6 +18,10 @@ class InstallmentBaseFactory(factory.django.DjangoModelFactory):
 
 class ProjectInstallmentTemplateFactory(InstallmentBaseFactory):
     project_uuid = factory.Faker("uuid4")
+    unit = factory.Faker("random_element", elements=list(InstallmentUnit))
+    percentage_specifier = factory.Faker(
+        "random_element", elements=list(InstallmentPercentageSpecifier)
+    )
 
     class Meta:
         model = ProjectInstallmentTemplate
