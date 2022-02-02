@@ -7,7 +7,10 @@ from ..models import ApartmentInstallment, InstallmentBase, ProjectInstallmentTe
 
 
 class InstallmentBaseFactory(factory.django.DjangoModelFactory):
-    type = factory.Faker("random_element", elements=list(InstallmentType))
+    # Faker("random_element") cannot be used because it could generate non-unique values
+    type = factory.Sequence(
+        lambda n: list(InstallmentType)[n % len(list(InstallmentType))]
+    )
     value = factory.Faker("random_int", min=1000, max=9999)
     account_number = factory.Faker("iban")
 
