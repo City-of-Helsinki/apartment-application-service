@@ -141,6 +141,7 @@ class ApartmentReservationSerializerBase(serializers.ModelSerializer):
     class Meta:
         model = ApartmentReservation
         fields = (
+            "id",
             "apartment_uuid",
             "lottery_position",
             "queue_position",

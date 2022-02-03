@@ -8,6 +8,7 @@ from application_form.api.serializers import (
     ApplicationSerializerBase,
 )
 from application_form.models import Applicant
+from invoicing.api.serializers import ApartmentInstallmentSerializer
 from users.models import Profile
 
 _logger = logging.getLogger(__name__)
@@ -63,3 +64,12 @@ class ApartmentReservationSerializer(ApartmentReservationSerializerBase):
             "has_children",
             "right_of_residence",
         )
+
+
+class RootApartmentReservationSerializer(ApartmentReservationSerializerBase):
+    installments = ApartmentInstallmentSerializer(
+        source="apartment_installments", many=True
+    )
+
+    class Meta(ApartmentReservationSerializerBase.Meta):
+        fields = ("installments",) + ApartmentReservationSerializerBase.Meta.fields

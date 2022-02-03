@@ -5,13 +5,22 @@ from application_form.api.sales.views import (
     execute_lottery_for_project,
     SalesApplicationViewSet,
 )
-from application_form.api.views import ApplicationViewSet, ListProjectReservations
+from application_form.api.views import (
+    ApartmentReservationViewSet,
+    ApplicationViewSet,
+    ListProjectReservations,
+)
 from invoicing.api.views import ApartmentInstallmentAPIView
 
 router = DefaultRouter()
 router.register(r"applications", ApplicationViewSet)
 router.register(
     r"sales/applications", SalesApplicationViewSet, basename="sales-application"
+)
+router.register(
+    r"sales/apartment_reservations",
+    ApartmentReservationViewSet,
+    basename="sales-apartment-reservation",
 )
 
 
