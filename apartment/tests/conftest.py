@@ -37,6 +37,24 @@ def elasticsearch():
     teardown_elasticsearch(test_client)
 
 
-@fixture(scope="module")
+@fixture
 def elastic_apartments(elasticsearch):
-    yield ApartmentDocumentFactory.create_batch(10)
+    apartments = ApartmentDocumentFactory.create_batch(10)
+    yield apartments
+    for apartment in apartments:
+        apartment.delete(refresh=True)
+
+
+@fixture
+def elastic_project_with_5_apartments(elasticsearch):
+    apartments = []
+
+    apartment = ApartmentDocumentFactory()
+    apartments.append(apartment)
+
+    for _ in range(4):
+        apartments.append(ApartmentDocumentFactory(project_uuid=apartment.project_uuid))
+    yield apartment.project_uuid, apartments
+
+    for apartment in apartments:
+        apartment.delete(refresh=True)
