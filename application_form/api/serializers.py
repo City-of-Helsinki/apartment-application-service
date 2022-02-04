@@ -132,7 +132,7 @@ class ApplicationSerializer(ApplicationSerializerBase):
         return value
 
 
-class ApartmentReservationSerializer(serializers.ModelSerializer):
+class ApartmentReservationSerializerBase(serializers.ModelSerializer):
     lottery_position = IntegerField(
         source="application_apartment.lotteryeventresult.result_position"
     )
@@ -140,9 +140,13 @@ class ApartmentReservationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ApartmentReservation
-        fields = [
+        fields = (
             "apartment_uuid",
             "lottery_position",
             "queue_position",
             "state",
-        ]
+        )
+
+
+class ApartmentReservationSerializer(ApartmentReservationSerializerBase):
+    pass
