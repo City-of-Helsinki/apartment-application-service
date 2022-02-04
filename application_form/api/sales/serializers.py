@@ -1,14 +1,20 @@
 import logging
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework.fields import UUIDField
 
+from apartment.elastic.queries import get_apartment
 from application_form.api.serializers import (
     ApartmentReservationSerializerBase,
     ApplicantSerializerBase,
     ApplicationSerializerBase,
 )
 from application_form.models import Applicant
-from invoicing.api.serializers import ApartmentInstallmentSerializer
+from invoicing.api.serializers import (
+    ApartmentInstallmentCandidateSerializer,
+    ApartmentInstallmentSerializer,
+)
+from invoicing.models import ProjectInstallmentTemplate
 from users.models import Profile
 
 _logger = logging.getLogger(__name__)
@@ -70,6 +76,25 @@ class RootApartmentReservationSerializer(ApartmentReservationSerializerBase):
     installments = ApartmentInstallmentSerializer(
         source="apartment_installments", many=True
     )
+    installment_candidates = serializers.SerializerMethodField()
 
     class Meta(ApartmentReservationSerializerBase.Meta):
-        fields = ("installments",) + ApartmentReservationSerializerBase.Meta.fields
+        fields = (
+            "installments",
+            "installment_candidates",
+        ) + ApartmentReservationSerializerBase.Meta.fields
+
+    @extend_schema_field(ApartmentInstallmentCandidateSerializer(many=True))
+    def get_installment_candidates(self, obj):
+        apartment_data = get_apartment(obj.apartment_uuid, include_project_fields=True)
+        installment_templates = ProjectInstallmentTemplate.objects.filter(
+            project_uuid=apartment_data["project_uuid"]
+        ).order_by("id")
+        serializer = ApartmentInstallmentCandidateSerializer(
+            [
+                template.get_corresponding_apartment_installment(apartment_data)
+                for template in installment_templates
+            ],
+            many=True,
+        )
+        return serializer.data
