@@ -149,5 +149,5 @@ class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
         ).data
 
     def get_apartments(self, obj):
-        apartments = get_apartments(obj.uuid)
+        apartments = get_apartments(obj.project_uuid)
         return ApartmentSerializer(apartments, many=True).data
