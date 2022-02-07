@@ -74,12 +74,10 @@ class ProjectInstallmentTemplate(InstallmentBase):
     def get_corresponding_apartment_installment(self, apartment_data):
         apartment_installment = ApartmentInstallment()
 
-        excluded_fields = ("id", "created_at")
-        for field_name in [
-            f.name
-            for f in InstallmentBase._meta.get_fields()
-            if f not in excluded_fields
-        ]:
+        field_names = [
+            f.name for f in InstallmentBase._meta.get_fields() if f.name != "created_at"
+        ]
+        for field_name in field_names:
             setattr(apartment_installment, field_name, getattr(self, field_name))
 
         if self.unit == InstallmentUnit.PERCENT:
@@ -98,7 +96,6 @@ class ProjectInstallmentTemplate(InstallmentBase):
             apartment_installment.value = get_rounded_price(
                 price * percentage_multiplier
             )
-
         else:
             apartment_installment.value = self.value
 

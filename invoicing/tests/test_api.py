@@ -356,3 +356,32 @@ def test_set_apartment_installments(profile_api_client, has_old_installments):
     assert installment_2.account_number == "123123123-123"
     assert installment_2.due_date is None
     assert installment_2.reference_number == "REFERENCE-321"
+
+
+@pytest.mark.django_db
+def test_apartment_installment_reference_number_populating(profile_api_client):
+    reservation = ApartmentReservationFactory()
+
+    data = [
+        {
+            "type": "PAYMENT_1",
+            "amount": 100000,
+            "account_number": "123123123-123",
+            "due_date": "2022-02-19",
+        }
+    ]
+
+    response = profile_api_client.post(
+        reverse(
+            "application_form:apartment-installment-list",
+            kwargs={"apartment_reservation_id": reservation.id},
+        ),
+        data=data,
+        format="json",
+    )
+
+    assert response.data[0]["reference_number"].startswith("REFERENCE-")
+    assert (
+        ApartmentInstallment.objects.first().reference_number
+        == response.data[0]["reference_number"]
+    )
