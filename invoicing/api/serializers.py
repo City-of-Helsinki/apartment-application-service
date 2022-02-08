@@ -1,3 +1,4 @@
+import secrets
 from decimal import Decimal
 from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import extend_schema_serializer, OpenApiExample
@@ -145,6 +146,21 @@ class ProjectInstallmentTemplateSerializer(InstallmentSerializerBase):
         return data
 
 
+class ApartmentInstallmentSerializerBase(InstallmentSerializerBase):
+    amount = IntegerCentsField(
+        source="value",
+        required=False,
+        help_text=_("Value in cents."),
+    )
+
+    class Meta(InstallmentSerializerBase.Meta):
+        model = ApartmentInstallment
+
+
+class ApartmentInstallmentCandidateSerializer(ApartmentInstallmentSerializerBase):
+    pass
+
+
 @extend_schema_serializer(
     examples=[
         OpenApiExample(
@@ -168,13 +184,12 @@ class ProjectInstallmentTemplateSerializer(InstallmentSerializerBase):
         ),
     ]
 )
-class ApartmentInstallmentSerializer(InstallmentSerializerBase):
-    amount = IntegerCentsField(
-        source="value",
-        required=False,
-        help_text=_("Value in cents."),
-    )
+class ApartmentInstallmentSerializer(ApartmentInstallmentSerializerBase):
+    class Meta(ApartmentInstallmentSerializerBase.Meta):
+        fields = ApartmentInstallmentSerializerBase.Meta.fields + ("reference_number",)
 
-    class Meta(InstallmentSerializerBase.Meta):
-        model = ApartmentInstallment
-        fields = InstallmentSerializerBase.Meta.fields + ("reference_number",)
+    def validate(self, data):
+        if "reference_number" not in data:
+            # TODO generate real reference number
+            data["reference_number"] = f"REFERENCE-{secrets.choice(range(100, 999))}"
+        return data

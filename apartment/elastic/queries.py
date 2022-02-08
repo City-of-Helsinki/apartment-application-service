@@ -3,14 +3,14 @@ from django.core.exceptions import ObjectDoesNotExist
 from apartment.elastic.documents import ApartmentDocument
 
 
-def get_apartment(apartment_uuid):
+def get_apartment(apartment_uuid, include_project_fields=False):
     search = ApartmentDocument.search()
 
     # Filters
     search = search.filter("term", uuid__keyword=apartment_uuid)
 
-    # Exclude project fields
-    search = search.source(excludes=["project_*"])
+    if not include_project_fields:
+        search = search.source(excludes=["project_*"])
 
     # Get item
     apartment = search.execute()[0]

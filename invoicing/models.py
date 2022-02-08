@@ -10,6 +10,7 @@ from invoicing.enums import (
     InstallmentType,
     InstallmentUnit,
 )
+from invoicing.utils import get_euros_from_cents, get_rounded_price
 
 
 class InstallmentBase(models.Model):
@@ -25,6 +26,25 @@ class InstallmentBase(models.Model):
 
     class Meta:
         abstract = True
+
+
+class ApartmentInstallment(InstallmentBase):
+    apartment_reservation = models.ForeignKey(
+        ApartmentReservation,
+        verbose_name=_("apartment reservation"),
+        related_name="apartment_installments",
+        on_delete=models.PROTECT,
+    )
+    reference_number = models.CharField(
+        max_length=64, verbose_name=_("reference number"), blank=True
+    )
+
+    class Meta:
+        constraints = [
+            UniqueConstraint(
+                fields=["apartment_reservation", "type"], name="unique_reservation_type"
+            )
+        ]
 
 
 class ProjectInstallmentTemplate(InstallmentBase):
@@ -51,21 +71,32 @@ class ProjectInstallmentTemplate(InstallmentBase):
     def get_percentage(self):
         return self.value if self.unit == InstallmentUnit.PERCENT else None
 
+    def get_corresponding_apartment_installment(self, apartment_data):
+        apartment_installment = ApartmentInstallment()
 
-class ApartmentInstallment(InstallmentBase):
-    apartment_reservation = models.ForeignKey(
-        ApartmentReservation,
-        verbose_name=_("apartment reservation"),
-        related_name="apartment_installments",
-        on_delete=models.PROTECT,
-    )
-    reference_number = models.CharField(
-        max_length=64, verbose_name=_("reference number"), blank=True
-    )
-
-    class Meta:
-        constraints = [
-            UniqueConstraint(
-                fields=["apartment_reservation", "type"], name="unique_reservation_type"
-            )
+        field_names = [
+            f.name for f in InstallmentBase._meta.get_fields() if f.name != "created_at"
         ]
+        for field_name in field_names:
+            setattr(apartment_installment, field_name, getattr(self, field_name))
+
+        if self.unit == InstallmentUnit.PERCENT:
+            if not self.percentage_specifier:
+                raise ValueError(
+                    f"Cannot calculate apartment installment value, {self} "
+                    f"has no percentage_specifier"
+                )
+            if self.percentage_specifier == InstallmentPercentageSpecifier.SALES_PRICE:
+                price_in_cents = apartment_data["sales_price"]
+            else:
+                price_in_cents = apartment_data["debt_free_sales_price"]
+
+            price = get_euros_from_cents(price_in_cents)
+            percentage_multiplier = self.value / 100
+            apartment_installment.value = get_rounded_price(
+                price * percentage_multiplier
+            )
+        else:
+            apartment_installment.value = self.value
+
+        return apartment_installment
