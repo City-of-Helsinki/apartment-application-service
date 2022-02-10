@@ -1,13 +1,20 @@
 from django.db import transaction
+from django.http import HttpResponse
 from django.utils.timezone import now
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import generics
+from rest_framework.views import APIView
+
+from application_form.models import ApartmentReservation
 
 from ..api.serializers import (
     ApartmentInstallmentSerializer,
     ProjectInstallmentTemplateSerializer,
 )
 from ..models import ApartmentInstallment, ProjectInstallmentTemplate
+from ..pdf import create_invoice_pdf_from_installments
+
+INVOICE_FILE_NAME = "invoice.pdf"
 
 
 class InstallmentAPIViewBase(generics.ListCreateAPIView):
@@ -59,3 +66,16 @@ class ApartmentInstallmentAPIView(InstallmentAPIViewBase):
     queryset = ApartmentInstallment.objects.all()
     serializer_class = ApartmentInstallmentSerializer
     parent_field = "apartment_reservation_id"
+
+
+class ApartmentInstallmentInvoiceAPIView(APIView):
+    def get(self, request, **kwargs):
+        reservation = ApartmentReservation.objects.get(
+            id=kwargs["apartment_reservation_id"]
+        )
+        installments = list(reservation.apartment_installments.all().order_by("id"))
+        pdf_data = create_invoice_pdf_from_installments(installments)
+        response = HttpResponse(pdf_data, content_type="application/pdf")
+        response["Content-Disposition"] = f"attachment; filename={INVOICE_FILE_NAME}"
+
+        return response

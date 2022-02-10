@@ -385,3 +385,38 @@ def test_apartment_installment_reference_number_populating(profile_api_client):
         ApartmentInstallment.objects.first().reference_number
         == response.data[0]["reference_number"]
     )
+
+
+@pytest.mark.django_db
+def test_apartment_installment_invoice_pdf(profile_api_client):
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
+
+    ApartmentInstallmentFactory(
+        apartment_reservation=reservation,
+        **{
+            "type": InstallmentType.PAYMENT_1,
+            "value": "1000.00",
+            "account_number": "123123123-123",
+            "due_date": "2022-02-19",
+            "reference_number": "REFERENCE-123",
+        }
+    )
+    ApartmentInstallmentFactory(
+        apartment_reservation=reservation,
+        **{
+            "type": InstallmentType.REFUND,
+            "value": "100.55",
+            "account_number": "123123123-123",
+            "reference_number": "REFERENCE-321",
+        }
+    )
+    response = profile_api_client.get(
+        reverse(
+            "application_form:apartment-installment-invoice",
+            kwargs={"apartment_reservation_id": reservation.id},
+        ),
+        format="json",
+    )
+    assert response.status_code == 200
+    assert response.content

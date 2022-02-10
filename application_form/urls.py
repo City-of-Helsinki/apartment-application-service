@@ -10,7 +10,10 @@ from application_form.api.views import (
     ApplicationViewSet,
     ListProjectReservations,
 )
-from invoicing.api.views import ApartmentInstallmentAPIView
+from invoicing.api.views import (
+    ApartmentInstallmentAPIView,
+    ApartmentInstallmentInvoiceAPIView,
+)
 
 router = DefaultRouter()
 router.register(r"applications", ApplicationViewSet)
@@ -40,6 +43,11 @@ urlpatterns = [
         r"sales/execute_lottery_for_project",
         execute_lottery_for_project,
         name="execute_lottery_for_project",
+    ),
+    path(
+        r"sales/apartment_reservations/<int:apartment_reservation_id>/installments/invoice/",  # noqa: E501
+        ApartmentInstallmentInvoiceAPIView.as_view(),
+        name="apartment-installment-invoice",
     ),
     path(
         r"sales/apartment_reservations/<int:apartment_reservation_id>/installments/",
