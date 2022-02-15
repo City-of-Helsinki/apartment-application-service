@@ -19,25 +19,33 @@ from users.models import Profile
 _logger = logging.getLogger(__name__)
 
 
-class ProfileSerializer(ModelSerializer):
+class ProfileSerializerBase(ModelSerializer):
     id = UUIDField(source="pk")
-    is_salesperson = BooleanField()
 
     class Meta:
+        abstract = True
         model = Profile
-        fields = [
+        fields = (
             "id",
             "first_name",
             "last_name",
             "email",
             "phone_number",
+        )
+
+
+class ProfileSerializer(ProfileSerializerBase):
+    is_salesperson = BooleanField()
+
+    class Meta(ProfileSerializerBase.Meta):
+        fields = ProfileSerializerBase.Meta.fields + (
             "street_address",
             "date_of_birth",
             "city",
             "postal_code",
             "contact_language",
             "is_salesperson",
-        ]
+        )
 
     @transaction.atomic
     def create(self, validated_data):

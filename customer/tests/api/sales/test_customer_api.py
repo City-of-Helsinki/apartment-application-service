@@ -12,6 +12,28 @@ from users.tests.utils import _create_token
 
 
 @pytest.mark.django_db
+def test_get_customer_api_detail(api_client):
+    customer = CustomerFactory(secondary_profile=ProfileFactory())
+
+    profile = ProfileFactory()
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
+    response = api_client.get(
+        reverse("customer:sales-customer-detail", args=(customer.pk,)),
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data
+    assert response.data.get("id") == customer.pk
+    assert response.data["primary_profile"]
+    assert response.data["primary_profile"].get("id") == customer.primary_profile.id
+    assert response.data["primary_profile"]["national_identification_number"]
+    assert response.data["secondary_profile"]
+    assert response.data["secondary_profile"].get("id") == customer.secondary_profile.id
+    assert response.data["secondary_profile"]["national_identification_number"]
+
+
+@pytest.mark.django_db
 def test_get_customer_api_list(api_client):
     CustomerFactory(secondary_profile=None)
     CustomerFactory(secondary_profile=ProfileFactory())
