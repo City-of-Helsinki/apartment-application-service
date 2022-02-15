@@ -65,12 +65,14 @@ class ApartmentDocument(ReadOnlyDocument):
     project_estimated_completion = Keyword(required=True)
     project_estimated_completion_date = Date()
     project_completion_date = Date()
-    project_posession_transfer_date = Date()
+    project_possession_transfer_date = Date()
+    project_published = Boolean()
 
     project_attachment_urls = Keyword(multi=True)
     project_main_image_url = Keyword()
     project_image_urls = Keyword(multi=True)
     project_virtual_presentation_url = Keyword()
+    project_url = Keyword()
 
     project_acc_salesperson = Keyword()
     project_acc_financeofficer = Keyword()
@@ -83,6 +85,9 @@ class ApartmentDocument(ReadOnlyDocument):
 
     project_coordinate_lat = Float()
     project_coordinate_lon = Float()
+
+    project_barred_bank_account = Keyword()
+    project_regular_bank_account = Keyword()
 
     uuid = Keyword(required=True)
 
@@ -123,6 +128,11 @@ class ApartmentDocument(ReadOnlyDocument):
     application_url = Keyword()
     floor_plan_image = Keyword()
     image_urls = Keyword(multi=True)
+    title = Keyword()
+    site_owner = Keyword()
+    services = Keyword()
+    apartment_state_of_sale = Keyword()
+    apartment_published = Boolean()
 
     class Index:
         name = settings.APARTMENT_INDEX_NAME
