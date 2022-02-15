@@ -8,6 +8,7 @@ from application_form.tests.factories import (
     LotteryEventFactory,
     LotteryEventResultFactory,
 )
+from customer.tests.factories import CustomerFactory
 from users.tests.factories import ProfileFactory
 from users.tests.utils import _create_token
 
@@ -21,7 +22,7 @@ def test_list_project_reservations_get(api_client, elastic_project_with_5_apartm
     project_uuid, apartments = elastic_project_with_5_apartments
     apartment_reservation_count = 5
     profile = ProfileFactory()
-    application = ApplicationFactory(profile=profile)
+    application = ApplicationFactory(customer=CustomerFactory(primary_profile=profile))
     for apartment in apartments:
         application_apartment = ApplicationApartmentFactory(
             apartment_uuid=apartment.uuid, application=application
@@ -55,7 +56,7 @@ def test_list_project_reservations_get_without_lottery_data(
     project_uuid, apartments = elastic_project_with_5_apartments
     apartment_reservation_count = 5
     profile = ProfileFactory()
-    application = ApplicationFactory(profile=profile)
+    application = ApplicationFactory(customer=CustomerFactory(primary_profile=profile))
     for apartment in apartments:
         application_apartment = ApplicationApartmentFactory(
             apartment_uuid=apartment.uuid, application=application

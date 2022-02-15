@@ -3,9 +3,18 @@ from datetime import datetime
 from django.urls import reverse
 from rest_framework import status
 
+from apartment.tests.factories import ApartmentDocumentFactory
 from application_form import error_codes
+from application_form.models import Application
 from application_form.tests.conftest import create_application_data
+from application_form.tests.factories import (
+    ApplicationApartmentFactory,
+    ApplicationFactory,
+)
 from audit_log.models import AuditLog
+from customer.models import Customer
+from customer.tests.factories import CustomerFactory
+from users.models import Profile
 from users.tests.factories import ProfileFactory
 from users.tests.utils import _create_token
 
@@ -20,6 +29,91 @@ def test_application_post(api_client, elastic_single_project_with_apartments):
     )
     assert response.status_code == 201
     assert response.data == {"application_uuid": data["application_uuid"]}
+
+
+@pytest.mark.parametrize("already_existing_customer", (False, True))
+@pytest.mark.django_db
+def test_application_post_single_profile_customer(
+    api_client, elastic_single_project_with_apartments, already_existing_customer
+):
+    profile = ProfileFactory()
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
+
+    assert Profile.objects.count() == 1
+    if already_existing_customer:
+        apartment = ApartmentDocumentFactory()
+        application = ApplicationFactory(
+            customer=CustomerFactory(primary_profile=profile),
+        )
+        ApplicationApartmentFactory.create_application_with_apartments(
+            [apartment.uuid], application
+        )
+        assert Customer.objects.count() == 1
+    else:
+        assert Customer.objects.count() == 0
+
+    data = create_application_data(profile, num_applicants=1)
+
+    response = api_client.post(
+        reverse("application_form:application-list"), data, format="json"
+    )
+    assert response.status_code == 201, response.data
+    application = Application.objects.get(external_uuid=data["application_uuid"])
+    assert str(application.customer.primary_profile.id) == profile.id
+
+    assert Profile.objects.count() == 1
+    assert Customer.objects.count() == 1
+    assert application.customer.secondary_profile is None
+
+
+@pytest.mark.parametrize("already_existing_customer", (False, True, "wrong"))
+@pytest.mark.django_db
+def test_application_post_multi_profile_customer(
+    api_client, elastic_single_project_with_apartments, already_existing_customer
+):
+    profile = ProfileFactory()
+    secondary_profile = ProfileFactory()
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
+
+    if already_existing_customer:
+        apartment = ApartmentDocumentFactory()
+        if already_existing_customer is True:
+            application = ApplicationFactory(
+                customer=CustomerFactory(
+                    primary_profile=profile, secondary_profile=secondary_profile
+                ),
+            )
+        else:
+            application = ApplicationFactory(
+                customer=CustomerFactory(
+                    primary_profile=profile, secondary_profile=ProfileFactory()
+                ),
+            )
+        ApplicationApartmentFactory.create_application_with_apartments(
+            [apartment.uuid], application
+        )
+        assert Customer.objects.count() == 1
+    else:
+        assert Customer.objects.count() == 0
+    assert Profile.objects.count() == 3 if already_existing_customer == "wrong" else 2
+
+    data = create_application_data(profile)
+    if already_existing_customer is True:
+        data["additional_applicant"][
+            "date_of_birth"
+        ] = f"{secondary_profile.date_of_birth:%Y-%m-%d}"
+        data["additional_applicant"]["ssn_suffix"] = secondary_profile.ssn_suffix
+
+    response = api_client.post(
+        reverse("application_form:application-list"), data, format="json"
+    )
+    assert response.status_code == 201, response.data
+    application = Application.objects.get(external_uuid=data["application_uuid"])
+    assert str(application.customer.primary_profile.id) == profile.id
+    if already_existing_customer is True:
+        assert str(application.customer.secondary_profile_id) == secondary_profile.id
+    else:
+        assert application.customer.secondary_profile
 
 
 @pytest.mark.django_db

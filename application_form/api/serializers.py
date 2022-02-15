@@ -86,27 +86,6 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
     def create(self, validated_data):
         return create_application(validated_data)
 
-    def validate(self, attrs):
-        project_uuid = attrs["project_id"]
-        applicants = []
-        profile = self.context["request"].user.profile
-        applicants.append((profile.date_of_birth, attrs["ssn_suffix"]))
-        is_additional_applicant = (
-            "additional_applicant" in attrs
-            and attrs["additional_applicant"] is not None
-        )
-        if is_additional_applicant:
-            applicants.append(
-                (
-                    attrs["additional_applicant"]["date_of_birth"],
-                    attrs["additional_applicant"]["ssn_suffix"],
-                )
-            )
-        validator = ProjectApplicantValidator()
-        validator(project_uuid, applicants)
-
-        return super().validate(attrs)
-
 
 class ApplicationSerializer(ApplicationSerializerBase):
     additional_applicant = ApplicantSerializer(write_only=True, allow_null=True)
@@ -130,6 +109,27 @@ class ApplicationSerializer(ApplicationSerializerBase):
                 code=error_codes.E1000_SSN_SUFFIX_IS_NOT_VALID,
             )
         return value
+
+    def validate(self, attrs):
+        project_uuid = attrs["project_id"]
+        applicants = []
+        profile = self.context["request"].user.profile
+        applicants.append((profile.date_of_birth, attrs["ssn_suffix"]))
+        is_additional_applicant = (
+            "additional_applicant" in attrs
+            and attrs["additional_applicant"] is not None
+        )
+        if is_additional_applicant:
+            applicants.append(
+                (
+                    attrs["additional_applicant"]["date_of_birth"],
+                    attrs["additional_applicant"]["ssn_suffix"],
+                )
+            )
+        validator = ProjectApplicantValidator()
+        validator(project_uuid, applicants)
+
+        return super().validate(attrs)
 
 
 class ApartmentReservationSerializerBase(serializers.ModelSerializer):

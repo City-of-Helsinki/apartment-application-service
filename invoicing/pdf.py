@@ -45,12 +45,9 @@ def create_invoice_pdf_from_installments(installments):
 
     invoice_pdf_data_list = []
     for installment in installments:
-        profile = (
-            installment.apartment_reservation.application_apartment.application.profile
-        )
-        apartment = get_cached_apartment(
-            installment.apartment_reservation.apartment_uuid
-        )
+        reservation = installment.apartment_reservation
+        profile = reservation.application_apartment.application.customer.primary_profile
+        apartment = get_cached_apartment(reservation.apartment_uuid)
         project = get_cached_project(apartment.project_uuid)
         invoice_pdf_data = InvoicePDFData(
             recipient=project.project_housing_company,

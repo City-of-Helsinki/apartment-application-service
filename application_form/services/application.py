@@ -14,6 +14,7 @@ from application_form.services.queue import (
     add_application_to_queues,
     remove_application_from_queue,
 )
+from customer.services import get_or_create_customer_from_profiles
 
 _logger = logging.getLogger(__name__)
 
@@ -59,13 +60,14 @@ def create_application(application_data: dict) -> Application:
     data = application_data.copy()
     profile = data.pop("profile")
     additional_applicant_data = data.pop("additional_applicant")
+    customer = get_or_create_customer_from_profiles(profile, additional_applicant_data)
     application = Application.objects.create(
         external_uuid=data.pop("external_uuid"),
         applicants_count=2 if additional_applicant_data else 1,
         type=data.pop("type"),
         has_children=data.pop("has_children"),
         right_of_residence=data.pop("right_of_residence"),
-        profile=profile,
+        customer=customer,
     )
     Applicant.objects.create(
         first_name=profile.first_name,

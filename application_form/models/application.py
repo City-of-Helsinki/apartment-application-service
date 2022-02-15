@@ -16,6 +16,7 @@ from apartment_application_service.fields import (
 )
 from apartment_application_service.models import TimestampedModel
 from application_form.enums import ApplicationType
+from customer.models import Customer
 from users.models import Profile
 
 
@@ -31,7 +32,9 @@ class Application(TimestampedModel):
         _("right of residence number"), null=True
     )
     has_children = BooleanPGPPublicKeyField(_("has children"), default=False)
-    profile = models.ForeignKey(Profile, null=True, on_delete=models.SET_NULL)
+    customer = models.ForeignKey(
+        Customer, verbose_name=_("customer"), on_delete=models.CASCADE
+    )
     submitted_late = models.BooleanField("submitted late", default=False)
 
     audit_log_id_field = "external_uuid"
