@@ -45,6 +45,12 @@ class ApartmentDocumentSerializer(serializers.Serializer):
     application_url = serializers.CharField()
     floor_plan_image = serializers.CharField()
     image_urls = serializers.ListField()
+    url = serializers.CharField()
+    title = serializers.CharField()
+    site_owner = serializers.CharField()
+    services = serializers.ListField()
+    apartment_state_of_sale = serializers.CharField()
+    apartment_published = serializers.BooleanField()
 
 
 class ProjectDocumentSerializerBase(serializers.Serializer):
@@ -75,7 +81,6 @@ class ProjectDocumentSerializerBase(serializers.Serializer):
     heating_options = serializers.ListField(source="project_heating_options")
     energy_class = serializers.CharField(source="project_energy_class")
     site_area = serializers.IntegerField(source="project_site_area")
-    site_owner = serializers.CharField(source="project_site_owner")
     site_renter = serializers.CharField(source="project_site_renter")
     sanitation = serializers.CharField(source="project_sanitation")
     zoning_info = serializers.CharField(source="project_zoning_info")
@@ -111,8 +116,8 @@ class ProjectDocumentSerializerBase(serializers.Serializer):
         source="project_estimated_completion_date"
     )
     completion_date = serializers.DateTimeField(source="project_completion_date")
-    posession_transfer_date = serializers.DateTimeField(
-        source="project_posession_transfer_date"
+    possession_transfer_date = serializers.DateTimeField(
+        source="project_possession_transfer_date"
     )
     attachment_urls = serializers.ListField(source="project_attachment_urls")
     main_image_url = serializers.CharField(source="project_main_image_url")
@@ -130,6 +135,10 @@ class ProjectDocumentSerializerBase(serializers.Serializer):
     estate_agent_phone = serializers.CharField(source="project_estate_agent_phone")
     coordinate_lat = serializers.FloatField(source="project_coordinate_lat")
     coordinate_lon = serializers.FloatField(source="project_coordinate_lon")
+    url = serializers.CharField(source="project_url")
+    barred_bank_account = serializers.CharField(source="project_barred_bank_account")
+    regular_bank_account = serializers.CharField(source="project_regular_bank_account")
+    published = serializers.BooleanField(source="project_published")
 
 
 class ProjectDocumentListSerializer(ProjectDocumentSerializerBase):
