@@ -1,6 +1,5 @@
 import logging
 from django.conf import settings
-from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import UUIDField
 from django.utils.translation import gettext_lazy as _
@@ -10,7 +9,6 @@ from pgcrypto.fields import (
     DatePGPPublicKeyField,
     EmailPGPPublicKeyField,
 )
-from stdnum import fi
 from uuid import uuid4
 
 from apartment_application_service.models import TimestampedModel
@@ -73,13 +71,6 @@ class Profile(TimestampedModel):
             return cls.national_identification_number[6:]
         return None
 
-    def clean(self):
-        if self.national_identification_number:
-            try:
-                fi.personalid.validate(self.national_identification_number)
-            except Exception as ex:
-                raise ValidationError(message=ex.message)
-
     def delete(self, *args, **kwargs):
         pk = self.pk
         _logger.info(f"Deleting profile {pk}")
@@ -90,7 +81,6 @@ class Profile(TimestampedModel):
         return result
 
     def save(self, *args, **kwargs):
-        self.clean()
         super(Profile, self).save(*args, **kwargs)
 
     def is_salesperson(self) -> bool:
