@@ -1,6 +1,28 @@
 from rest_framework import serializers
 
 from customer.models import Customer
+from users.api.sales.serializers import ProfileSerializer
+
+
+class CustomerSerializer(serializers.ModelSerializer):
+    primary_profile = ProfileSerializer()
+    secondary_profile = ProfileSerializer()
+
+    class Meta:
+        model = Customer
+        fields = (
+            "id",
+            "additional_information",
+            "created_at",
+            "has_children",
+            "has_hitas_ownership",
+            "is_age_over_55",
+            "is_right_of_occupancy_housing_changer",
+            "last_contact_date",
+            "primary_profile",
+            "right_of_residence",
+            "secondary_profile",
+        )
 
 
 class CustomerListSerializer(serializers.ModelSerializer):
