@@ -1,0 +1,370 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2022-02-17 15:36+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: apartment_application_service/settings.py:125 users/models.py:30
+msgid "Finnish"
+msgstr ""
+
+#: apartment_application_service/settings.py:125 users/models.py:32
+msgid "English"
+msgstr ""
+
+#: apartment_application_service/settings.py:125 users/models.py:31
+msgid "Swedish"
+msgstr ""
+
+#: application_form/models/application.py:24
+msgid "application identifier"
+msgstr ""
+
+#: application_form/models/application.py:26
+msgid "applicants count"
+msgstr ""
+
+#: application_form/models/application.py:28
+msgid "application type"
+msgstr ""
+
+#: application_form/models/application.py:31
+msgid "right of residence number"
+msgstr ""
+
+#: application_form/models/application.py:33
+msgid "has children"
+msgstr ""
+
+#: application_form/models/application.py:41 users/models.py:41
+msgid "first name"
+msgstr ""
+
+#: application_form/models/application.py:42 users/models.py:45
+msgid "last name"
+msgstr ""
+
+#: application_form/models/application.py:43
+msgid "email"
+msgstr ""
+
+#: application_form/models/application.py:44 users/models.py:50
+msgid "phone number"
+msgstr ""
+
+#: application_form/models/application.py:45 users/models.py:54
+msgid "street address"
+msgstr ""
+
+#: application_form/models/application.py:46 users/models.py:62
+msgid "city"
+msgstr ""
+
+#: application_form/models/application.py:47 users/models.py:63
+msgid "postal code"
+msgstr ""
+
+#: application_form/models/application.py:48
+msgid "age"
+msgstr ""
+
+#: application_form/models/application.py:49 users/models.py:55
+msgid "date of birth"
+msgstr ""
+
+#: application_form/models/application.py:56 users/models.py:65
+msgid "contact language"
+msgstr ""
+
+#: application_form/models/application.py:62
+msgid "is primary applicant"
+msgstr ""
+
+#: application_form/models/application.py:74
+#: application_form/models/lottery.py:8
+#: application_form/models/reservation.py:17
+msgid "apartment uuid"
+msgstr ""
+
+#: application_form/models/application.py:75
+msgid "priority number"
+msgstr ""
+
+#: application_form/models/lottery.py:15
+msgid "result position"
+msgstr ""
+
+#: application_form/models/reservation.py:18
+msgid "position in queue"
+msgstr ""
+
+#: application_form/models/reservation.py:26
+msgid "apartment reservation state"
+msgstr ""
+
+#: application_form/models/reservation.py:40
+msgid "change type"
+msgstr ""
+
+#: application_form/models/reservation.py:42
+msgid "comment"
+msgstr ""
+
+#: application_form/services/lottery/machine.py:29
+#, python-brace-format
+msgid ""
+"The apartments of project cannot distribute by the given ownershiptype: {0}"
+msgstr ""
+
+#: connections/elastic_mapper.py:14
+#, python-format
+msgid "Could not map the ownership_type %s"
+msgstr ""
+
+#: connections/etuovi/etuovi_mapper.py:152
+#, python-brace-format
+msgid "project_holding_type {holding_type} not found in HOLDING_TYPE_MAPPING"
+msgstr ""
+
+#: connections/etuovi/etuovi_mapper.py:191
+#, python-brace-format
+msgid "project_building_type {realty_type} not found in REALTY_TYPE_MAPPING"
+msgstr ""
+
+#: connections/etuovi/etuovi_mapper.py:206
+#, python-format
+msgid "project_holding_type %s not found in TRADE_TYPE_MAPPING"
+msgstr ""
+
+#: connections/oikotie/oikotie_mapper.py:60
+#, python-format
+msgid "could not map the project_building_type %s"
+msgstr ""
+
+#: connections/oikotie/oikotie_mapper.py:72
+#, python-format
+msgid "could not map the project_holding_type %s"
+msgstr ""
+
+#: connections/oikotie/oikotie_mapper.py:83
+#, python-format
+msgid "could not map the project_city %s"
+msgstr ""
+
+#: connections/oikotie/oikotie_mapper.py:366
+#, python-format
+msgid "could not map the project_new_development_status %s"
+msgstr ""
+
+#: connections/oikotie/oikotie_mapper.py:496
+#, python-format
+msgid "could not map the project_estate_agent_email %s"
+msgstr ""
+
+#: connections/oikotie/oikotie_mapper.py:523
+#, python-format
+msgid "could not map %s"
+msgstr ""
+
+#: connections/oikotie/oikotie_mapper.py:574
+#, python-format
+msgid "could not map the project_housing_company %s"
+msgstr ""
+
+#: customer/models.py:20
+msgid "additional information"
+msgstr ""
+
+#: customer/models.py:23
+msgid "last contact date"
+msgstr ""
+
+#: invoicing/api/serializers.py:77
+msgid "Value in cents. Either this or `percentage` is required."
+msgstr ""
+
+#: invoicing/api/serializers.py:84
+msgid "Either this or `amount` is required."
+msgstr ""
+
+#: invoicing/api/serializers.py:88
+msgid "This is required with `percentage`."
+msgstr ""
+
+#: invoicing/api/serializers.py:153
+msgid "Value in cents."
+msgstr ""
+
+#: invoicing/enums.py:22
+msgid "1st payment"
+msgstr "1. Erä"
+
+#: invoicing/enums.py:23
+msgid "2nd payment"
+msgstr "2. Erä"
+
+#: invoicing/enums.py:24
+msgid "3rd payment"
+msgstr "3. Erä"
+
+#: invoicing/enums.py:25
+msgid "4th payment"
+msgstr "4. Erä"
+
+#: invoicing/enums.py:26
+msgid "5th payment"
+msgstr "5. Erä"
+
+#: invoicing/enums.py:27
+msgid "6th payment"
+msgstr "6. Erä"
+
+#: invoicing/enums.py:28
+msgid "7th payment"
+msgstr "7. Erä"
+
+#: invoicing/enums.py:29
+msgid "refund"
+msgstr "Hyvitys"
+
+#: invoicing/enums.py:30
+msgid "down payment"
+msgstr "Käsiraha"
+
+#: invoicing/enums.py:31
+msgid "late payment interest"
+msgstr "Viivästyskorko"
+
+#: invoicing/enums.py:32
+msgid "right of residence fee"
+msgstr "AO-maksu"
+
+#: invoicing/enums.py:33
+msgid "for invoicing"
+msgstr "Laskutettava"
+
+#: invoicing/enums.py:34
+msgid "deposit"
+msgstr "Vakuusmaksu"
+
+#: invoicing/enums.py:35
+msgid "reservation fee"
+msgstr "Varausmaksu"
+
+#: invoicing/enums.py:43
+msgid "euro"
+msgstr "euro"
+
+#: invoicing/enums.py:44
+msgid "percent"
+msgstr "prosentti"
+
+#: invoicing/enums.py:53
+msgid "sales price"
+msgstr "myyntihinta"
+
+#: invoicing/enums.py:54
+msgid "debt free sales price"
+msgstr "velaton hinta"
+
+#: invoicing/enums.py:55
+msgid "debt free sales price flexible"
+msgstr "velaton hinta (joustoerä)"
+
+#: invoicing/models.py:23
+msgid "created at"
+msgstr "luontiaika"
+
+#: invoicing/models.py:25
+msgid "type"
+msgstr "tyyppi"
+
+#: invoicing/models.py:27
+msgid "value"
+msgstr "summa"
+
+#: invoicing/models.py:29
+msgid "account number"
+msgstr "tilinumero"
+
+#: invoicing/models.py:30
+msgid "due date"
+msgstr "eräpäivä"
+
+#: invoicing/models.py:39
+msgid "apartment reservation"
+msgstr "huoneistovaraus"
+
+#: invoicing/models.py:44
+msgid "reference number"
+msgstr "viitenumero"
+
+#: invoicing/models.py:82
+msgid "project UUID"
+msgstr "kohteen UUID"
+
+#: invoicing/models.py:83
+msgid "unit"
+msgstr ""
+
+#: invoicing/models.py:86
+msgid "percentage specifier"
+msgstr "yksikön täsmennys"
+
+#: invoicing/pdf.py:59
+msgid "Apartment"
+msgstr "Huoneisto"
+
+#: users/models.py:24
+msgid "user"
+msgstr ""
+
+#: users/models.py:25
+msgid "users"
+msgstr ""
+
+#: users/models.py:36
+msgid "user identifier"
+msgstr ""
+
+#: users/models.py:43
+msgid "middle name"
+msgstr ""
+
+#: users/models.py:47
+msgid "calling name"
+msgstr ""
+
+#: users/models.py:49
+msgid "email address"
+msgstr ""
+
+#: users/models.py:52
+msgid "phone number nightly"
+msgstr ""
+
+#: users/models.py:57
+msgid "national identification number"
+msgstr ""
+
+#: users/models.py:103
+msgid "profile"
+msgstr ""
+
+#: users/models.py:104
+msgid "profiles"
+msgstr ""
