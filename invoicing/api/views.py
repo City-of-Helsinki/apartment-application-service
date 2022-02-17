@@ -1,8 +1,10 @@
 from django.db import transaction
 from django.http import HttpResponse
 from django.utils.timezone import now
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from rest_framework import generics
+from rest_framework.exceptions import ValidationError
 from rest_framework.views import APIView
 
 from ..api.serializers import (
@@ -66,14 +68,46 @@ class ApartmentInstallmentAPIView(InstallmentAPIViewBase):
     parent_field = "apartment_reservation_id"
 
 
+@extend_schema(
+    description="Create an invoice PDF based on apartment installments.",
+    parameters=[
+        OpenApiParameter(
+            name="index",
+            description="Comma-separated row index numbers starting from 0.",
+            type={"type": "array", "items": {"type": "number"}},
+            location=OpenApiParameter.QUERY,
+            required=False,
+        )
+    ],
+    responses={(200, "application/pdf"): OpenApiTypes.BINARY},
+)
 class ApartmentInstallmentInvoiceAPIView(APIView):
     def get(self, request, **kwargs):
-        installments = ApartmentInstallment.objects.filter(
-            apartment_reservation_id=kwargs["apartment_reservation_id"]
-        ).order_by("id")
+        installments = list(
+            ApartmentInstallment.objects.filter(
+                apartment_reservation_id=kwargs["apartment_reservation_id"]
+            ).order_by("id")
+        )
+
+        if index_params := request.query_params.get("index"):
+            installments = [
+                _find_installment_by_index_param(index_param, installments)
+                for index_param in index_params.split(",")
+            ]
 
         pdf_data = create_invoice_pdf_from_installments(installments)
         response = HttpResponse(pdf_data, content_type="application/pdf")
         response["Content-Disposition"] = f"attachment; filename={INVOICE_FILE_NAME}"
 
         return response
+
+
+def _find_installment_by_index_param(index_param, installments):
+    try:
+        return next(
+            installment
+            for index, installment in enumerate(installments)
+            if str(index) == index_param.strip()
+        )
+    except StopIteration:
+        raise ValidationError(f"Invalid index {index_param}")
