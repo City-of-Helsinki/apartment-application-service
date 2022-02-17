@@ -45,7 +45,7 @@ urlpatterns = [
         name="execute_lottery_for_project",
     ),
     path(
-        r"sales/apartment_reservations/<int:apartment_reservation_id>/installments/invoice/",  # noqa: E501
+        r"sales/apartment_reservations/<int:apartment_reservation_id>/installments/invoices/",  # noqa: E501
         ApartmentInstallmentInvoiceAPIView.as_view(),
         name="apartment-installment-invoice",
     ),

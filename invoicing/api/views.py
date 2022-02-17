@@ -5,8 +5,6 @@ from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import generics
 from rest_framework.views import APIView
 
-from application_form.models import ApartmentReservation
-
 from ..api.serializers import (
     ApartmentInstallmentSerializer,
     ProjectInstallmentTemplateSerializer,
@@ -70,10 +68,10 @@ class ApartmentInstallmentAPIView(InstallmentAPIViewBase):
 
 class ApartmentInstallmentInvoiceAPIView(APIView):
     def get(self, request, **kwargs):
-        reservation = ApartmentReservation.objects.get(
-            id=kwargs["apartment_reservation_id"]
-        )
-        installments = list(reservation.apartment_installments.all().order_by("id"))
+        installments = ApartmentInstallment.objects.filter(
+            apartment_reservation_id=kwargs["apartment_reservation_id"]
+        ).order_by("id")
+
         pdf_data = create_invoice_pdf_from_installments(installments)
         response = HttpResponse(pdf_data, content_type="application/pdf")
         response["Content-Disposition"] = f"attachment; filename={INVOICE_FILE_NAME}"
