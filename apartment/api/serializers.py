@@ -139,6 +139,7 @@ class ProjectDocumentSerializerBase(serializers.Serializer):
     barred_bank_account = serializers.CharField(source="project_barred_bank_account")
     regular_bank_account = serializers.CharField(source="project_regular_bank_account")
     published = serializers.BooleanField(source="project_published")
+    archived = serializers.BooleanField(source="project_archived")
 
 
 class ProjectDocumentListSerializer(ProjectDocumentSerializerBase):
