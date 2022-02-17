@@ -67,6 +67,7 @@ class ApartmentDocument(ReadOnlyDocument):
     project_completion_date = Date()
     project_possession_transfer_date = Date()
     project_published = Boolean()
+    project_archived = Boolean()
 
     project_attachment_urls = Keyword(multi=True)
     project_main_image_url = Keyword()
