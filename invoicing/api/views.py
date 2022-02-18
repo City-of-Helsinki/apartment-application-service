@@ -1,11 +1,15 @@
 from django.db import transaction
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse
 from django.utils.timezone import now
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from rest_framework import generics
 from rest_framework.exceptions import ValidationError
+from rest_framework.generics import get_object_or_404
 from rest_framework.views import APIView
+
+from apartment.elastic.queries import get_apartment
+from application_form.models import ApartmentReservation
 
 from ..api.serializers import (
     ApartmentInstallmentSerializer,
@@ -13,8 +17,6 @@ from ..api.serializers import (
 )
 from ..models import ApartmentInstallment, ProjectInstallmentTemplate
 from ..pdf import create_invoice_pdf_from_installments
-
-INVOICE_FILE_NAME = "invoice.pdf"
 
 
 class InstallmentAPIViewBase(generics.ListCreateAPIView):
@@ -83,11 +85,16 @@ class ApartmentInstallmentAPIView(InstallmentAPIViewBase):
 )
 class ApartmentInstallmentInvoiceAPIView(APIView):
     def get(self, request, **kwargs):
+        reservation = get_object_or_404(
+            ApartmentReservation, pk=kwargs["apartment_reservation_id"]
+        )
         installments = list(
             ApartmentInstallment.objects.filter(
-                apartment_reservation_id=kwargs["apartment_reservation_id"]
+                apartment_reservation_id=reservation.id
             ).order_by("id")
         )
+        if not installments:
+            raise Http404
 
         if index_params := request.query_params.get("index"):
             installments = [
@@ -96,8 +103,12 @@ class ApartmentInstallmentInvoiceAPIView(APIView):
             ]
 
         pdf_data = create_invoice_pdf_from_installments(installments)
+        apartment = get_apartment(reservation.apartment_uuid)
+        title = (apartment.title or "").strip().lower().replace(" ", "_")
+        filename = f"laskut_{title}" if title else "laskut"
+
         response = HttpResponse(pdf_data, content_type="application/pdf")
-        response["Content-Disposition"] = f"attachment; filename={INVOICE_FILE_NAME}"
+        response["Content-Disposition"] = f"attachment; filename={filename}"
 
         return response
 
