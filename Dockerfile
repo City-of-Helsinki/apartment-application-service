@@ -15,6 +15,7 @@ RUN apt-install.sh \
     postgresql-client \
     netcat \
     libpq-dev \
+    gettext \
     build-essential \
     && pip install -U pip \
     && pip install --no-cache-dir -r /app/requirements.txt \
@@ -31,6 +32,7 @@ FROM appbase as staticbuilder
 ENV VAR_ROOT /app
 COPY --chown=appuser:appuser . /app
 RUN SECRET_KEY="only-used-for-collectstatic" python manage.py collectstatic --noinput
+RUN SECRET_KEY="only-used-for-compilemessages" python manage.py compilemessages --noinput
 
 # ==============================
 FROM appbase as development

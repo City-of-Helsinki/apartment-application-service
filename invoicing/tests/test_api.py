@@ -18,6 +18,32 @@ def apartment_document():
     return ApartmentDocumentFactory(project_uuid=project_uuid)
 
 
+@pytest.fixture
+def reservation_with_installments():
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
+    ApartmentInstallmentFactory(
+        apartment_reservation=reservation,
+        **{
+            "type": InstallmentType.PAYMENT_1,
+            "value": "1000.00",
+            "account_number": "123123123-123",
+            "due_date": "2022-02-19",
+            "reference_number": "REFERENCE-123",
+        }
+    )
+    ApartmentInstallmentFactory(
+        apartment_reservation=reservation,
+        **{
+            "type": InstallmentType.REFUND,
+            "value": "100.55",
+            "account_number": "123123123-123",
+            "reference_number": "REFERENCE-321",
+        }
+    )
+    return reservation
+
+
 @pytest.mark.django_db
 def test_project_list_does_not_include_installments(
     apartment_document, profile_api_client
@@ -385,3 +411,65 @@ def test_apartment_installment_reference_number_populating(profile_api_client):
         ApartmentInstallment.objects.first().reference_number
         == response.data[0]["reference_number"]
     )
+
+
+@pytest.mark.django_db
+def test_apartment_installment_invoice_pdf(
+    profile_api_client, reservation_with_installments
+):
+    response = profile_api_client.get(
+        reverse(
+            "application_form:apartment-installment-invoice",
+            kwargs={"apartment_reservation_id": reservation_with_installments.id},
+        ),
+        format="json",
+    )
+    assert response.status_code == 200
+    assert response.content
+
+
+@pytest.mark.django_db
+def test_apartment_installment_invoice_pdf_filtering(
+    profile_api_client, reservation_with_installments
+):
+    base_url = reverse(
+        "application_form:apartment-installment-invoice",
+        kwargs={"apartment_reservation_id": reservation_with_installments.id},
+    )
+
+    response = profile_api_client.get(
+        base_url + "?index=0",
+        format="json",
+    )
+    assert response.status_code == 200
+    assert response.content
+    one_installment_invoice = response.content
+
+    response = profile_api_client.get(
+        base_url + "?index=0,1",
+        format="json",
+    )
+    assert response.status_code == 200
+    assert response.content
+    two_installment_invoice = response.content
+
+    assert len(two_installment_invoice) > len(one_installment_invoice)
+
+
+@pytest.mark.parametrize("index_param", ("x", "0,x", "2"))
+@pytest.mark.django_db
+def test_apartment_installment_invoice_pdf_filtering_errors(
+    profile_api_client, reservation_with_installments, index_param
+):
+    base_url = reverse(
+        "application_form:apartment-installment-invoice",
+        kwargs={"apartment_reservation_id": reservation_with_installments.id},
+    )
+
+    response = profile_api_client.get(
+        base_url + "?index={index_param}",
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "Invalid index" in response.data[0]["message"]
