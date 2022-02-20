@@ -92,3 +92,7 @@ class Profile(TimestampedModel):
     class Meta:
         verbose_name = _("profile")
         verbose_name_plural = _("profiles")
+
+    @property
+    def full_name(self):
+        return f"{self.first_name} {self.last_name}"
