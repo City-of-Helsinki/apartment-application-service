@@ -18,3 +18,20 @@ def _create_profile(profile_data: dict, password: str) -> Profile:
     profile = Profile.objects.create(user=user, **data)
     profile.refresh_from_db()
     return profile
+
+
+def assert_profile_match_data(profile: Profile, data: dict):
+    for field in (
+        "id",
+        "first_name",
+        "last_name",
+        "email",
+        "phone_number",
+        "street_address",
+        "city",
+        "postal_code",
+        "contact_language",
+        "national_identification_number",
+    ):
+        if field in data:
+            assert data[field] == str(getattr(profile, field))

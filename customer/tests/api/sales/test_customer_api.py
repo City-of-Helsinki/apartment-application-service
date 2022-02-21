@@ -8,7 +8,7 @@ from rest_framework import status
 from customer.models import Customer
 from customer.tests.factories import CustomerFactory
 from users.tests.factories import ProfileFactory
-from users.tests.utils import _create_token
+from users.tests.utils import _create_token, assert_profile_match_data
 
 
 @pytest.mark.django_db
@@ -25,12 +25,14 @@ def test_get_customer_api_detail(api_client):
     assert response.status_code == status.HTTP_200_OK
     assert response.data
     assert response.data.get("id") == customer.pk
-    assert response.data["primary_profile"]
-    assert response.data["primary_profile"].get("id") == customer.primary_profile.id
-    assert response.data["primary_profile"]["national_identification_number"]
-    assert response.data["secondary_profile"]
-    assert response.data["secondary_profile"].get("id") == customer.secondary_profile.id
-    assert response.data["secondary_profile"]["national_identification_number"]
+    assert "primary_profile" in response.data
+    assert_profile_match_data(
+        customer.primary_profile, response.data["primary_profile"]
+    )
+    assert "secondary_profile" in response.data
+    assert_profile_match_data(
+        customer.secondary_profile, response.data["secondary_profile"]
+    )
 
 
 @pytest.mark.django_db
