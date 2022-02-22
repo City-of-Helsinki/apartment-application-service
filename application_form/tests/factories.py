@@ -15,7 +15,7 @@ from application_form.models import (
 )
 from application_form.services.application import _calculate_age
 from application_form.tests.utils import calculate_ssn_suffix
-from users.tests.factories import ProfileFactory
+from customer.tests.factories import CustomerFactory
 
 
 class ApplicationFactory(factory.django.DjangoModelFactory):
@@ -27,7 +27,7 @@ class ApplicationFactory(factory.django.DjangoModelFactory):
     type = fuzzy.FuzzyChoice(list(ApplicationType))
     right_of_residence = fuzzy.FuzzyInteger(1, 1000000000)
     has_children = Faker("boolean")
-    profile = factory.SubFactory(ProfileFactory)
+    customer = factory.SubFactory(CustomerFactory)
 
 
 class ApplicantFactory(factory.django.DjangoModelFactory):

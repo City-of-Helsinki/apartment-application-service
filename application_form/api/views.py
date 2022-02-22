@@ -34,7 +34,7 @@ class ListProjectReservations(GenericAPIView):
         profile_uuid = request.user.profile.id
         reservations = ApartmentReservation.objects.filter(
             apartment_uuid__in=apartment_uuid_list,
-            application_apartment__application__profile__id=profile_uuid,
+            application_apartment__application__customer__primary_profile__id=profile_uuid,  # noqa
         )
         serializer = self.get_serializer(reservations, many=True)
         return Response(serializer.data)

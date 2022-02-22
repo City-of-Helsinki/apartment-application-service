@@ -26,7 +26,7 @@ def test_create_application(num_applicants, elastic_single_project_with_apartmen
     assert application.type.value == data["type"].value
     assert application.right_of_residence == data["right_of_residence"]
     assert application.has_children == data["has_children"]
-    assert application.profile == profile
+    assert application.customer.primary_profile == profile
     assert application.application_apartments.count() == 5
 
     # The application should have linked apartments for each priority number

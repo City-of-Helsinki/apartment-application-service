@@ -6,6 +6,7 @@ from elasticsearch_dsl import Search
 from typing import List, Tuple
 
 from connections.enums import ApartmentStateOfSale
+from users.models import Profile
 
 _logger = logging.getLogger(__name__)
 
@@ -36,3 +37,19 @@ def calculate_ssn_suffix(date_of_birth: date) -> str:
     control_character = "0123456789ABCDEFHJKLMNPRSTUVWXY"[index]
     ssn_suffix = century_sign + individual_number + control_character
     return ssn_suffix
+
+
+def assert_profile_match_data(profile: Profile, data: dict):
+    for field in (
+        "first_name",
+        "last_name",
+        "email",
+        "phone_number",
+        "street_address",
+        "city",
+        "postal_code",
+        "contact_language",
+        "ssn_suffix",
+    ):
+        if field in data:
+            assert data[field] == str(getattr(profile, field))
