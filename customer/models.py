@@ -74,12 +74,18 @@ class Customer(TimestampedModel):
         )
 
     def clean(self):
-        if (
-            not self.secondary_profile
-            and self.__class__.objects.exclude(id=self.id)
-            .filter(primary_profile=self.primary_profile)
-            .exists()
+        if self.__class__.objects.exclude(id=self.id).filter(
+            primary_profile=self.primary_profile,
+            secondary_profile=self.secondary_profile,
         ):
             raise ValidationError(
-                _("There already exists a Customer for the primary profile.")
+                _(
+                    "There already exists a Customer which has the same primary and "
+                    "secondary profile."
+                )
             )
+        return
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
