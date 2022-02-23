@@ -40,6 +40,7 @@ def populate_application_customer(apps, schema_editor):
             email=secondary_applicant.email,
             phone_number=secondary_applicant.phone_number,
             street_address=secondary_applicant.street_address,
+            date_of_birth=secondary_applicant.date_of_birth,
             city=secondary_applicant.city,
             postal_code=secondary_applicant.postal_code,
             contact_language=secondary_applicant.contact_language or "fi",
