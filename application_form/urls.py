@@ -2,14 +2,11 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from application_form.api.sales.views import (
+    ApartmentReservationViewSet,
     execute_lottery_for_project,
     SalesApplicationViewSet,
 )
-from application_form.api.views import (
-    ApartmentReservationViewSet,
-    ApplicationViewSet,
-    ListProjectReservations,
-)
+from application_form.api.views import ApplicationViewSet, ListProjectReservations
 from invoicing.api.views import (
     ApartmentInstallmentAPIView,
     ApartmentInstallmentInvoiceAPIView,

@@ -1,6 +1,6 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.views.decorators.http import require_http_methods
-from rest_framework import permissions, status
+from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.decorators import (
     api_view,
     authentication_classes,
@@ -12,10 +12,12 @@ from rest_framework.response import Response
 from apartment.elastic.queries import get_projects
 from application_form.api.sales.serializers import (
     ProjectUUIDSerializer,
+    RootApartmentReservationSerializer,
     SalesApplicationSerializer,
 )
 from application_form.api.views import ApplicationViewSet
 from application_form.exceptions import ProjectDoesNotHaveApplicationsException
+from application_form.models import ApartmentReservation
 from application_form.services.lottery.exceptions import (
     ApplicationTimeNotFinishedException,
 )
@@ -54,3 +56,9 @@ def execute_lottery_for_project(request):
 class SalesApplicationViewSet(ApplicationViewSet):
     serializer_class = SalesApplicationSerializer
     permission_classes = [permissions.IsAuthenticated, IsSalesperson]
+
+
+class ApartmentReservationViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    queryset = ApartmentReservation.objects.all()
+    serializer_class = RootApartmentReservationSerializer
+    permission_classes = [permissions.AllowAny]
