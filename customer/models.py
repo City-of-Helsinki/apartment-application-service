@@ -84,7 +84,6 @@ class Customer(TimestampedModel):
                     "secondary profile."
                 )
             )
-        return
 
     def save(self, *args, **kwargs):
         self.clean()
