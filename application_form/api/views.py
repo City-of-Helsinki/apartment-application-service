@@ -1,9 +1,8 @@
-from rest_framework import mixins, permissions, viewsets
+from rest_framework import permissions
 from rest_framework.generics import GenericAPIView
 from rest_framework.response import Response
 
 from apartment.elastic.queries import get_apartment_uuids
-from application_form.api.sales.serializers import RootApartmentReservationSerializer
 from application_form.api.serializers import (
     ApartmentReservationSerializer,
     ApplicationSerializer,
@@ -38,9 +37,3 @@ class ListProjectReservations(GenericAPIView):
         )
         serializer = self.get_serializer(reservations, many=True)
         return Response(serializer.data)
-
-
-class ApartmentReservationViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
-    queryset = ApartmentReservation.objects.all()
-    serializer_class = RootApartmentReservationSerializer
-    permission_classes = [permissions.AllowAny]

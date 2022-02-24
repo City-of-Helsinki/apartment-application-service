@@ -425,7 +425,14 @@ def test_apartment_installment_invoice_pdf(
         format="json",
     )
     assert response.status_code == 200
-    assert response.content
+    assert response["Content-Type"] == "application/pdf"
+    assert (
+        bytes(
+            reservation_with_installments.application_apartment.application.customer.primary_profile.full_name,  # noqa E501
+            encoding="utf-8",
+        )
+        in response.content
+    )
 
 
 @pytest.mark.django_db
@@ -442,6 +449,7 @@ def test_apartment_installment_invoice_pdf_filtering(
         format="json",
     )
     assert response.status_code == 200
+    assert response["Content-Type"] == "application/pdf"
     assert response.content
     one_installment_invoice = response.content
 
@@ -450,6 +458,7 @@ def test_apartment_installment_invoice_pdf_filtering(
         format="json",
     )
     assert response.status_code == 200
+    assert response["Content-Type"] == "application/pdf"
     assert response.content
     two_installment_invoice = response.content
 

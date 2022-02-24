@@ -135,5 +135,13 @@ class ApartmentDocument(ReadOnlyDocument):
     apartment_state_of_sale = Keyword()
     apartment_published = Boolean()
 
+    right_of_occupancy_payment = Long()
+    right_of_occupancy_fee = Long()
+    project_contract_apartment_completion_selection_2_start = Date()
+    project_contract_apartment_completion_selection_2_end = Date()
+    project_contract_other_terms = Keyword()
+    project_contract_usage_fees = Keyword()
+    project_contract_right_of_occupancy_payment_verification = Keyword()
+
     class Index:
         name = settings.APARTMENT_INDEX_NAME

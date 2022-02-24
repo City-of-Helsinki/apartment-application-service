@@ -67,6 +67,8 @@ djangorestframework==3.12.4
     #   drf-spectacular
 djangorestframework-simplejwt==4.7.2
     # via -r requirements.in
+docopt==0.6.2
+    # via num2words
 drf-oidc-auth==2.0.0
     # via -r requirements.in
 drf-spectacular==0.18.2
@@ -92,6 +94,8 @@ lxml==4.6.5
     #   django-etuovi
     #   django-oikotie
     #   pikepdf
+num2words==0.5.10
+    # via -r requirements.in
 oauthlib==3.1.1
     # via
     #   requests-oauthlib

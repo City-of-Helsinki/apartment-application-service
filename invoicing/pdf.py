@@ -8,7 +8,7 @@ from uuid import UUID
 
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import get_apartment, get_projects
-from apartment_application_service.pdf import create_multi_page_pdf, PDFData
+from apartment_application_service.pdf import create_pdf, PDFData
 
 INVOICE_PDF_TEMPLATE_FILE_NAME = "invoice_template.pdf"
 
@@ -65,4 +65,4 @@ def create_invoice_pdf_from_installments(installments):
             + " €",
         )
         invoice_pdf_data_list.append(invoice_pdf_data)
-    return create_multi_page_pdf(INVOICE_PDF_TEMPLATE_FILE_NAME, invoice_pdf_data_list)
+    return create_pdf(INVOICE_PDF_TEMPLATE_FILE_NAME, invoice_pdf_data_list)

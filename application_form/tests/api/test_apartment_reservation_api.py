@@ -135,3 +135,23 @@ def test_root_apartment_reservation_detail_installment_candidates(api_client):
         "account_number": installment_template_4.account_number,
         "due_date": None,
     }
+
+
+@pytest.mark.django_db
+def test_haso_contract_pdf(profile_api_client):
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
+
+    response = profile_api_client.get(
+        reverse(
+            "application_form:sales-apartment-reservation-haso-contract",
+            kwargs={"pk": reservation.id},
+        ),
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response["Content-Type"] == "application/pdf"
+    assert (
+        bytes(apartment.project_housing_company, encoding="utf-8") in response.content
+    )

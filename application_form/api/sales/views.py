@@ -1,7 +1,11 @@
 from django.core.exceptions import ObjectDoesNotExist
+from django.http import HttpResponse
 from django.views.decorators.http import require_http_methods
-from rest_framework import permissions, status
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema
+from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.decorators import (
+    action,
     api_view,
     authentication_classes,
     permission_classes,
@@ -9,13 +13,16 @@ from rest_framework.decorators import (
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
 
-from apartment.elastic.queries import get_projects
+from apartment.elastic.queries import get_apartment, get_projects
 from application_form.api.sales.serializers import (
     ProjectUUIDSerializer,
+    RootApartmentReservationSerializer,
     SalesApplicationSerializer,
 )
 from application_form.api.views import ApplicationViewSet
 from application_form.exceptions import ProjectDoesNotHaveApplicationsException
+from application_form.models import ApartmentReservation
+from application_form.pdf import create_haso_contract_pdf
 from application_form.services.lottery.exceptions import (
     ApplicationTimeNotFinishedException,
 )
@@ -54,3 +61,26 @@ def execute_lottery_for_project(request):
 class SalesApplicationViewSet(ApplicationViewSet):
     serializer_class = SalesApplicationSerializer
     permission_classes = [permissions.IsAuthenticated, IsSalesperson]
+
+
+class ApartmentReservationViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    queryset = ApartmentReservation.objects.all()
+    serializer_class = RootApartmentReservationSerializer
+    permission_classes = [permissions.AllowAny]
+
+    @extend_schema(
+        description="Create a HASO contract PDF for the reservation.",
+        responses={(200, "application/pdf"): OpenApiTypes.BINARY},
+    )
+    @action(methods=["GET"], detail=True)
+    def haso_contract(self, request, pk=None):
+        reservation = self.get_object()
+        pdf_data = create_haso_contract_pdf(reservation)
+
+        apartment = get_apartment(reservation.apartment_uuid)
+        title = (apartment.title or "").strip().lower().replace(" ", "_")
+        filename = f"haso_sopimus_{title}" if title else "haso_sopimus"
+        response = HttpResponse(pdf_data, content_type="application/pdf")
+        response["Content-Disposition"] = f"attachment; filename={filename}"
+
+        return response
