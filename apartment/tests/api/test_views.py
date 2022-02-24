@@ -2,7 +2,10 @@ import pytest
 import uuid
 from django.urls import reverse
 
-from application_form.tests.factories import ApartmentReservationFactory
+from application_form.tests.factories import (
+    ApartmentReservationFactory,
+    LotteryEventFactory,
+)
 from users.tests.factories import ProfileFactory
 from users.tests.utils import _create_token
 
@@ -43,6 +46,34 @@ def test_project_list_get(api_client):
     response = api_client.get(reverse("apartment:project-list"), format="json")
     assert response.status_code == 200
     assert len(response.data) > 0
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("endpoint", ["list", "detail"])
+@pytest.mark.parametrize("lottery_exists", (True, False))
+def test_project_list_lottery_completed_field(
+    api_client, elastic_project_with_5_apartments, endpoint, lottery_exists
+):
+    project_uuid, apartments = elastic_project_with_5_apartments
+    profile = ProfileFactory()
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
+
+    if lottery_exists:
+        LotteryEventFactory(apartment_uuid=apartments[0].uuid)
+
+    url = (
+        reverse("apartment:project-list")
+        if endpoint == "list"
+        else reverse(
+            "apartment:project-detail",
+            kwargs={"project_uuid": project_uuid},
+        )
+    )
+    response = api_client.get(url, format="json")
+    assert response.status_code == 200
+
+    data = response.data[0] if endpoint == "list" else response.data
+    assert data["lottery_completed"] is lottery_exists
 
 
 @pytest.mark.django_db
