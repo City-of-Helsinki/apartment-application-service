@@ -1,7 +1,8 @@
 from rest_framework import serializers
 
 from apartment.api.sales.serializers import ApartmentSerializer
-from apartment.elastic.queries import get_apartments
+from apartment.elastic.queries import get_apartment_uuids, get_apartments
+from application_form.models import LotteryEvent
 from invoicing.api.serializers import ProjectInstallmentTemplateSerializer
 from invoicing.models import ProjectInstallmentTemplate
 
@@ -140,6 +141,15 @@ class ProjectDocumentSerializerBase(serializers.Serializer):
     regular_bank_account = serializers.CharField(source="project_regular_bank_account")
     published = serializers.BooleanField(source="project_published")
     archived = serializers.BooleanField(source="project_archived")
+
+    lottery_completed = serializers.SerializerMethodField()
+
+    def get_lottery_completed(self, obj):
+        apartment_uuids = get_apartment_uuids(obj["project_uuid"])
+        lottery_completed = LotteryEvent.objects.filter(
+            apartment_uuid__in=apartment_uuids
+        ).exists()
+        return lottery_completed
 
 
 class ProjectDocumentListSerializer(ProjectDocumentSerializerBase):
