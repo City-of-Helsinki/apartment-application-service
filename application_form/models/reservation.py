@@ -17,7 +17,11 @@ class ApartmentReservation(models.Model):
     apartment_uuid = models.UUIDField(verbose_name=_("apartment uuid"))
     queue_position = models.IntegerField(_("position in queue"))
     application_apartment = models.OneToOneField(
-        ApplicationApartment, models.CASCADE, related_name="apartment_reservation"
+        ApplicationApartment,
+        models.CASCADE,
+        related_name="apartment_reservation",
+        null=True,
+        blank=True,
     )
     state = EnumField(
         ApartmentReservationState,
