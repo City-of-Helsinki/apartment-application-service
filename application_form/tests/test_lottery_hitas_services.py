@@ -137,7 +137,7 @@ def test_lottery_result_is_persisted_before_apartment_distribution(
     assert results.count() == len(applications)
 
     # Each position should appear in the results exactly once
-    for position in range(len(applications)):
+    for position in range(1, len(applications) + 1):
         assert results.filter(result_position=position).count() == 1
 
     # Each application should appear in the results exactly once

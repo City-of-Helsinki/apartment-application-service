@@ -94,9 +94,9 @@ def test_original_application_order_is_persisted_before_distribution(
     assert lottery_event.exists()
     # The current queue should have been persisted in the correct order
     results = LotteryEventResult.objects.filter(event=lottery_event.get())
-    assert results.filter(result_position=0, application_apartment=app_apt1).exists()
-    assert results.filter(result_position=1, application_apartment=app_apt2).exists()
-    assert results.filter(result_position=2, application_apartment=app_apt3).exists()
+    assert results.filter(result_position=1, application_apartment=app_apt1).exists()
+    assert results.filter(result_position=2, application_apartment=app_apt2).exists()
+    assert results.filter(result_position=3, application_apartment=app_apt3).exists()
 
 
 @mark.django_db

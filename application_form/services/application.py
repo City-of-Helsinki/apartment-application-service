@@ -264,7 +264,7 @@ def _cancel_lower_priority_haso_applications(
         low_priority_app_apartments = app_apartments.filter(
             priority_number__gt=priority,
             apartment_reservation__state=ApartmentReservationState.SUBMITTED,
-            apartment_reservation__queue_position__gt=0,
+            apartment_reservation__queue_position__gt=1,
         )
         for app_apartment in low_priority_app_apartments:
             cancel_haso_application(app_apartment)
