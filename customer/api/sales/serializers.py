@@ -1,3 +1,4 @@
+from django.db import transaction
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from uuid import UUID
@@ -8,6 +9,7 @@ from application_form.models import ApartmentReservation
 from customer.models import Customer
 from invoicing.api.serializers import ApartmentInstallmentSerializer
 from users.api.sales.serializers import ProfileSerializer
+from users.models import Profile
 
 
 class CustomerApartmentReservationSerializer(ApartmentReservationSerializerBase):
@@ -85,7 +87,7 @@ class CustomerApartmentReservationSerializer(ApartmentReservationSerializerBase)
 
 class CustomerSerializer(serializers.ModelSerializer):
     primary_profile = ProfileSerializer()
-    secondary_profile = ProfileSerializer()
+    secondary_profile = ProfileSerializer(required=False, allow_null=True)
     apartment_reservations = serializers.SerializerMethodField()
 
     class Meta:
@@ -111,6 +113,23 @@ class CustomerSerializer(serializers.ModelSerializer):
             application_apartment__application__customer=obj
         )
         return CustomerApartmentReservationSerializer(reservations, many=True).data
+
+    @transaction.atomic
+    def create(self, validated_data):
+        primary_profile_data = validated_data.pop("primary_profile")
+        primary_profile = Profile.objects.create(**primary_profile_data)
+        if secondary_profile_data := validated_data.pop("secondary_profile", None):
+            secondary_profile = Profile.objects.create(**secondary_profile_data)
+        else:
+            secondary_profile = None
+
+        customer = Customer.objects.create(
+            primary_profile=primary_profile,
+            secondary_profile=secondary_profile,
+            **validated_data,
+        )
+
+        return customer
 
 
 class CustomerListSerializer(serializers.ModelSerializer):

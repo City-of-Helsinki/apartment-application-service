@@ -10,8 +10,13 @@ from application_form.tests.factories import ApartmentReservationFactory
 from customer.models import Customer
 from customer.tests.factories import CustomerFactory
 from invoicing.tests.factories import ApartmentInstallmentFactory
+from users.models import Profile
 from users.tests.factories import ProfileFactory
-from users.tests.utils import _create_token, assert_profile_match_data
+from users.tests.utils import (
+    _create_token,
+    assert_customer_match_data,
+    assert_profile_match_data,
+)
 
 
 @pytest.mark.django_db
@@ -111,3 +116,55 @@ def test_get_customer_api_list(api_client):
 
     assert response.status_code == status.HTTP_200_OK
     assert response.data == expected_data
+
+
+@pytest.mark.parametrize("with_secondary_profile", (False, True))
+@pytest.mark.django_db
+def test_create_customer(profile_api_client, with_secondary_profile):
+    data = {
+        "additional_information": "",
+        "has_children": False,
+        "has_hitas_ownership": False,
+        "is_age_over_55": False,
+        "is_right_of_occupancy_housing_changer": False,
+        "last_contact_date": None,
+        "primary_profile": {
+            "first_name": "Matti",
+            "last_name": "Mainio",
+            "email": "matti@example.com",
+            "phone_number": "777-123123",
+            "national_identification_number": "070780-111A",
+            "street_address": "Jokutie 5 D",
+            "postal_code": "88890",
+            "city": "Helsinki",
+            "contact_language": "fi",
+            "date_of_birth": "1980-07-07",
+        },
+        "right_of_residence": 127,
+    }
+
+    if with_secondary_profile:
+        data["secondary_profile"] = {
+            "first_name": "Jussi",
+            "last_name": "Juonio",
+            "email": "jussi@example.com",
+            "phone_number": "777-321321",
+            "national_identification_number": "080890-222B",
+            "street_address": "Jokutie 5 D",
+            "postal_code": "99990",
+            "city": "Turku",
+            "contact_language": "sv",
+            "date_of_birth": "1990-08-08",
+        }
+    else:
+        data["secondary_profile"] = None
+
+    response = profile_api_client.post(
+        reverse("customer:sales-customer-list"), data=data, format="json"
+    )
+    assert response.status_code == status.HTTP_201_CREATED, response.data
+
+    assert Customer.objects.count() == 1
+    assert Profile.objects.count() == 3 if with_secondary_profile else 2
+    customer = Customer.objects.get(pk=response.data["id"])
+    assert_customer_match_data(customer, data)
