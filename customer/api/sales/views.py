@@ -11,6 +11,7 @@ class CustomerViewSet(AuditLoggingModelViewSet):
     )
     serializer_class = CustomerSerializer
     permission_classes = [permissions.AllowAny]
+    http_method_names = ["get", "post", "put", "head"]  # disable PATCH
 
     def get_serializer_class(self):
         if self.action == "list":

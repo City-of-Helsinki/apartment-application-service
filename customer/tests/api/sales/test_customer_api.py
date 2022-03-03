@@ -168,3 +168,71 @@ def test_create_customer(profile_api_client, with_secondary_profile):
     assert Profile.objects.count() == 3 if with_secondary_profile else 2
     customer = Customer.objects.get(pk=response.data["id"])
     assert_customer_match_data(customer, data)
+
+
+@pytest.mark.parametrize("has_secondary_profile", (False, True))
+@pytest.mark.parametrize("updated_with_secondary_profile", (False, True))
+@pytest.mark.django_db
+def test_update_customer(
+    profile_api_client, has_secondary_profile, updated_with_secondary_profile
+):
+    customer = CustomerFactory(
+        primary_profile=ProfileFactory(),
+        secondary_profile=ProfileFactory() if has_secondary_profile else None,
+    )
+
+    data = {
+        "additional_information": "moar info",
+        "has_children": True,
+        "has_hitas_ownership": True,
+        "is_age_over_55": True,
+        "is_right_of_occupancy_housing_changer": False,
+        "last_contact_date": "2020-01-01",
+        "primary_profile": {
+            "first_name": "Matti",
+            "last_name": "Mainio",
+            "email": "matti@example.com",
+            "phone_number": "777-123123",
+            "national_identification_number": "070780-111A",
+            "street_address": "Jokutie 5 D",
+            "postal_code": "88890",
+            "city": "Helsinki",
+            "contact_language": "fi",
+            "date_of_birth": "1980-07-07",
+        },
+        "right_of_residence": 127,
+    }
+
+    if updated_with_secondary_profile:
+        data["secondary_profile"] = {
+            "first_name": "Jussi",
+            "last_name": "Juonio",
+            "email": "jussi@example.com",
+            "phone_number": "777-321321",
+            "national_identification_number": "080890-222B",
+            "street_address": "Jokutie 5 D",
+            "postal_code": "99990",
+            "city": "Turku",
+            "contact_language": "sv",
+            "date_of_birth": "1990-08-08",
+        }
+    else:
+        data["secondary_profile"] = None
+
+    response = profile_api_client.put(
+        reverse("customer:sales-customer-detail", kwargs={"pk": customer.pk}),
+        data=data,
+        format="json",
+    )
+    assert response.status_code == status.HTTP_200_OK
+
+    assert Customer.objects.count() == 1
+
+    if not has_secondary_profile and not updated_with_secondary_profile:
+        expected_profile_count = 2
+    else:
+        expected_profile_count = 3
+    assert Profile.objects.count() == expected_profile_count
+
+    customer.refresh_from_db()
+    assert_customer_match_data(customer, data)

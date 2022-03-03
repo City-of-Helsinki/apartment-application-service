@@ -7,3 +7,10 @@ class SafeAttributeObject:
             return getattr(self.obj, item)
         except AttributeError:
             return None
+
+
+def update_obj(obj, data):
+    for field, value in data.items():
+        setattr(obj, field, value)
+    obj.save()
+    return obj

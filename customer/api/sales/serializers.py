@@ -4,6 +4,7 @@ from rest_framework import serializers
 from uuid import UUID
 
 from apartment.elastic.queries import get_apartment
+from apartment_application_service.utils import update_obj
 from application_form.api.serializers import ApartmentReservationSerializerBase
 from application_form.models import ApartmentReservation
 from customer.models import Customer
@@ -130,6 +131,23 @@ class CustomerSerializer(serializers.ModelSerializer):
         )
 
         return customer
+
+    @transaction.atomic
+    def update(self, obj, validated_data):
+        primary_profile_data = validated_data.pop("primary_profile")
+        update_obj(obj.primary_profile, primary_profile_data)
+
+        if secondary_profile_data := validated_data.pop("secondary_profile", None):
+            if obj.secondary_profile:
+                update_obj(obj.secondary_profile, secondary_profile_data)
+            else:
+                obj.secondary_profile = Profile.objects.create(**secondary_profile_data)
+        else:
+            obj.secondary_profile = None
+
+        update_obj(obj, validated_data)
+
+        return obj
 
 
 class CustomerListSerializer(serializers.ModelSerializer):

@@ -1,5 +1,5 @@
+from datetime import date
 from django.contrib.auth import get_user_model
-from django.utils.dateparse import parse_date
 from rest_framework_simplejwt.tokens import RefreshToken
 from typing import Optional
 
@@ -46,7 +46,7 @@ def assert_profile_match_data(profile: Optional[Profile], data: Optional[dict]):
         assert profile is None
         return
 
-    for field in (
+    fields = (
         "id",
         "first_name",
         "last_name",
@@ -57,19 +57,15 @@ def assert_profile_match_data(profile: Optional[Profile], data: Optional[dict]):
         "postal_code",
         "contact_language",
         "national_identification_number",
-    ):
-        if field in data:
-            assert data[field] == getattr(
-                profile, field
-            ), f"{field} {data[field]} != {str(getattr(profile, field))}"
-
-    if "date_of_birth" in data:
-        assert parse_date(data["date_of_birth"]) == profile.date_of_birth
+        "date_of_birth",
+    )
+    assert_obj_match_data(profile, data, fields)
 
 
 def assert_obj_match_data(obj, data, fields):
     for field in fields:
         if field in data:
-            assert data[field] == getattr(
-                obj, field
-            ), f"{field}: {data[field]} != {getattr(obj, field)}"
+            obj_value = getattr(obj, field)
+            if isinstance(obj_value, date):
+                obj_value = str(obj_value)
+            assert data[field] == obj_value, f"{field}: {data[field]} != {obj_value}"
