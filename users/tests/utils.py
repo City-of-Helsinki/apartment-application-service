@@ -1,6 +1,9 @@
+from datetime import date
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
+from typing import Optional
 
+from customer.models import Customer
 from users.models import Profile
 
 
@@ -20,8 +23,30 @@ def _create_profile(profile_data: dict, password: str) -> Profile:
     return profile
 
 
-def assert_profile_match_data(profile: Profile, data: dict):
-    for field in (
+def assert_customer_match_data(customer: Customer, data: dict):
+    if "primary_profile" in data:
+        assert_profile_match_data(customer.primary_profile, data["primary_profile"])
+    if "secondary_profile" in data:
+        assert_profile_match_data(customer.secondary_profile, data["secondary_profile"])
+
+    fields = (
+        "additional_information",
+        "last_contact_date",
+        "has_children",
+        "has_hitas_ownership",
+        "is_age_over_55",
+        "is_right_of_occupancy_housing_changer",
+        "right_of_residence",
+    )
+    assert_obj_match_data(customer, data, fields)
+
+
+def assert_profile_match_data(profile: Optional[Profile], data: Optional[dict]):
+    if not data:
+        assert profile is None
+        return
+
+    fields = (
         "id",
         "first_name",
         "last_name",
@@ -32,6 +57,15 @@ def assert_profile_match_data(profile: Profile, data: dict):
         "postal_code",
         "contact_language",
         "national_identification_number",
-    ):
+        "date_of_birth",
+    )
+    assert_obj_match_data(profile, data, fields)
+
+
+def assert_obj_match_data(obj, data, fields):
+    for field in fields:
         if field in data:
-            assert data[field] == str(getattr(profile, field))
+            obj_value = getattr(obj, field)
+            if isinstance(obj_value, date):
+                obj_value = str(obj_value)
+            assert data[field] == obj_value, f"{field}: {data[field]} != {obj_value}"
