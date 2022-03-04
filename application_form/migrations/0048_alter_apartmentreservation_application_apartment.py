@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("application_form", "0046_remove_application_profile"),
+        ("application_form", "0047_make_queue_position_start_from_1"),
     ]
 
     operations = [
