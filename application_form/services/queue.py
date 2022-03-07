@@ -44,6 +44,7 @@ def add_application_to_queues(application: Application, comment: str = "") -> No
                 raise ValueError(f"unsupported application type {application.type}")
 
             apartment_reservation = ApartmentReservation.objects.create(
+                customer=application_apartment.application.customer,
                 queue_position=position,
                 application_apartment=application_apartment,
                 apartment_uuid=apartment_uuid,

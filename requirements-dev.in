@@ -1,4 +1,5 @@
 black
+django-test-migrations
 factory-boy
 flake8
 ipython

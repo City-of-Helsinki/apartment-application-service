@@ -28,6 +28,8 @@ decorator==5.0.9
     # via ipython
 distlib==0.3.2
     # via virtualenv
+django-test-migrations==1.2.0
+    # via -r requirements-dev.in
 factory-boy==3.2.0
     # via -r requirements-dev.in
 faker==8.6.0
@@ -139,6 +141,8 @@ traitlets==5.0.5
     # via
     #   ipython
     #   matplotlib-inline
+typing-extensions==4.1.1
+    # via django-test-migrations
 virtualenv==20.4.7
     # via pre-commit
 wcwidth==0.2.5

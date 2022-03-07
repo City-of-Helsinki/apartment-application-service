@@ -7,6 +7,7 @@ from application_form.enums import (
     ApartmentReservationState,
 )
 from application_form.models import ApplicationApartment
+from customer.models import Customer
 
 
 class ApartmentReservation(models.Model):
@@ -15,9 +16,19 @@ class ApartmentReservation(models.Model):
     """
 
     apartment_uuid = models.UUIDField(verbose_name=_("apartment uuid"))
+    customer = models.ForeignKey(
+        Customer,
+        verbose_name=_("customer"),
+        on_delete=models.PROTECT,
+        related_name="apartment_reservations",
+    )
     queue_position = models.IntegerField(_("position in queue"))
     application_apartment = models.OneToOneField(
-        ApplicationApartment, models.CASCADE, related_name="apartment_reservation"
+        ApplicationApartment,
+        models.CASCADE,
+        related_name="apartment_reservation",
+        null=True,
+        blank=True,
     )
     state = EnumField(
         ApartmentReservationState,
