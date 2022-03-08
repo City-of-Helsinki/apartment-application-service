@@ -7,8 +7,10 @@ from rest_framework import status
 
 from apartment.tests.factories import ApartmentDocumentFactory
 from application_form.tests.factories import ApartmentReservationFactory
+from customer.api.sales.views import CustomerViewSet
 from customer.models import Customer
 from customer.tests.factories import CustomerFactory
+from customer.tests.utils import assert_customer_list_match_data
 from invoicing.tests.factories import ApartmentInstallmentFactory
 from users.models import Profile
 from users.tests.factories import ProfileFactory
@@ -87,32 +89,15 @@ def test_get_customer_api_detail(api_client):
 
 
 @pytest.mark.django_db
-def test_get_customer_api_list(api_client):
+def test_get_customer_api_list_without_any_parameters(profile_api_client):
     CustomerFactory(secondary_profile=None)
     CustomerFactory(secondary_profile=ProfileFactory())
 
     expected_data = []
-    for customer in Customer.objects.all().order_by(
-        "primary_profile__last_name", "primary_profile__first_name"
-    ):
-        item = {
-            "id": customer.id,
-            "primary_first_name": customer.primary_profile.first_name,
-            "primary_last_name": customer.primary_profile.last_name,
-            "primary_email": customer.primary_profile.email,
-            "primary_phone_number": customer.primary_profile.phone_number,
-            "secondary_first_name": customer.secondary_profile.first_name
-            if customer.secondary_profile
-            else None,
-            "secondary_last_name": customer.secondary_profile.last_name
-            if customer.secondary_profile
-            else None,
-        }
-        expected_data.append(item)
 
-    profile = ProfileFactory()
-    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
-    response = api_client.get(reverse("customer:sales-customer-list"), format="json")
+    response = profile_api_client.get(
+        reverse("customer:sales-customer-list"), format="json"
+    )
 
     assert response.status_code == status.HTTP_200_OK
     assert response.data == expected_data
@@ -236,3 +221,69 @@ def test_update_customer(
 
     customer.refresh_from_db()
     assert_customer_match_data(customer, data)
+
+
+@pytest.mark.django_db
+def test_get_customer_api_list_with_parameters(profile_api_client):
+    customers = {}
+    customer = CustomerFactory(
+        primary_profile__first_name="John",
+        primary_profile__last_name="Doe",
+        secondary_profile=None,
+    )
+    customers[customer.id] = customer
+
+    customer_with_secondary = CustomerFactory(
+        primary_profile__first_name="Jane",
+        primary_profile__last_name="Doe",
+        secondary_profile=ProfileFactory(first_name="John", last_name="Doe"),
+    )
+    customers[customer_with_secondary.id] = customer_with_secondary
+
+    # Search value is less than min length
+    response = profile_api_client.get(
+        reverse("customer:sales-customer-list"),
+        data={
+            "last_name": customer.primary_profile.last_name[
+                : CustomerViewSet.SEARCH_VALUE_MIN_LENGTH - 1
+            ]
+        },
+        format="json",
+    )
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data == []
+
+    # Search value's minimum length has reached
+    response = profile_api_client.get(
+        reverse("customer:sales-customer-list"),
+        data={
+            "last_name": customer.primary_profile.last_name[
+                : CustomerViewSet.SEARCH_VALUE_MIN_LENGTH
+            ]
+        },
+        format="json",
+    )
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data
+    assert len(response.data) == 2
+    for item in response.data:
+        assert_customer_list_match_data(customers[item["id"]], item)
+
+    # Search value with two params
+    response = profile_api_client.get(
+        reverse("customer:sales-customer-list"),
+        data={
+            "first_name": customer_with_secondary.primary_profile.first_name[
+                : CustomerViewSet.SEARCH_VALUE_MIN_LENGTH
+            ],
+            "last_name": customer_with_secondary.primary_profile.last_name[
+                : CustomerViewSet.SEARCH_VALUE_MIN_LENGTH
+            ],
+        },
+        format="json",
+    )
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data
+    assert len(response.data) == 1
+    for item in response.data:
+        assert_customer_list_match_data(customers[item["id"]], item)
