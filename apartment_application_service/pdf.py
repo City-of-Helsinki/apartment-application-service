@@ -22,7 +22,7 @@ class PDFData:
     FIELD_MAPPING: ClassVar[Dict[str, str]] = {}
 
     def __post_init__(self, *args, **kwargs):
-        annots = {a for a in self.__annotations__ if a != "FIELD_MAPPING"}
+        annots = [a for a in self.__annotations__ if a != "FIELD_MAPPING"]
         keys = self.FIELD_MAPPING.keys()
         assert (
             not annots - keys
@@ -41,7 +41,9 @@ class PDFData:
             if original_value is None:
                 value = ""
             else:
-                if isinstance(original_value, date):
+                if isinstance(original_value, bool):
+                    value = original_value
+                elif isinstance(original_value, date):
                     value = original_value.strftime("%-d.%-m.%Y")
                 elif isinstance(original_value, Decimal):
                     value = str(original_value).replace(".", ",")
@@ -52,17 +54,26 @@ class PDFData:
 
 
 class PDFCurrencyField:
-    def __init__(self, *, euros: Decimal = None, cents: int = None, suffix=" €"):
+    def __init__(
+        self, *, euros: Decimal = None, cents: int = None, prefix=None, suffix=None
+    ):
         if euros is None and cents is None:
             self.value = None
             return
 
         self.value = euros if euros is not None else Decimal(cents) / 100
-        self.suffix = suffix
+        self.prefix = prefix or ""
+        self.suffix = suffix or ""
 
     def __str__(self):
         return (
-            str(self.value.quantize(Decimal(".01"))).replace(".", ",") + self.suffix
+            (
+                self.prefix
+                + format(self.value.quantize(Decimal(".01")), ",")
+                .replace(",", " ")
+                .replace(".", ",")
+                + self.suffix
+            )
             if self.value is not None
             else ""
         )
@@ -100,6 +111,13 @@ def _set_pdf_fields(pdf: Pdf, data_dict: DataDict) -> None:
                 continue
             if annot.FT == "/Tx":  # text field
                 pdf_value = String(data_dict[field_name])
+                annot.V = pdf_value
+                annot.DV = pdf_value
+            elif annot.FT == "/Btn":  # checkbox
+                if not data_dict[field_name]:
+                    continue
+                pdf_value = "True"
+                annot.AS = pdf_value
                 annot.V = pdf_value
                 annot.DV = pdf_value
             else:

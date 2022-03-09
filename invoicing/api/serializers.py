@@ -7,6 +7,7 @@ from rest_framework import exceptions, serializers
 
 from ..enums import InstallmentPercentageSpecifier, InstallmentUnit
 from ..models import ApartmentInstallment, ProjectInstallmentTemplate
+from ..utils import remove_exponent
 
 
 class NormalizedDecimalField(serializers.DecimalField):
@@ -17,12 +18,7 @@ class NormalizedDecimalField(serializers.DecimalField):
         # drf-spectacular's inspection
         self.coerce_to_string = False
 
-        return f"{self.remove_exponent(super().to_representation(value)):f}"
-
-    # from https://docs.python.org/3/library/decimal.html#decimal-faq
-    @staticmethod
-    def remove_exponent(d: Decimal) -> Decimal:
-        return d.quantize(Decimal(1)) if d == d.to_integral() else d.normalize()
+        return f"{remove_exponent(super().to_representation(value)):f}"
 
 
 class IntegerCentsField(serializers.IntegerField):

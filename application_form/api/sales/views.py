@@ -22,7 +22,7 @@ from application_form.api.sales.serializers import (
 from application_form.api.views import ApplicationViewSet
 from application_form.exceptions import ProjectDoesNotHaveApplicationsException
 from application_form.models import ApartmentReservation
-from application_form.pdf import create_haso_contract_pdf
+from application_form.pdf import create_haso_contract_pdf, create_hitas_contract_pdf
 from application_form.services.lottery.exceptions import (
     ApplicationTimeNotFinishedException,
 )
@@ -82,5 +82,22 @@ class ApartmentReservationViewSet(mixins.RetrieveModelMixin, viewsets.GenericVie
         filename = f"haso_sopimus_{title}.pdf" if title else "haso_sopimus.pdf"
         response = HttpResponse(pdf_data, content_type="application/pdf")
         response["Content-Disposition"] = f"attachment; filename={filename}"
+
+        return response
+
+    @extend_schema(
+        description="Create a HITAS contract PDF for the reservation.",
+        responses={(200, "application/pdf"): OpenApiTypes.BINARY},
+    )
+    @action(methods=["GET"], detail=True)
+    def hitas_contract(self, request, pk=None):
+        reservation = self.get_object()
+        pdf_data = create_hitas_contract_pdf(reservation)
+
+        apartment = get_apartment(reservation.apartment_uuid)
+        title = (apartment.title or "").strip().lower().replace(" ", "_")
+        filename = f"hitas_sopimus_{title}" if title else "hitas_sopimus"
+        response = HttpResponse(pdf_data, content_type="application/pdf")
+        response["Content-Disposition"] = f"attachment; filename={filename}.pdf"
 
         return response

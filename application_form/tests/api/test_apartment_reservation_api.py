@@ -155,3 +155,21 @@ def test_haso_contract_pdf(profile_api_client):
     assert (
         bytes(apartment.project_housing_company, encoding="utf-8") in response.content
     )
+
+
+@pytest.mark.django_db
+def test_hitas_contract_pdf(profile_api_client):
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
+
+    response = profile_api_client.get(
+        reverse(
+            "application_form:sales-apartment-reservation-hitas-contract",
+            kwargs={"pk": reservation.id},
+        ),
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response["Content-Type"] == "application/pdf"
+    assert bytes(apartment.project_street_address, encoding="utf-8") in response.content

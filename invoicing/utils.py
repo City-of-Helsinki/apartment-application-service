@@ -22,3 +22,8 @@ def generate_reference_number(identifier: Union[int, str]) -> str:
     )
 
     return f"{actual}{check_digit}"
+
+
+# from https://docs.python.org/3/library/decimal.html#decimal-faq
+def remove_exponent(d: Decimal) -> Decimal:
+    return d.quantize(Decimal(1)) if d == d.to_integral() else d.normalize()
