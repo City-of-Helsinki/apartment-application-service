@@ -358,6 +358,12 @@ def test_set_apartment_installments(profile_api_client, has_old_installments):
         format="json",
     )
     assert response.status_code == 201
+
+    installments = ApartmentInstallment.objects.order_by("id")
+    installment_1, installment_2 = installments[1:]
+
+    data[0]["reference_number"] = installment_1.reference_number
+    data[1]["reference_number"] = installment_2.reference_number
     assert response.data == data
 
     assert ApartmentInstallment.objects.count() == 3
@@ -368,24 +374,22 @@ def test_set_apartment_installments(profile_api_client, has_old_installments):
         == 2
     )
 
-    installments = ApartmentInstallment.objects.order_by("id")
-    installment_1, installment_2 = installments[1:]
-
     assert installment_1.type == InstallmentType.PAYMENT_1
     assert installment_1.value == Decimal("1000.00")
     assert installment_1.account_number == "123123123-123"
     assert installment_1.due_date == datetime.date(2022, 2, 19)
-    assert installment_1.reference_number == "REFERENCE-123"
 
     assert installment_2.type == InstallmentType.REFUND
     assert installment_2.value == Decimal("100.55")
     assert installment_2.account_number == "123123123-123"
     assert installment_2.due_date is None
-    assert installment_2.reference_number == "REFERENCE-321"
 
 
+@pytest.mark.parametrize("reference_number_given", (False, True))
 @pytest.mark.django_db
-def test_apartment_installment_reference_number_populating(profile_api_client):
+def test_apartment_installment_reference_number_populating(
+    profile_api_client, reference_number_given
+):
     reservation = ApartmentReservationFactory()
 
     data = [
@@ -397,6 +401,9 @@ def test_apartment_installment_reference_number_populating(profile_api_client):
         }
     ]
 
+    if reference_number_given:
+        data[0]["reference_number"] = "THIS-SHOULD-BE-IGNORED"
+
     response = profile_api_client.post(
         reverse(
             "application_form:apartment-installment-list",
@@ -406,10 +413,111 @@ def test_apartment_installment_reference_number_populating(profile_api_client):
         format="json",
     )
 
-    assert response.data[0]["reference_number"].startswith("REFERENCE-")
+    assert response.data[0]["reference_number"].startswith("2825")
     assert (
         ApartmentInstallment.objects.first().reference_number
         == response.data[0]["reference_number"]
+    )
+
+
+@pytest.mark.parametrize("reference_number_given", (False, True))
+@pytest.mark.django_db
+def test_apartment_installment_reference_number_populating_on_update(
+    profile_api_client, reference_number_given
+):
+    original_reference_number = "ORIGINAL-REFERENCE-NUMBER"
+    reservation = ApartmentReservationFactory()
+    ApartmentInstallmentFactory(
+        apartment_reservation=reservation,
+        type=InstallmentType.PAYMENT_1,
+        reference_number=original_reference_number,
+    )
+
+    data = [
+        {
+            "type": "PAYMENT_1",
+            "amount": 100000,
+            "account_number": "123123123-123",
+            "due_date": "2022-02-19",
+        },
+    ]
+
+    if reference_number_given:
+        data[0]["reference_number"] = "THIS-SHOULD-BE-IGNORED"
+
+    response = profile_api_client.post(
+        reverse(
+            "application_form:apartment-installment-list",
+            kwargs={"apartment_reservation_id": reservation.id},
+        ),
+        data=data,
+        format="json",
+    )
+
+    # original reference number should be kept because the same installment
+    # (type PAYMENT_1 matches) is updated
+    assert response.data[0]["reference_number"] == original_reference_number
+    assert (
+        ApartmentInstallment.objects.first().reference_number
+        == original_reference_number
+    )
+
+    data = [
+        {
+            "type": "PAYMENT_2",
+            "amount": 200000,
+            "account_number": "124123123-123",
+            "due_date": "2023-02-19",
+        },
+    ]
+
+    if reference_number_given:
+        data[0]["reference_number"] = "THIS-SHOULD-BE-IGNORED"
+
+    response = profile_api_client.post(
+        reverse(
+            "application_form:apartment-installment-list",
+            kwargs={"apartment_reservation_id": reservation.id},
+        ),
+        data=data,
+        format="json",
+    )
+
+    # original reference number should NOT be kept because another installment type is
+    # used here
+    assert response.data[0]["reference_number"] != original_reference_number
+    assert (
+        ApartmentInstallment.objects.first().reference_number
+        != original_reference_number
+    )
+
+    data = [
+        {
+            "type": "PAYMENT_1",
+            "amount": 300000,
+            "account_number": "125123123-123",
+            "due_date": "2024-02-19",
+        },
+    ]
+
+    if reference_number_given:
+        data[0]["reference_number"] = "THIS-SHOULD-BE-IGNORED"
+
+    response = profile_api_client.post(
+        reverse(
+            "application_form:apartment-installment-list",
+            kwargs={"apartment_reservation_id": reservation.id},
+        ),
+        data=data,
+        format="json",
+    )
+
+    # the type is the same as at start, but because the installment PAYMENT_1 was
+    # deleted in the middle, it should now have a new reference number
+    assert response.data[0]["reference_number"] != original_reference_number
+    assert (
+        ApartmentInstallment.objects.first().reference_number
+        != original_reference_number
     )
 
 

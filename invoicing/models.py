@@ -1,8 +1,9 @@
-from django.db import models
+from django.db import models, transaction
 from django.db.models import UniqueConstraint
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from enumfields import EnumField
+from uuid import uuid4
 
 from application_form.models import ApartmentReservation
 from invoicing.enums import (
@@ -10,7 +11,11 @@ from invoicing.enums import (
     InstallmentType,
     InstallmentUnit,
 )
-from invoicing.utils import get_euros_from_cents, get_rounded_price
+from invoicing.utils import (
+    generate_reference_number,
+    get_euros_from_cents,
+    get_rounded_price,
+)
 
 
 class InstallmentBase(models.Model):
@@ -36,7 +41,7 @@ class ApartmentInstallment(InstallmentBase):
         on_delete=models.PROTECT,
     )
     reference_number = models.CharField(
-        max_length=64, verbose_name=_("reference number"), blank=True
+        max_length=64, verbose_name=_("reference number"), unique=True
     )
 
     class Meta:
@@ -45,6 +50,26 @@ class ApartmentInstallment(InstallmentBase):
                 fields=["apartment_reservation", "type"], name="unique_reservation_type"
             )
         ]
+
+    def set_reference_number(self, force=False):
+        if self.reference_number and not force:
+            return
+
+        self.reference_number = generate_reference_number(self.id)
+        self.save(update_fields=("reference_number",))
+
+    @transaction.atomic
+    def save(self, *args, **kwargs):
+        creating = not self.id
+
+        if creating and not self.reference_number:
+            # set a temporary unique reference number to please the unique constraint
+            self.reference_number = str(f"TEMP-{uuid4()}")
+
+            super().save(*args, **kwargs)
+            self.set_reference_number(force=True)
+        else:
+            super().save(*args, **kwargs)
 
 
 class ProjectInstallmentTemplate(InstallmentBase):
