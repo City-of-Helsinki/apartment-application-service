@@ -37,9 +37,17 @@ class InstallmentAPIViewBase(generics.ListCreateAPIView):
 
     @transaction.atomic
     def perform_create(self, serializer):
-        # we want to always create new objects instead of updating possible already
+        queryset = self.get_queryset()
+
+        # make old instances available in the serializer so that values from those can
+        # be used when creating new instances if needed
+        old_instances = {instance.type: instance for instance in queryset}
+        serializer.context.update({"old_instances": old_instances})
+
+        # we want to always create new instances instead of updating possible already
         # existing ones, so the old ones are deleted first
-        self.get_queryset().delete()
+        queryset.delete()
+
         # created_at is set here to get exactly the same timestamp on all instances
         serializer.save(
             **{self.parent_field: self.kwargs[self.parent_field], "created_at": now()}

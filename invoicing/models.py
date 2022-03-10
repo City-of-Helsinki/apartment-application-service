@@ -1,4 +1,5 @@
-from django.db import models
+import secrets
+from django.db import models, transaction
 from django.db.models import UniqueConstraint
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
@@ -45,6 +46,21 @@ class ApartmentInstallment(InstallmentBase):
                 fields=["apartment_reservation", "type"], name="unique_reservation_type"
             )
         ]
+
+    def set_reference_number(self, force=False):
+        if self.reference_number and not force:
+            return
+
+        self.reference_number = f"REFERENCE-{secrets.choice(range(100, 999))}"
+        self.save(update_fields=("reference_number",))
+
+    @transaction.atomic
+    def save(self, *args, **kwargs):
+        creating = not self.id
+        super().save(*args, **kwargs)
+
+        if creating and not self.reference_number:
+            self.set_reference_number()
 
 
 class ProjectInstallmentTemplate(InstallmentBase):
