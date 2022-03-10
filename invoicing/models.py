@@ -3,6 +3,7 @@ from django.db.models import UniqueConstraint
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from enumfields import EnumField
+from uuid import uuid4
 
 from application_form.models import ApartmentReservation
 from invoicing.enums import (
@@ -60,10 +61,15 @@ class ApartmentInstallment(InstallmentBase):
     @transaction.atomic
     def save(self, *args, **kwargs):
         creating = not self.id
-        super().save(*args, **kwargs)
 
         if creating and not self.reference_number:
-            self.set_reference_number()
+            # set a temporary unique reference number to please the unique constraint
+            self.reference_number = str(f"TEMP-{uuid4()}")
+
+            super().save(*args, **kwargs)
+            self.set_reference_number(force=True)
+        else:
+            super().save(*args, **kwargs)
 
 
 class ProjectInstallmentTemplate(InstallmentBase):
