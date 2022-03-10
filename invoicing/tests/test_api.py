@@ -413,7 +413,7 @@ def test_apartment_installment_reference_number_populating(
         format="json",
     )
 
-    assert response.data[0]["reference_number"].startswith("REFERENCE-")
+    assert response.data[0]["reference_number"].startswith("2825")
     assert (
         ApartmentInstallment.objects.first().reference_number
         == response.data[0]["reference_number"]
