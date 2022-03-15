@@ -1,10 +1,14 @@
 black
+django-test-migrations
 factory-boy
 flake8
 ipython
 isort
+packaging==21.0
 pip-tools
 pre-commit
+pylint-django
 pytest
 pytest-cov
 pytest-django
+python-dateutil==2.8.2

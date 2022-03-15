@@ -1,24 +1,21 @@
 import factory
 import random
-import string
+import uuid
 from factory import Faker, fuzzy, LazyAttribute
 from typing import List
 
-from apartment.tests.factories import ApartmentFactory
-from application_form.enums import ApplicationType
-from application_form.models import Applicant, Application, ApplicationApartment
-from application_form.services import _calculate_age
-from users.tests.factories import ProfileFactory
-
-
-def calculate_ssn_suffix(obj) -> str:
-    date_string = obj.date_of_birth.strftime("%d%m%y")
-    century_sign = "+-A"[obj.date_of_birth.year // 100 - 18]
-    individual_number = f"{random.randint(3, 900):03d}"
-    index = int(date_string + individual_number) % 31
-    control_character = "0123456789ABCDEFHJKLMNPRSTUVWXY"[index]
-    ssn_suffix = century_sign + individual_number + control_character
-    return ssn_suffix
+from application_form.enums import ApartmentReservationState, ApplicationType
+from application_form.models import (
+    ApartmentReservation,
+    Applicant,
+    Application,
+    ApplicationApartment,
+    LotteryEvent,
+    LotteryEventResult,
+)
+from application_form.services.application import _calculate_age
+from application_form.tests.utils import calculate_ssn_suffix
+from customer.tests.factories import CustomerFactory
 
 
 class ApplicationFactory(factory.django.DjangoModelFactory):
@@ -28,9 +25,9 @@ class ApplicationFactory(factory.django.DjangoModelFactory):
     external_uuid = factory.Faker("uuid4")
     applicants_count = fuzzy.FuzzyInteger(1, 2)
     type = fuzzy.FuzzyChoice(list(ApplicationType))
-    right_of_residence = fuzzy.FuzzyText(length=10, chars=string.digits)
+    right_of_residence = fuzzy.FuzzyInteger(1, 1000000000)
     has_children = Faker("boolean")
-    profile = factory.SubFactory(ProfileFactory)
+    customer = factory.SubFactory(CustomerFactory)
 
 
 class ApplicantFactory(factory.django.DjangoModelFactory):
@@ -46,7 +43,7 @@ class ApplicantFactory(factory.django.DjangoModelFactory):
     postal_code = Faker("postcode")
     date_of_birth = Faker("date_of_birth", minimum_age=18)
     age = LazyAttribute(lambda o: _calculate_age(o.date_of_birth))
-    ssn_suffix = LazyAttribute(calculate_ssn_suffix)
+    ssn_suffix = LazyAttribute(lambda o: calculate_ssn_suffix(o.date_of_birth))
     is_primary_applicant = Faker("boolean")
     application = factory.SubFactory(ApplicationFactory)
 
@@ -73,21 +70,48 @@ class ApplicationApartmentFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = ApplicationApartment
 
-    priority_number = 1
-    apartment = factory.SubFactory(ApartmentFactory)
+    priority_number = fuzzy.FuzzyInteger(1, 5)
+    apartment_uuid = factory.Faker("uuid4")
     application = factory.SubFactory(ApplicationWithApplicantsFactory)
 
     @classmethod
     def create_application_with_apartments(
-        cls, apartments: List[ApartmentFactory], application: application
+        cls, apartment_uuids: List[uuid.UUID], application: application
     ) -> List[ApplicationApartment]:
 
         apartments_application = []
-        for i in range(len(apartments)):
+        for i in range(len(apartment_uuids)):
             apartment_application = cls.create(
                 priority_number=i + 1,
-                apartment=apartments[i],
+                apartment_uuid=apartment_uuids[i],
                 application=application,
             )
             apartments_application.append(apartment_application)
         return apartments_application
+
+
+class ApartmentReservationFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = ApartmentReservation
+
+    apartment_uuid = factory.Faker("uuid4")
+    customer = factory.SubFactory(CustomerFactory)
+    queue_position = fuzzy.FuzzyInteger(1)
+    application_apartment = factory.SubFactory(ApplicationApartmentFactory)
+    state = fuzzy.FuzzyChoice(list(ApartmentReservationState))
+
+
+class LotteryEventFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = LotteryEvent
+
+    apartment_uuid = factory.Faker("uuid4")
+
+
+class LotteryEventResultFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = LotteryEventResult
+
+    event = factory.SubFactory(LotteryEventFactory)
+    application_apartment = factory.SubFactory(ApplicationApartmentFactory)
+    result_position = fuzzy.FuzzyInteger(1)

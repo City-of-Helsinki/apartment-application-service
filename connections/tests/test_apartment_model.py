@@ -1,18 +1,18 @@
 import pytest
 from datetime import date
 
-from connections.tests.factories import ApartmentFactory, ApartmentTest
+from apartment.tests.factories import ApartmentDocumentFactory, ApartmentDocumentTest
 
 
 @pytest.mark.usefixtures("client")
 class TestApartmentModel:
     def test_apartment_index_has_data(client):
-        apartment = ApartmentFactory(_id=42)
+        apartment = ApartmentDocumentFactory(_id=42)
         apartment.save()
 
-        at = ApartmentTest.get(id=42)
+        at = ApartmentDocumentTest.get(id=42)
 
-        fields = ApartmentTest._doc_type.mapping.properties.properties
+        fields = ApartmentDocumentTest._doc_type.mapping.properties.properties
         for field in fields:
             input_value = getattr(apartment, field)
             index_value = getattr(at, field)

@@ -5,10 +5,11 @@ from django.core.management import call_command
 from django_etuovi.utils.testing import check_dataclass_typing
 from uuid import UUID
 
+from apartment.tests.factories import ApartmentDocumentFactory
 from connections.etuovi.etuovi_mapper import map_apartment_to_item
 from connections.etuovi.services import create_xml, fetch_apartments_for_sale
 from connections.models import MappedApartment
-from connections.tests.factories import ApartmentFactory, ApartmentMinimalFactory
+from connections.tests.factories import ApartmentMinimalFactory
 from connections.tests.utils import (
     get_elastic_apartments_for_sale_published_on_etuovi_uuids,
     get_elastic_apartments_for_sale_published_on_oikotie_uuids,
@@ -19,7 +20,7 @@ from connections.tests.utils import (
 
 class TestEtuoviMapper:
     def test_apartment_to_item_mapping_types(self):
-        apartment = ApartmentFactory()
+        apartment = ApartmentDocumentFactory()
         item = map_apartment_to_item(apartment)
         check_dataclass_typing(item)
 
@@ -29,8 +30,8 @@ class TestEtuoviMapper:
         check_dataclass_typing(item)
 
     def test_elastic_to_etuovi_missing_apartment_project_holding_type(self):
-        elastic_apartment = ApartmentMinimalFactory(project_holding_type=None)
         try:
+            elastic_apartment = ApartmentMinimalFactory(project_holding_type=None)
             map_apartment_to_item(elastic_apartment)
         except ValueError as e:
             assert "project_holding_type" in str(e)
@@ -47,7 +48,7 @@ class TestEtuoviMapper:
         raise Exception("Missing project_building_type should have thrown a ValueError")
 
 
-@pytest.mark.usefixtures("client", "elastic_apartments")
+@pytest.mark.usefixtures("client")
 @pytest.mark.django_db
 class TestApartmentFetchingFromElasticAndMapping:
     """
@@ -55,6 +56,7 @@ class TestApartmentFetchingFromElasticAndMapping:
     file and saving correctly mapped apartments to database.
     """
 
+    @pytest.mark.usefixtures("elastic_apartments")
     def test_apartments_for_sale_fetched_to_XML(self):
         expected = get_elastic_apartments_for_sale_published_on_etuovi_uuids()
         items = fetch_apartments_for_sale()
@@ -85,7 +87,7 @@ class TestApartmentFetchingFromElasticAndMapping:
         assert elastic_etuovi != apartments
         assert expected == apartments
 
-    @pytest.mark.usefixtures("not_sending_etuovi_ftp")
+    @pytest.mark.usefixtures("not_sending_etuovi_ftp", "elastic_apartments")
     def test_mapped_etuovi_saved_to_database_with_publish_updated(self):
         call_command("send_etuovi_xml_file")
         etuovi_mapped = MappedApartment.objects.filter(mapped_etuovi=True).values_list(
@@ -124,6 +126,7 @@ class TestApartmentFetchingFromElasticAndMapping:
 
         assert oikotie_mapped == 0
 
+    @pytest.mark.usefixtures("elastic_apartments")
     def test_no_apartments_for_sale_not_creating_file_and_updating_database(self):
         call_command("send_etuovi_xml_file")
         expected = list(

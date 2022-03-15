@@ -1,9 +1,15 @@
 from datetime import datetime, timezone
 from pytest import fixture
+from rest_framework.test import APIClient
 from typing import Callable
 
-from users.models import Profile
+from users.models import Profile, User
 from users.tests.factories import ProfileFactory
+
+
+@fixture
+def api_client():
+    return APIClient()
 
 
 @fixture
@@ -19,3 +25,8 @@ def other_profile() -> Profile:
 @fixture
 def fixed_datetime() -> Callable[[], datetime]:
     return lambda: datetime(2020, 6, 1, tzinfo=timezone.utc)
+
+
+@fixture
+def superuser() -> User:
+    return User.objects.create_superuser("admin", "admin@example.com", "admin")

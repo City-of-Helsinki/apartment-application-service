@@ -5,7 +5,8 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from unittest.mock import patch
 from uuid import UUID
 
-from audit_log.tests.utils import get_audit_log_event
+from audit_log.models import AuditLog
+from users.enums import Roles
 from users.masking import mask_string, mask_uuid, unmask_string, unmask_uuid
 from users.models import Profile
 from users.tests.conftest import PROFILE_TEST_DATA, TEST_USER_PASSWORD
@@ -31,16 +32,20 @@ def test_profile_get_detail(profile, api_client):
         reverse("users:profile-detail", args=(mask_uuid(profile.pk),))
     )
     assert response.status_code == 200
-    assert response.data == PROFILE_TEST_DATA
+    for attr, value in response.data.items():
+        if hasattr(profile, attr):
+            profile_value = getattr(profile, attr)
+            if callable(profile_value):
+                profile_value = profile_value()
+            assert str(profile_value) == str(value)
 
 
 @pytest.mark.django_db
-def test_profile_get_detail_writes_audit_log(profile, api_client, caplog):
+def test_profile_get_detail_writes_audit_log(profile, api_client):
     # A successful "READ" entry should be left when the user views their own profile
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
     api_client.get(reverse("users:profile-detail", args=(mask_uuid(profile.pk),)))
-    audit_event = get_audit_log_event(caplog)
-    assert audit_event is not None, "no audit log entry was written"
+    audit_event = AuditLog.objects.get().message["audit_event"]
     assert audit_event["actor"] == {"role": "OWNER", "profile_id": str(profile.pk)}
     assert audit_event["operation"] == "READ"
     assert audit_event["target"] == {"id": str(profile.pk), "type": "Profile"}
@@ -61,14 +66,13 @@ def test_profile_get_detail_fails_if_not_own_profile(
 
 @pytest.mark.django_db
 def test_profile_get_detail_writes_audit_log_if_not_own_profile(
-    profile, other_profile, api_client, caplog
+    profile, other_profile, api_client
 ):
     # A forbidden "READ" entry should be left if the user
     # attemps to view someone else's profile.
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
     api_client.get(reverse("users:profile-detail", args=(mask_uuid(other_profile.pk),)))
-    audit_event = get_audit_log_event(caplog)
-    assert audit_event is not None, "no audit log entry was written"
+    audit_event = AuditLog.objects.get().message["audit_event"]
     assert audit_event["actor"] == {"role": "USER", "profile_id": str(profile.pk)}
     assert audit_event["operation"] == "READ"
     assert audit_event["target"] == {"id": str(other_profile.pk), "type": "Profile"}
@@ -85,14 +89,11 @@ def test_profile_get_detail_fails_if_not_authenticated(profile, api_client):
 
 
 @pytest.mark.django_db
-def test_profile_get_detail_writes_audit_log_if_not_authenticated(
-    profile, api_client, caplog
-):
+def test_profile_get_detail_writes_audit_log_if_not_authenticated(profile, api_client):
     # A forbidden "READ" entry should be left if an unauthenticated user
     # tries to view somebody's profile.
     api_client.get(reverse("users:profile-detail", args=(mask_uuid(profile.pk),)))
-    audit_event = get_audit_log_event(caplog)
-    assert audit_event is not None, "no audit log entry was written"
+    audit_event = AuditLog.objects.get().message["audit_event"]
     assert audit_event["actor"] == {"role": "ANONYMOUS", "profile_id": None}
     assert audit_event["operation"] == "READ"
     assert audit_event["target"] == {"id": str(profile.pk), "type": "Profile"}
@@ -118,15 +119,42 @@ def test_profile_post(api_client):
 
 
 @pytest.mark.django_db
-def test_profile_post_writes_audit_log(api_client, caplog):
+def test_profile_post_writes_audit_log(api_client):
     api_client.post(reverse("users:profile-list"), PROFILE_TEST_DATA)
     profile = Profile.objects.get()
-    audit_event = get_audit_log_event(caplog)
-    assert audit_event is not None, "no audit log entry was written"
+    audit_event = AuditLog.objects.get().message["audit_event"]
     assert audit_event["actor"] == {"role": "ANONYMOUS", "profile_id": None}
     assert audit_event["operation"] == "CREATE"
     assert audit_event["target"] == {"id": str(profile.pk), "type": "Profile"}
     assert audit_event["status"] == "SUCCESS"
+
+
+@pytest.mark.django_db
+def test_salesperson_profile_post(api_client):
+    # Set profile role
+    profile_data = PROFILE_TEST_DATA.copy()
+    profile_data["is_salesperson"] = True
+
+    # Creating new profile should be allowed as an unauthenticated user
+    response = api_client.post(reverse("users:profile-list"), profile_data)
+    assert response.status_code == 201
+    user = User.objects.get()
+    # Response should contain masked profile ID and password
+    assert user.profile.pk == unmask_uuid(response.data["profile_id"])
+    assert user.profile.pk == UUID(profile_data["id"])
+    assert user.check_password(unmask_string(response.data["password"]))
+    # User should have a salesperson role
+    assert user.groups.filter(name__iexact=Roles.SALESPERSON.name).exists()
+    # We should be able to look up a profile based on the unmasked username
+    profile = Profile.objects.get(pk=unmask_uuid(response.data["profile_id"]))
+    profile_data = profile_data.copy()
+    # The created profile should contain all the data from the request
+    for attr, value in profile_data.items():
+        if hasattr(profile, attr):
+            profile_value = getattr(profile, attr)
+            if callable(profile_value):
+                profile_value = profile_value()
+            assert str(profile_value) == str(value)
 
 
 @pytest.mark.django_db
@@ -141,26 +169,52 @@ def test_profile_put(profile, api_client):
     }
     response = api_client.put(url, put_data)
     assert response.status_code == 200
-    assert response.data == put_data
     profile.refresh_from_db()
     for attr, value in put_data.items():
         assert str(getattr(profile, attr)) == str(value)
 
 
 @pytest.mark.django_db
-def test_profile_put_writes_audit_log(profile, api_client, caplog):
+def test_profile_put_writes_audit_log(profile, api_client):
     # A successful "UPDATE" entry should be left when the user updates their own profile
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
     api_client.put(
         reverse("users:profile-detail", args=(mask_uuid(profile.pk),)),
         {**PROFILE_TEST_DATA, "first_name": "Maija", "address": "Kauppakatu 23"},
     )
-    audit_event = get_audit_log_event(caplog)
-    assert audit_event is not None, "no audit log entry was written"
+    audit_event = AuditLog.objects.get().message["audit_event"]
     assert audit_event["actor"] == {"role": "OWNER", "profile_id": str(profile.pk)}
     assert audit_event["operation"] == "UPDATE"
     assert audit_event["target"] == {"id": str(profile.pk), "type": "Profile"}
     assert audit_event["status"] == "SUCCESS"
+
+
+@pytest.mark.django_db
+def test_salesperson_profile_put(profile, api_client):
+    # Set profile role
+    profile_data = PROFILE_TEST_DATA.copy()
+    profile_data["is_salesperson"] = True
+
+    # A user should be able to update their own profile
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
+    url = reverse("users:profile-detail", args=(mask_uuid(profile.pk),))
+    put_data = {
+        **profile_data,
+        "first_name": "Maija",
+        "street_address": "Kauppakatu 23",
+    }
+    response = api_client.put(url, put_data)
+    assert response.status_code == 200
+    assert response.data == put_data
+    profile.refresh_from_db()
+    # User should have a salesperson role
+    assert profile.user.groups.filter(name__iexact=Roles.SALESPERSON.name).exists()
+    for attr, value in put_data.items():
+        if hasattr(profile, attr):
+            profile_value = getattr(profile, attr)
+            if callable(profile_value):
+                profile_value = profile_value()
+            assert str(profile_value) == str(value)
 
 
 @pytest.mark.django_db
@@ -179,7 +233,7 @@ def test_profile_put_fails_if_not_own_profile(profile, other_profile, api_client
 
 @pytest.mark.django_db
 def test_profile_put_writes_audit_log_if_not_own_profile(
-    profile, other_profile, api_client, caplog
+    profile, other_profile, api_client
 ):
     # A forbidden "UPDATE" event should be left if a user
     # tries to update another person's profile.
@@ -189,8 +243,7 @@ def test_profile_put_writes_audit_log_if_not_own_profile(
         url,
         {**PROFILE_TEST_DATA, "first_name": "Maija", "street_address": "Kauppakatu 23"},
     )
-    audit_event = get_audit_log_event(caplog)
-    assert audit_event is not None, "no audit log entry was written"
+    audit_event = AuditLog.objects.get().message["audit_event"]
     assert audit_event["actor"] == {"role": "USER", "profile_id": str(profile.pk)}
     assert audit_event["operation"] == "UPDATE"
     assert audit_event["target"] == {"id": str(other_profile.pk), "type": "Profile"}
@@ -208,15 +261,14 @@ def test_profile_put_fails_if_not_authenticated(profile, api_client):
 
 
 @pytest.mark.django_db
-def test_profile_put_writes_audit_log_if_not_authenticated(profile, api_client, caplog):
+def test_profile_put_writes_audit_log_if_not_authenticated(profile, api_client):
     # A forbidden "UPDATE" entry should be written if an unauthenticated
     # user attempts to update a user's profile.
     api_client.put(
         reverse("users:profile-detail", args=(mask_uuid(profile.pk),)),
         PROFILE_TEST_DATA,
     )
-    audit_event = get_audit_log_event(caplog)
-    assert audit_event is not None, "no audit log entry was written"
+    audit_event = AuditLog.objects.get().message["audit_event"]
     assert audit_event["actor"] == {"role": "ANONYMOUS", "profile_id": None}
     assert audit_event["operation"] == "UPDATE"
     assert audit_event["target"] == {"id": str(profile.pk), "type": "Profile"}
@@ -246,12 +298,11 @@ def test_profile_delete(profile, api_client):
 
 
 @pytest.mark.django_db
-def test_profile_delete_writes_audit_log(profile, api_client, caplog):
+def test_profile_delete_writes_audit_log(profile, api_client):
     # A successful "DELETE" entry should be written if a user deletes their own profile
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
     api_client.delete(reverse("users:profile-detail", args=(mask_uuid(profile.pk),)))
-    audit_event = get_audit_log_event(caplog)
-    assert audit_event is not None, "no audit log entry was written"
+    audit_event = AuditLog.objects.get().message["audit_event"]
     assert audit_event["actor"] == {"role": "OWNER", "profile_id": str(profile.pk)}
     assert audit_event["operation"] == "DELETE"
     assert audit_event["target"] == {"id": str(profile.pk), "type": "Profile"}
@@ -269,7 +320,7 @@ def test_profile_delete_fails_if_not_own_profile(profile, other_profile, api_cli
 
 @pytest.mark.django_db
 def test_profile_delete_writes_audit_log_if_not_own_profile(
-    profile, other_profile, api_client, caplog
+    profile, other_profile, api_client
 ):
     # A forbidden "DELETE" entry should be written if a user
     # tries to delete another person's profile.
@@ -277,8 +328,7 @@ def test_profile_delete_writes_audit_log_if_not_own_profile(
     api_client.delete(
         reverse("users:profile-detail", args=(mask_uuid(other_profile.pk),))
     )
-    audit_event = get_audit_log_event(caplog)
-    assert audit_event is not None, "no audit log entry was written"
+    audit_event = AuditLog.objects.get().message["audit_event"]
     assert audit_event["actor"] == {"role": "USER", "profile_id": str(profile.pk)}
     assert audit_event["operation"] == "DELETE"
     assert audit_event["target"] == {"id": str(other_profile.pk), "type": "Profile"}
@@ -296,17 +346,14 @@ def test_profile_delete_fails_if_not_authenticated(profile, api_client):
 
 
 @pytest.mark.django_db
-def test_profile_delete_writes_audit_log_if_not_authenticated(
-    profile, api_client, caplog
-):
+def test_profile_delete_writes_audit_log_if_not_authenticated(profile, api_client):
     # A forbidden "DELETE" event should be written if an unauthenticated user
     # tries to delete a user's profile.
     api_client.delete(
         reverse("users:profile-detail", args=(mask_uuid(profile.pk),)),
         PROFILE_TEST_DATA,
     )
-    audit_event = get_audit_log_event(caplog)
-    assert audit_event is not None, "no audit log entry was written"
+    audit_event = AuditLog.objects.get().message["audit_event"]
     assert audit_event["actor"] == {"role": "ANONYMOUS", "profile_id": None}
     assert audit_event["operation"] == "DELETE"
     assert audit_event["target"] == {"id": str(profile.pk), "type": "Profile"}

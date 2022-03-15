@@ -1,8 +1,13 @@
 import pytest
 from datetime import date
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 
-from application_form.validators import SSNSuffixValidator
+from application_form.tests.factories import (
+    ApplicantFactory,
+    ApplicationApartmentFactory,
+    ApplicationFactory,
+)
+from application_form.validators import ProjectApplicantValidator, SSNSuffixValidator
 
 
 def test_ssn_suffix_validator_valid_1800s():
@@ -55,3 +60,33 @@ def test_ssn_suffix_validator_invalid_control_character():
     validator = SSNSuffixValidator(date_of_birth)
     with pytest.raises(ValidationError):
         validator("730C")
+
+
+@pytest.mark.django_db
+def test_project_applicant_validator(elastic_project_with_5_apartments):
+    """
+    Applicants can apply only once to the project.
+    """
+    project_uuid, apartments = elastic_project_with_5_apartments
+    first_apartment_uuid = apartments[0].uuid
+
+    application = ApplicationFactory()
+    applicants = ApplicantFactory.create_batch(2, application=application)
+    ApplicationApartmentFactory(
+        apartment_uuid=first_apartment_uuid, application=application
+    )
+
+    # Both applicant exists
+    applicant_list = list()
+    for applicant in applicants:
+        applicant_list.append((applicant.date_of_birth, applicant.ssn_suffix))
+    validator = ProjectApplicantValidator()
+    with pytest.raises(PermissionDenied):
+        validator(project_uuid, applicant_list)
+
+    # Single applicant exists
+    with pytest.raises(PermissionDenied):
+        validator(project_uuid, applicant_list[1])
+
+    # Applicant not exists
+    validator(project_uuid, (date(2000, 2, 29), "TAAAA"))

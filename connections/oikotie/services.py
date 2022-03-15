@@ -2,9 +2,9 @@ import logging
 import os
 from django.conf import settings
 from django_oikotie.oikotie import create_apartments, create_housing_companies
-from elasticsearch_dsl import Search
 from typing import Optional, Tuple
 
+from apartment.elastic.documents import ApartmentDocument
 from connections.enums import ApartmentStateOfSale
 from connections.oikotie.oikotie_mapper import (
     map_oikotie_apartment,
@@ -19,10 +19,10 @@ def fetch_apartments_for_sale() -> Tuple[list, list]:
     Fetch apartments for sale from elasticsearch and map them for Oikotie
     """
     s_obj = (
-        Search()
-        .query("match", _language="fi")
-        .query("match", apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE)
-        .query("match", publish_on_oikotie=True)
+        ApartmentDocument.search()
+        .filter("term", _language__keyword="fi")
+        .filter("term", apartment_state_of_sale__keyword=ApartmentStateOfSale.FOR_SALE)
+        .filter("term", publish_on_oikotie=True)
     )
     s_obj.execute()
     scan = s_obj.scan()

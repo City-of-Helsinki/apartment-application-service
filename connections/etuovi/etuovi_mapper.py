@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from decimal import Decimal
 from django.conf import settings
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from django_etuovi.enums import (
     Condition,
     Country,
@@ -19,7 +19,7 @@ from django_etuovi.items import Coordinate, ExtraLink, Image, Item, Scontact, Te
 from elasticsearch_dsl.utils import AttrList
 from typing import List, Optional, Tuple, Union
 
-from connections.elastic_models import Apartment
+from apartment.elastic.documents import ApartmentDocument
 from connections.enums import Currency, Unit
 from connections.etuovi.field_mapper import (
     CONDITION_MAPPING,
@@ -42,7 +42,9 @@ def handle_field_value(field: Union[str, AttrList, None]) -> str:
         yield field
 
 
-def map_decimal(elastic_apartment: Apartment, field_name: str) -> Optional[Decimal]:
+def map_decimal(
+    elastic_apartment: ApartmentDocument, field_name: str
+) -> Optional[Decimal]:
     """
     Returns a decimal of the given ElasticSearch float field.
     """
@@ -53,20 +55,21 @@ def map_decimal(elastic_apartment: Apartment, field_name: str) -> Optional[Decim
         return None
 
 
-def map_price(elastic_apartment: Apartment, field_name: str) -> Optional[Decimal]:
+def map_price(
+    elastic_apartment: ApartmentDocument, field_name: str
+) -> Optional[Decimal]:
     """
     Returns the Decimal of an ElasticSearch price field. The prices
     are saved as cents in ElasticSearch so convert the value to Euros.
     """
     elastic_value = getattr(elastic_apartment, field_name, None)
-    if elastic_value:
+    if elastic_value is not None:
         return convert_price_from_cents_to_eur(elastic_value)
-    else:
-        return None
+    return None
 
 
 def get_showing_datetime_with_index(
-    elastic_apartment: Apartment, index: int
+    elastic_apartment: ApartmentDocument, index: int
 ) -> Optional[datetime]:
     """
     Returns a showing date from the showing_times list with the given index.
@@ -84,7 +87,9 @@ def get_showing_datetime_with_index(
         return None
 
 
-def map_showing_date(elastic_apartment: Apartment, index: int) -> Optional[datetime]:
+def map_showing_date(
+    elastic_apartment: ApartmentDocument, index: int
+) -> Optional[datetime]:
     """
     Returns a showing date from the showing_times list with the given index.
     """
@@ -95,7 +100,9 @@ def map_showing_date(elastic_apartment: Apartment, index: int) -> Optional[datet
         return None
 
 
-def map_showing_end_time(elastic_apartment: Apartment, index: int) -> Optional[str]:
+def map_showing_end_time(
+    elastic_apartment: ApartmentDocument, index: int
+) -> Optional[str]:
     """
     Returns a showing end time from the showing_times list with the given index.
     End time should be specified as "hh:mm" and because ElasticSearch does not
@@ -108,7 +115,7 @@ def map_showing_end_time(elastic_apartment: Apartment, index: int) -> Optional[s
         return None
 
 
-def map_showing_info(elastic_apartment: Apartment, index: int) -> Optional[str]:
+def map_showing_info(elastic_apartment: ApartmentDocument, index: int) -> Optional[str]:
     """
     Returns an info text for the given showing time if it exists.
     """
@@ -119,7 +126,7 @@ def map_showing_info(elastic_apartment: Apartment, index: int) -> Optional[str]:
         return None
 
 
-def map_condition(elastic_apartment: Apartment) -> Optional[Condition]:
+def map_condition(elastic_apartment: ApartmentDocument) -> Optional[Condition]:
     """
     Returns the mapped Etuovi condition based on the input value
     from ElasticSearch.
@@ -131,7 +138,7 @@ def map_condition(elastic_apartment: Apartment) -> Optional[Condition]:
         return None
 
 
-def map_holding_type(elastic_apartment: Apartment) -> HoldingType:
+def map_holding_type(elastic_apartment: ApartmentDocument) -> HoldingType:
     """
     Returns the mapped Etuovi holding type based on the input
     project_holding_type. Raises an error if the holding type cannot be
@@ -146,7 +153,7 @@ def map_holding_type(elastic_apartment: Apartment) -> HoldingType:
         )
 
 
-def map_item_group(elastic_apartment: Apartment) -> ItemGroup:
+def map_item_group(elastic_apartment: ApartmentDocument) -> ItemGroup:
     """
     Checks if the given apartment has the project_new_housing flag set and
     returns the ItemGroup value based on this.
@@ -158,7 +165,7 @@ def map_item_group(elastic_apartment: Apartment) -> ItemGroup:
         return ItemGroup.DWELLING
 
 
-def map_realty_group(elastic_apartment: Apartment) -> Optional[RealtyGroup]:
+def map_realty_group(elastic_apartment: ApartmentDocument) -> Optional[RealtyGroup]:
     """
     Checks if the given apartment has the project_new_housing flag set and
     returns the RealtyGroup value based on this.
@@ -170,7 +177,7 @@ def map_realty_group(elastic_apartment: Apartment) -> Optional[RealtyGroup]:
         return RealtyGroup.RESIDENTIAL_APARTMENT
 
 
-def map_realty_type(elastic_apartment: Apartment) -> RealtyType:
+def map_realty_type(elastic_apartment: ApartmentDocument) -> RealtyType:
     """
     Tries to match the given project_building_type value with the options
     in ElasticSearch. Raises an error if the holding type cannot be
@@ -185,7 +192,7 @@ def map_realty_type(elastic_apartment: Apartment) -> RealtyType:
         )
 
 
-def map_trade_type(elastic_apartment: Apartment) -> str:
+def map_trade_type(elastic_apartment: ApartmentDocument) -> str:
     """
     Returns the mapped Etuovi trade type based on the input
     project_holding_type. Raises an error if the holding type
@@ -200,7 +207,7 @@ def map_trade_type(elastic_apartment: Apartment) -> str:
         )
 
 
-def map_coordinates(elastic_apartment: Apartment) -> Optional[List[Coordinate]]:
+def map_coordinates(elastic_apartment: ApartmentDocument) -> Optional[List[Coordinate]]:
     """
     Returns a list of coordinates for the given apartment. Return type must be
     a list because of the Etuovi model.
@@ -217,7 +224,7 @@ def map_coordinates(elastic_apartment: Apartment) -> Optional[List[Coordinate]]:
     return None
 
 
-def map_scontacts(elastic_apartment: Apartment) -> Optional[List[Scontact]]:
+def map_scontacts(elastic_apartment: ApartmentDocument) -> Optional[List[Scontact]]:
     """
     Returns a list of estate agent information for the given apartment.
     Return type must be a list because of the Etuovi model.
@@ -263,7 +270,7 @@ def get_text_mapping(text_key: TextKey, text_value: str) -> Text:
 
 
 def map_apartment_to_text_properties(
-    elastic_apartment: Apartment,
+    elastic_apartment: ApartmentDocument,
 ) -> List[Tuple[TextKey, Union[List[str], str, None]]]:
     """
     Returns a mapping list for each TextKey -> value.
@@ -311,7 +318,7 @@ def map_apartment_to_text_properties(
     ]
 
 
-def map_texts(elastic_apartment: Apartment) -> List[Text]:
+def map_texts(elastic_apartment: ApartmentDocument) -> List[Text]:
     """
     Handles the mapping of Text properties. If the input value is a list,
     transfer it to a comma separated string.
@@ -343,7 +350,7 @@ def get_extra_link_mapping(
 
 
 def map_apartment_to_link_types(
-    elastic_apartment: Apartment,
+    elastic_apartment: ApartmentDocument,
 ) -> List[Tuple[LinkType, Union[List[str], str, None]]]:
     """
     Returns a mapping list for each LinkType -> value.
@@ -360,7 +367,7 @@ def map_apartment_to_link_types(
     ]
 
 
-def map_extra_links(elastic_apartment: Apartment) -> List[ExtraLink]:
+def map_extra_links(elastic_apartment: ApartmentDocument) -> List[ExtraLink]:
     """
     Handles the mapping of ExtraLink properties. If the input value is a list of urls,
     create an ExtraLink for each of the urls.
@@ -393,7 +400,7 @@ def get_image_mapping(
 
 
 def map_apartment_to_image_types(
-    elastic_apartment: Apartment,
+    elastic_apartment: ApartmentDocument,
 ) -> List[Tuple[RealtyImageType, Union[List[str], str, None]]]:
     """
     Returns a mapping list for each RealtyImageType -> value.
@@ -415,7 +422,7 @@ def map_apartment_to_image_types(
     ]
 
 
-def map_images(elastic_apartment: Apartment) -> List[Image]:
+def map_images(elastic_apartment: ApartmentDocument) -> List[Image]:
     """
     Handles the mapping of Image properties. If the input value is a list of image urls,
     create an Image for each of the urls.
@@ -434,7 +441,7 @@ def map_images(elastic_apartment: Apartment) -> List[Image]:
 
 
 def map_apartment_to_realty_options(
-    elastic_apartment: Apartment,
+    elastic_apartment: ApartmentDocument,
 ) -> List[Tuple[RealtyOption, Optional[bool]]]:
     """
     Returns a mapping list for each RealtyOption -> boolean value.
@@ -459,7 +466,7 @@ def map_apartment_to_realty_options(
     ]
 
 
-def map_realty_options(elastic_apartment: Apartment) -> List[RealtyOption]:
+def map_realty_options(elastic_apartment: ApartmentDocument) -> List[RealtyOption]:
     """
     Handles the mapping of RealtyOption properties. If the RealtyOption exists
     in the input apartment, add it to the realty option list.
@@ -473,7 +480,7 @@ def map_realty_options(elastic_apartment: Apartment) -> List[RealtyOption]:
     return realty_options
 
 
-def map_apartment_to_item(elastic_apartment: Apartment) -> Item:
+def map_apartment_to_item(elastic_apartment: ApartmentDocument) -> Item:
     """
     Maps the ElasticSearch apartment to the Etuovi Item.
     """

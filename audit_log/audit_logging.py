@@ -1,11 +1,10 @@
-import json
-import logging
 from datetime import datetime, timezone
 from django.contrib.auth.models import AnonymousUser
 from django.db.models import Model
 from typing import Callable, Optional, Union
 
 from audit_log.enums import Operation, Role, Status
+from audit_log.models import AuditLog
 from users.models import Profile
 
 ORIGIN = "APARTMENT_APPLICATION_SERVICE"
@@ -66,8 +65,7 @@ def log(
             },
         },
     }
-    logger = logging.getLogger("audit")
-    logger.info(json.dumps(message))
+    AuditLog.objects.create(message=message)
 
 
 def _get_target_id(instance: Optional[Model]) -> Optional[str]:

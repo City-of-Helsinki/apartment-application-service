@@ -3,7 +3,7 @@ import os
 import sentry_sdk
 import subprocess
 from datetime import timedelta
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 from sentry_sdk.integrations.django import DjangoIntegration
 
 checkout_dir = environ.Path(__file__) - 2
@@ -31,7 +31,6 @@ env = environ.Env(
         "@localhost/apartment-application",
     ),
     CACHE_URL=(str, "locmemcache://"),
-    EMAIL_URL=(str, "consolemail://"),
     DEFAULT_FROM_EMAIL=(str, ""),
     MAIL_MAILGUN_KEY=(str, ""),
     MAIL_MAILGUN_DOMAIN=(str, ""),
@@ -71,7 +70,6 @@ env = environ.Env(
     OIKOTIE_PASSWORD=(str, ""),
     APARTMENT_DATA_TRANSFER_PATH=(str, "transfer_files"),
     HASHIDS_SALT=(str, ""),
-    AUDIT_LOG_FILENAME=(str, ""),
     PUBLIC_PGP_KEY=(str, ""),
     PRIVATE_PGP_KEY=(str, ""),
 )
@@ -89,10 +87,13 @@ ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
 USE_X_FORWARDED_HOST = env.bool("USE_X_FORWARDED_HOST")
 
 DATABASES = {"default": env.db()}
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 CACHES = {"default": env.cache()}
-vars().update(env.email_url())  # EMAIL_BACKEND etc.
-MAILER_EMAIL_BACKEND = EMAIL_BACKEND  # noqa: F821
+
+EMAIL_CONFIG = env.email_url("EMAIL_URL", default="consolemail://")
+vars().update(EMAIL_CONFIG)
+MAILER_EMAIL_BACKEND = EMAIL_CONFIG["EMAIL_BACKEND"]
 MAILER_LOCK_PATH = env.str("MAILER_LOCK_PATH")
 EMAIL_BACKEND = "mailer.backend.DbBackend"
 if env.str("DEFAULT_FROM_EMAIL"):
@@ -127,6 +128,8 @@ USE_I18N = True
 USE_L10N = True
 USE_TZ = True
 
+LOCALE_PATHS = (os.path.join(BASE_DIR, "locale"),)
+
 INSTALLED_APPS = [
     "helusers.apps.HelusersConfig",
     "helusers.apps.HelusersAdminConfig",
@@ -136,10 +139,6 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "corsheaders",
-    "parler",
-    "anymail",
-    "mailer",
-    "django_ilmoitin",
     "social_django",
     "rest_framework",
     "simple_history",
@@ -149,8 +148,11 @@ INSTALLED_APPS = [
     "apartment",
     "application_form",
     "connections",
+    "customer",
     "users",
     "audit_log",
+    "invoicing",
+    "utils",
 ]
 
 MIDDLEWARE = [
@@ -188,79 +190,31 @@ AUTH_USER_MODEL = "users.User"
 CORS_ORIGIN_WHITELIST = env.list("CORS_ORIGIN_WHITELIST")
 CORS_ORIGIN_ALLOW_ALL = env.bool("CORS_ORIGIN_ALLOW_ALL")
 
-AUDIT_LOG_FILENAME = env("AUDIT_LOG_FILENAME")
-
-if AUDIT_LOG_FILENAME:
-    if "X" in AUDIT_LOG_FILENAME:
-        import random
-        import re
-        import string
-
-        system_random = random.SystemRandom()
-        char_pool = string.ascii_lowercase + string.digits
-        AUDIT_LOG_FILENAME = re.sub(
-            "X", lambda x: system_random.choice(char_pool), AUDIT_LOG_FILENAME
-        )
-    _audit_log_handler = {
-        "class": "logging.handlers.RotatingFileHandler",
-        "filename": AUDIT_LOG_FILENAME,
-        "maxBytes": 100_000_000,
-        "backupCount": 1,
-        "delay": True,
-    }
-else:
-    _audit_log_handler = {
-        "class": "logging.StreamHandler",
-        "formatter": "verbose",
-    }
-
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
         "verbose": {
-            "format": "%(asctime)s p%(process)d %(name)s %(levelname)s: %(message)s",
+            "format": "%(asctime)s p%(process)d %(name)s %(levelname)s: %(message)s"
         }
     },
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-            "formatter": "verbose",
-        },
-        "audit": _audit_log_handler,
-    },
+    "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "verbose"}},
     "loggers": {
-        "": {
-            "level": env("LOG_LEVEL"),
-            "handlers": [
-                "console",
-            ],
-        },
-        "audit": {
-            "level": "INFO",  # Audit log only writes at INFO level
-            "handlers": [
-                "audit",
-            ],
-        },
+        "": {"level": env("LOG_LEVEL"), "handlers": ["console"]},
         "django": {
             "level": env("DJANGO_LOG_LEVEL"),
-            "handlers": [
-                "console",
-            ],
+            "handlers": ["console"],
+            "propagate": False,
         },
         "connections": {
             "level": env("APPS_LOG_LEVEL"),
-            "handlers": [
-                "console",
-            ],
+            "handlers": ["console"],
             # required to avoid double logging with root logger
             "propagate": False,
         },
         "users": {
             "level": env("APPS_LOG_LEVEL"),
-            "handlers": [
-                "console",
-            ],
+            "handlers": ["console"],
             # required to avoid double logging with root logger
             "propagate": False,
         },
@@ -268,8 +222,6 @@ LOGGING = {
 }
 
 SITE_ID = 1
-
-PARLER_LANGUAGES = {SITE_ID: ({"code": "fi"}, {"code": "en"}, {"code": "sv"})}
 
 # Authentication
 
@@ -290,6 +242,7 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.SessionAuthentication",
     ),
     "DEFAULT_SCHEMA_CLASS": "apartment_application_service.openapi.AutoSchema",
+    "EXCEPTION_HANDLER": "apartment_application_service.exceptions.drf_exception_handler",  # noqa: E501
 }
 
 SPECTACULAR_SETTINGS = {
