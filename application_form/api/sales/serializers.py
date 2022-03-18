@@ -41,7 +41,7 @@ class SalesApplicationSerializer(ApplicationSerializerBase):
 class ApplicantCompactSerializer(serializers.ModelSerializer):
     class Meta:
         model = Applicant
-        fields = ["first_name", "last_name", "is_primary_applicant"]
+        fields = ["first_name", "last_name", "is_primary_applicant", "email"]
 
 
 class ApartmentReservationSerializer(ApartmentReservationSerializerBase):
