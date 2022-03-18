@@ -39,14 +39,9 @@ class SalesApplicationSerializer(ApplicationSerializerBase):
 
 
 class ApplicantCompactSerializer(serializers.ModelSerializer):
-    ssn = serializers.SerializerMethodField()
-
     class Meta:
         model = Applicant
-        fields = ["first_name", "last_name", "is_primary_applicant", "ssn"]
-
-    def get_ssn(self, obj):
-        return obj.date_of_birth.strftime("%y%m%d") + obj.ssn_suffix
+        fields = ["first_name", "last_name", "is_primary_applicant"]
 
 
 class ApartmentReservationSerializer(ApartmentReservationSerializerBase):
