@@ -48,6 +48,7 @@ class ApartmentReservationSerializer(ApartmentReservationSerializerBase):
     applicants = ApplicantCompactSerializer(
         source="application_apartment.application.applicants", many=True
     )
+    customer = serializers.PrimaryKeyRelatedField(read_only=True)
 
     # HITAS fields
     has_children = serializers.BooleanField(
@@ -62,6 +63,7 @@ class ApartmentReservationSerializer(ApartmentReservationSerializerBase):
     class Meta(ApartmentReservationSerializerBase.Meta):
         fields = ApartmentReservationSerializerBase.Meta.fields + (
             "applicants",
+            "customer",
             "has_children",
             "right_of_residence",
         )
