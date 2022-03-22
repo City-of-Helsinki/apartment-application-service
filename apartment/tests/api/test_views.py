@@ -88,6 +88,9 @@ def test_project_get_with_project_uuid(api_client, elastic_project_with_5_apartm
     assert response.status_code == 200
     assert response.data
     assert response.data.get("uuid") == str(project_uuid)
+    assert response.data.get("apartments")
+    assert len(response.data.get("apartments")) == 5
+    assert response.data.get("apartments")[0].get("url")
 
 
 @pytest.mark.django_db

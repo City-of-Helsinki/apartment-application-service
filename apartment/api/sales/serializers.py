@@ -10,6 +10,7 @@ class ApartmentSerializer(serializers.Serializer):
     apartment_structure = serializers.CharField()
     living_area = serializers.FloatField()
     reservations = serializers.SerializerMethodField()
+    url = serializers.CharField()
 
     def get_reservations(self, obj):
         reservations = ApartmentReservation.objects.filter(

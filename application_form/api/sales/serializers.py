@@ -39,20 +39,16 @@ class SalesApplicationSerializer(ApplicationSerializerBase):
 
 
 class ApplicantCompactSerializer(serializers.ModelSerializer):
-    ssn = serializers.SerializerMethodField()
-
     class Meta:
         model = Applicant
-        fields = ["first_name", "last_name", "is_primary_applicant", "ssn"]
-
-    def get_ssn(self, obj):
-        return obj.date_of_birth.strftime("%y%m%d") + obj.ssn_suffix
+        fields = ["first_name", "last_name", "is_primary_applicant", "email"]
 
 
 class ApartmentReservationSerializer(ApartmentReservationSerializerBase):
     applicants = ApplicantCompactSerializer(
         source="application_apartment.application.applicants", many=True
     )
+    customer = serializers.PrimaryKeyRelatedField(read_only=True)
 
     # HITAS fields
     has_children = serializers.BooleanField(
@@ -67,6 +63,7 @@ class ApartmentReservationSerializer(ApartmentReservationSerializerBase):
     class Meta(ApartmentReservationSerializerBase.Meta):
         fields = ApartmentReservationSerializerBase.Meta.fields + (
             "applicants",
+            "customer",
             "has_children",
             "right_of_residence",
         )
