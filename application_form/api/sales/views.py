@@ -79,7 +79,7 @@ class ApartmentReservationViewSet(mixins.RetrieveModelMixin, viewsets.GenericVie
 
         apartment = get_apartment(reservation.apartment_uuid)
         title = (apartment.title or "").strip().lower().replace(" ", "_")
-        filename = f"haso_sopimus_{title}" if title else "haso_sopimus"
+        filename = f"haso_sopimus_{title}.pdf" if title else "haso_sopimus.pdf"
         response = HttpResponse(pdf_data, content_type="application/pdf")
         response["Content-Disposition"] = f"attachment; filename={filename}"
 
