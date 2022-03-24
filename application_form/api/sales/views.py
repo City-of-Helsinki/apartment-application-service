@@ -101,3 +101,33 @@ class ApartmentReservationViewSet(mixins.RetrieveModelMixin, viewsets.GenericVie
         response["Content-Disposition"] = f"attachment; filename={filename}.pdf"
 
         return response
+
+    @extend_schema(
+        description="Create either a Hitas contract or a HASO contract PDF based on "
+        "the reservation's project's ownership type.",
+        responses={(200, "application/pdf"): OpenApiTypes.BINARY},
+    )
+    @action(methods=["GET"], detail=True)
+    def contract(self, request, pk=None):
+        reservation = self.get_object()
+        apartment = get_apartment(
+            reservation.apartment_uuid, include_project_fields=True
+        )
+        title = (apartment.title or "").strip().lower().replace(" ", "_")
+
+        ownership_type = apartment.project_ownership_type.lower()
+        if ownership_type == "hitas":
+            filename = f"hitas_sopimus_{title}" if title else "hitas_sopimus"
+            pdf_data = create_hitas_contract_pdf(reservation)
+        elif ownership_type == "haso":
+            filename = f"haso_sopimus_{title}" if title else "haso_sopimus"
+            pdf_data = create_haso_contract_pdf(reservation)
+        else:
+            raise ValueError(
+                f"Unknown ownership_type: {apartment.project_ownership_type}"
+            )
+
+        response = HttpResponse(pdf_data, content_type="application/pdf")
+        response["Content-Disposition"] = f"attachment; filename={filename}.pdf"
+
+        return response
