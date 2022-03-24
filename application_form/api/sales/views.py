@@ -69,40 +69,6 @@ class ApartmentReservationViewSet(mixins.RetrieveModelMixin, viewsets.GenericVie
     permission_classes = [permissions.AllowAny]
 
     @extend_schema(
-        description="Create a HASO contract PDF for the reservation.",
-        responses={(200, "application/pdf"): OpenApiTypes.BINARY},
-    )
-    @action(methods=["GET"], detail=True)
-    def haso_contract(self, request, pk=None):
-        reservation = self.get_object()
-        pdf_data = create_haso_contract_pdf(reservation)
-
-        apartment = get_apartment(reservation.apartment_uuid)
-        title = (apartment.title or "").strip().lower().replace(" ", "_")
-        filename = f"haso_sopimus_{title}.pdf" if title else "haso_sopimus.pdf"
-        response = HttpResponse(pdf_data, content_type="application/pdf")
-        response["Content-Disposition"] = f"attachment; filename={filename}"
-
-        return response
-
-    @extend_schema(
-        description="Create a HITAS contract PDF for the reservation.",
-        responses={(200, "application/pdf"): OpenApiTypes.BINARY},
-    )
-    @action(methods=["GET"], detail=True)
-    def hitas_contract(self, request, pk=None):
-        reservation = self.get_object()
-        pdf_data = create_hitas_contract_pdf(reservation)
-
-        apartment = get_apartment(reservation.apartment_uuid)
-        title = (apartment.title or "").strip().lower().replace(" ", "_")
-        filename = f"hitas_sopimus_{title}" if title else "hitas_sopimus"
-        response = HttpResponse(pdf_data, content_type="application/pdf")
-        response["Content-Disposition"] = f"attachment; filename={filename}.pdf"
-
-        return response
-
-    @extend_schema(
         description="Create either a Hitas contract or a HASO contract PDF based on "
         "the reservation's project's ownership type.",
         responses={(200, "application/pdf"): OpenApiTypes.BINARY},
