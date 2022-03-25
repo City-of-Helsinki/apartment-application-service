@@ -137,14 +137,15 @@ def test_root_apartment_reservation_detail_installment_candidates(api_client):
     }
 
 
+@pytest.mark.parametrize("ownership_type", ("HASO", "Hitas"))
 @pytest.mark.django_db
-def test_haso_contract_pdf(profile_api_client):
-    apartment = ApartmentDocumentFactory()
+def test_contract_pdf_creation(profile_api_client, ownership_type):
+    apartment = ApartmentDocumentFactory(project_ownership_type=ownership_type)
     reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
 
     response = profile_api_client.get(
         reverse(
-            "application_form:sales-apartment-reservation-haso-contract",
+            "application_form:sales-apartment-reservation-contract",
             kwargs={"pk": reservation.id},
         ),
         format="json",
@@ -152,6 +153,10 @@ def test_haso_contract_pdf(profile_api_client):
 
     assert response.status_code == 200
     assert response["Content-Type"] == "application/pdf"
-    assert (
-        bytes(apartment.project_housing_company, encoding="utf-8") in response.content
+
+    test_value = (
+        apartment.project_contract_right_of_occupancy_payment_verification
+        if ownership_type == "HASO"
+        else apartment.project_realty_id
     )
+    assert bytes(test_value, encoding="utf-8") in response.content

@@ -22,7 +22,7 @@ from application_form.api.sales.serializers import (
 from application_form.api.views import ApplicationViewSet
 from application_form.exceptions import ProjectDoesNotHaveApplicationsException
 from application_form.models import ApartmentReservation
-from application_form.pdf import create_haso_contract_pdf
+from application_form.pdf import create_haso_contract_pdf, create_hitas_contract_pdf
 from application_form.services.lottery.exceptions import (
     ApplicationTimeNotFinishedException,
 )
@@ -69,18 +69,31 @@ class ApartmentReservationViewSet(mixins.RetrieveModelMixin, viewsets.GenericVie
     permission_classes = [permissions.AllowAny]
 
     @extend_schema(
-        description="Create a HASO contract PDF for the reservation.",
+        description="Create either a Hitas contract or a HASO contract PDF based on "
+        "the reservation's project's ownership type.",
         responses={(200, "application/pdf"): OpenApiTypes.BINARY},
     )
     @action(methods=["GET"], detail=True)
-    def haso_contract(self, request, pk=None):
+    def contract(self, request, pk=None):
         reservation = self.get_object()
-        pdf_data = create_haso_contract_pdf(reservation)
-
-        apartment = get_apartment(reservation.apartment_uuid)
+        apartment = get_apartment(
+            reservation.apartment_uuid, include_project_fields=True
+        )
         title = (apartment.title or "").strip().lower().replace(" ", "_")
-        filename = f"haso_sopimus_{title}.pdf" if title else "haso_sopimus.pdf"
+
+        ownership_type = apartment.project_ownership_type.lower()
+        if ownership_type == "hitas":
+            filename = f"hitas_sopimus_{title}" if title else "hitas_sopimus"
+            pdf_data = create_hitas_contract_pdf(reservation)
+        elif ownership_type == "haso":
+            filename = f"haso_sopimus_{title}" if title else "haso_sopimus"
+            pdf_data = create_haso_contract_pdf(reservation)
+        else:
+            raise ValueError(
+                f"Unknown ownership_type: {apartment.project_ownership_type}"
+            )
+
         response = HttpResponse(pdf_data, content_type="application/pdf")
-        response["Content-Disposition"] = f"attachment; filename={filename}"
+        response["Content-Disposition"] = f"attachment; filename={filename}.pdf"
 
         return response
