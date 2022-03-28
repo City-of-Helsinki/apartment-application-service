@@ -32,7 +32,7 @@ class ApartmentReservation(models.Model):
     )
     state = EnumField(
         ApartmentReservationState,
-        max_length=15,
+        max_length=32,
         default=ApartmentReservationState.SUBMITTED,
         verbose_name=_("apartment reservation state"),
     )
