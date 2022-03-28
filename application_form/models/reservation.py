@@ -52,6 +52,24 @@ class ApartmentReservation(models.Model):
                 reservation=self, state=self.state
             )
 
+    def set_state(
+        self,
+        state: ApartmentReservationState,
+        user: User = None,
+        comment: str = None,
+    ) -> "ApartmentReservationStateChangeEvent":
+        with transaction.atomic():
+            if user and user.is_anonymous:
+                # TODO this should be removed after proper authentication has been added
+                user = None
+
+            state_change_event = ApartmentReservationStateChangeEvent.objects.create(
+                reservation=self, state=state, comment=comment or "", user=user
+            )
+            self.state = state
+            self.save(update_fields=("state",))
+            return state_change_event
+
 
 class ApartmentQueueChangeEvent(models.Model):
     queue_application = models.ForeignKey(

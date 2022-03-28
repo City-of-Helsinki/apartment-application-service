@@ -19,6 +19,9 @@ from application_form.api.sales.serializers import (
     RootApartmentReservationSerializer,
     SalesApplicationSerializer,
 )
+from application_form.api.serializers import (
+    ApartmentReservationStateChangeEventSerializer,
+)
 from application_form.api.views import ApplicationViewSet
 from application_form.exceptions import ProjectDoesNotHaveApplicationsException
 from application_form.models import ApartmentReservation
@@ -97,3 +100,31 @@ class ApartmentReservationViewSet(mixins.RetrieveModelMixin, viewsets.GenericVie
         response["Content-Disposition"] = f"attachment; filename={filename}.pdf"
 
         return response
+
+    @extend_schema(
+        operation_id="sales_apartment_reservations_set_state",
+        request=ApartmentReservationStateChangeEventSerializer,
+        responses={
+            (200, "application/pdf"): ApartmentReservationStateChangeEventSerializer
+        },
+    )
+    @action(methods=["POST"], detail=True)
+    def set_state(self, request, pk=None):
+        reservation = self.get_object()
+        data = {"reservation_id": pk}
+        data.update(request.data)
+
+        state_change_event_serializer = ApartmentReservationStateChangeEventSerializer(
+            data=data
+        )
+        state_change_event_serializer.is_valid(raise_exception=True)
+
+        state_change_event = reservation.set_state(
+            **state_change_event_serializer.validated_data,
+            user=request.user,
+        )
+
+        return Response(
+            ApartmentReservationStateChangeEventSerializer(state_change_event).data,
+            status=status.HTTP_200_OK,
+        )
