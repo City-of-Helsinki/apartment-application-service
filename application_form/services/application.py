@@ -122,7 +122,7 @@ def get_ordered_applications(apartment_uuid: uuid.UUID) -> QuerySet:
         application_apartments__in=ApplicationApartment.objects.filter(
             apartment_uuid=apartment_uuid
         ).exclude(
-            apartment_reservation__change_events__type=ApartmentQueueChangeEventType.REMOVED  # noqa: E501
+            apartment_reservation__queue_change_events__type=ApartmentQueueChangeEventType.REMOVED  # noqa: E501
         )
     ).order_by("application_apartments__apartment_reservation__queue_position")
 
@@ -227,8 +227,7 @@ def _update_reservation_state(
         application_apartment = application.application_apartments.get(
             apartment_uuid=apartment_uuid
         )
-        application_apartment.apartment_reservation.state = application_state
-        application_apartment.apartment_reservation.save(update_fields=["state"])
+        application_apartment.apartment_reservation.set_state(application_state)
 
 
 def _reserve_apartment(apartment_uuid: uuid.UUID) -> Optional[ApplicationApartment]:
@@ -239,10 +238,9 @@ def _reserve_apartment(apartment_uuid: uuid.UUID) -> Optional[ApplicationApartme
     application_apartment = winning_application.application_apartments.get(
         apartment_uuid=apartment_uuid
     )
-    application_apartment.apartment_reservation.state = (
+    application_apartment.apartment_reservation.set_state(
         ApartmentReservationState.RESERVED
     )
-    application_apartment.apartment_reservation.save(update_fields=["state"])
     return application_apartment
 
 

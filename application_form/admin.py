@@ -2,6 +2,7 @@ from django.contrib import admin
 
 from application_form.models import (
     ApartmentReservation,
+    ApartmentReservationStateChangeEvent,
     Applicant,
     Application,
     ApplicationApartment,
@@ -28,6 +29,17 @@ class ApplicationAdmin(admin.ModelAdmin):
     inlines = [ApplicantInline, ApplicationApartmentInline]
 
 
+class ApartmentReservationStateChangeEventInline(admin.TabularInline):
+    model = ApartmentReservationStateChangeEvent
+    readonly_fields = ("timestamp", "state", "user", "comment")
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(ApartmentReservation)
 class ApartmentReservationAdmin(admin.ModelAdmin):
-    pass
+    inlines = [ApartmentReservationStateChangeEventInline]

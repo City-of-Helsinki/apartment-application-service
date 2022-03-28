@@ -49,7 +49,7 @@ def add_application_to_queues(application: Application, comment: str = "") -> No
                 application_apartment=application_apartment,
                 apartment_uuid=apartment_uuid,
             )
-            apartment_reservation.change_events.create(
+            apartment_reservation.queue_change_events.create(
                 type=ApartmentQueueChangeEventType.ADDED,
                 comment=comment,
             )
@@ -71,11 +71,10 @@ def remove_application_from_queue(
         apartment_reservation.queue_position,
         deleted=True,
     )
-    application_apartment.apartment_reservation.state = (
+    application_apartment.apartment_reservation.set_state(
         ApartmentReservationState.CANCELED
     )
-    application_apartment.apartment_reservation.save(update_fields=["state"])
-    apartment_reservation.change_events.create(
+    apartment_reservation.queue_change_events.create(
         type=ApartmentQueueChangeEventType.REMOVED, comment=comment
     )
 

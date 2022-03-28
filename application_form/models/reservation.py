@@ -1,4 +1,5 @@
-from django.db import models
+from django.contrib.auth import get_user_model
+from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
 from enumfields import EnumField
 
@@ -8,6 +9,8 @@ from application_form.enums import (
 )
 from application_form.models import ApplicationApartment
 from customer.models import Customer
+
+User = get_user_model()
 
 
 class ApartmentReservation(models.Model):
@@ -40,10 +43,19 @@ class ApartmentReservation(models.Model):
     class Meta:
         unique_together = [("apartment_uuid", "application_apartment")]
 
+    @transaction.atomic
+    def save(self, *args, **kwargs):
+        creating = self._state.adding
+        super().save(*args, **kwargs)
+        if creating:
+            ApartmentReservationStateChangeEvent.objects.create(
+                reservation=self, state=self.state
+            )
+
 
 class ApartmentQueueChangeEvent(models.Model):
     queue_application = models.ForeignKey(
-        ApartmentReservation, models.CASCADE, related_name="change_events"
+        ApartmentReservation, models.CASCADE, related_name="queue_change_events"
     )
     type = EnumField(
         ApartmentQueueChangeEventType,
@@ -52,3 +64,22 @@ class ApartmentQueueChangeEvent(models.Model):
     )
     comment = models.CharField(_("comment"), max_length=255)
     timestamp = models.DateTimeField(auto_now_add=True)
+
+
+class ApartmentReservationStateChangeEvent(models.Model):
+    reservation = models.ForeignKey(
+        ApartmentReservation, models.CASCADE, related_name="state_change_events"
+    )
+    state = EnumField(
+        ApartmentReservationState,
+        max_length=32,
+        verbose_name=_("apartment reservation state"),
+    )
+    comment = models.CharField(verbose_name=_("comment"), blank=True, max_length=255)
+    timestamp = models.DateTimeField(verbose_name=_("timestamp"), auto_now_add=True)
+    user = models.ForeignKey(
+        User, verbose_name=_("user"), blank=True, null=True, on_delete=models.SET_NULL
+    )
+
+    class Meta:
+        ordering = ("id",)
