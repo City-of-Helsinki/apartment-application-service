@@ -7,6 +7,7 @@ from application_form.models.lottery import LotteryEvent, LotteryEventResult
 from application_form.models.reservation import (
     ApartmentQueueChangeEvent,
     ApartmentReservation,
+    ApartmentReservationStateChangeEvent,
 )
 
 __all__ = [
@@ -17,4 +18,5 @@ __all__ = [
     "LotteryEventResult",
     "ApartmentReservation",
     "ApartmentQueueChangeEvent",
+    "ApartmentReservationStateChangeEvent",
 ]

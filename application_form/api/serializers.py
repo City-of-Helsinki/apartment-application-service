@@ -1,12 +1,17 @@
 import logging
-from enumfields.drf import EnumField
+from enumfields.drf import EnumField, EnumSupportSerializerMixin
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.fields import CharField, IntegerField, UUIDField
 
 from application_form import error_codes
 from application_form.enums import ApartmentReservationState, ApplicationType
-from application_form.models import ApartmentReservation, Applicant, Application
+from application_form.models import (
+    ApartmentReservation,
+    ApartmentReservationStateChangeEvent,
+    Applicant,
+    Application,
+)
 from application_form.services.application import create_application
 from application_form.validators import ProjectApplicantValidator, SSNSuffixValidator
 
@@ -151,3 +156,12 @@ class ApartmentReservationSerializerBase(serializers.ModelSerializer):
 
 class ApartmentReservationSerializer(ApartmentReservationSerializerBase):
     pass
+
+
+class ApartmentReservationStateChangeEventSerializer(
+    EnumSupportSerializerMixin, serializers.ModelSerializer
+):
+    class Meta:
+        model = ApartmentReservationStateChangeEvent
+        fields = ("timestamp", "state", "comment")
+        read_only_fields = ("timestamp",)

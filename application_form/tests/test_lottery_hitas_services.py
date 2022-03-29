@@ -1,4 +1,4 @@
-from pytest import mark
+from pytest import fixture, mark
 from unittest.mock import patch
 
 from application_form.enums import ApartmentReservationState, ApplicationType
@@ -10,6 +10,13 @@ from application_form.services.application import (
 from application_form.services.lottery.hitas import _distribute_hitas_apartments
 from application_form.services.queue import add_application_to_queues
 from application_form.tests.factories import ApplicationFactory
+
+
+@fixture(autouse=True)
+def check_latest_reservation_state_change_events_after_every_test(
+    check_latest_reservation_state_change_events,
+):
+    pass
 
 
 @mark.django_db

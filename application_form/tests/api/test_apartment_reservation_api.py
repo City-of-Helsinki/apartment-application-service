@@ -5,6 +5,7 @@ from decimal import Decimal
 from django.urls import reverse
 
 from apartment.tests.factories import ApartmentDocumentFactory
+from application_form.enums import ApartmentReservationState
 from application_form.tests.factories import ApartmentReservationFactory
 from invoicing.enums import (
     InstallmentPercentageSpecifier,
@@ -15,6 +16,7 @@ from invoicing.tests.factories import (
     ApartmentInstallmentFactory,
     ProjectInstallmentTemplateFactory,
 )
+from users.tests.factories import UserFactory
 
 
 @pytest.mark.django_db
@@ -160,3 +162,39 @@ def test_contract_pdf_creation(profile_api_client, ownership_type):
         else apartment.project_realty_id
     )
     assert bytes(test_value, encoding="utf-8") in response.content
+
+
+@pytest.mark.parametrize("comment", ("Foo", ""))
+@pytest.mark.django_db
+def test_apartment_reservation_set_state(api_client, comment):
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid, state=ApartmentReservationState.SUBMITTED
+    )
+    user = UserFactory()
+
+    api_client.force_authenticate(user=user)
+    data = {"state": "reserved", "comment": comment}
+    response = api_client.post(
+        reverse(
+            "application_form:sales-apartment-reservation-set-state",
+            kwargs={"pk": reservation.id},
+        ),
+        data=data,
+        format="json",
+    )
+    assert response.status_code == 200
+
+    assert len(response.data.keys()) == 3
+    assert response.data.pop("timestamp")
+    assert response.data == {
+        "state": "reserved",
+        "comment": comment,
+    }
+
+    assert reservation.state_change_events.count() == 2
+    state_change_event = reservation.state_change_events.last()
+    assert state_change_event.timestamp
+    assert state_change_event.state == ApartmentReservationState.RESERVED
+    assert state_change_event.comment == comment
+    assert state_change_event.user == user

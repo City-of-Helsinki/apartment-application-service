@@ -13,6 +13,7 @@ from unittest.mock import Mock
 from apartment.tests.factories import ApartmentDocumentFactory
 from application_form.api.serializers import ApplicationSerializer
 from application_form.enums import ApplicationType
+from application_form.models import ApartmentReservation
 from application_form.tests.factories import ApplicantFactory
 from application_form.tests.utils import (
     calculate_ssn_suffix,
@@ -61,6 +62,16 @@ def elasticsearch():
 @fixture(scope="module")
 def elastic_apartments(elasticsearch):
     yield ApartmentMinimalFactory.create_for_sale_batch(10)
+
+
+@fixture
+def check_latest_reservation_state_change_events():
+    # makes sure the latest ApartmentReservationStateChangeEvent matches the latest
+    # ApartmentReservation state for every ApartmentReservation
+    # Note: a failure here will be reported as an error instead of a failed test
+    yield
+    for reservation in ApartmentReservation.objects.all():
+        assert reservation.state_change_events.last().state == reservation.state
 
 
 @fixture
