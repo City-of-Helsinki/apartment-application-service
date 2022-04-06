@@ -1,3 +1,5 @@
+from datetime import date
+from django.conf import settings
 from django.db import models, transaction
 from django.db.models import UniqueConstraint
 from django.utils.timezone import now
@@ -34,12 +36,15 @@ class InstallmentBase(models.Model):
 
 
 class ApartmentInstallment(InstallmentBase):
+    INVOICE_NUMBER_PREFIX_LENGTH: int = 3
+
     apartment_reservation = models.ForeignKey(
         ApartmentReservation,
         verbose_name=_("apartment reservation"),
         related_name="apartment_installments",
         on_delete=models.PROTECT,
     )
+    invoice_number = models.CharField(max_length=9, verbose_name=_("invoice number"))
     reference_number = models.CharField(
         max_length=64, verbose_name=_("reference number"), unique=True
     )
@@ -50,6 +55,37 @@ class ApartmentInstallment(InstallmentBase):
                 fields=["apartment_reservation", "type"], name="unique_reservation_type"
             )
         ]
+
+    def _get_next_invoice_number(self):
+        if self.invoice_number:
+            return self.invoice_number
+
+        invoice_number_prefix = settings.INVOICE_NUMBER_PREFIX or ""
+
+        if len(invoice_number_prefix) != self.INVOICE_NUMBER_PREFIX_LENGTH:
+            raise ValueError(
+                f"INVOICE_NUMBER_PREFIX setting has invalid length "
+                f"({self.INVOICE_NUMBER_PREFIX_LENGTH}): {len(invoice_number_prefix)} "
+            )
+
+        apartment_installment = (
+            ApartmentInstallment.objects.filter(
+                invoice_number__istartswith=invoice_number_prefix,
+                created_at__year=date.today().year,
+            )
+            .order_by("-invoice_number")
+            .first()
+        )
+
+        last_invoice_number = 1
+        if apartment_installment:
+            last_invoice_number = apartment_installment.invoice_number
+            removeable_prefix_length = self.INVOICE_NUMBER_PREFIX_LENGTH
+            last_invoice_number = int(last_invoice_number[removeable_prefix_length:])
+            last_invoice_number += 1
+
+        next_invoice_number = invoice_number_prefix + str(last_invoice_number).zfill(6)
+        return next_invoice_number
 
     def set_reference_number(self, force=False):
         if self.reference_number and not force:
@@ -62,12 +98,20 @@ class ApartmentInstallment(InstallmentBase):
     def save(self, *args, **kwargs):
         creating = not self.id
 
-        if creating and not self.reference_number:
-            # set a temporary unique reference number to please the unique constraint
-            self.reference_number = str(f"TEMP-{uuid4()}")
+        self.invoice_number = self._get_next_invoice_number()
+
+        if creating:
+            generate_reference_number = not self.reference_number
+
+            if generate_reference_number:
+                # set a temporary unique reference number to please the unique
+                # constraint
+                self.reference_number = str(f"TEMP-{uuid4()}")
 
             super().save(*args, **kwargs)
-            self.set_reference_number(force=True)
+
+            if generate_reference_number:
+                self.set_reference_number(force=True)
         else:
             super().save(*args, **kwargs)
 

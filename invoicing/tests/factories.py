@@ -32,6 +32,9 @@ class ProjectInstallmentTemplateFactory(InstallmentBaseFactory):
 
 class ApartmentInstallmentFactory(InstallmentBaseFactory):
     apartment_reservation = factory.SubFactory(ApartmentReservationFactory)
+    invoice_number = factory.Faker(
+        "pystr_format", string_format="#########", letters="1234567890"
+    )
     reference_number = factory.Faker("uuid4")
 
     class Meta:
