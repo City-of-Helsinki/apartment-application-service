@@ -14,6 +14,13 @@ class ApartmentReservationState(Enum):
     REVIEW = "review"
 
 
+class ApartmentReservationCancellationReason(Enum):
+    TERMINATED = "terminated"  # Irtisanottu
+    CANCELED = "canceled"  # Varaus peruttu
+    CONTRACT_TERMINATED = "contract_terminated"  # Varaussopimus peruttu
+    TRANSFERRED = "transferred"  # Siirretty
+
+
 class ApplicationType(Enum):
     HITAS = "hitas"
     PUOLIHITAS = "puolihitas"

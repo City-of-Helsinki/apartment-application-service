@@ -5,6 +5,7 @@ from enumfields import EnumField
 
 from application_form.enums import (
     ApartmentQueueChangeEventType,
+    ApartmentReservationCancellationReason,
     ApartmentReservationState,
 )
 from application_form.models import ApplicationApartment
@@ -97,6 +98,13 @@ class ApartmentReservationStateChangeEvent(models.Model):
     timestamp = models.DateTimeField(verbose_name=_("timestamp"), auto_now_add=True)
     user = models.ForeignKey(
         User, verbose_name=_("user"), blank=True, null=True, on_delete=models.SET_NULL
+    )
+    cancellation_reason = EnumField(
+        ApartmentReservationCancellationReason,
+        max_length=32,
+        verbose_name=_("cancellation reason"),
+        null=True,
+        blank=True,
     )
 
     class Meta:
