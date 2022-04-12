@@ -3,7 +3,7 @@ from pytest import fixture, mark
 from application_form.enums import ApartmentReservationState, ApplicationType
 from application_form.models.lottery import LotteryEvent, LotteryEventResult
 from application_form.services.application import (
-    cancel_haso_application,
+    cancel_reservation,
     get_ordered_applications,
 )
 from application_form.services.lottery.haso import _distribute_haso_apartments
@@ -134,7 +134,7 @@ def test_canceling_application_sets_application_state_to_canceled(
     )
     add_application_to_queues(app)
     _distribute_haso_apartments(project_uuid)
-    cancel_haso_application(app_apt)
+    cancel_reservation(app_apt.apartment_reservation)
     app_apt.refresh_from_db()
     assert app_apt.apartment_reservation.state == ApartmentReservationState.CANCELED
 
@@ -171,7 +171,7 @@ def test_removing_application_from_queue_cancels_application_and_decides_new_win
         old_app_apartment.apartment_reservation.state
         == ApartmentReservationState.RESERVED
     )
-    cancel_haso_application(old_app_apartment)
+    cancel_reservation(old_app_apartment.apartment_reservation)
     old_app_apartment.refresh_from_db()
     assert (
         old_app_apartment.apartment_reservation.state
