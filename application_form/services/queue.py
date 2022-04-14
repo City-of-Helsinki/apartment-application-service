@@ -72,9 +72,12 @@ def remove_reservation_from_queue(
     means that the application for this specific apartment was canceled, so the state
     of the application for this apartment will also be updated to "CANCELED".
     """
+    old_queue_position = apartment_reservation.queue_position
+    apartment_reservation.queue_position = None
+    apartment_reservation.save(update_fields=("queue_position",))
     _shift_queue_positions(
         apartment_reservation.apartment_uuid,
-        apartment_reservation.queue_position,
+        old_queue_position,
         deleted=True,
     )
     state_change_event = apartment_reservation.set_state(

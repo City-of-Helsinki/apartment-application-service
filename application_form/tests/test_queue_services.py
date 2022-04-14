@@ -268,3 +268,24 @@ def test_removing_application_from_queue_creates_change_event(
         type=ApartmentQueueChangeEventType.REMOVED,
         comment=change_comment,
     ).exists()
+
+
+@mark.django_db
+def test_removing_application_from_queue_nullifies_queue_number(
+    elastic_project_with_5_apartments,
+):
+    project_uuid, apartments = elastic_project_with_5_apartments
+    first_apartment_uuid = apartments[0].uuid
+    application = ApplicationFactory(right_of_residence=1)
+    application.application_apartments.create(
+        apartment_uuid=first_apartment_uuid, priority_number=1
+    )
+    add_application_to_queues(application)
+    apartment_application = application.application_apartments.get(
+        apartment_uuid=first_apartment_uuid
+    )
+    remove_reservation_from_queue(apartment_application.apartment_reservation)
+
+    apartment_application.apartment_reservation.refresh_from_db()
+
+    assert apartment_application.apartment_reservation.queue_position is None

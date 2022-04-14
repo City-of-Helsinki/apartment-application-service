@@ -27,7 +27,9 @@ class ApartmentReservation(models.Model):
         on_delete=models.PROTECT,
         related_name="apartment_reservations",
     )
-    queue_position = models.IntegerField(_("position in queue"))
+    queue_position = models.IntegerField(
+        verbose_name=_("position in queue"), null=True, blank=True
+    )
     application_apartment = models.OneToOneField(
         ApplicationApartment,
         models.CASCADE,

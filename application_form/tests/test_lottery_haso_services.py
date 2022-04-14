@@ -123,7 +123,7 @@ def test_application_order_is_not_persisted_twice(
 
 
 @mark.django_db
-def test_canceling_application_sets_application_state_to_canceled(
+def test_canceling_application_sets_application_state_to_canceled_and_queue_position_to_null(  # noqa: E501
     elastic_haso_project_with_5_apartments,
 ):
     project_uuid, apartments = elastic_haso_project_with_5_apartments
@@ -137,6 +137,7 @@ def test_canceling_application_sets_application_state_to_canceled(
     cancel_reservation(app_apt.apartment_reservation)
     app_apt.refresh_from_db()
     assert app_apt.apartment_reservation.state == ApartmentReservationState.CANCELED
+    assert app_apt.apartment_reservation.queue_position is None
 
 
 @mark.django_db
