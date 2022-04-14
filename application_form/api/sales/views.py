@@ -20,12 +20,14 @@ from application_form.api.sales.serializers import (
     SalesApplicationSerializer,
 )
 from application_form.api.serializers import (
+    ApartmentReservationCancelEventSerializer,
     ApartmentReservationStateChangeEventSerializer,
 )
 from application_form.api.views import ApplicationViewSet
 from application_form.exceptions import ProjectDoesNotHaveApplicationsException
 from application_form.models import ApartmentReservation
 from application_form.pdf import create_haso_contract_pdf, create_hitas_contract_pdf
+from application_form.services.application import cancel_reservation
 from application_form.services.lottery.exceptions import (
     ApplicationTimeNotFinishedException,
 )
@@ -105,7 +107,7 @@ class ApartmentReservationViewSet(mixins.RetrieveModelMixin, viewsets.GenericVie
         operation_id="sales_apartment_reservations_set_state",
         request=ApartmentReservationStateChangeEventSerializer,
         responses={
-            (200, "application/pdf"): ApartmentReservationStateChangeEventSerializer
+            (200, "application/json"): ApartmentReservationStateChangeEventSerializer
         },
     )
     @action(methods=["POST"], detail=True)
@@ -126,5 +128,32 @@ class ApartmentReservationViewSet(mixins.RetrieveModelMixin, viewsets.GenericVie
 
         return Response(
             ApartmentReservationStateChangeEventSerializer(state_change_event).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @extend_schema(
+        operation_id="sales_apartment_reservations_cancel",
+        request=ApartmentReservationCancelEventSerializer,
+        responses={
+            (200, "application/json"): ApartmentReservationCancelEventSerializer
+        },
+    )
+    @action(methods=["POST"], detail=True)
+    def cancel(self, request, pk=None):
+        reservation = self.get_object()
+        data = {"reservation_id": pk}
+        data.update(request.data)
+
+        cancel_event_serializer = ApartmentReservationCancelEventSerializer(data=data)
+        cancel_event_serializer.is_valid(raise_exception=True)
+
+        cancel_event = cancel_reservation(
+            reservation,
+            user=request.user,
+            **cancel_event_serializer.validated_data,
+        )
+
+        return Response(
+            ApartmentReservationCancelEventSerializer(cancel_event).data,
             status=status.HTTP_200_OK,
         )

@@ -165,3 +165,22 @@ class ApartmentReservationStateChangeEventSerializer(
         model = ApartmentReservationStateChangeEvent
         fields = ("timestamp", "state", "comment")
         read_only_fields = ("timestamp",)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["state"].choices.pop(ApartmentReservationState.CANCELED.value)
+
+
+class ApartmentReservationCancelEventSerializer(
+    EnumSupportSerializerMixin, serializers.ModelSerializer
+):
+    class Meta:
+        model = ApartmentReservationStateChangeEvent
+        fields = ("timestamp", "state", "comment", "cancellation_reason")
+        read_only_fields = ("timestamp", "state")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["cancellation_reason"].required = True
+        self.fields["cancellation_reason"].allow_null = False
+        self.fields["cancellation_reason"].allow_blank = False

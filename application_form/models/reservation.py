@@ -54,6 +54,7 @@ class ApartmentReservation(models.Model):
                 reservation=self, state=self.state
             )
 
+    @transaction.atomic
     def set_state(
         self,
         state: ApartmentReservationState,
