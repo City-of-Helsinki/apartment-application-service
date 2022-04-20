@@ -46,6 +46,7 @@ def test_get_ordered_applications_returns_applications_sorted_by_position(
         ApartmentReservation.objects.create(
             customer=application_apartment.application.customer,
             queue_position=position,
+            list_position=position,
             application_apartment=application_apartment,
             apartment_uuid=first_apartment_uuid,
         )
@@ -231,6 +232,7 @@ def test_remove_application_from_queue(elastic_project_with_5_apartments):
         ApartmentReservation.objects.create(
             customer=application_apartment.application.customer,
             queue_position=position,
+            list_position=position,
             application_apartment=application_apartment,
             apartment_uuid=first_apartment_uuid,
         )

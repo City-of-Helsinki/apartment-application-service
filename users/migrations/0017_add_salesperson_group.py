@@ -5,12 +5,12 @@ from django.db import migrations
 
 def apply_migration(apps, schema_editor):
     group = apps.get_model("auth", "Group")
-    group.objects.create(name=u"salesperson")
+    group.objects.create(name="salesperson")
 
 
 def revert_migration(apps, schema_editor):
     group = apps.get_model("auth", "Group")
-    group.objects.filter(name=u"salesperson").delete()
+    group.objects.filter(name="salesperson").delete()
 
 
 class Migration(migrations.Migration):

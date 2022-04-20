@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
+from django.db.models import Deferrable, UniqueConstraint
 from django.utils.translation import gettext_lazy as _
 from enumfields import EnumField
 
@@ -30,6 +31,7 @@ class ApartmentReservation(models.Model):
     queue_position = models.IntegerField(
         verbose_name=_("position in queue"), null=True, blank=True
     )
+    list_position = models.IntegerField(_("position in list"))
     application_apartment = models.OneToOneField(
         ApplicationApartment,
         models.CASCADE,
@@ -46,6 +48,13 @@ class ApartmentReservation(models.Model):
 
     class Meta:
         unique_together = [("apartment_uuid", "application_apartment")]
+        constraints = [
+            UniqueConstraint(
+                name="apt_uuid_list_pos_unq_def_const",
+                fields=["apartment_uuid", "list_position"],
+                deferrable=Deferrable.DEFERRED,
+            )
+        ]
 
     @transaction.atomic
     def save(self, *args, **kwargs):

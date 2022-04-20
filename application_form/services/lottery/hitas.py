@@ -88,5 +88,6 @@ def _shuffle_queue_segment(
         random_index = secrets.randbelow(len(possible_positions))
         position = possible_positions.pop(random_index)
         apartment_reservation = app_apartment.apartment_reservation
+        apartment_reservation.list_position = position
         apartment_reservation.queue_position = position
-        apartment_reservation.save(update_fields=["queue_position"])
+        apartment_reservation.save(update_fields=["list_position", "queue_position"])

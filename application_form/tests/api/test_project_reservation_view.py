@@ -74,4 +74,4 @@ def test_list_project_reservations_get_without_lottery_data(
     assert response.status_code == 200
     assert len(response.data) == apartment_reservation_count
     for item in response.data:
-        assert item["lottery_position"] is None
+        assert item["list_position"] is not None

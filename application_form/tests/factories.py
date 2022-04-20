@@ -97,6 +97,7 @@ class ApartmentReservationFactory(factory.django.DjangoModelFactory):
     apartment_uuid = factory.Faker("uuid4")
     customer = factory.SubFactory(CustomerFactory)
     queue_position = fuzzy.FuzzyInteger(1)
+    list_position = fuzzy.FuzzyInteger(1)
     application_apartment = factory.SubFactory(ApplicationApartmentFactory)
     state = fuzzy.FuzzyChoice(list(ApartmentReservationState))
 
