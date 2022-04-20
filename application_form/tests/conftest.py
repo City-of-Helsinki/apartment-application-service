@@ -265,6 +265,8 @@ def create_application_data(
         "additional_applicant": None,
         "project_id": str(project_uuid),
         "apartments": apartments_data,
+        "has_hitas_ownership": True,
+        "is_right_of_occupancy_housing_changer": True,
     }
     # Add a second applicant if needed
     if num_applicants == 2:

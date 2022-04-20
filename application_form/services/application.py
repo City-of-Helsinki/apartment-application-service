@@ -91,6 +91,10 @@ def create_application(application_data: dict) -> Application:
         type=data.pop("type"),
         has_children=data.pop("has_children"),
         right_of_residence=data.pop("right_of_residence"),
+        has_hitas_ownership=data.pop("has_hitas_ownership"),
+        is_right_of_occupancy_housing_changer=data.pop(
+            "is_right_of_occupancy_housing_changer"
+        ),
         customer=customer,
     )
     Applicant.objects.create(

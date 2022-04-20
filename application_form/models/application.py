@@ -36,6 +36,12 @@ class Application(TimestampedModel):
         Customer, verbose_name=_("customer"), on_delete=models.CASCADE
     )
     submitted_late = models.BooleanField("submitted late", default=False)
+    has_hitas_ownership = BooleanPGPPublicKeyField(
+        "has HITAS ownership", blank=True, null=True
+    )
+    is_right_of_occupancy_housing_changer = BooleanPGPPublicKeyField(
+        "is right of occupancy housing changer", blank=True, null=True
+    )
 
     audit_log_id_field = "external_uuid"
 

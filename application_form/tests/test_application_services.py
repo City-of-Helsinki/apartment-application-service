@@ -26,6 +26,11 @@ def test_create_application(num_applicants, elastic_single_project_with_apartmen
     assert application.type.value == data["type"].value
     assert application.right_of_residence == data["right_of_residence"]
     assert application.has_children == data["has_children"]
+    assert (
+        application.is_right_of_occupancy_housing_changer
+        == data["is_right_of_occupancy_housing_changer"]
+    )
+    assert application.has_hitas_ownership == data["has_hitas_ownership"]
     assert application.customer.primary_profile == profile
     assert application.application_apartments.count() == 5
 
