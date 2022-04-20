@@ -20,7 +20,7 @@ from application_form.tests.utils import (
     get_elastic_apartments_uuids,
 )
 from connections.tests.factories import ApartmentMinimalFactory
-from users.tests.factories import ProfileFactory
+from users.tests.factories import ProfileFactory, UserFactory
 from users.tests.utils import _create_token
 
 faker.config.DEFAULT_LOCALE = "fi_FI"
@@ -32,9 +32,19 @@ def api_client():
 
 
 @fixture
-def profile_api_client(api_client):
+def profile_api_client():
+    api_client = APIClient()
     profile = ProfileFactory()
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
+    return api_client
+
+
+@fixture
+def user_api_client():
+    api_client = APIClient()
+    user = UserFactory()
+    api_client.force_authenticate(user=user)
+    api_client.user = user
     return api_client
 
 

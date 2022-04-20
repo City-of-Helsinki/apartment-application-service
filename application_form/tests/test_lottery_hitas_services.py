@@ -4,7 +4,7 @@ from unittest.mock import patch
 from application_form.enums import ApartmentReservationState, ApplicationType
 from application_form.models import LotteryEvent, LotteryEventResult
 from application_form.services.application import (
-    cancel_hitas_application,
+    cancel_reservation,
     get_ordered_applications,
 )
 from application_form.services.lottery.hitas import _distribute_hitas_apartments
@@ -167,7 +167,7 @@ def test_lottery_result_is_not_persisted_twice(elastic_hitas_project_with_5_apar
 
 
 @mark.django_db
-def test_canceling_application_sets_state_to_canceled(
+def test_canceling_application_sets_state_to_canceled_and_queue_position_to_null(
     elastic_hitas_project_with_5_apartments,
 ):
     project_uuid, apartments = elastic_hitas_project_with_5_apartments
@@ -182,11 +182,12 @@ def test_canceling_application_sets_state_to_canceled(
     _distribute_hitas_apartments(project_uuid)
 
     # Cancel the application for the apartment
-    cancel_hitas_application(app_apt)
+    cancel_reservation(app_apt.apartment_reservation)
 
-    # The state should now be "CANCELED"
+    # The state should now be "CANCELED" and queue position null
     app_apt.refresh_from_db()
     assert app_apt.apartment_reservation.state == ApartmentReservationState.CANCELED
+    assert app_apt.apartment_reservation.queue_position is None
 
 
 @mark.django_db
@@ -228,7 +229,7 @@ def test_canceling_winning_application_marks_next_application_in_queue_as_reserv
     assert family_app.apartment_reservation.state == ApartmentReservationState.RESERVED
 
     # The family rejects the apartment
-    cancel_hitas_application(family_app)
+    cancel_reservation(family_app.apartment_reservation)
 
     family_app.refresh_from_db()
     single_app.refresh_from_db()
@@ -285,7 +286,7 @@ def test_becoming_first_after_lottery_does_not_cancel_low_priority_reservation(
     assert single_tiny.apartment_reservation.state == ApartmentReservationState.RESERVED
 
     # The family later rejects the big apartment
-    cancel_hitas_application(family_big)
+    cancel_reservation(family_big.apartment_reservation)
 
     # The queue for the tiny apartment should have stayed the same, and
     # the reserved application should not have been canceled.

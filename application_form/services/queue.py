@@ -1,17 +1,22 @@
 import uuid
+from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import F
 
 from application_form.enums import (
     ApartmentQueueChangeEventType,
+    ApartmentReservationCancellationReason,
     ApartmentReservationState,
     ApplicationType,
 )
 from application_form.models import (
     ApartmentReservation,
+    ApartmentReservationStateChangeEvent,
     Application,
     ApplicationApartment,
 )
+
+User = get_user_model()
 
 
 def add_application_to_queues(application: Application, comment: str = "") -> None:
@@ -56,27 +61,36 @@ def add_application_to_queues(application: Application, comment: str = "") -> No
 
 
 @transaction.atomic
-def remove_application_from_queue(
-    application_apartment: ApplicationApartment,
-    comment: str = "",
-) -> None:
+def remove_reservation_from_queue(
+    apartment_reservation: ApartmentReservation,
+    user: User = None,
+    comment: str = None,
+    cancellation_reason: ApartmentReservationCancellationReason = None,
+) -> ApartmentReservationStateChangeEvent:
     """
     Removes the application from the queue of the given apartment. This essentially
     means that the application for this specific apartment was canceled, so the state
     of the application for this apartment will also be updated to "CANCELED".
     """
-    apartment_reservation = application_apartment.apartment_reservation
+    old_queue_position = apartment_reservation.queue_position
+    apartment_reservation.queue_position = None
+    apartment_reservation.save(update_fields=("queue_position",))
     _shift_queue_positions(
         apartment_reservation.apartment_uuid,
-        apartment_reservation.queue_position,
+        old_queue_position,
         deleted=True,
     )
-    application_apartment.apartment_reservation.set_state(
-        ApartmentReservationState.CANCELED
+    state_change_event = apartment_reservation.set_state(
+        ApartmentReservationState.CANCELED,
+        user=user,
+        comment=comment,
+        cancellation_reason=cancellation_reason,
     )
     apartment_reservation.queue_change_events.create(
-        type=ApartmentQueueChangeEventType.REMOVED, comment=comment
+        type=ApartmentQueueChangeEventType.REMOVED, comment=comment or ""
     )
+
+    return state_change_event
 
 
 def _calculate_queue_position(

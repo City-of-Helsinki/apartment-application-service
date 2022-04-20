@@ -16,7 +16,6 @@ from invoicing.tests.factories import (
     ApartmentInstallmentFactory,
     ProjectInstallmentTemplateFactory,
 )
-from users.tests.factories import UserFactory
 
 
 @pytest.mark.django_db
@@ -166,16 +165,14 @@ def test_contract_pdf_creation(profile_api_client, ownership_type):
 
 @pytest.mark.parametrize("comment", ("Foo", ""))
 @pytest.mark.django_db
-def test_apartment_reservation_set_state(api_client, comment):
+def test_apartment_reservation_set_state(user_api_client, comment):
     apartment = ApartmentDocumentFactory()
     reservation = ApartmentReservationFactory(
         apartment_uuid=apartment.uuid, state=ApartmentReservationState.SUBMITTED
     )
-    user = UserFactory()
 
-    api_client.force_authenticate(user=user)
     data = {"state": "reserved", "comment": comment}
-    response = api_client.post(
+    response = user_api_client.post(
         reverse(
             "application_form:sales-apartment-reservation-set-state",
             kwargs={"pk": reservation.id},
@@ -197,4 +194,59 @@ def test_apartment_reservation_set_state(api_client, comment):
     assert state_change_event.timestamp
     assert state_change_event.state == ApartmentReservationState.RESERVED
     assert state_change_event.comment == comment
-    assert state_change_event.user == user
+    assert state_change_event.user == user_api_client.user
+
+
+@pytest.mark.parametrize("ownership_type", ("Haso", "Puolihitas", "Hitas"))
+@pytest.mark.django_db
+def test_apartment_reservation_canceling(user_api_client, ownership_type):
+    apartment = ApartmentDocumentFactory(project_ownership_type=ownership_type)
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid, state=ApartmentReservationState.SUBMITTED
+    )
+
+    data = {"cancellation_reason": "terminated", "comment": "Foo"}
+    response = user_api_client.post(
+        reverse(
+            "application_form:sales-apartment-reservation-cancel",
+            kwargs={"pk": reservation.id},
+        ),
+        data=data,
+        format="json",
+    )
+    assert response.status_code == 200
+
+    assert len(response.data.keys()) == 4
+    assert response.data.pop("timestamp")
+    assert response.data == {
+        "state": "canceled",
+        "comment": "Foo",
+        "cancellation_reason": "terminated",
+    }
+
+    assert reservation.state_change_events.count() == 2
+    state_change_event = reservation.state_change_events.last()
+    assert state_change_event.timestamp
+    assert state_change_event.state == ApartmentReservationState.CANCELED
+    assert state_change_event.cancellation_reason
+    assert state_change_event.user == user_api_client.user
+
+
+@pytest.mark.django_db
+def test_apartment_reservation_cancellation_reason_validation(user_api_client):
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid, state=ApartmentReservationState.SUBMITTED
+    )
+
+    data = {"comment": "Foo"}
+    response = user_api_client.post(
+        reverse(
+            "application_form:sales-apartment-reservation-cancel",
+            kwargs={"pk": reservation.id},
+        ),
+        data=data,
+        format="json",
+    )
+    assert response.status_code == 400
+    assert "cancellation_reason" in str(response.data)

@@ -1,10 +1,12 @@
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
 from enumfields import EnumField
 
 from application_form.enums import (
     ApartmentQueueChangeEventType,
+    ApartmentReservationCancellationReason,
     ApartmentReservationState,
 )
 from application_form.models import ApplicationApartment
@@ -25,7 +27,9 @@ class ApartmentReservation(models.Model):
         on_delete=models.PROTECT,
         related_name="apartment_reservations",
     )
-    queue_position = models.IntegerField(_("position in queue"))
+    queue_position = models.IntegerField(
+        verbose_name=_("position in queue"), null=True, blank=True
+    )
     application_apartment = models.OneToOneField(
         ApplicationApartment,
         models.CASCADE,
@@ -52,23 +56,34 @@ class ApartmentReservation(models.Model):
                 reservation=self, state=self.state
             )
 
+    @transaction.atomic
     def set_state(
         self,
         state: ApartmentReservationState,
         user: User = None,
         comment: str = None,
+        cancellation_reason: ApartmentReservationCancellationReason = None,
     ) -> "ApartmentReservationStateChangeEvent":
-        with transaction.atomic():
-            if user and user.is_anonymous:
-                # TODO this should be removed after proper authentication has been added
-                user = None
+        if user and user.is_anonymous:
+            # TODO this should be removed after proper authentication has been added
+            user = None
 
-            state_change_event = ApartmentReservationStateChangeEvent.objects.create(
-                reservation=self, state=state, comment=comment or "", user=user
+        if cancellation_reason and state != ApartmentReservationState.CANCELED:
+            raise ValidationError(
+                "cancellation_reason cannot be set when state is not canceled."
             )
-            self.state = state
-            self.save(update_fields=("state",))
-            return state_change_event
+
+        state_change_event = ApartmentReservationStateChangeEvent.objects.create(
+            reservation=self,
+            state=state,
+            comment=comment or "",
+            user=user,
+            cancellation_reason=cancellation_reason,
+        )
+        self.state = state
+        self.save(update_fields=("state",))
+
+        return state_change_event
 
 
 class ApartmentQueueChangeEvent(models.Model):
@@ -97,6 +112,13 @@ class ApartmentReservationStateChangeEvent(models.Model):
     timestamp = models.DateTimeField(verbose_name=_("timestamp"), auto_now_add=True)
     user = models.ForeignKey(
         User, verbose_name=_("user"), blank=True, null=True, on_delete=models.SET_NULL
+    )
+    cancellation_reason = EnumField(
+        ApartmentReservationCancellationReason,
+        max_length=32,
+        verbose_name=_("cancellation reason"),
+        null=True,
+        blank=True,
     )
 
     class Meta:
