@@ -198,7 +198,7 @@ def _append_account_receivable_container_xml(
 
         # FI: Infotieto osoite rivi 1
         info_address_1 = SubElement(line_item, "InfoAddress1")
-        info_address_1.text = secondary_profile.address
+        info_address_1.text = secondary_profile.street_address
 
         # FI: Infotieto paikkakunta
         info_city = SubElement(line_item, "InfoCity")
