@@ -78,6 +78,8 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
             "right_of_residence",
             "project_id",
             "apartments",
+            "has_hitas_ownership",
+            "is_right_of_occupancy_housing_changer",
         )
         extra_kwargs = {
             # We only support creating applications for now,
@@ -86,6 +88,8 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
             "has_children": {"write_only": True},
             "right_of_residence": {"write_only": True},
             "project_id": {"write_only": True},
+            "has_hitas_ownership": {"write_only": True},
+            "is_right_of_occupancy_housing_changer": {"write_only": True},
         }
 
     def create(self, validated_data):
