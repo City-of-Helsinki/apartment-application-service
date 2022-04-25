@@ -50,3 +50,5 @@ def test_0050_populate_apartment_reservation_customer(migrator):
         id=apartment_reservation.id
     )
     assert apartment_reservation.customer.id == customer.id
+    # Clean up record so tearDown migrations does not break
+    apartment_reservation.delete()

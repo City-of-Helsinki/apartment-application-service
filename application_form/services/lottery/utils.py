@@ -25,7 +25,7 @@ def _save_application_order(apartment_uuid: uuid.UUID) -> None:
     for apartment_reservation in reservations:
         event.results.create(
             application_apartment=apartment_reservation.application_apartment,
-            result_position=apartment_reservation.queue_position,
+            result_position=apartment_reservation.list_position,
         )
 
 

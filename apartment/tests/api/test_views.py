@@ -113,8 +113,10 @@ def test_project_detail_apartment_reservations(
 
     project_uuid, apartments = elastic_project_with_5_apartments
     for apartment in apartments:
-        for _ in range(0, expect_reservations_per_apartment_count):
-            ApartmentReservationFactory(apartment_uuid=apartment.uuid)
+        for i in range(0, expect_reservations_per_apartment_count):
+            ApartmentReservationFactory(
+                apartment_uuid=apartment.uuid, list_position=i + 1
+            )
 
     profile = ProfileFactory()
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
@@ -148,6 +150,6 @@ def test_project_detail_apartment_reservations(
         )
         expect_sorted_reservations = sorted(
             apartment_data["reservations"],
-            key=lambda x: (x["lottery_position"], x["queue_position"]),
+            key=lambda x: (x["list_position"], x["queue_position"]),
         )
         assert apartment_data["reservations"] == expect_sorted_reservations

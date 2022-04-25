@@ -81,7 +81,7 @@ def test_get_customer_api_detail(api_client):
                     "reference_number": installment.reference_number,
                 }
             ],
-            "lottery_position": None,
+            "list_position": reservation.list_position,
             "queue_position": reservation.queue_position,
             "state": reservation.state.value,
         }

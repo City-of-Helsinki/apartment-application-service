@@ -16,7 +16,7 @@ class ApartmentSerializer(serializers.Serializer):
         reservations = ApartmentReservation.objects.filter(
             apartment_uuid=obj["uuid"]
         ).order_by(
-            "application_apartment__lotteryeventresult__result_position",
+            "list_position",
             "queue_position",
         )
         return ApartmentReservationSerializer(reservations, many=True).data

@@ -142,9 +142,6 @@ class ApplicationSerializer(ApplicationSerializerBase):
 
 
 class ApartmentReservationSerializerBase(serializers.ModelSerializer):
-    lottery_position = IntegerField(
-        source="application_apartment.lotteryeventresult.result_position"
-    )
     state = EnumField(ApartmentReservationState)
 
     class Meta:
@@ -152,7 +149,7 @@ class ApartmentReservationSerializerBase(serializers.ModelSerializer):
         fields = (
             "id",
             "apartment_uuid",
-            "lottery_position",
+            "list_position",
             "queue_position",
             "state",
         )

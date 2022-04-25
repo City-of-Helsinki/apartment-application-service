@@ -29,17 +29,31 @@ def add_application_to_queues(application: Application, comment: str = "") -> No
             if application.type == ApplicationType.HASO:
                 # For HASO applications, the queue position is determined by the
                 # right of residence number.
-                position = _calculate_queue_position(
+                # The list position will be the same as queue position
+                queue_position = _calculate_queue_position(
                     apartment_uuid, application_apartment
                 )
-                _shift_queue_positions(apartment_uuid, position)
+                list_position = queue_position
+                # Need to shift both list position and queue position
+                _shift_positions(apartment_uuid, queue_position)
             elif application.type in [
                 ApplicationType.HITAS,
                 ApplicationType.PUOLIHITAS,
             ]:
                 # HITAS and PUOLIHITAS work the same way from the apartment lottery
                 # perspective, and should always be added to the end of the queue.
-                position = (
+                try:
+                    queue_position = (
+                        ApartmentReservation.objects.filter(
+                            apartment_uuid=apartment_uuid
+                        )
+                        .order_by("-queue_position")[0]
+                        .queue_position
+                        + 1
+                    )
+                except IndexError:
+                    queue_position = 1
+                list_position = (
                     ApartmentReservation.objects.filter(
                         apartment_uuid=apartment_uuid
                     ).count()
@@ -50,7 +64,8 @@ def add_application_to_queues(application: Application, comment: str = "") -> No
 
             apartment_reservation = ApartmentReservation.objects.create(
                 customer=application_apartment.application.customer,
-                queue_position=position,
+                queue_position=queue_position,
+                list_position=list_position,
                 application_apartment=application_apartment,
                 apartment_uuid=apartment_uuid,
             )
@@ -75,7 +90,7 @@ def remove_reservation_from_queue(
     old_queue_position = apartment_reservation.queue_position
     apartment_reservation.queue_position = None
     apartment_reservation.save(update_fields=("queue_position",))
-    _shift_queue_positions(
+    _shift_positions(
         apartment_reservation.apartment_uuid,
         old_queue_position,
         deleted=True,
@@ -119,8 +134,10 @@ def _calculate_queue_position(
     return all_reservations.count() + 1
 
 
-def _shift_queue_positions(
-    apartment_uuid: uuid.UUID, from_position: int, deleted: bool = False
+def _shift_positions(
+    apartment_uuid: uuid.UUID,
+    from_position: int,
+    deleted: bool = False,
 ) -> None:
     """
     Shifts all items in the queue by one by either incrementing or decrementing their
@@ -133,3 +150,5 @@ def _shift_queue_positions(
     # When deleting, we have to decrement each position. When adding, increment instead.
     position_change = -1 if deleted else 1
     reservations.update(queue_position=F("queue_position") + position_change)
+    if not deleted:
+        reservations.update(list_position=F("list_position") + position_change)

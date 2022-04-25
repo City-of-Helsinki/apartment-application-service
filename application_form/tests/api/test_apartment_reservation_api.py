@@ -23,7 +23,9 @@ def test_root_apartment_reservation_detail(
     api_client, elastic_project_with_5_apartments
 ):
     _, apartments = elastic_project_with_5_apartments
-    reservation = ApartmentReservationFactory(apartment_uuid=apartments[0].uuid)
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartments[0].uuid, list_position=1
+    )
     installment = ApartmentInstallmentFactory(apartment_reservation=reservation)
 
     response = api_client.get(
@@ -50,7 +52,7 @@ def test_root_apartment_reservation_detail(
         "apartment_uuid": reservation.apartment_uuid,
         "queue_position": reservation.queue_position,
         "state": reservation.state.value,
-        "lottery_position": None,
+        "list_position": reservation.list_position,
     }
 
 
