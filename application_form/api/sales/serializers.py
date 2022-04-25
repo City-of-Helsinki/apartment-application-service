@@ -44,7 +44,7 @@ class ApplicantCompactSerializer(serializers.ModelSerializer):
         fields = ["first_name", "last_name", "is_primary_applicant", "email"]
 
 
-class ApartmentReservationSerializer(ApartmentReservationSerializerBase):
+class SalesApartmentReservationSerializer(ApartmentReservationSerializerBase):
     applicants = ApplicantCompactSerializer(
         source="application_apartment.application.applicants", many=True
     )
