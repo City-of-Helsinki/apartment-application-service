@@ -5,8 +5,13 @@ from decimal import Decimal
 from django.urls import reverse
 
 from apartment.tests.factories import ApartmentDocumentFactory
-from application_form.enums import ApartmentReservationState
-from application_form.tests.factories import ApartmentReservationFactory
+from application_form.enums import ApartmentReservationState, ApplicationType
+from application_form.services.lottery.machine import distribute_apartments
+from application_form.services.queue import add_application_to_queues
+from application_form.tests.factories import (
+    ApartmentReservationFactory,
+    ApplicationFactory,
+)
 from invoicing.enums import (
     InstallmentPercentageSpecifier,
     InstallmentType,
@@ -50,7 +55,7 @@ def test_root_apartment_reservation_detail(
         ],
         "installment_candidates": [],
         "apartment_uuid": reservation.apartment_uuid,
-        "queue_position": reservation.queue_position,
+        "queue_position": None,
         "state": reservation.state.value,
         "list_position": reservation.list_position,
     }
@@ -252,3 +257,40 @@ def test_apartment_reservation_cancellation_reason_validation(user_api_client):
     )
     assert response.status_code == 400
     assert "cancellation_reason" in str(response.data)
+
+
+@pytest.mark.django_db
+def test_apartment_reservation_hide_queue_position(
+    api_client, elastic_hitas_project_with_5_apartments
+):
+    project_uuid, apartments = elastic_hitas_project_with_5_apartments
+    first_apartment_uuid = apartments[0].uuid
+    app = ApplicationFactory(type=ApplicationType.HITAS)
+    app_apartment = app.application_apartments.create(
+        apartment_uuid=first_apartment_uuid, priority_number=0
+    )
+    add_application_to_queues(app)
+
+    response = api_client.get(
+        reverse(
+            "application_form:sales-apartment-reservation-detail",
+            kwargs={"pk": app_apartment.apartment_reservation.id},
+        ),
+        format="json",
+    )
+    assert response.status_code == 200
+
+    assert response.data["queue_position"] is None
+
+    distribute_apartments(project_uuid)
+
+    response = api_client.get(
+        reverse(
+            "application_form:sales-apartment-reservation-detail",
+            kwargs={"pk": app_apartment.apartment_reservation.id},
+        ),
+        format="json",
+    )
+    assert response.status_code == 200
+
+    assert response.data["queue_position"] == 1

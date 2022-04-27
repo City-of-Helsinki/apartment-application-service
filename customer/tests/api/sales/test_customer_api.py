@@ -82,7 +82,7 @@ def test_get_customer_api_detail(api_client):
                 }
             ],
             "list_position": reservation.list_position,
-            "queue_position": reservation.queue_position,
+            "queue_position": None,
             "state": reservation.state.value,
         }
     ]

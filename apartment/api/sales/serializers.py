@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from application_form.api.sales.serializers import ApartmentReservationSerializer
+from application_form.api.sales.serializers import SalesApartmentReservationSerializer
 from application_form.models import ApartmentReservation
 
 
@@ -19,4 +19,4 @@ class ApartmentSerializer(serializers.Serializer):
             "list_position",
             "queue_position",
         )
-        return ApartmentReservationSerializer(reservations, many=True).data
+        return SalesApartmentReservationSerializer(reservations, many=True).data
