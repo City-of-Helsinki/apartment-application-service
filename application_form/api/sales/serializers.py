@@ -60,12 +60,17 @@ class ApartmentReservationSerializer(ApartmentReservationSerializerBase):
         source="application_apartment.application.right_of_residence"
     )
 
+    priority_number = serializers.IntegerField(
+        source="application_apartment.priority_number"
+    )
+
     class Meta(ApartmentReservationSerializerBase.Meta):
         fields = ApartmentReservationSerializerBase.Meta.fields + (
             "applicants",
             "customer",
             "has_children",
             "right_of_residence",
+            "priority_number",
         )
 
 

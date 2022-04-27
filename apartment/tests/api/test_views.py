@@ -2,6 +2,7 @@ import pytest
 import uuid
 from django.urls import reverse
 
+from application_form.models import ApartmentReservation
 from application_form.tests.factories import (
     ApartmentReservationFactory,
     LotteryEventFactory,
@@ -104,6 +105,16 @@ def test_project_get_with_project_uuid_not_exist(api_client):
     assert response.status_code == 404
 
 
+def _assert_apartment_reservations_data(reservations):
+    for reservation in reservations:
+        assert "priority_number" in reservation
+        reservation_obj = ApartmentReservation.objects.get(pk=reservation["id"])
+        assert (
+            reservation["priority_number"]
+            == reservation_obj.application_apartment.priority_number
+        )
+
+
 @pytest.mark.django_db
 def test_project_detail_apartment_reservations(
     api_client, elastic_project_with_5_apartments
@@ -153,3 +164,5 @@ def test_project_detail_apartment_reservations(
             key=lambda x: (x["list_position"], x["queue_position"]),
         )
         assert apartment_data["reservations"] == expect_sorted_reservations
+
+        _assert_apartment_reservations_data(apartment_data["reservations"])
