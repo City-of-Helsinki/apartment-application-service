@@ -20,7 +20,7 @@ def distribute_apartments(project_uuid: uuid.UUID) -> None:
         _distribute_haso_apartments(project_uuid)
     elif project.project_ownership_type.lower() in [
         OwnershipType.HITAS.value,
-        OwnershipType.HALF_HITAS.value,
+        OwnershipType.PUOLIHITAS.value,
     ]:
         _distribute_hitas_apartments(project_uuid)
     else:

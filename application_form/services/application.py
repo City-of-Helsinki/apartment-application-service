@@ -180,7 +180,7 @@ def _cancel_lower_priority_apartments(
     )
     canceled_winners = []
     for app_apartment in lower_priority_app_apartments:
-        if app_apartment.apartment_reservation.queue_position == 0:
+        if app_apartment.apartment_reservation.queue_position == 1:
             canceled_winners.append(app_apartment)
         cancel_reservation(app_apartment.apartment_reservation)
     return canceled_winners

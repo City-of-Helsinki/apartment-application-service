@@ -19,4 +19,8 @@ class ApartmentSerializer(serializers.Serializer):
             "list_position",
             "queue_position",
         )
-        return SalesApartmentReservationSerializer(reservations, many=True).data
+        return SalesApartmentReservationSerializer(
+            reservations,
+            many=True,
+            context={"project_uuid": self.context["project_uuid"]},
+        ).data
