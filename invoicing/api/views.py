@@ -6,6 +6,7 @@ from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiPara
 from rest_framework import generics
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
+from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apartment.elastic.queries import get_apartment
@@ -119,6 +120,46 @@ class ApartmentInstallmentInvoiceAPIView(APIView):
         response["Content-Disposition"] = f"attachment; filename={filename}"
 
         return response
+
+
+@extend_schema(
+    description="Add apartment installments to be sent to SAP.",
+    parameters=[
+        OpenApiParameter(
+            name="index",
+            description="Comma-separated row index numbers starting from 0.",
+            type={"type": "array", "items": {"type": "number"}},
+            location=OpenApiParameter.QUERY,
+            required=False,
+        )
+    ],
+)
+class ApartmentInstallmentAddToSapAPIView(APIView):
+    def post(self, request, **kwargs):
+        reservation = get_object_or_404(
+            ApartmentReservation, pk=kwargs["apartment_reservation_id"]
+        )
+        installments = list(
+            ApartmentInstallment.objects.filter(
+                apartment_reservation_id=reservation.id
+            ).order_by("id")
+        )
+        if not installments:
+            raise Http404
+
+        if index_params := request.query_params.get("index"):
+            installments = [
+                _find_installment_by_index_param(index_param, installments)
+                for index_param in index_params.split(",")
+            ]
+
+        with transaction.atomic():
+            for installment in installments:
+                installment.add_to_be_sent_to_sap()
+        seri = ApartmentInstallmentSerializer(
+            reservation.apartment_installments.order_by("id"), many=True
+        )
+        return Response(seri.data)
 
 
 def _find_installment_by_index_param(index_param, installments):

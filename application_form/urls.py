@@ -8,6 +8,7 @@ from application_form.api.sales.views import (
 )
 from application_form.api.views import ApplicationViewSet, ListProjectReservations
 from invoicing.api.views import (
+    ApartmentInstallmentAddToSapAPIView,
     ApartmentInstallmentAPIView,
     ApartmentInstallmentInvoiceAPIView,
 )
@@ -45,6 +46,12 @@ urlpatterns = [
         r"sales/apartment_reservations/<int:apartment_reservation_id>/installments/invoices/",  # noqa: E501
         ApartmentInstallmentInvoiceAPIView.as_view(),
         name="apartment-installment-invoice",
+    ),
+    path(
+        r"sales/apartment_reservations/<int:apartment_reservation_id>/installments/add_to_be_sent_to_sap/",  # noqa: E501
+        # noqa: E501
+        ApartmentInstallmentAddToSapAPIView.as_view(),
+        name="apartment-installment-add-to-be-sent-to-sap",
     ),
     path(
         r"sales/apartment_reservations/<int:apartment_reservation_id>/installments/",
