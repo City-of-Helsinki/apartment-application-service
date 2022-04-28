@@ -88,8 +88,11 @@ def test_get_customer_api_detail(api_client):
                     "type": installment.type.value,
                     "amount": 10000,
                     "account_number": installment.account_number,
-                    "due_date": installment.due_date,
+                    "due_date": str(installment.due_date)
+                    if installment.due_date
+                    else None,
                     "reference_number": installment.reference_number,
+                    "added_to_be_sent_to_sap_at": installment.added_to_be_sent_to_sap_at,  # noqa: E501
                 }
             ],
             "lottery_position": None,
