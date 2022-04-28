@@ -1,7 +1,8 @@
-from datetime import date
+from datetime import date, datetime
 from django.conf import settings
 from django.db import models, transaction
 from django.db.models import UniqueConstraint
+from django.utils import timezone
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from enumfields import EnumField
@@ -35,6 +36,16 @@ class InstallmentBase(models.Model):
         abstract = True
 
 
+class ApartmentInstallmentQuerySet(models.QuerySet):
+    def sap_pending(self):
+        return self.filter(
+            added_to_be_sent_to_sap_at__isnull=False, sent_to_sap_at__isnull=True
+        )
+
+    def set_sent_to_sap_at(self, dt: datetime = None):
+        self.update(sent_to_sap_at=dt or timezone.now())
+
+
 class ApartmentInstallment(InstallmentBase):
     INVOICE_NUMBER_PREFIX_LENGTH: int = 3
 
@@ -48,6 +59,14 @@ class ApartmentInstallment(InstallmentBase):
     reference_number = models.CharField(
         max_length=64, verbose_name=_("reference number"), unique=True
     )
+    added_to_be_sent_to_sap_at = models.DateTimeField(
+        verbose_name=_("added to be sent to SAP at"), null=True, blank=True
+    )
+    sent_to_sap_at = models.DateTimeField(
+        verbose_name=_("sent to SAP at"), null=True, blank=True
+    )
+
+    objects = ApartmentInstallmentQuerySet.as_manager()
 
     class Meta:
         constraints = [
@@ -114,6 +133,10 @@ class ApartmentInstallment(InstallmentBase):
                 self.set_reference_number(force=True)
         else:
             super().save(*args, **kwargs)
+
+    def add_to_be_sent_to_sap(self):
+        self.added_to_be_sent_to_sap_at = timezone.now()
+        self.save(update_fields=("added_to_be_sent_to_sap_at",))
 
 
 class ProjectInstallmentTemplate(InstallmentBase):
