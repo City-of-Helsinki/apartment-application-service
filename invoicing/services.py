@@ -7,12 +7,14 @@ from invoicing.sap.sftp import sftp_put_file_object
 from invoicing.sap.xml import generate_installments_xml
 
 
-def send_pending_installments_to_sap() -> QuerySet[ApartmentInstallment]:
+def send_pending_installments_to_sap() -> int:
     installments = ApartmentInstallment.objects.sap_pending()
-    xml = generate_installments_xml(installments)
-    send_xml_to_sap(xml)
-    installments.set_send_to_sap_at()
-    return installments
+    num_of_installments = installments.count()
+    if num_of_installments:
+        xml = generate_installments_xml(installments)
+        send_xml_to_sap(xml)
+        installments.set_sent_to_sap_at()
+    return num_of_installments
 
 
 def send_xml_to_sap(xml: bytes) -> None:
