@@ -21,6 +21,10 @@ from invoicing.utils import (
 )
 
 
+class AlreadyAddedToBeSentToSapError(Exception):
+    pass
+
+
 class InstallmentBase(models.Model):
     created_at = models.DateTimeField(
         verbose_name=_("created at"), default=now, editable=False
@@ -134,7 +138,9 @@ class ApartmentInstallment(InstallmentBase):
         else:
             super().save(*args, **kwargs)
 
-    def add_to_be_sent_to_sap(self):
+    def add_to_be_sent_to_sap(self, force=False):
+        if self.added_to_be_sent_to_sap_at and not force:
+            raise AlreadyAddedToBeSentToSapError()
         self.added_to_be_sent_to_sap_at = timezone.now()
         self.save(update_fields=("added_to_be_sent_to_sap_at",))
 

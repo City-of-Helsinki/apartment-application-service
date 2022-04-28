@@ -16,7 +16,11 @@ from ..api.serializers import (
     ApartmentInstallmentSerializer,
     ProjectInstallmentTemplateSerializer,
 )
-from ..models import ApartmentInstallment, ProjectInstallmentTemplate
+from ..models import (
+    AlreadyAddedToBeSentToSapError,
+    ApartmentInstallment,
+    ProjectInstallmentTemplate,
+)
 from ..pdf import create_invoice_pdf_from_installments
 
 
@@ -155,7 +159,13 @@ class ApartmentInstallmentAddToSapAPIView(APIView):
 
         with transaction.atomic():
             for installment in installments:
-                installment.add_to_be_sent_to_sap()
+                try:
+                    installment.add_to_be_sent_to_sap()
+                except AlreadyAddedToBeSentToSapError:
+                    raise ValidationError(
+                        f"{installment.type.value} already added to be sent to SAP."
+                    )
+
         seri = ApartmentInstallmentSerializer(
             reservation.apartment_installments.order_by("id"), many=True
         )
