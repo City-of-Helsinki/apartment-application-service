@@ -1,5 +1,6 @@
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from django.conf import settings
+from typing import Union
 
 from invoicing.enums import InstallmentType
 
@@ -29,7 +30,7 @@ def create_reference_document_number(document_date: datetime, reference: str) ->
     return reference_document_number
 
 
-def get_base_line_date_string(due_date: datetime) -> str:
+def get_base_line_date_string(due_date: Union[datetime, date]) -> str:
     payment_term = settings.SAP.get("PAYMENT_TERMS")
     if payment_term == "N073":
         result = due_date - timedelta(days=10)
@@ -41,7 +42,7 @@ def get_base_line_date_string(due_date: datetime) -> str:
     return result
 
 
-def get_installment_type_text(installment_type: InstallmentType) -> str:
+def get_installment_type_text(installment_type: InstallmentType) -> str:  # noqa: C901
     if installment_type is InstallmentType.PAYMENT_1:
         result = "1. erä"
     elif installment_type is InstallmentType.PAYMENT_2:

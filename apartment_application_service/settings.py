@@ -72,6 +72,11 @@ env = environ.Env(
     HASHIDS_SALT=(str, ""),
     PUBLIC_PGP_KEY=(str, ""),
     PRIVATE_PGP_KEY=(str, ""),
+    SAP_SFTP_USERNAME=(str, ""),
+    SAP_SFTP_PASSWORD=(str, ""),
+    SAP_SFTP_HOST=(str, ""),
+    SAP_SFTP_PORT=(int, 22),
+    SAP_SFTP_FILENAME_PREFIX=(str, "MR_IN_ID066_2800_"),
 )
 if os.path.exists(env_file):
     env.read_env(env_file)
@@ -279,6 +284,13 @@ SAP = {
     "PAYMENT_TERMS": "N073",
     "GL_ACCOUNT": "350080",
 }
+
+# SAP SFTP
+SAP_SFTP_USERNAME = env("SAP_SFTP_USERNAME")
+SAP_SFTP_PASSWORD = env("SAP_SFTP_PASSWORD")
+SAP_SFTP_HOST = env("SAP_SFTP_HOST")
+SAP_SFTP_PORT = env("SAP_SFTP_PORT")
+SAP_SFTP_FILENAME_PREFIX = env("SAP_SFTP_FILENAME_PREFIX")
 
 # Elasticsearch
 ELASTICSEARCH_URL = env("ELASTICSEARCH_URL")

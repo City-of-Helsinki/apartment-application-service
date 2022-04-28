@@ -74,16 +74,25 @@
 #     </SBO_AccountsReceivable>
 # </SBO_AccountsReceivableContainer>
 from django.conf import settings
-from typing import List
-from xml.etree.ElementTree import Element, SubElement
+from django.db.models import QuerySet
+from typing import List, Union
+from xml.etree.ElementTree import Element, SubElement, tostring
 
-from application_form.models import ApartmentReservation
 from invoicing.models import ApartmentInstallment
 from invoicing.sap.utils import (
     create_reference_document_number,
     get_base_line_date_string,
     get_installment_type_text,
 )
+
+
+def generate_installments_xml(
+    apartment_installments: Union[
+        List[ApartmentInstallment], QuerySet[ApartmentInstallment]
+    ],
+) -> bytes:
+    xml_content = generate_installments_xml_element(apartment_installments)
+    return tostring(xml_content, encoding="utf-8", xml_declaration=True)
 
 
 def _append_account_receivable_container_xml(
@@ -143,7 +152,9 @@ def _append_account_receivable_container_xml(
 
     # FI: Summa tositevaluuttana
     amount_in_document_currency = SubElement(line_item, "AmountInDocumentCurrency")
-    amount_in_document_currency.text = str(apartment_installment.value)
+    amount_in_document_currency.text = str(apartment_installment.value).replace(
+        ".", ","
+    )
 
     # FI: Riviteksti
     line_text = SubElement(line_item, "LineText")
@@ -209,10 +220,12 @@ def _append_account_receivable_container_xml(
         info_city.text = secondary_profile.postal_code
 
 
-def generate_xml(apartment_reservation_list: List[ApartmentReservation]):
+def generate_installments_xml_element(
+    apartment_installments: List[ApartmentInstallment],
+):
     root = Element("SBO_AccountsReceivableContainer")
 
-    for item in apartment_reservation_list:
+    for item in apartment_installments:
         _append_account_receivable_container_xml(root, item)
 
     return root
