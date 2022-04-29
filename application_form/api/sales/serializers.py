@@ -46,22 +46,22 @@ class ApplicantCompactSerializer(serializers.ModelSerializer):
 
 class SalesApartmentReservationSerializer(ApartmentReservationSerializerBase):
     applicants = ApplicantCompactSerializer(
-        source="application_apartment.application.applicants", many=True
+        source="application_apartment.application.applicants",
+        many=True,
+        allow_null=True,
     )
     customer = serializers.PrimaryKeyRelatedField(read_only=True)
 
     # HITAS fields
-    has_children = serializers.BooleanField(
-        source="application_apartment.application.has_children"
-    )
+    has_children = serializers.SerializerMethodField()
 
     # HASO fields
     right_of_residence = serializers.CharField(
-        source="application_apartment.application.right_of_residence"
+        source="application_apartment.application.right_of_residence", allow_null=True
     )
 
     priority_number = serializers.IntegerField(
-        source="application_apartment.priority_number"
+        source="application_apartment.priority_number", allow_null=True
     )
 
     class Meta(ApartmentReservationSerializerBase.Meta):
@@ -72,6 +72,11 @@ class SalesApartmentReservationSerializer(ApartmentReservationSerializerBase):
             "right_of_residence",
             "priority_number",
         )
+
+    def get_has_children(self, obj):
+        if obj.application_apartment is not None:
+            return obj.application_apartment.application.has_children
+        return obj.customer.has_children
 
 
 class RootApartmentReservationSerializer(ApartmentReservationSerializerBase):

@@ -108,11 +108,19 @@ def test_project_get_with_project_uuid_not_exist(api_client):
 def _assert_apartment_reservations_data(reservations):
     for reservation in reservations:
         assert "priority_number" in reservation
+        assert "has_children" in reservation
         reservation_obj = ApartmentReservation.objects.get(pk=reservation["id"])
-        assert (
-            reservation["priority_number"]
-            == reservation_obj.application_apartment.priority_number
-        )
+        if reservation_obj.application_apartment:
+            assert (
+                reservation["has_children"]
+                == reservation_obj.application_apartment.application.has_children
+            )
+            assert (
+                reservation["priority_number"]
+                == reservation_obj.application_apartment.priority_number
+            )
+        else:
+            assert reservation["has_children"] == reservation_obj.customer.has_children
 
 
 @pytest.mark.django_db
@@ -165,4 +173,36 @@ def test_project_detail_apartment_reservations(
         )
         assert apartment_data["reservations"] == expect_sorted_reservations
 
+        _assert_apartment_reservations_data(apartment_data["reservations"])
+
+
+@pytest.mark.django_db
+def test_project_detail_apartment_reservations_has_children(
+    api_client, elastic_project_with_5_apartments
+):
+    expect_apartments_count = 5
+
+    project_uuid, apartments = elastic_project_with_5_apartments
+    for apartment in apartments:
+        ApartmentReservationFactory(apartment_uuid=apartment.uuid, list_position=1)
+        ApartmentReservationFactory(
+            apartment_uuid=apartment.uuid, list_position=2, application_apartment=None
+        )
+
+    profile = ProfileFactory()
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
+    response = api_client.get(
+        reverse("apartment:project-detail", kwargs={"project_uuid": project_uuid}),
+        format="json",
+    )
+    assert response.status_code == 200
+    assert response.data
+
+    assert response.data["apartments"]
+    apartments_data = response.data["apartments"]
+    assert len(apartments_data) == expect_apartments_count
+
+    for apartment_data in apartments_data:
+        assert apartment_data["reservations"]
+        assert len(apartment_data["reservations"]) == 2
         _assert_apartment_reservations_data(apartment_data["reservations"])
