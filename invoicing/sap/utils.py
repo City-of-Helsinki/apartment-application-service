@@ -4,31 +4,6 @@ from typing import Union
 
 from invoicing.enums import InstallmentType
 
-REFERENCE_DOCUMENT_NUMBER_LENGTH = 20  # Document says 16
-
-
-def create_reference_document_number(document_date: datetime, reference: str) -> str:
-    if not document_date:
-        raise ValueError("document_date cannot be null.")
-    if not reference:
-        raise ValueError("reference cannot be null or empty.")
-
-    reference_document_number = (
-        f"{settings.SAP.get('COMPANY_CODE')}"
-        f"{settings.SAP.get('DOCUMENT_TYPE')}"
-        f"{settings.SAP.get('SENDER_ID')[-3:]}"
-        f"{document_date.strftime('%y')}"
-        f"{reference.zfill(9)}"
-    )
-
-    if len(reference_document_number) != REFERENCE_DOCUMENT_NUMBER_LENGTH:
-        raise ValueError(
-            f"reference_document_number length is not "
-            f"{REFERENCE_DOCUMENT_NUMBER_LENGTH}: {len(reference_document_number)}."
-        )
-
-    return reference_document_number
-
 
 def get_base_line_date_string(due_date: Union[datetime, date]) -> str:
     payment_term = settings.SAP.get("PAYMENT_TERMS")

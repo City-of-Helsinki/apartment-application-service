@@ -78,6 +78,7 @@ from django.db.models import QuerySet
 from typing import List, Union
 from xml.etree.ElementTree import Element, SubElement, tostring
 
+from apartment.elastic.queries import get_apartment
 from invoicing.models import ApartmentInstallment
 from invoicing.sap.utils import (
     create_reference_document_number,
@@ -123,14 +124,6 @@ def _append_account_receivable_container_xml(
     posting_date = SubElement(sbo_account_receivable, "PostingDate")
     posting_date.text = create_at_str
 
-    # FI: Viitetositenumero
-    reference_document_number = SubElement(
-        sbo_account_receivable, "ReferenceDocumentNumber"
-    )
-    reference_document_number.text = create_reference_document_number(
-        apartment_installment.created_at, apartment_installment.invoice_number
-    )
-
     # FI: Viite
     reference = SubElement(sbo_account_receivable, "Reference")
     reference.text = apartment_installment.reference_number
@@ -143,81 +136,109 @@ def _append_account_receivable_container_xml(
     currency_code = SubElement(sbo_account_receivable, "CurrencyCode")
     currency_code.text = settings.SAP["CURRENCY_CODE"]
 
-    # Line information
-    line_item = SubElement(sbo_account_receivable, "LineItem")
-
-    # FI: Arvonlisäverotunnus
-    tax_code = SubElement(line_item, "TaxCode")
-    tax_code.text = settings.SAP["TAX_CODE"]
+    # Debit line information
+    debit_line_item = SubElement(sbo_account_receivable, "LineItem")
 
     # FI: Summa tositevaluuttana
-    amount_in_document_currency = SubElement(line_item, "AmountInDocumentCurrency")
-    amount_in_document_currency.text = str(apartment_installment.value).replace(
+    debit_amount_in_document_currency = SubElement(
+        debit_line_item, "AmountInDocumentCurrency"
+    )
+    debit_amount_in_document_currency.text = str(apartment_installment.value).replace(
         ".", ","
     )
 
     # FI: Riviteksti
-    line_text = SubElement(line_item, "LineText")
-    line_text.text = header_text.text
+    debit_line_text = SubElement(debit_line_item, "LineText")
+    debit_line_text.text = header_text.text
 
-    # FI: Pääkirjanpidon pääkirjatili
-    gl_account = SubElement(line_item, "GLAccount")
-    gl_account.text = settings.SAP["GL_ACCOUNT"]
-
-    # FI: Projektirakenteen osa (PRR-osa)
-    # TODO: Mikko selvittää WBS_Elementin
-    wbs_element = SubElement(line_item, "WBS_Element")
-    wbs_element.text = ""
+    primary_profile = (
+        apartment_installment.apartment_reservation.customer.primary_profile
+    )  # NOQA: E501
 
     # FI: Henkilöasiakkaan HeTu
-    customer_id = SubElement(line_item, "CustomerID")
-    customer_id.text = (
-        apartment_installment.apartment_reservation.customer.primary_profile.national_identification_number  # NOQA: E501
-    )
+    customer_id = SubElement(debit_line_item, "CustomerID")
+    customer_id.text = primary_profile.national_identification_number
 
     # FI: Eräpäivän lakennan peruspäivämäärä
-    base_line_date = SubElement(line_item, "BaseLineDate")
+    base_line_date = SubElement(debit_line_item, "BaseLineDate")
     base_line_date.text = get_base_line_date_string(apartment_installment.due_date)
 
     # FI: Maksuehtoavain
-    payment_terms = SubElement(line_item, "PaymentTerms")
+    payment_terms = SubElement(debit_line_item, "PaymentTerms")
     payment_terms.text = settings.SAP.get("PAYMENT_TERMS")
 
     # FI: Maksuviite
-    reference_id = SubElement(line_item, "ReferenceId")
+    reference_id = SubElement(debit_line_item, "ReferenceId")
     reference_id.text = apartment_installment.reference_number
 
-    # FI: Infotieto Henkilöasiakkaan HeTu (Kumppani)
-    if apartment_installment.apartment_reservation.customer.secondary_profile:
-        secondary_profile = (
-            apartment_installment.apartment_reservation.customer.secondary_profile
-        )
+    # FI: Infotieto Henkilöasiakkaan HeTu
+    info_customer_id = SubElement(debit_line_item, "InfoCustomerID")
+    info_customer_id.text = customer_id.text
 
-        # FI: Infotieto henkilöasiakkaan HeTu
-        info_customer_id = SubElement(line_item, "InfoCustomerID")
-        info_customer_id.text = (
-            secondary_profile.national_identification_number  # NOQA: E501
-        )
+    # FI: Infotieto nimi rivi 1
+    info_name_1 = SubElement(debit_line_item, "InfoName1")
+    info_name_1.text = primary_profile.last_name
 
-        # FI: Infotieto nimi rivi 1
-        info_name_1 = SubElement(line_item, "InfoName1")
-        info_name_1.text = secondary_profile.first_name
+    # FI: Infotieto nimi rivi 2
+    info_name_2 = SubElement(debit_line_item, "InfoName2")
+    info_name_2.text = primary_profile.first_name
 
-        # FI: Infotieto nimi rivi 2
-        info_name_2 = SubElement(line_item, "InfoName2")
-        info_name_2.text = secondary_profile.last_name
+    if (
+        secondary_profile := apartment_installment.apartment_reservation.customer.secondary_profile  # NOQA: E501
+    ):
+        # FI: Infotieto nimi rivi 3
+        info_name_3 = SubElement(debit_line_item, "InfoName3")
+        info_name_3.text = secondary_profile.last_name
 
-        # FI: Infotieto osoite rivi 1
-        info_address_1 = SubElement(line_item, "InfoAddress1")
-        info_address_1.text = secondary_profile.street_address
+        # FI: Infotieto nimi rivi 4
+        info_name_4 = SubElement(debit_line_item, "InfoName4")
+        info_name_4.text = secondary_profile.first_name
 
-        # FI: Infotieto paikkakunta
-        info_city = SubElement(line_item, "InfoCity")
-        info_city.text = secondary_profile.city
+    # FI: Infotieto osoite rivi 1
+    info_address_1 = SubElement(debit_line_item, "InfoAddress1")
+    info_address_1.text = primary_profile.street_address
 
-        # FI: Infotieto postinumero
-        info_city = SubElement(line_item, "InfoPostalcode")
-        info_city.text = secondary_profile.postal_code
+    # FI: Infotieto paikkakunta
+    info_city = SubElement(debit_line_item, "InfoCity")
+    info_city.text = primary_profile.city
+
+    # FI: Infotieto postinumero
+    info_postal_code = SubElement(debit_line_item, "InfoPostalcode")
+    info_postal_code.text = primary_profile.postal_code
+
+    # Credit line information
+    credit_line_item = SubElement(sbo_account_receivable, "LineItem")
+
+    # FI: Arvonlisäverotunnus
+    tax_code = SubElement(credit_line_item, "TaxCode")
+    tax_code.text = settings.SAP["TAX_CODE"]
+
+    # FI: Summa tositevaluuttana
+    credit_amount_in_document_currency = SubElement(
+        credit_line_item, "AmountInDocumentCurrency"
+    )
+    credit_amount_in_document_currency.text = str(
+        -1 * apartment_installment.value
+    ).replace(".", ",")
+
+    # FI: Riviteksti
+    credit_line_text = SubElement(credit_line_item, "LineText")
+    credit_line_text.text = header_text.text
+
+    # FI: Pääkirjanpidon pääkirjatili
+    gl_account = SubElement(credit_line_item, "GLAccount")
+    gl_account.text = settings.SAP["GL_ACCOUNT"]
+
+    # FI: Projektirakenteen osa (PRR-osa)
+    apartment = get_apartment(
+        apartment_installment.apartment_reservation.apartment_uuid,
+        include_project_fields=True,
+    )
+    # TODO: Mikko selvittää WBS_Elementin
+    wbs_element = SubElement(credit_line_item, "WBS_Element")
+    wbs_element.text = "282500404102302"
+
+    return sbo_account_receivable
 
 
 def generate_installments_xml_element(

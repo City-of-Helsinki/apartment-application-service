@@ -40,17 +40,6 @@ def assert_apartment_installment_match_xml_data(
     assert reference is not None
     assert reference.text == apartment_installment.reference_number
 
-    expected_reference_document_number = (
-        f"{settings.SAP.get('COMPANY_CODE')}"
-        f"{settings.SAP.get('DOCUMENT_TYPE')}"
-        f"{settings.SAP.get('SENDER_ID')[-3:]}"
-        f"{document_date.text[2:4]}"
-        f"{apartment_installment.invoice_number.zfill(9)}"
-    )
-    reference_document_number = accounts_receivable.find("ReferenceDocumentNumber")
-    assert reference_document_number is not None
-    assert reference_document_number.text == expected_reference_document_number
-
     header_text = accounts_receivable.find("HeaderText")
     assert header_text is not None
     assert header_text.text == get_installment_type_text(apartment_installment.type)
@@ -60,4 +49,4 @@ def assert_apartment_installment_match_xml_data(
     assert currency_code.text == settings.SAP["CURRENCY_CODE"]
 
     line_items = accounts_receivable.findall("LineItem")
-    assert len(line_items) == 1
+    assert len(line_items) == 2

@@ -4,6 +4,7 @@ from django.utils import timezone
 from os import listdir, path
 from unittest import mock
 
+from apartment.tests.factories import ApartmentDocumentFactory
 from invoicing.tests.factories import ApartmentInstallmentFactory
 from invoicing.tests.sap.utils import assert_apartment_installment_match_xml_data
 
@@ -31,19 +32,37 @@ def test_send_sap_invoice_create_only_file(tmp_path):
 @mock.patch("invoicing.services.send_xml_to_sap", autospec=True)
 @pytest.mark.django_db
 def test_pending_installments_to_sap(send_xml_to_sap):
-    ApartmentInstallmentFactory()  # not added to be sent to SAP
+    apartment = ApartmentDocumentFactory()
+
+    not_added_to_be_sent = ApartmentInstallmentFactory(
+        apartment_reservation__apartment_uuid=apartment.uuid,
+        apartment_reservation__list_position=1,
+        added_to_be_sent_to_sap_at=None,
+        sent_to_sap_at=None,
+    )
     should_get_sent = ApartmentInstallmentFactory(
-        added_to_be_sent_to_sap_at=timezone.now()
+        apartment_reservation__apartment_uuid=apartment.uuid,
+        apartment_reservation__list_position=2,
+        added_to_be_sent_to_sap_at=timezone.now(),
+        sent_to_sap_at=None,
     )
     ApartmentInstallmentFactory(
-        added_to_be_sent_to_sap_at=timezone.now(), sent_to_sap_at=timezone.now()
+        apartment_reservation__apartment_uuid=apartment.uuid,
+        apartment_reservation__list_position=3,
+        added_to_be_sent_to_sap_at=timezone.now(),
+        sent_to_sap_at=timezone.now(),
     )  # already sent to SAP
 
     send_xml_to_sap.side_effect = (
-        # only should_get_sent should get sent
+        # check generated xml and make sure only should_get_sent is included
         lambda xml: assert_apartment_installment_match_xml_data(should_get_sent, xml)
     )
 
     call_command(
         "send_pending_installments_to_sap",
     )
+
+    not_added_to_be_sent.refresh_from_db()
+    assert not_added_to_be_sent.sent_to_sap_at is None
+    should_get_sent.refresh_from_db()
+    assert should_get_sent.sent_to_sap_at is not None
