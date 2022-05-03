@@ -3,7 +3,7 @@ import uuid
 from django.urls import reverse
 
 from apartment.elastic.queries import get_projects
-from application_form.enums import ApplicationType
+from application_form.enums import ApartmentReservationState, ApplicationType
 from application_form.models import ApartmentReservation
 from application_form.services.lottery.machine import distribute_apartments
 from application_form.services.queue import add_application_to_queues
@@ -281,3 +281,85 @@ def test_export_applicants_csv_per_project(
         in response.headers["Content-Disposition"]
     )
     assert response.status_code == 200
+
+
+@pytest.mark.django_db
+def test_project_detail_apartment_states(
+    profile_api_client, elastic_project_with_5_apartments
+):
+    project_uuid, apartments = elastic_project_with_5_apartments
+    apartments = sorted(apartments, key=lambda x: x["uuid"])
+
+    # first apartment
+    ApartmentReservationFactory(
+        apartment_uuid=apartments[0].uuid,
+        queue_position=1,
+        list_position=1,
+        state=ApartmentReservationState.SUBMITTED,
+    )
+
+    # second apartment
+    LotteryEventFactory(apartment_uuid=apartments[1].uuid)
+
+    # third apartment
+    ApartmentReservationFactory(
+        apartment_uuid=apartments[2].uuid,
+        queue_position=1,
+        list_position=1,
+        state=ApartmentReservationState.RESERVED,
+    )
+    ApartmentReservationFactory(
+        apartment_uuid=apartments[2].uuid,
+        queue_position=2,
+        list_position=2,
+        state=ApartmentReservationState.SUBMITTED,
+    )
+    LotteryEventFactory(apartment_uuid=apartments[2].uuid)
+
+    # fourth apartment
+    ApartmentReservationFactory(
+        apartment_uuid=apartments[3].uuid,
+        queue_position=1,
+        list_position=1,
+        state=ApartmentReservationState.OFFERED,
+    )
+    ApartmentReservationFactory(
+        apartment_uuid=apartments[3].uuid,
+        queue_position=2,
+        list_position=2,
+        state=ApartmentReservationState.SUBMITTED,
+    )
+    LotteryEventFactory(apartment_uuid=apartments[3].uuid)
+
+    # fifth apartment
+    ApartmentReservationFactory(
+        apartment_uuid=apartments[4].uuid,
+        queue_position=None,
+        list_position=1,
+        state=ApartmentReservationState.CANCELED,
+    )
+    ApartmentReservationFactory(
+        apartment_uuid=apartments[4].uuid,
+        queue_position=1,
+        list_position=2,
+        state=ApartmentReservationState.OFFER_ACCEPTED,
+    )
+    LotteryEventFactory(apartment_uuid=apartments[4].uuid)
+
+    response = profile_api_client.get(
+        reverse("apartment:project-detail", kwargs={"project_uuid": project_uuid}),
+        format="json",
+    )
+    assert response.status_code == 200
+
+    states = [
+        a["state"]
+        for a in sorted(response.data["apartments"], key=lambda x: x["apartment_uuid"])
+    ]
+    assert states == [
+        "free",
+        "free",
+        "reserved",
+        "offered",
+        "offer_accepted",
+    ]
