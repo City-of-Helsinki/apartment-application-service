@@ -142,11 +142,21 @@ def _shift_positions(
     """
     Shifts all items in the queue by one by either incrementing or decrementing their
     positions, depending on whether the item was added or deleted from the queue.
+
+    NOTE: This function cannot be used for adding after the apartment's lottery has been
+    executed, because then there can be cancelled reservations, and for those the
+    shifting won't work correctly.
     """
+    reservations = ApartmentReservation.objects.filter(apartment_uuid=apartment_uuid)
+    if not deleted and reservations.filter(queue_position=None).exists():
+        raise RuntimeError(
+            "This function cannot be used for adding a reservation when the apartment "
+            "has reservations without a queue_position."
+        )
+
     # We only need to update the positions in the queue that are >= from_position
-    reservations = ApartmentReservation.objects.filter(
-        apartment_uuid=apartment_uuid, queue_position__gte=from_position
-    )
+    reservations = reservations.filter(queue_position__gte=from_position)
+
     # When deleting, we have to decrement each position. When adding, increment instead.
     position_change = -1 if deleted else 1
     reservations.update(queue_position=F("queue_position") + position_change)
