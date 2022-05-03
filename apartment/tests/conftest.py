@@ -6,6 +6,8 @@ from pytest import fixture
 from rest_framework.test import APIClient
 
 from apartment.tests.factories import ApartmentDocumentFactory
+from users.tests.factories import ProfileFactory
+from users.tests.utils import _create_token
 
 faker.config.DEFAULT_LOCALE = "fi_FI"
 
@@ -13,6 +15,14 @@ faker.config.DEFAULT_LOCALE = "fi_FI"
 @fixture
 def api_client():
     api_client = APIClient()
+    return api_client
+
+
+@fixture
+def profile_api_client():
+    api_client = APIClient()
+    profile = ProfileFactory()
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
     return api_client
 
 

@@ -6,6 +6,7 @@ from application_form.models import (
     Applicant,
     Application,
     ApplicationApartment,
+    LotteryEvent,
 )
 
 
@@ -44,3 +45,8 @@ class ApartmentReservationStateChangeEventInline(admin.TabularInline):
 @admin.register(ApartmentReservation)
 class ApartmentReservationAdmin(admin.ModelAdmin):
     inlines = [ApartmentReservationStateChangeEventInline]
+
+
+@admin.register(LotteryEvent)
+class LotteryEventAdmin(admin.ModelAdmin):
+    pass

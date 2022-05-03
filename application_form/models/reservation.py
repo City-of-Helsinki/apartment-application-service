@@ -10,10 +10,20 @@ from application_form.enums import (
     ApartmentReservationCancellationReason,
     ApartmentReservationState,
 )
-from application_form.models import ApplicationApartment
+from application_form.models import ApplicationApartment, LotteryEvent
 from customer.models import Customer
 
 User = get_user_model()
+
+
+class ApartmentReservationQuerySet(models.QuerySet):
+    def winners(self):
+        apartments_uuids_with_lottery = LotteryEvent.objects.values_list(
+            "apartment_uuid", flat=True
+        )
+        return self.exclude(state=ApartmentReservationState.CANCELED).filter(
+            apartment_uuid__in=apartments_uuids_with_lottery, queue_position=1
+        )
 
 
 class ApartmentReservation(models.Model):
@@ -45,6 +55,8 @@ class ApartmentReservation(models.Model):
         default=ApartmentReservationState.SUBMITTED,
         verbose_name=_("apartment reservation state"),
     )
+
+    objects = ApartmentReservationQuerySet.as_manager()
 
     class Meta:
         unique_together = [("apartment_uuid", "application_apartment")]
