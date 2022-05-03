@@ -32,6 +32,7 @@ class ApplicationAdmin(admin.ModelAdmin):
 class ApartmentReservationStateChangeEventInline(admin.TabularInline):
     model = ApartmentReservationStateChangeEvent
     readonly_fields = ("timestamp", "state", "user", "comment")
+    fk_name = "reservation"
 
     def has_add_permission(self, request, obj=None):
         return False

@@ -72,11 +72,11 @@ class ApartmentReservation(models.Model):
         user: User = None,
         comment: str = None,
         cancellation_reason: ApartmentReservationCancellationReason = None,
+        replaced_by: "ApartmentReservation" = None,
     ) -> "ApartmentReservationStateChangeEvent":
         if user and user.is_anonymous:
             # TODO this should be removed after proper authentication has been added
             user = None
-
         if cancellation_reason and state != ApartmentReservationState.CANCELED:
             raise ValidationError(
                 "cancellation_reason cannot be set when state is not canceled."
@@ -88,6 +88,7 @@ class ApartmentReservation(models.Model):
             comment=comment or "",
             user=user,
             cancellation_reason=cancellation_reason,
+            replaced_by=replaced_by,
         )
         self.state = state
         self.save(update_fields=("state",))
@@ -128,6 +129,14 @@ class ApartmentReservationStateChangeEvent(models.Model):
         verbose_name=_("cancellation reason"),
         null=True,
         blank=True,
+    )
+    replaced_by = models.ForeignKey(
+        ApartmentReservation,
+        verbose_name=_("replaced by"),
+        related_name="replaced_reservation_state_change_events",
+        blank=True,
+        null=True,
+        on_delete=models.SET_NULL,
     )
 
     class Meta:

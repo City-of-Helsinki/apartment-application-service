@@ -5,13 +5,18 @@ from decimal import Decimal
 from django.urls import reverse
 
 from apartment.tests.factories import ApartmentDocumentFactory
-from application_form.enums import ApartmentReservationState, ApplicationType
+from application_form.enums import (
+    ApartmentReservationCancellationReason,
+    ApartmentReservationState,
+    ApplicationType,
+)
 from application_form.services.lottery.machine import distribute_apartments
 from application_form.services.queue import add_application_to_queues
 from application_form.tests.factories import (
     ApartmentReservationFactory,
     ApplicationFactory,
 )
+from customer.tests.factories import CustomerFactory
 from invoicing.enums import (
     InstallmentPercentageSpecifier,
     InstallmentType,
@@ -240,6 +245,28 @@ def test_apartment_reservation_canceling(user_api_client, ownership_type):
 
 
 @pytest.mark.django_db
+def test_cannot_cancel_already_canceled_apartment_reservation(user_api_client):
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        state=ApartmentReservationState.CANCELED,
+        queue_position=None,
+    )
+
+    data = {"cancellation_reason": "terminated", "comment": "Foo"}
+    response = user_api_client.post(
+        reverse(
+            "application_form:sales-apartment-reservation-cancel",
+            kwargs={"pk": reservation.id},
+        ),
+        data=data,
+        format="json",
+    )
+    assert response.status_code == 400
+    assert "already canceled" in str(response.data)
+
+
+@pytest.mark.django_db
 def test_apartment_reservation_cancellation_reason_validation(user_api_client):
     apartment = ApartmentDocumentFactory()
     reservation = ApartmentReservationFactory(
@@ -294,3 +321,115 @@ def test_apartment_reservation_hide_queue_position(
     assert response.status_code == 200
 
     assert response.data["queue_position"] == 1
+
+
+@pytest.mark.django_db
+def test_transfer_reservation_to_another_customer(api_client):
+    apartment = ApartmentDocumentFactory()
+    customer = CustomerFactory()
+    another_customer = CustomerFactory()
+    reservation_1 = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        state=ApartmentReservationState.SUBMITTED,
+        queue_position=1,
+        list_position=1,
+        customer=customer,
+    )
+    reservation_2 = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        state=ApartmentReservationState.SUBMITTED,
+        queue_position=2,
+        list_position=2,
+        customer=customer,
+    )
+    reservation_3 = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        state=ApartmentReservationState.SUBMITTED,
+        queue_position=3,
+        list_position=3,
+        customer=customer,
+    )
+    reservation_4 = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        state=ApartmentReservationState.CANCELED,
+        queue_position=None,
+        list_position=4,
+        customer=customer,
+    )
+
+    response = api_client.post(
+        reverse(
+            "application_form:sales-apartment-reservation-cancel",
+            kwargs={"pk": reservation_2.id},
+        ),
+        data={
+            "cancellation_reason": "transferred",
+            "new_customer_id": another_customer.id,
+            "comment": "foo",
+        },
+        format="json",
+    )
+    assert response.status_code == 200
+
+    reservation_1.refresh_from_db()
+    reservation_2.refresh_from_db()
+    reservation_3.refresh_from_db()
+    reservation_4.refresh_from_db()
+
+    state_change_event = reservation_2.state_change_events.last()
+    assert (
+        state_change_event.cancellation_reason
+        == ApartmentReservationCancellationReason.TRANSFERRED
+    )
+    assert state_change_event.comment == "foo"
+    new_reservation = state_change_event.replaced_by
+
+    assert len(response.data.keys()) == 6
+    assert response.data.pop("timestamp")
+    assert response.data == {
+        "state": "canceled",
+        "comment": "foo",
+        "cancellation_reason": "transferred",
+        "new_customer_id": another_customer.id,
+        "new_reservation_id": new_reservation.id,
+    }
+
+    assert reservation_1.queue_position == 1
+    assert reservation_1.list_position == 1
+
+    assert reservation_2.customer == customer
+    assert reservation_2.queue_position is None
+    assert reservation_2.list_position == 2
+    assert reservation_2.state == ApartmentReservationState.CANCELED
+
+    assert new_reservation.customer == another_customer
+    assert new_reservation.state == ApartmentReservationState.SUBMITTED
+    assert new_reservation.queue_position == 2
+    assert new_reservation.list_position == 3
+
+    assert reservation_3.queue_position == 3
+    assert reservation_3.list_position == 4
+
+    assert reservation_4.queue_position is None
+    assert reservation_4.list_position == 5
+
+
+@pytest.mark.django_db
+def test_transferring_apartment_reservation_requires_customer(user_api_client):
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        state=ApartmentReservationState.SUBMITTED,
+    )
+
+    data = {"cancellation_reason": "transferred", "comment": "Foo"}
+    response = user_api_client.post(
+        reverse(
+            "application_form:sales-apartment-reservation-cancel",
+            kwargs={"pk": reservation.id},
+        ),
+        data=data,
+        format="json",
+    )
+    assert response.status_code == 400
+    assert "new_customer_id is required" in str(response.data)

@@ -5,7 +5,11 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.fields import CharField, IntegerField, UUIDField
 
 from application_form import error_codes
-from application_form.enums import ApartmentReservationState, ApplicationType
+from application_form.enums import (
+    ApartmentReservationCancellationReason,
+    ApartmentReservationState,
+    ApplicationType,
+)
 from application_form.models import (
     ApartmentReservation,
     ApartmentReservationStateChangeEvent,
@@ -14,6 +18,7 @@ from application_form.models import (
 )
 from application_form.services.application import create_application
 from application_form.validators import ProjectApplicantValidator, SSNSuffixValidator
+from customer.models import Customer
 
 _logger = logging.getLogger(__name__)
 
@@ -185,13 +190,59 @@ class ApartmentReservationStateChangeEventSerializer(
 class ApartmentReservationCancelEventSerializer(
     EnumSupportSerializerMixin, serializers.ModelSerializer
 ):
+    new_customer_id = serializers.PrimaryKeyRelatedField(
+        source="replaced_by.customer",
+        queryset=Customer.objects.all(),
+        required=False,
+        help_text="Used only with cancellation reason `transferred`.",
+    )
+    new_reservation_id = serializers.PrimaryKeyRelatedField(
+        source="replaced_by",
+        required=False,
+        read_only=True,
+        help_text="Used only with cancellation reason `transferred`.",
+    )
+
     class Meta:
         model = ApartmentReservationStateChangeEvent
-        fields = ("timestamp", "state", "comment", "cancellation_reason")
-        read_only_fields = ("timestamp", "state")
+        fields = (
+            "timestamp",
+            "state",
+            "comment",
+            "cancellation_reason",
+            "new_customer_id",
+            "new_reservation_id",
+        )
+        read_only_fields = ("timestamp", "state", "new_reservation_id")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["cancellation_reason"].required = True
         self.fields["cancellation_reason"].allow_null = False
         self.fields["cancellation_reason"].allow_blank = False
+
+    def validate(self, attrs):
+        validated_data = super().validate(attrs)
+        if (
+            validated_data["cancellation_reason"]
+            == ApartmentReservationCancellationReason.TRANSFERRED
+        ):
+            validated_data["customer"] = validated_data.pop("replaced_by", {}).pop(
+                "customer", {}
+            )
+            if not validated_data["customer"]:
+                raise ValidationError(
+                    "new_customer_id is required when cancellation_reason is "
+                    '"transferred".'
+                )
+        return validated_data
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        if (
+            instance.cancellation_reason
+            != ApartmentReservationCancellationReason.TRANSFERRED
+        ):
+            ret.pop("new_customer_id", None)
+            ret.pop("new_reservation_id", None)
+        return ret

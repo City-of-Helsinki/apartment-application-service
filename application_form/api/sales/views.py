@@ -2,7 +2,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse
 from django.views.decorators.http import require_http_methods
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, OpenApiExample
 from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.decorators import (
     action,
@@ -24,6 +24,10 @@ from application_form.api.serializers import (
     ApartmentReservationStateChangeEventSerializer,
 )
 from application_form.api.views import ApplicationViewSet
+from application_form.enums import (
+    ApartmentReservationCancellationReason,
+    ApartmentReservationState,
+)
 from application_form.exceptions import ProjectDoesNotHaveApplicationsException
 from application_form.models import ApartmentReservation
 from application_form.pdf import create_haso_contract_pdf, create_hitas_contract_pdf
@@ -32,6 +36,9 @@ from application_form.services.lottery.exceptions import (
     ApplicationTimeNotFinishedException,
 )
 from application_form.services.lottery.machine import distribute_apartments
+from application_form.services.reservation import (
+    transfer_reservation_to_another_customer,
+)
 from users.permissions import IsSalesperson
 
 
@@ -137,21 +144,64 @@ class ApartmentReservationViewSet(mixins.RetrieveModelMixin, viewsets.GenericVie
         responses={
             (200, "application/json"): ApartmentReservationCancelEventSerializer
         },
+        examples=[
+            OpenApiExample(
+                "Cancel Example",
+                value={
+                    "comment": "Lorem ipsum.",
+                    "cancellation_reason": "terminated",
+                },
+            ),
+            OpenApiExample(
+                "Transfer Example",
+                value={
+                    "comment": "Lorem ipsum.",
+                    "cancellation_reason": "transferred",
+                    "new_customer_id": 7,
+                },
+                request_only=True,
+            ),
+            OpenApiExample(
+                "Transfer Example",
+                value={
+                    "comment": "Lorem ipsum.",
+                    "cancellation_reason": "transferred",
+                    "new_customer_id": 7,
+                    "new_reservation_id": 8,
+                },
+                response_only=True,
+            ),
+        ],
     )
     @action(methods=["POST"], detail=True)
     def cancel(self, request, pk=None):
         reservation = self.get_object()
+
+        if reservation.state == ApartmentReservationState.CANCELED:
+            raise ValidationError("This reservation is already canceled.")
+
         data = {"reservation_id": pk}
         data.update(request.data)
 
         cancel_event_serializer = ApartmentReservationCancelEventSerializer(data=data)
         cancel_event_serializer.is_valid(raise_exception=True)
 
-        cancel_event = cancel_reservation(
-            reservation,
-            user=request.user,
-            **cancel_event_serializer.validated_data,
-        )
+        if (
+            cancel_event_serializer.validated_data["cancellation_reason"]
+            == ApartmentReservationCancellationReason.TRANSFERRED
+        ):
+            cancel_event_serializer.validated_data.pop("cancellation_reason")
+            cancel_event = transfer_reservation_to_another_customer(
+                reservation,
+                user=request.user,
+                **cancel_event_serializer.validated_data,
+            )
+        else:
+            cancel_event = cancel_reservation(
+                reservation,
+                user=request.user,
+                **cancel_event_serializer.validated_data,
+            )
 
         return Response(
             ApartmentReservationCancelEventSerializer(cancel_event).data,
