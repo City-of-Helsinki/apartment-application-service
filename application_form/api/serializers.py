@@ -149,6 +149,9 @@ class ApplicationSerializer(ApplicationSerializerBase):
 class ApartmentReservationSerializerBase(serializers.ModelSerializer):
     state = EnumField(ApartmentReservationState)
     queue_position = serializers.SerializerMethodField()
+    priority_number = serializers.IntegerField(
+        source="application_apartment.priority_number", allow_null=True
+    )
 
     class Meta:
         model = ApartmentReservation
@@ -157,6 +160,7 @@ class ApartmentReservationSerializerBase(serializers.ModelSerializer):
             "apartment_uuid",
             "list_position",
             "queue_position",
+            "priority_number",
             "state",
         )
 
