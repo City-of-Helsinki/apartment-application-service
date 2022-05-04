@@ -60,17 +60,12 @@ class SalesApartmentReservationSerializer(ApartmentReservationSerializerBase):
         source="application_apartment.application.right_of_residence", allow_null=True
     )
 
-    priority_number = serializers.IntegerField(
-        source="application_apartment.priority_number", allow_null=True
-    )
-
     class Meta(ApartmentReservationSerializerBase.Meta):
         fields = ApartmentReservationSerializerBase.Meta.fields + (
             "applicants",
             "customer",
             "has_children",
             "right_of_residence",
-            "priority_number",
         )
 
     def get_has_children(self, obj):
