@@ -10,6 +10,7 @@ from application_form.enums import (
     ApartmentReservationState,
     ApplicationType,
 )
+from application_form.models import ApartmentReservation, LotteryEvent
 from application_form.services.lottery.machine import distribute_apartments
 from application_form.services.queue import add_application_to_queues
 from application_form.tests.factories import (
@@ -64,6 +65,7 @@ def test_root_apartment_reservation_detail(
         "state": reservation.state.value,
         "list_position": reservation.list_position,
         "priority_number": reservation.application_apartment.priority_number,
+        "customer_id": reservation.customer.id,
     }
 
 
@@ -434,3 +436,161 @@ def test_transferring_apartment_reservation_requires_customer(user_api_client):
     )
     assert response.status_code == 400
     assert "new_customer_id is required" in str(response.data)
+
+
+@pytest.mark.parametrize("include_read_only_fields", (False, True))
+@pytest.mark.django_db
+def test_create_reservation(user_api_client, include_read_only_fields):
+    apartment = ApartmentDocumentFactory()
+    customer = CustomerFactory()
+    LotteryEvent.objects.create(apartment_uuid=apartment.uuid)
+
+    data = {
+        "apartment_uuid": apartment.uuid,
+        "customer_id": customer.id,
+    }
+
+    if include_read_only_fields:
+        # try to set read only fields which should not be possible
+        data.update(
+            {
+                "list_position": 8,
+                "priority_number": 11,
+                "queue_position": 4,
+                "state": "offered",
+            }
+        )
+
+    response = user_api_client.post(
+        reverse(
+            "application_form:sales-apartment-reservation-list",
+        ),
+        data=data,
+        format="json",
+    )
+
+    assert response.status_code == 201
+
+    assert response.data.pop("customer_id") == customer.id
+    assert (reservation_id := response.data.pop("id"))
+    assert response.data.pop("apartment_uuid") == apartment.uuid
+    assert response.data == {
+        "installments": [],
+        "installment_candidates": [],
+        "list_position": 1,
+        "queue_position": 1,
+        "priority_number": None,
+        "state": "reserved",
+    }
+
+    reservation = ApartmentReservation.objects.get(id=reservation_id)
+    assert reservation.list_position == 1
+    assert reservation.queue_position == 1
+    assert reservation.state == ApartmentReservationState.RESERVED
+
+
+@pytest.mark.django_db
+def test_create_reservation_lottery_not_executed(user_api_client):
+    apartment = ApartmentDocumentFactory()
+    customer = CustomerFactory()
+
+    data = {
+        "apartment_uuid": apartment.uuid,
+        "customer_id": customer.id,
+    }
+
+    response = user_api_client.post(
+        reverse(
+            "application_form:sales-apartment-reservation-list",
+        ),
+        data=data,
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "lottery hasn't been executed yet" in str(response.data)
+
+
+@pytest.mark.django_db
+def test_create_reservation_lottery_non_existing_apartment(user_api_client):
+    apartment = ApartmentDocumentFactory()
+    customer = CustomerFactory()
+    LotteryEvent.objects.create(apartment_uuid=apartment.uuid)
+
+    data = {
+        "apartment_uuid": uuid.uuid4(),
+        "customer_id": customer.id,
+    }
+
+    response = user_api_client.post(
+        reverse(
+            "application_form:sales-apartment-reservation-list",
+        ),
+        data=data,
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "doesn't exist" in str(response.data)
+
+
+@pytest.mark.django_db
+def test_create_reservation_queue_already_has_canceled_reservation(user_api_client):
+    apartment = ApartmentDocumentFactory()
+    customer = CustomerFactory()
+    LotteryEvent.objects.create(apartment_uuid=apartment.uuid)
+    ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        state=ApartmentReservationState.CANCELED,
+        queue_position=None,
+        list_position=1,
+    )
+
+    data = {
+        "apartment_uuid": apartment.uuid,
+        "customer_id": customer.id,
+    }
+
+    response = user_api_client.post(
+        reverse(
+            "application_form:sales-apartment-reservation-list",
+        ),
+        data=data,
+        format="json",
+    )
+    assert response.status_code == 201
+
+    assert response.data["state"] == "reserved"
+    assert response.data["queue_position"] == 1
+    assert response.data["list_position"] == 2
+
+
+@pytest.mark.django_db
+def test_create_reservation_queue_already_has_reserved_reservation(user_api_client):
+    apartment = ApartmentDocumentFactory()
+    customer = CustomerFactory()
+    LotteryEvent.objects.create(apartment_uuid=apartment.uuid)
+    ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        state=ApartmentReservationState.RESERVED,
+        queue_position=1,
+        list_position=1,
+    )
+
+    data = {
+        "apartment_uuid": apartment.uuid,
+        "customer_id": customer.id,
+    }
+
+    response = user_api_client.post(
+        reverse(
+            "application_form:sales-apartment-reservation-list",
+        ),
+        data=data,
+        format="json",
+    )
+    assert response.status_code == 201
+
+    assert response.data["state"] == "submitted"
+    assert response.data["queue_position"] == 2
+    assert response.data["list_position"] == 2

@@ -75,7 +75,9 @@ class SalesApplicationViewSet(ApplicationViewSet):
     permission_classes = [permissions.IsAuthenticated, IsSalesperson]
 
 
-class ApartmentReservationViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+class ApartmentReservationViewSet(
+    mixins.RetrieveModelMixin, mixins.CreateModelMixin, viewsets.GenericViewSet
+):
     queryset = ApartmentReservation.objects.all()
     serializer_class = RootApartmentReservationSerializer
     permission_classes = [permissions.AllowAny]

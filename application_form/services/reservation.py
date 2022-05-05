@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from django.db.models import F
+from django.db.models import F, Max
 
 from application_form.enums import (
     ApartmentQueueChangeEventType,
@@ -8,6 +8,7 @@ from application_form.enums import (
     ApartmentReservationState,
 )
 from application_form.models import ApartmentReservation
+from application_form.utils import lock_table
 from customer.models import Customer
 
 User = get_user_model()
@@ -61,3 +62,29 @@ def transfer_reservation_to_another_customer(
     )
 
     return state_change_event
+
+
+def create_reservation(reservation_data: dict) -> ApartmentReservation:
+    with lock_table(ApartmentReservation):
+        existing_reservations = ApartmentReservation.objects.filter(
+            apartment_uuid=reservation_data["apartment_uuid"]
+        )
+
+        if existing_reservations.reserved().exists():
+            state = ApartmentReservationState.SUBMITTED
+        else:
+            state = ApartmentReservationState.RESERVED
+
+        max_values = existing_reservations.aggregate(
+            list_position=Max("list_position"),
+            queue_position=Max("queue_position"),
+        )
+
+        reservation = ApartmentReservation.objects.create(
+            **reservation_data,
+            state=state,
+            list_position=(max_values["list_position"] or 0) + 1,
+            queue_position=(max_values["queue_position"] or 0) + 1,
+        )
+
+    return reservation

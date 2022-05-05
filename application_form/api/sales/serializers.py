@@ -1,7 +1,9 @@
 import logging
+from django.core.exceptions import ObjectDoesNotExist
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework.fields import UUIDField
+from uuid import UUID
 
 from apartment.elastic.queries import get_apartment, get_apartment_uuids
 from application_form.api.serializers import (
@@ -9,7 +11,9 @@ from application_form.api.serializers import (
     ApplicantSerializerBase,
     ApplicationSerializerBase,
 )
-from application_form.models import Applicant
+from application_form.models import Applicant, LotteryEvent
+from application_form.services.reservation import create_reservation
+from customer.models import Customer
 from invoicing.api.serializers import (
     ApartmentInstallmentCandidateSerializer,
     ApartmentInstallmentSerializer,
@@ -98,14 +102,18 @@ class SalesApartmentReservationSerializer(ApartmentReservationSerializerBase):
 
 class RootApartmentReservationSerializer(ApartmentReservationSerializerBase):
     installments = ApartmentInstallmentSerializer(
-        source="apartment_installments", many=True
+        source="apartment_installments", many=True, read_only=True
     )
     installment_candidates = serializers.SerializerMethodField()
+    customer_id = serializers.PrimaryKeyRelatedField(
+        source="customer", queryset=Customer.objects.all()
+    )
 
     class Meta(ApartmentReservationSerializerBase.Meta):
         fields = (
             "installments",
             "installment_candidates",
+            "customer_id",
         ) + ApartmentReservationSerializerBase.Meta.fields
 
     @extend_schema_field(ApartmentInstallmentCandidateSerializer(many=True))
@@ -122,3 +130,18 @@ class RootApartmentReservationSerializer(ApartmentReservationSerializerBase):
             many=True,
         )
         return serializer.data
+
+    def validate_apartment_uuid(self, value: UUID) -> UUID:
+        try:
+            get_apartment(value)
+        except ObjectDoesNotExist:
+            raise serializers.ValidationError(f"Apartment {value} doesn't exist.")
+        if not LotteryEvent.objects.filter(apartment_uuid=value).exists():
+            raise serializers.ValidationError(
+                f"Cannot create a reservation to apartment {value} because its lottery "
+                f"hasn't been executed yet."
+            )
+        return value
+
+    def create(self, validated_data):
+        return create_reservation(validated_data)
