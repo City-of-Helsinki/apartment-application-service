@@ -16,6 +16,16 @@ from customer.models import Customer
 User = get_user_model()
 
 
+class ApartmentReservationQuerySet(models.QuerySet):
+    def reserved(self):
+        return self.exclude(
+            state__in=(
+                ApartmentReservationState.SUBMITTED,
+                ApartmentReservationState.CANCELED,
+            )
+        )
+
+
 class ApartmentReservation(models.Model):
     """
     Stores an applicant's reservation for the apartment.
@@ -45,6 +55,8 @@ class ApartmentReservation(models.Model):
         default=ApartmentReservationState.SUBMITTED,
         verbose_name=_("apartment reservation state"),
     )
+
+    objects = ApartmentReservationQuerySet.as_manager()
 
     class Meta:
         unique_together = [("apartment_uuid", "application_apartment")]

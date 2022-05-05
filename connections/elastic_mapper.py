@@ -10,5 +10,5 @@ def map_project_ownership_type(ownership_type: str):
     if ownership_type == "HITAS":
         return OwnershipType.HITAS
     if ownership_type == "PUOLIHITAS":
-        return OwnershipType.HALF_HITAS
+        return OwnershipType.PUOLIHITAS
     raise ValueError(_("Could not map the ownership_type %s") % ownership_type)

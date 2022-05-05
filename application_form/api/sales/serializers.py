@@ -3,7 +3,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework.fields import UUIDField
 
-from apartment.elastic.queries import get_apartment
+from apartment.elastic.queries import get_apartment, get_apartment_uuids
 from application_form.api.serializers import (
     ApartmentReservationSerializerBase,
     ApplicantSerializerBase,
@@ -60,12 +60,34 @@ class SalesApartmentReservationSerializer(ApartmentReservationSerializerBase):
         source="application_apartment.application.right_of_residence", allow_null=True
     )
 
+    has_multiple_winning_apartments = serializers.SerializerMethodField()
+
     class Meta(ApartmentReservationSerializerBase.Meta):
         fields = ApartmentReservationSerializerBase.Meta.fields + (
             "applicants",
             "customer",
             "has_children",
             "right_of_residence",
+            "has_multiple_winning_apartments",
+        )
+
+    def get_has_multiple_winning_apartments(self, obj):
+        """
+        Return True if the customer of this reservation already has multiple
+        1st place in other apartments of the same project.
+        """
+        project_uuid = self.context["project_uuid"]
+        if not project_uuid:
+            return False
+        apartment_uuids = get_apartment_uuids(project_uuid)
+        # Winning reservation will have state other than SUBMITTED and CANCELED
+        return (
+            obj.customer.apartment_reservations.reserved()
+            .filter(
+                apartment_uuid__in=apartment_uuids,
+            )
+            .count()
+            > 1
         )
 
     def get_has_children(self, obj):

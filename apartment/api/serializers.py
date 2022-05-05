@@ -170,4 +170,6 @@ class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
 
     def get_apartments(self, obj):
         apartments = get_apartments(obj.project_uuid)
-        return ApartmentSerializer(apartments, many=True).data
+        return ApartmentSerializer(
+            apartments, many=True, context={"project_uuid": obj.project_uuid}
+        ).data

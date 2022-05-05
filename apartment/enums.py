@@ -8,4 +8,4 @@ class IdentifierSchemaType(Enum):
 class OwnershipType(Enum):
     HASO = "haso"
     HITAS = "hitas"
-    HALF_HITAS = "half_hitas"
+    PUOLIHITAS = "puolihitas"

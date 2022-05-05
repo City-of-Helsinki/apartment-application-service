@@ -2,11 +2,16 @@ import pytest
 import uuid
 from django.urls import reverse
 
+from application_form.enums import ApplicationType
 from application_form.models import ApartmentReservation
+from application_form.services.lottery.machine import distribute_apartments
+from application_form.services.queue import add_application_to_queues
 from application_form.tests.factories import (
     ApartmentReservationFactory,
+    ApplicationFactory,
     LotteryEventFactory,
 )
+from customer.tests.factories import CustomerFactory
 from users.tests.factories import ProfileFactory
 from users.tests.utils import _create_token
 
@@ -188,7 +193,6 @@ def test_project_detail_apartment_reservations_has_children(
         ApartmentReservationFactory(
             apartment_uuid=apartment.uuid, list_position=2, application_apartment=None
         )
-
     profile = ProfileFactory()
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
     response = api_client.get(
@@ -206,3 +210,41 @@ def test_project_detail_apartment_reservations_has_children(
         assert apartment_data["reservations"]
         assert len(apartment_data["reservations"]) == 2
         _assert_apartment_reservations_data(apartment_data["reservations"])
+
+
+@pytest.mark.django_db
+def test_project_detail_apartment_reservations_multiple_winning(
+    api_client, elastic_project_with_5_apartments
+):
+    project_uuid, apartments = elastic_project_with_5_apartments
+    customer = CustomerFactory()
+    app1 = ApplicationFactory(type=ApplicationType.HITAS, customer=customer)
+    app2 = ApplicationFactory(type=ApplicationType.HITAS)
+
+    # Customer of app1 win 2 apartments
+    app1.application_apartments.create(
+        apartment_uuid=apartments[0].uuid, priority_number=1
+    )
+    app1.application_apartments.create(
+        apartment_uuid=apartments[1].uuid, priority_number=1
+    )
+    # Customer of app2 win only 1 apartments
+    app2.application_apartments.create(
+        apartment_uuid=apartments[2].uuid, priority_number=1
+    )
+    add_application_to_queues(app1)
+    add_application_to_queues(app2)
+    distribute_apartments(project_uuid)
+    profile = ProfileFactory()
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
+    response = api_client.get(
+        reverse("apartment:project-detail", kwargs={"project_uuid": project_uuid}),
+        format="json",
+    )
+    assert response.status_code == 200
+    apartments_data = response.data["apartments"]
+    for apartment_data in apartments_data:
+        for reservation in apartment_data["reservations"]:
+            assert reservation["has_multiple_winning_apartments"] == (
+                reservation["customer"] == customer.id
+            )
