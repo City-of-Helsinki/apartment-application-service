@@ -2,6 +2,7 @@ import pytest
 import uuid
 from django.urls import reverse
 
+from apartment.elastic.queries import get_projects
 from application_form.enums import ApplicationType
 from application_form.models import ApartmentReservation
 from application_form.services.lottery.machine import distribute_apartments
@@ -248,3 +249,35 @@ def test_project_detail_apartment_reservations_multiple_winning(
             assert reservation["has_multiple_winning_apartments"] == (
                 reservation["customer"] == customer.id
             )
+
+
+@pytest.mark.django_db
+def test_export_applicants_csv_per_project(
+    api_client, elastic_project_with_5_apartments
+):
+    """
+    Test export applicants information to CSV
+    """
+    project_uuid, apartments = elastic_project_with_5_apartments
+    profile = ProfileFactory()
+    project = get_projects(project_uuid)[0]
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
+
+    data = {"project_uuid": uuid.uuid4()}
+    response = api_client.get(
+        reverse("apartment:project-detail-export-applicant", kwargs=data),
+        format="json",
+    )
+    assert response.status_code == 404
+
+    data = {"project_uuid": project_uuid}
+    response = api_client.get(
+        reverse("apartment:project-detail-export-applicant", kwargs=data),
+        format="json",
+    )
+    assert response.headers["Content-Type"] == "text/csv"
+    assert (
+        project.project_street_address.replace(" ", "_")
+        in response.headers["Content-Disposition"]
+    )
+    assert response.status_code == 200
