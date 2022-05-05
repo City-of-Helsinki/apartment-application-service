@@ -2,7 +2,9 @@ from datetime import date, datetime, timedelta
 from django.conf import settings
 from typing import Union
 
+from apartment.elastic.queries import get_apartment
 from invoicing.enums import InstallmentType
+from invoicing.models import ApartmentInstallment
 
 
 def get_base_line_date_string(due_date: Union[datetime, date]) -> str:
@@ -49,3 +51,26 @@ def get_installment_type_text(installment_type: InstallmentType) -> str:  # noqa
     else:
         raise ValueError("installment_type '{installment_type}' is not defined.")
     return result
+
+
+def get_wbs_element(installment: ApartmentInstallment) -> str:
+    apartment = get_apartment(
+        installment.apartment_reservation.apartment_uuid, include_project_fields=True
+    )
+    ownership_type = apartment.project_ownership_type.upper()
+
+    wbs_element_settings = settings.SAP["WBS_ELEMENT"]
+    ownership_type_code = wbs_element_settings["OWNERSHIP_TYPE_CODE"].get(
+        ownership_type
+    )
+    revenue_type_code = wbs_element_settings["REVENUE_TYPE_CODE"].get(ownership_type)
+
+    if not (ownership_type_code and revenue_type_code):
+        raise ValueError(f"Invalid ownership type {ownership_type}")
+
+    prefix = wbs_element_settings["PREFIX"]
+    property_number = getattr(apartment, "project_property_number", None)
+    if not (isinstance(property_number, str) and len(property_number) == 3):
+        raise ValueError(f"Invalid property_number {property_number}")
+
+    return f"{prefix}{ownership_type_code}{property_number}{revenue_type_code}"

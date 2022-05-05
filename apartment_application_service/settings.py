@@ -283,6 +283,19 @@ SAP = {
     "TAX_CODE": "4Z",
     "PAYMENT_TERMS": "N073",
     "GL_ACCOUNT": "350080",
+    "WBS_ELEMENT": {
+        "PREFIX": "282500",
+        "OWNERSHIP_TYPE_CODE": {
+            "HASO": "2",
+            "HITAS": "4",
+            "PUOLIHITAS": "6",
+        },
+        "REVENUE_TYPE_CODE": {
+            "HASO": "02303",
+            "HITAS": "02302",
+            "PUOLIHITAS": "02302",
+        },
+    },
 }
 
 # SAP SFTP

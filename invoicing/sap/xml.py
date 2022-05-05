@@ -78,12 +78,11 @@ from django.db.models import QuerySet
 from typing import List, Union
 from xml.etree.ElementTree import Element, SubElement, tostring
 
-from apartment.elastic.queries import get_apartment
 from invoicing.models import ApartmentInstallment
 from invoicing.sap.utils import (
-    create_reference_document_number,
     get_base_line_date_string,
     get_installment_type_text,
+    get_wbs_element,
 )
 
 
@@ -230,13 +229,8 @@ def _append_account_receivable_container_xml(
     gl_account.text = settings.SAP["GL_ACCOUNT"]
 
     # FI: Projektirakenteen osa (PRR-osa)
-    apartment = get_apartment(
-        apartment_installment.apartment_reservation.apartment_uuid,
-        include_project_fields=True,
-    )
-    # TODO: Mikko selvittää WBS_Elementin
     wbs_element = SubElement(credit_line_item, "WBS_Element")
-    wbs_element.text = "282500404102302"
+    wbs_element.text = get_wbs_element(apartment_installment)
 
     return sbo_account_receivable
 
