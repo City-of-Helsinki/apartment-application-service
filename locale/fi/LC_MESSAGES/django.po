@@ -250,7 +250,7 @@ msgid "late payment interest"
 msgstr "Viivästyskorko"
 
 #: invoicing/enums.py:32
-msgid "right of residence fee"
+msgid "right of occupancy payment"
 msgstr "AO-maksu"
 
 #: invoicing/enums.py:33
