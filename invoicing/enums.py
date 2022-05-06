@@ -13,7 +13,7 @@ class InstallmentType(Enum):
     REFUND = "REFUND"
     DOWN_PAYMENT = "DOWN_PAYMENT"
     LATE_PAYMENT_INTEREST = "LATE_PAYMENT_INTEREST"
-    RIGHT_OF_RESIDENCE_FEE = "RIGHT_OF_RESIDENCE_FEE"
+    RIGHT_OF_OCCUPANCY_PAYMENT = "RIGHT_OF_OCCUPANCY_PAYMENT"
     FOR_INVOICING = "FOR_INVOICING"
     DEPOSIT = "DEPOSIT"
     RESERVATION_FEE = "RESERVATION_FEE"
@@ -29,7 +29,7 @@ class InstallmentType(Enum):
         REFUND = _("refund")
         DOWN_PAYMENT = _("down payment")
         LATE_PAYMENT_INTEREST = _("late payment interest")
-        RIGHT_OF_RESIDENCE_FEE = _("right of residence fee")
+        RIGHT_OF_OCCUPANCY_PAYMENT = _("right of occupancy payment")
         FOR_INVOICING = _("for invoicing")
         DEPOSIT = _("deposit")
         RESERVATION_FEE = _("reservation fee")
