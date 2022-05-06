@@ -17,7 +17,6 @@ class ApartmentSerializer(serializers.Serializer):
             apartment_uuid=obj["uuid"]
         ).order_by(
             "list_position",
-            "queue_position",
         )
         return SalesApartmentReservationSerializer(
             reservations,

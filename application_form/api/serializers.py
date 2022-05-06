@@ -149,6 +149,10 @@ class ApplicationSerializer(ApplicationSerializerBase):
 class ApartmentReservationSerializerBase(serializers.ModelSerializer):
     state = EnumField(ApartmentReservationState)
     queue_position = serializers.SerializerMethodField()
+    lottery_position = IntegerField(
+        source="application_apartment.lotteryeventresult.result_position",
+        allow_null=True,
+    )
     priority_number = serializers.IntegerField(
         source="application_apartment.priority_number", allow_null=True
     )
@@ -158,7 +162,7 @@ class ApartmentReservationSerializerBase(serializers.ModelSerializer):
         fields = (
             "id",
             "apartment_uuid",
-            "list_position",
+            "lottery_position",
             "queue_position",
             "priority_number",
             "state",

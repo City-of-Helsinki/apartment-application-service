@@ -62,7 +62,7 @@ def test_root_apartment_reservation_detail(
         "apartment_uuid": reservation.apartment_uuid,
         "queue_position": None,
         "state": reservation.state.value,
-        "list_position": reservation.list_position,
+        "lottery_position": None,
         "priority_number": reservation.application_apartment.priority_number,
     }
 
