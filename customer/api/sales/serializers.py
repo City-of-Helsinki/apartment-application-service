@@ -5,7 +5,10 @@ from uuid import UUID
 
 from apartment.elastic.queries import get_apartment
 from apartment_application_service.utils import update_obj
-from application_form.api.serializers import ApartmentReservationSerializerBase
+from application_form.api.serializers import (
+    ApartmentReservationSerializerBase,
+    ApartmentReservationStateChangeEventSerializer,
+)
 from application_form.models import ApartmentReservation
 from customer.models import Customer
 from invoicing.api.serializers import ApartmentInstallmentSerializer
@@ -26,6 +29,7 @@ class CustomerApartmentReservationSerializer(ApartmentReservationSerializerBase)
     apartment_debt_free_sales_price = serializers.SerializerMethodField()
     apartment_right_of_occupancy_payment = serializers.SerializerMethodField()
     apartment_installments = ApartmentInstallmentSerializer(many=True)
+    state_change_events = ApartmentReservationStateChangeEventSerializer(many=True)
 
     class Meta(ApartmentReservationSerializerBase.Meta):
         model = ApartmentReservation
@@ -44,6 +48,7 @@ class CustomerApartmentReservationSerializer(ApartmentReservationSerializerBase)
             "apartment_debt_free_sales_price",
             "apartment_right_of_occupancy_payment",
             "apartment_installments",
+            "state_change_events",
         ) + ApartmentReservationSerializerBase.Meta.fields
 
     def to_representation(self, instance):

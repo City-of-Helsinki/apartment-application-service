@@ -7,6 +7,7 @@ from typing import List
 from application_form.enums import ApartmentReservationState, ApplicationType
 from application_form.models import (
     ApartmentReservation,
+    ApartmentReservationStateChangeEvent,
     Applicant,
     Application,
     ApplicationApartment,
@@ -16,6 +17,7 @@ from application_form.models import (
 from application_form.services.application import _calculate_age
 from application_form.tests.utils import calculate_ssn_suffix
 from customer.tests.factories import CustomerFactory
+from users.tests.factories import UserFactory
 
 
 class ApplicationFactory(factory.django.DjangoModelFactory):
@@ -116,3 +118,12 @@ class LotteryEventResultFactory(factory.django.DjangoModelFactory):
     event = factory.SubFactory(LotteryEventFactory)
     application_apartment = factory.SubFactory(ApplicationApartmentFactory)
     result_position = fuzzy.FuzzyInteger(1)
+
+
+class ApartmentReservationStateChangeEventFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = ApartmentReservationStateChangeEvent
+
+    reservation = factory.SubFactory(ApartmentReservationFactory)
+    state = fuzzy.FuzzyChoice(list(ApartmentReservationState))
+    user = factory.SubFactory(UserFactory)

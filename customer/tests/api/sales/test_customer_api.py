@@ -57,7 +57,17 @@ def test_get_customer_api_detail(api_client):
     assert_profile_match_data(
         customer.secondary_profile, response.data["secondary_profile"]
     )
-
+    state_change_events = response.data["apartment_reservations"][0].pop(
+        "state_change_events"
+    )
+    assert state_change_events[0]["timestamp"] is not None
+    state_change_events[0].pop("timestamp")
+    assert state_change_events == [
+        {
+            "comment": reservation.state_change_events.first().comment,
+            "state": reservation.state_change_events.first().state.value,
+        }
+    ]
     assert response.data["apartment_reservations"] == [
         {
             "id": reservation.id,
