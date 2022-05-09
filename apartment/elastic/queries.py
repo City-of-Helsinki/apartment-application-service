@@ -13,7 +13,10 @@ def get_apartment(apartment_uuid, include_project_fields=False):
         search = search.source(excludes=["project_*"])
 
     # Get item
-    apartment = search.execute()[0]
+    try:
+        apartment = search.execute()[0]
+    except IndexError:
+        raise ObjectDoesNotExist("Apartment does not exist in ElasticSearch.")
 
     return apartment
 

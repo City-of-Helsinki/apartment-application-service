@@ -15,6 +15,7 @@ from application_form.models import (
     ApartmentReservationStateChangeEvent,
     Applicant,
     Application,
+    LotteryEvent,
 )
 from application_form.services.application import create_application
 from application_form.validators import ProjectApplicantValidator, SSNSuffixValidator
@@ -147,10 +148,10 @@ class ApplicationSerializer(ApplicationSerializerBase):
 
 
 class ApartmentReservationSerializerBase(serializers.ModelSerializer):
-    state = EnumField(ApartmentReservationState)
+    state = EnumField(ApartmentReservationState, read_only=True)
     queue_position = serializers.SerializerMethodField()
     priority_number = serializers.IntegerField(
-        source="application_apartment.priority_number", allow_null=True
+        source="application_apartment.priority_number", allow_null=True, read_only=True
     )
 
     class Meta:
@@ -163,15 +164,19 @@ class ApartmentReservationSerializerBase(serializers.ModelSerializer):
             "priority_number",
             "state",
         )
+        read_only_fields = (
+            "id",
+            "list_position",
+            "queue_position",
+            "priority_number",
+            "state",
+        )
 
     def get_queue_position(self, obj):
-        try:
-            lottery_result = obj.application_apartment.lotteryeventresult
-            if lottery_result:
-                return obj.queue_position
-        except AttributeError:
-            pass
-        return None
+        if LotteryEvent.objects.filter(apartment_uuid=obj.apartment_uuid).exists():
+            return obj.queue_position
+        else:
+            return None
 
 
 class ApartmentReservationSerializer(ApartmentReservationSerializerBase):
