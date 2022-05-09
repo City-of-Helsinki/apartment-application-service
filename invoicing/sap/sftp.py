@@ -1,12 +1,12 @@
 import paramiko
-from io import BytesIO
+from typing import BinaryIO
 
 
 def sftp_put_file_object(
     host: str,
     username: str,
     password: str,
-    local_file: BytesIO,
+    local_file: BinaryIO,
     remote_file: str,
     port: int = 22,
 ):

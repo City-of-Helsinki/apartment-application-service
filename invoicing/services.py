@@ -17,10 +17,15 @@ def send_pending_installments_to_sap() -> int:
     return num_of_installments
 
 
-def send_xml_to_sap(xml: bytes) -> None:
-    filename = (
+def generate_sap_xml_filename() -> str:
+    return (
         settings.SAP_SFTP_FILENAME_PREFIX + f"{timezone.now().strftime('%Y%m%d%H%M%S')}"
     )
+
+
+def send_xml_to_sap(xml: bytes, filename: str = None) -> None:
+    if filename is None:
+        filename = generate_sap_xml_filename()
     sftp_put_file_object(
         settings.SAP_SFTP_HOST,
         settings.SAP_SFTP_USERNAME,
