@@ -153,6 +153,7 @@ class ApartmentReservationSerializerBase(serializers.ModelSerializer):
     lottery_position = IntegerField(
         source="application_apartment.lotteryeventresult.result_position",
         allow_null=True,
+        read_only=True,
     )
     priority_number = serializers.IntegerField(
         source="application_apartment.priority_number", allow_null=True, read_only=True
@@ -170,7 +171,7 @@ class ApartmentReservationSerializerBase(serializers.ModelSerializer):
         )
         read_only_fields = (
             "id",
-            "list_position",
+            "lottery_position",
             "queue_position",
             "priority_number",
             "state",
