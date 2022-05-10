@@ -454,7 +454,7 @@ def test_create_reservation(user_api_client, include_read_only_fields):
         # try to set read only fields which should not be possible
         data.update(
             {
-                "list_position": 8,
+                "lottery_position": 8,
                 "priority_number": 11,
                 "queue_position": 4,
                 "state": "offered",
@@ -477,7 +477,7 @@ def test_create_reservation(user_api_client, include_read_only_fields):
     assert response.data == {
         "installments": [],
         "installment_candidates": [],
-        "list_position": 1,
+        "lottery_position": None,
         "queue_position": 1,
         "priority_number": None,
         "state": "reserved",
@@ -562,7 +562,6 @@ def test_create_reservation_queue_already_has_canceled_reservation(user_api_clie
 
     assert response.data["state"] == "reserved"
     assert response.data["queue_position"] == 1
-    assert response.data["list_position"] == 2
 
 
 @pytest.mark.django_db
@@ -593,4 +592,3 @@ def test_create_reservation_queue_already_has_reserved_reservation(user_api_clie
 
     assert response.data["state"] == "submitted"
     assert response.data["queue_position"] == 2
-    assert response.data["list_position"] == 2

@@ -110,9 +110,7 @@ class CustomerSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(CustomerApartmentReservationSerializer(many=True))
     def get_apartment_reservations(self, obj):
-        reservations = ApartmentReservation.objects.filter(
-            application_apartment__application__customer=obj
-        )
+        reservations = ApartmentReservation.objects.filter(customer=obj)
         return CustomerApartmentReservationSerializer(reservations, many=True).data
 
     @transaction.atomic

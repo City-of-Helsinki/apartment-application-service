@@ -32,6 +32,7 @@ def test_get_customer_api_detail(api_client):
     reservation = ApartmentReservationFactory(
         application_apartment__application__customer=customer,
         application_apartment__apartment_uuid=apartment.uuid,
+        customer=customer,
         apartment_uuid=apartment.uuid,
     )
     installment = ApartmentInstallmentFactory(

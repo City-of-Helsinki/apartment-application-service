@@ -75,16 +75,18 @@ def create_reservation(reservation_data: dict) -> ApartmentReservation:
         else:
             state = ApartmentReservationState.RESERVED
 
-        max_values = existing_reservations.aggregate(
-            list_position=Max("list_position"),
-            queue_position=Max("queue_position"),
-        )
+        max_list_position = existing_reservations.aggregate(
+            max_list_position=Max("list_position")
+        )["max_list_position"]
+        max_queue_position = existing_reservations.exclude(
+            state=ApartmentReservationState.CANCELED
+        ).aggregate(max_queue_position=Max("queue_position"))["max_queue_position"]
 
         reservation = ApartmentReservation.objects.create(
             **reservation_data,
             state=state,
-            list_position=(max_values["list_position"] or 0) + 1,
-            queue_position=(max_values["queue_position"] or 0) + 1,
+            list_position=(max_list_position or 0) + 1,
+            queue_position=(max_queue_position or 0) + 1,
         )
 
     return reservation
