@@ -173,11 +173,6 @@ def test_project_detail_apartment_reservations(
             len(apartment_data["reservations"])
             == expect_reservations_per_apartment_count
         )
-        expect_sorted_reservations = sorted(
-            apartment_data["reservations"],
-            key=lambda x: (x["list_position"], x["queue_position"]),
-        )
-        assert apartment_data["reservations"] == expect_sorted_reservations
 
         _assert_apartment_reservations_data(apartment_data["reservations"])
 
