@@ -32,3 +32,9 @@ class ApplicationType(Enum):
 class ApartmentQueueChangeEventType(Enum):
     ADDED = "added"
     REMOVED = "removed"
+
+
+class OfferState(Enum):
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    REJECTED = "rejected"
