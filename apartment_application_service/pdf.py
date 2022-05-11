@@ -90,6 +90,11 @@ def create_pdf(
         single_pdf = _create_pdf(
             f"{PDF_TEMPLATE_DIRECTORY}/{template_file_name}", pdf_data.to_data_dict()
         )
+        if not hasattr(pdf.Root, "AcroForm") and hasattr(single_pdf.Root, "AcroForm"):
+            acroform = pdf.copy_foreign(single_pdf.Root.AcroForm)
+            pdf.Root.AcroForm = acroform
+            del pdf.Root.AcroForm.Fields
+            pdf.Root.AcroForm.NeedAppearances = True
         pdf.pages.extend(single_pdf.pages)
 
     pdf_bytes = BytesIO()
@@ -122,10 +127,12 @@ def _set_pdf_fields(pdf: Pdf, data_dict: DataDict) -> None:
                 annot.DV = pdf_value
             else:
                 raise PDFError(f"Field {field_name} has an unsupported type {annot.FT}")
+            # Required to show the filled fields in almost every MacOS PDF viewer
+            # Source: https://stackoverflow.com/a/63025285
+            annot.AP = ""
 
 
 def _create_pdf(template_file_name: str, data_dict: DataDict) -> Pdf:
     pdf = Pdf.open(template_file_name)
     _set_pdf_fields(pdf, data_dict)
-    pdf.Root.AcroForm.NeedAppearances = 1
     return pdf

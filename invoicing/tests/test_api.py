@@ -545,7 +545,7 @@ def test_apartment_installment_invoice_pdf(
     assert response["Content-Type"] == "application/pdf"
     assert (
         bytes(
-            reservation_with_installments.application_apartment.application.customer.primary_profile.full_name,  # noqa E501
+            reservation_with_installments.customer.primary_profile.full_name,
             encoding="utf-8",
         )
         in response.content
