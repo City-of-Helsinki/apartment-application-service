@@ -10,7 +10,7 @@ class ApplicantExportService:
     COLUMNS = [
         ("Full name", "full_name"),
         ("Email address", "email"),
-        ("Lottery result", "queue_position"),
+        ("Queue position", "queue_position"),
         ("Has children", "has_children"),
         ("Project address", "project_street_address"),
         ("Apartment number", "apartment_number"),
