@@ -1,6 +1,8 @@
 import factory
 import random
 import uuid
+from datetime import timedelta
+from django.utils import timezone
 from factory import Faker, fuzzy, LazyAttribute
 from typing import List
 
@@ -13,6 +15,7 @@ from application_form.models import (
     ApplicationApartment,
     LotteryEvent,
     LotteryEventResult,
+    Offer,
 )
 from application_form.services.application import _calculate_age
 from application_form.tests.utils import calculate_ssn_suffix
@@ -127,3 +130,15 @@ class ApartmentReservationStateChangeEventFactory(factory.django.DjangoModelFact
     reservation = factory.SubFactory(ApartmentReservationFactory)
     state = fuzzy.FuzzyChoice(list(ApartmentReservationState))
     user = factory.SubFactory(UserFactory)
+
+
+class OfferFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Offer
+
+    apartment_reservation = factory.SubFactory(ApartmentReservationFactory)
+    comment = fuzzy.FuzzyText()
+    valid_until = fuzzy.FuzzyDate(
+        start_date=timezone.now().date() + timedelta(days=7),
+        end_date=timezone.now().date() + timedelta(days=14),
+    )

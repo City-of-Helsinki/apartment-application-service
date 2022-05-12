@@ -15,6 +15,7 @@ from rest_framework.response import Response
 
 from apartment.elastic.queries import get_apartment, get_project
 from application_form.api.sales.serializers import (
+    OfferSerializer,
     ProjectUUIDSerializer,
     RootApartmentReservationSerializer,
     SalesApplicationSerializer,
@@ -29,7 +30,7 @@ from application_form.enums import (
     ApartmentReservationState,
 )
 from application_form.exceptions import ProjectDoesNotHaveApplicationsException
-from application_form.models import ApartmentReservation
+from application_form.models import ApartmentReservation, Offer
 from application_form.pdf import create_haso_contract_pdf, create_hitas_contract_pdf
 from application_form.services.application import cancel_reservation
 from application_form.services.lottery.exceptions import (
@@ -209,3 +210,13 @@ class ApartmentReservationViewSet(
             ApartmentReservationCancelEventSerializer(cancel_event).data,
             status=status.HTTP_200_OK,
         )
+
+
+class OfferViewSet(
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    viewsets.GenericViewSet,
+):
+    queryset = Offer.objects.all()
+    serializer_class = OfferSerializer

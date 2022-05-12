@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 from application_form.api.sales.views import (
     ApartmentReservationViewSet,
     execute_lottery_for_project,
+    OfferViewSet,
     SalesApplicationViewSet,
 )
 from application_form.api.views import ApplicationViewSet, ListProjectReservations
@@ -22,6 +23,11 @@ router.register(
     r"sales/apartment_reservations",
     ApartmentReservationViewSet,
     basename="sales-apartment-reservation",
+)
+router.register(
+    r"sales/offers",
+    OfferViewSet,
+    basename="sales-offer",
 )
 
 
