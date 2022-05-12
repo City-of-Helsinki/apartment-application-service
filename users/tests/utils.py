@@ -2,6 +2,7 @@ from datetime import date
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import RefreshToken
 from typing import Optional
+from uuid import UUID
 
 from customer.models import Customer
 from users.models import Profile
@@ -23,25 +24,33 @@ def _create_profile(profile_data: dict, password: str) -> Profile:
     return profile
 
 
-def assert_customer_match_data(customer: Customer, data: dict):
+def assert_customer_match_data(customer: Customer, data: dict, compact: bool = False):
     if "primary_profile" in data:
-        assert_profile_match_data(customer.primary_profile, data["primary_profile"])
+        assert_profile_match_data(
+            customer.primary_profile, data["primary_profile"], compact=compact
+        )
     if "secondary_profile" in data:
-        assert_profile_match_data(customer.secondary_profile, data["secondary_profile"])
+        assert_profile_match_data(
+            customer.secondary_profile, data["secondary_profile"], compact=compact
+        )
 
-    fields = (
-        "additional_information",
-        "last_contact_date",
-        "has_children",
-        "has_hitas_ownership",
-        "is_age_over_55",
-        "is_right_of_occupancy_housing_changer",
-        "right_of_residence",
-    )
+    fields = ("id",)
+    if not compact:
+        fields += (
+            "additional_information",
+            "last_contact_date",
+            "has_children",
+            "has_hitas_ownership",
+            "is_age_over_55",
+            "is_right_of_occupancy_housing_changer",
+            "right_of_residence",
+        )
     assert_obj_match_data(customer, data, fields)
 
 
-def assert_profile_match_data(profile: Optional[Profile], data: Optional[dict]):
+def assert_profile_match_data(
+    profile: Optional[Profile], data: Optional[dict], compact: bool = False
+):
     if not data:
         assert profile is None
         return
@@ -50,15 +59,19 @@ def assert_profile_match_data(profile: Optional[Profile], data: Optional[dict]):
         "id",
         "first_name",
         "last_name",
-        "email",
-        "phone_number",
-        "street_address",
-        "city",
-        "postal_code",
-        "contact_language",
-        "national_identification_number",
-        "date_of_birth",
     )
+
+    if not compact:
+        fields += (
+            "email",
+            "phone_number",
+            "street_address",
+            "city",
+            "postal_code",
+            "contact_language",
+            "national_identification_number",
+            "date_of_birth",
+        )
     assert_obj_match_data(profile, data, fields)
 
 
@@ -66,6 +79,6 @@ def assert_obj_match_data(obj, data, fields):
     for field in fields:
         if field in data:
             obj_value = getattr(obj, field)
-            if isinstance(obj_value, date):
+            if isinstance(obj_value, date) or isinstance(obj_value, UUID):
                 obj_value = str(obj_value)
             assert data[field] == obj_value, f"{field}: {data[field]} != {obj_value}"

@@ -14,7 +14,7 @@ from application_form.tests.factories import (
 )
 from customer.tests.factories import CustomerFactory
 from users.tests.factories import ProfileFactory
-from users.tests.utils import _create_token
+from users.tests.utils import _create_token, assert_customer_match_data
 
 
 @pytest.mark.django_db
@@ -175,6 +175,12 @@ def test_project_detail_apartment_reservations(
         )
 
         _assert_apartment_reservations_data(apartment_data["reservations"])
+        for reservation_data in apartment_data["reservations"]:
+            assert_customer_match_data(
+                ApartmentReservation.objects.get(id=reservation_data["id"]).customer,
+                reservation_data["customer"],
+                compact=True,
+            )
 
 
 @pytest.mark.django_db
@@ -242,7 +248,7 @@ def test_project_detail_apartment_reservations_multiple_winning(
     for apartment_data in apartments_data:
         for reservation in apartment_data["reservations"]:
             assert reservation["has_multiple_winning_apartments"] == (
-                reservation["customer"] == customer.id
+                reservation["customer"]["id"] == customer.id
             )
 
 
