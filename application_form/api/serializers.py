@@ -159,6 +159,14 @@ class ApartmentReservationSerializerBase(serializers.ModelSerializer):
         source="application_apartment.priority_number", allow_null=True, read_only=True
     )
 
+    project_lottery_completed = serializers.SerializerMethodField()
+
+    def get_project_lottery_completed(self, obj):
+        lottery_completed = LotteryEvent.objects.filter(
+            apartment_uuid=obj.apartment_uuid
+        ).exists()
+        return lottery_completed
+
     class Meta:
         model = ApartmentReservation
         fields = (
@@ -168,6 +176,7 @@ class ApartmentReservationSerializerBase(serializers.ModelSerializer):
             "queue_position",
             "priority_number",
             "state",
+            "project_lottery_completed",
         )
         read_only_fields = (
             "id",
