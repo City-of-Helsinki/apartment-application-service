@@ -78,6 +78,7 @@ def test_list_project_reservations_get_without_lottery_data(
     for item in response.data:
         assert item["lottery_position"] is None
         assert item["queue_position"] is None
+        assert not item["project_lottery_completed"]
 
 
 @pytest.mark.django_db
@@ -110,3 +111,4 @@ def test_list_project_reservations_get_with_lottery_data(
     for item in response.data:
         assert item["lottery_position"] == 1
         assert item["queue_position"] == 1
+        assert item["project_lottery_completed"]

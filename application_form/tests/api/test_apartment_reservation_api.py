@@ -65,6 +65,7 @@ def test_root_apartment_reservation_detail(
         "queue_position": None,
         "state": reservation.state.value,
         "lottery_position": None,
+        "project_lottery_completed": False,
         "priority_number": reservation.application_apartment.priority_number,
         "customer_id": reservation.customer.id,
     }
@@ -483,6 +484,7 @@ def test_create_reservation(user_api_client, include_read_only_fields):
         "installments": [],
         "installment_candidates": [],
         "lottery_position": None,
+        "project_lottery_completed": True,
         "queue_position": 1,
         "priority_number": None,
         "state": "reserved",
