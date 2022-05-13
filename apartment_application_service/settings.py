@@ -72,6 +72,11 @@ env = environ.Env(
     HASHIDS_SALT=(str, ""),
     PUBLIC_PGP_KEY=(str, ""),
     PRIVATE_PGP_KEY=(str, ""),
+    SAP_SFTP_USERNAME=(str, ""),
+    SAP_SFTP_PASSWORD=(str, ""),
+    SAP_SFTP_HOST=(str, ""),
+    SAP_SFTP_PORT=(int, 22),
+    SAP_SFTP_FILENAME_PREFIX=(str, "MR_IN_ID066_2800_"),
 )
 if os.path.exists(env_file):
     env.read_env(env_file)
@@ -265,6 +270,40 @@ OIDC_API_TOKEN_AUTH = {
 SOCIAL_AUTH_TUNNISTAMO_KEY = env("SOCIAL_AUTH_TUNNISTAMO_KEY")
 SOCIAL_AUTH_TUNNISTAMO_SECRET = env("SOCIAL_AUTH_TUNNISTAMO_SECRET")
 SOCIAL_AUTH_TUNNISTAMO_OIDC_ENDPOINT = env("SOCIAL_AUTH_TUNNISTAMO_OIDC_ENDPOINT")
+
+# Invoicing
+INVOICE_NUMBER_PREFIX = "730"
+
+# SAP
+SAP = {
+    "SENDER_ID": "ID066",
+    "COMPANY_CODE": "2800",
+    "DOCUMENT_TYPE": "5R",
+    "CURRENCY_CODE": "EUR",
+    "TAX_CODE": "4Z",
+    "PAYMENT_TERMS": "N073",
+    "GL_ACCOUNT": "350080",
+    "WBS_ELEMENT": {
+        "PREFIX": "282500",
+        "OWNERSHIP_TYPE_CODE": {
+            "HASO": "2",
+            "HITAS": "4",
+            "PUOLIHITAS": "6",
+        },
+        "REVENUE_TYPE_CODE": {
+            "HASO": "02303",
+            "HITAS": "02302",
+            "PUOLIHITAS": "02302",
+        },
+    },
+}
+
+# SAP SFTP
+SAP_SFTP_USERNAME = env("SAP_SFTP_USERNAME")
+SAP_SFTP_PASSWORD = env("SAP_SFTP_PASSWORD")
+SAP_SFTP_HOST = env("SAP_SFTP_HOST")
+SAP_SFTP_PORT = env("SAP_SFTP_PORT")
+SAP_SFTP_FILENAME_PREFIX = env("SAP_SFTP_FILENAME_PREFIX")
 
 # Elasticsearch
 ELASTICSEARCH_URL = env("ELASTICSEARCH_URL")

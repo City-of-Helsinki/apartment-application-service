@@ -181,8 +181,11 @@ class ApartmentInstallmentCandidateSerializer(ApartmentInstallmentSerializerBase
 )
 class ApartmentInstallmentSerializer(ApartmentInstallmentSerializerBase):
     class Meta(ApartmentInstallmentSerializerBase.Meta):
-        fields = ApartmentInstallmentSerializerBase.Meta.fields + ("reference_number",)
-        read_only_fields = ("reference_number",)
+        fields = ApartmentInstallmentSerializerBase.Meta.fields + (
+            "reference_number",
+            "added_to_be_sent_to_sap_at",
+        )
+        read_only_fields = ("reference_number", "added_to_be_sent_to_sap_at")
 
     def create(self, validated_data):
         if old_instance := self.context["old_instances"].get(validated_data["type"]):

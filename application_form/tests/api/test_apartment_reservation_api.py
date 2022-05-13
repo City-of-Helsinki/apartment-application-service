@@ -56,7 +56,8 @@ def test_root_apartment_reservation_detail(
                 "amount": int(installment.value * 100),
                 "account_number": installment.account_number,
                 "reference_number": installment.reference_number,
-                "due_date": None,
+                "due_date": str(installment.due_date),
+                "added_to_be_sent_to_sap_at": None,
             }
         ],
         "installment_candidates": [],
@@ -89,6 +90,7 @@ def test_root_apartment_reservation_detail_installment_candidates(api_client):
         value=Decimal("10"),
         unit=InstallmentUnit.PERCENT,
         percentage_specifier=InstallmentPercentageSpecifier.SALES_PRICE,
+        due_date=None,
     )
     installment_template_3 = ProjectInstallmentTemplateFactory(
         project_uuid=project_uuid,
@@ -96,6 +98,7 @@ def test_root_apartment_reservation_detail_installment_candidates(api_client):
         value=Decimal("0.7"),
         unit=InstallmentUnit.PERCENT,
         percentage_specifier=InstallmentPercentageSpecifier.DEBT_FREE_SALES_PRICE,
+        due_date=None,
     )
     installment_template_4 = ProjectInstallmentTemplateFactory(
         project_uuid=project_uuid,
@@ -103,6 +106,7 @@ def test_root_apartment_reservation_detail_installment_candidates(api_client):
         value=Decimal("17.25"),
         unit=InstallmentUnit.PERCENT,
         percentage_specifier=InstallmentPercentageSpecifier.DEBT_FREE_SALES_PRICE_FLEXIBLE,  # noqa: E501
+        due_date=None,
     )
     # another project
     ProjectInstallmentTemplateFactory(
@@ -110,6 +114,7 @@ def test_root_apartment_reservation_detail_installment_candidates(api_client):
         type=InstallmentType.PAYMENT_1,
         value=Decimal("53"),
         unit=InstallmentUnit.EURO,
+        due_date=None,
     )
 
     response = api_client.get(

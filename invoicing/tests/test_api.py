@@ -3,6 +3,7 @@ import pytest
 import uuid
 from decimal import Decimal
 from django.urls import reverse
+from django.utils import timezone
 
 from apartment.tests.factories import ApartmentDocumentFactory
 from application_form.tests.factories import ApartmentReservationFactory
@@ -85,6 +86,7 @@ def test_project_detail_installments_field_and_installments_endpoint_data(
             "value": "100.00",
             "unit": InstallmentUnit.EURO,
             "account_number": "123123123-123",
+            "due_date": None,
         }
     )
 
@@ -290,6 +292,7 @@ def test_apartment_installments_endpoint_data(apartment_document, profile_api_cl
             "type": InstallmentType.REFUND,
             "value": "100.55",
             "account_number": "123123123-123",
+            "due_date": None,
             "reference_number": "REFERENCE-321",
         }
     )
@@ -308,6 +311,7 @@ def test_apartment_installments_endpoint_data(apartment_document, profile_api_cl
             "account_number": "123123123-123",
             "due_date": "2022-02-19",
             "reference_number": "REFERENCE-123",
+            "added_to_be_sent_to_sap_at": None,
         },
         {
             "type": "REFUND",
@@ -315,6 +319,7 @@ def test_apartment_installments_endpoint_data(apartment_document, profile_api_cl
             "account_number": "123123123-123",
             "due_date": None,
             "reference_number": "REFERENCE-321",
+            "added_to_be_sent_to_sap_at": None,
         },
     ]
 
@@ -331,6 +336,7 @@ def test_set_apartment_installments(profile_api_client, has_old_installments):
             "account_number": "123123123-123",
             "due_date": "2022-02-19",
             "reference_number": "REFERENCE-123",
+            "added_to_be_sent_to_sap_at": timezone.now(),
         },
         {
             "type": "REFUND",
@@ -338,6 +344,7 @@ def test_set_apartment_installments(profile_api_client, has_old_installments):
             "account_number": "123123123-123",
             "due_date": None,
             "reference_number": "REFERENCE-321",
+            "added_to_be_sent_to_sap_at": timezone.now(),
         },
     ]
 
@@ -364,6 +371,8 @@ def test_set_apartment_installments(profile_api_client, has_old_installments):
 
     data[0]["reference_number"] = installment_1.reference_number
     data[1]["reference_number"] = installment_2.reference_number
+    data[0]["added_to_be_sent_to_sap_at"] = None
+    data[1]["added_to_be_sent_to_sap_at"] = None
     assert response.data == data
 
     assert ApartmentInstallment.objects.count() == 3
@@ -590,3 +599,62 @@ def test_apartment_installment_invoice_pdf_filtering_errors(
 
     assert response.status_code == 400
     assert "Invalid index" in response.data[0]["message"]
+
+
+@pytest.mark.django_db
+def test_add_installments_to_be_sent_to_sap_at(
+    api_client, reservation_with_installments
+):
+    base_url = reverse(
+        "application_form:apartment-installment-add-to-be-sent-to-sap",
+        kwargs={"apartment_reservation_id": reservation_with_installments.id},
+    )
+
+    response = api_client.post(
+        base_url + "?index=0",
+        format="json",
+    )
+    assert response.status_code == 200
+
+    assert response.data[0].keys() == {
+        "account_number",
+        "due_date",
+        "reference_number",
+        "type",
+        "amount",
+        "added_to_be_sent_to_sap_at",
+    }
+
+    assert response.data[0]["added_to_be_sent_to_sap_at"]
+    assert reservation_with_installments.apartment_installments.order_by("id")[
+        0
+    ].added_to_be_sent_to_sap_at
+    assert not response.data[1]["added_to_be_sent_to_sap_at"]
+    assert not (
+        reservation_with_installments.apartment_installments.order_by("id")[
+            1
+        ].added_to_be_sent_to_sap_at
+    )
+
+
+@pytest.mark.django_db
+def test_add_installments_to_be_sent_to_sap_at_already_added(
+    api_client, reservation_with_installments
+):
+    base_url = reverse(
+        "application_form:apartment-installment-add-to-be-sent-to-sap",
+        kwargs={"apartment_reservation_id": reservation_with_installments.id},
+    )
+
+    response = api_client.post(
+        base_url + "?index=0",
+        format="json",
+    )
+    assert response.status_code == 200
+
+    response = api_client.post(
+        base_url + "?index=0",
+        format="json",
+    )
+    assert response.status_code == 400
+    assert "already" in str(response.data)

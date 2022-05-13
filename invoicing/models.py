@@ -1,5 +1,8 @@
+from datetime import date, datetime
+from django.conf import settings
 from django.db import models, transaction
 from django.db.models import UniqueConstraint
+from django.utils import timezone
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from enumfields import EnumField
@@ -18,6 +21,10 @@ from invoicing.utils import (
 )
 
 
+class AlreadyAddedToBeSentToSapError(Exception):
+    pass
+
+
 class InstallmentBase(models.Model):
     created_at = models.DateTimeField(
         verbose_name=_("created at"), default=now, editable=False
@@ -33,16 +40,37 @@ class InstallmentBase(models.Model):
         abstract = True
 
 
+class ApartmentInstallmentQuerySet(models.QuerySet):
+    def sap_pending(self):
+        return self.filter(
+            added_to_be_sent_to_sap_at__isnull=False, sent_to_sap_at__isnull=True
+        )
+
+    def set_sent_to_sap_at(self, dt: datetime = None):
+        self.update(sent_to_sap_at=dt or timezone.now())
+
+
 class ApartmentInstallment(InstallmentBase):
+    INVOICE_NUMBER_PREFIX_LENGTH: int = 3
+
     apartment_reservation = models.ForeignKey(
         ApartmentReservation,
         verbose_name=_("apartment reservation"),
         related_name="apartment_installments",
         on_delete=models.PROTECT,
     )
+    invoice_number = models.CharField(max_length=9, verbose_name=_("invoice number"))
     reference_number = models.CharField(
         max_length=64, verbose_name=_("reference number"), unique=True
     )
+    added_to_be_sent_to_sap_at = models.DateTimeField(
+        verbose_name=_("added to be sent to SAP at"), null=True, blank=True
+    )
+    sent_to_sap_at = models.DateTimeField(
+        verbose_name=_("sent to SAP at"), null=True, blank=True
+    )
+
+    objects = ApartmentInstallmentQuerySet.as_manager()
 
     class Meta:
         constraints = [
@@ -50,6 +78,37 @@ class ApartmentInstallment(InstallmentBase):
                 fields=["apartment_reservation", "type"], name="unique_reservation_type"
             )
         ]
+
+    def _get_next_invoice_number(self):
+        if self.invoice_number:
+            return self.invoice_number
+
+        invoice_number_prefix = settings.INVOICE_NUMBER_PREFIX or ""
+
+        if len(invoice_number_prefix) != self.INVOICE_NUMBER_PREFIX_LENGTH:
+            raise ValueError(
+                f"INVOICE_NUMBER_PREFIX setting has invalid length "
+                f"({self.INVOICE_NUMBER_PREFIX_LENGTH}): {len(invoice_number_prefix)} "
+            )
+
+        apartment_installment = (
+            ApartmentInstallment.objects.filter(
+                invoice_number__istartswith=invoice_number_prefix,
+                created_at__year=date.today().year,
+            )
+            .order_by("-invoice_number")
+            .first()
+        )
+
+        last_invoice_number = 1
+        if apartment_installment:
+            last_invoice_number = apartment_installment.invoice_number
+            removeable_prefix_length = self.INVOICE_NUMBER_PREFIX_LENGTH
+            last_invoice_number = int(last_invoice_number[removeable_prefix_length:])
+            last_invoice_number += 1
+
+        next_invoice_number = invoice_number_prefix + str(last_invoice_number).zfill(6)
+        return next_invoice_number
 
     def set_reference_number(self, force=False):
         if self.reference_number and not force:
@@ -62,14 +121,28 @@ class ApartmentInstallment(InstallmentBase):
     def save(self, *args, **kwargs):
         creating = not self.id
 
-        if creating and not self.reference_number:
-            # set a temporary unique reference number to please the unique constraint
-            self.reference_number = str(f"TEMP-{uuid4()}")
+        self.invoice_number = self._get_next_invoice_number()
+
+        if creating:
+            generate_reference_number = not self.reference_number
+
+            if generate_reference_number:
+                # set a temporary unique reference number to please the unique
+                # constraint
+                self.reference_number = str(f"TEMP-{uuid4()}")
 
             super().save(*args, **kwargs)
-            self.set_reference_number(force=True)
+
+            if generate_reference_number:
+                self.set_reference_number(force=True)
         else:
             super().save(*args, **kwargs)
+
+    def add_to_be_sent_to_sap(self, force=False):
+        if self.added_to_be_sent_to_sap_at and not force:
+            raise AlreadyAddedToBeSentToSapError()
+        self.added_to_be_sent_to_sap_at = timezone.now()
+        self.save(update_fields=("added_to_be_sent_to_sap_at",))
 
 
 class ProjectInstallmentTemplate(InstallmentBase):
