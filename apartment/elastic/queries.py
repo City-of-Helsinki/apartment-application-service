@@ -53,7 +53,7 @@ def get_apartment_uuids(project_uuid):
     return result
 
 
-def get_projects(project_uuid=None):
+def get_project(project_uuid):
     search = ApartmentDocument.search()
 
     # Filters
@@ -78,11 +78,38 @@ def get_projects(project_uuid=None):
     # Retrieve only project fields
     search = search.source(["project_*"])
 
+    # Get only 1 item
+    try:
+        response = search.execute()[0]
+    except IndexError:
+        raise ObjectDoesNotExist("Project does not exist in ElasticSearch.")
+
+    return response
+
+
+def get_projects():
+    search = ApartmentDocument.search()
+
+    # Project data needs to exist in apartment data
+    search = search.filter("exists", field="project_id")
+
+    # Get only most recent apartment which has project data
+    search = search.extra(
+        collapse={
+            "field": "project_id",
+            "inner_hits": {
+                "name": "most_recent",
+                "size": 1,
+                "sort": [{"project_id": "desc"}],
+            },
+        }
+    )
+
+    # Retrieve only project fields
+    search = search.source(["project_*"])
+
     # Get all items
     count = search.count()
     response = search[0:count].execute()
-
-    if project_uuid and not response:
-        raise ObjectDoesNotExist("Project does not exist in ElasticSearch.")
 
     return response

@@ -7,7 +7,7 @@ from typing import ClassVar, Dict
 from uuid import UUID
 
 from apartment.elastic.documents import ApartmentDocument
-from apartment.elastic.queries import get_apartment, get_projects
+from apartment.elastic.queries import get_apartment, get_project
 from apartment_application_service.pdf import create_pdf, PDFData
 from customer.models import Customer
 
@@ -53,11 +53,11 @@ class InvoicePDFData(PDFData):
 def create_invoice_pdf_from_installments(installments):
     @lru_cache
     def get_cached_project(project_uuid: UUID):
-        return get_projects(project_uuid)[0]
+        return get_project(project_uuid)
 
     @lru_cache
     def get_cached_apartment(apartment_uuid: UUID) -> ApartmentDocument:
-        return get_apartment(apartment_uuid)
+        return get_apartment(apartment_uuid, include_project_fields=True)
 
     invoice_pdf_data_list = []
     for installment in installments:

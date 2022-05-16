@@ -2,7 +2,7 @@ import pytest
 import uuid
 from django.urls import reverse
 
-from apartment.elastic.queries import get_projects
+from apartment.elastic.queries import get_project
 from application_form.enums import (
     ApartmentReservationCancellationReason,
     ApartmentReservationState,
@@ -282,7 +282,7 @@ def test_export_applicants_csv_per_project(
     """
     project_uuid, apartments = elastic_project_with_5_apartments
     profile = ProfileFactory()
-    project = get_projects(project_uuid)[0]
+    project = get_project(project_uuid)
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
 
     data = {"project_uuid": uuid.uuid4()}

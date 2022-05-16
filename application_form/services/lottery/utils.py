@@ -1,7 +1,7 @@
 import uuid
 from django.utils import timezone
 
-from apartment.elastic.queries import get_apartment_uuids, get_projects
+from apartment.elastic.queries import get_apartment_uuids, get_project
 from application_form.exceptions import ProjectDoesNotHaveApplicationsException
 from application_form.models import ApartmentReservation, Application, LotteryEvent
 from application_form.services.lottery.exceptions import (
@@ -39,7 +39,7 @@ def _validate_project_has_applications(project_uuid: uuid.UUID):
 
 
 def _validate_project_application_time_has_finished(project_uuid: uuid.UUID):
-    project = get_projects(project_uuid)[0]
+    project = get_project(project_uuid)
     if (
         not project.project_application_end_time
         or project.project_application_end_time >= timezone.now()

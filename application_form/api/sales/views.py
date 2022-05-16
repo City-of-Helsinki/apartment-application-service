@@ -13,7 +13,7 @@ from rest_framework.decorators import (
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
 
-from apartment.elastic.queries import get_apartment, get_projects
+from apartment.elastic.queries import get_apartment, get_project
 from application_form.api.sales.serializers import (
     ProjectUUIDSerializer,
     RootApartmentReservationSerializer,
@@ -56,7 +56,7 @@ def execute_lottery_for_project(request):
     project_uuid = serializer.data.get("project_uuid")
 
     try:
-        get_projects(project_uuid)
+        get_project(project_uuid)
     except ObjectDoesNotExist:
         raise NotFound(detail="Project not found.")
 
