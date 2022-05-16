@@ -48,13 +48,32 @@ class ApplicantCompactSerializer(serializers.ModelSerializer):
         fields = ["first_name", "last_name", "is_primary_applicant", "email"]
 
 
+class ProfileCompactSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Profile
+        fields = (
+            "first_name",
+            "last_name",
+            "email",
+        )
+
+
+class CustomerCompactSerializer(serializers.ModelSerializer):
+    primary_profile = ProfileCompactSerializer()
+    secondary_profile = ProfileCompactSerializer()
+
+    class Meta:
+        model = Customer
+        fields = ("id", "primary_profile", "secondary_profile")
+
+
 class SalesApartmentReservationSerializer(ApartmentReservationSerializerBase):
     applicants = ApplicantCompactSerializer(
         source="application_apartment.application.applicants",
         many=True,
         allow_null=True,
     )
-    customer = serializers.PrimaryKeyRelatedField(read_only=True)
+    customer = CustomerCompactSerializer()
 
     # HITAS fields
     has_children = serializers.SerializerMethodField()
