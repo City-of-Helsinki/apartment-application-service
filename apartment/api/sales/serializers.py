@@ -15,10 +15,12 @@ class ApartmentSerializer(serializers.Serializer):
     state = serializers.SerializerMethodField()
 
     def get_reservations(self, obj):
-        reservations = ApartmentReservation.objects.filter(
-            apartment_uuid=obj["uuid"]
-        ).order_by(
-            "list_position",
+        reservations = (
+            ApartmentReservation.objects.filter(apartment_uuid=obj["uuid"])
+            .select_related("offer")
+            .order_by(
+                "list_position",
+            )
         )
 
         return SalesApartmentReservationSerializer(

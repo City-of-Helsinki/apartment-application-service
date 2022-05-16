@@ -79,7 +79,7 @@ class SalesApplicationViewSet(ApplicationViewSet):
 class ApartmentReservationViewSet(
     mixins.RetrieveModelMixin, mixins.CreateModelMixin, viewsets.GenericViewSet
 ):
-    queryset = ApartmentReservation.objects.all()
+    queryset = ApartmentReservation.objects.select_related("offer")
     serializer_class = RootApartmentReservationSerializer
     permission_classes = [permissions.AllowAny]
 

@@ -16,6 +16,7 @@ from application_form.models import (
     Applicant,
     Application,
     LotteryEvent,
+    Offer,
 )
 from application_form.services.application import create_application
 from application_form.validators import ProjectApplicantValidator, SSNSuffixValidator
@@ -147,6 +148,21 @@ class ApplicationSerializer(ApplicationSerializerBase):
         return super().validate(attrs)
 
 
+class ReservationOfferSerializer(
+    EnumSupportSerializerMixin, serializers.ModelSerializer
+):
+    class Meta:
+        model = Offer
+        fields = (
+            "id",
+            "created_at",
+            "valid_until",
+            "state",
+            "concluded_at",
+            "comment",
+        )
+
+
 class ApartmentReservationSerializerBase(serializers.ModelSerializer):
     state = EnumField(ApartmentReservationState, read_only=True)
     queue_position = serializers.SerializerMethodField()
@@ -158,6 +174,7 @@ class ApartmentReservationSerializerBase(serializers.ModelSerializer):
     priority_number = serializers.IntegerField(
         source="application_apartment.priority_number", allow_null=True, read_only=True
     )
+    offer = ReservationOfferSerializer(read_only=True)
 
     class Meta:
         model = ApartmentReservation
@@ -168,6 +185,7 @@ class ApartmentReservationSerializerBase(serializers.ModelSerializer):
             "queue_position",
             "priority_number",
             "state",
+            "offer",
         )
         read_only_fields = (
             "id",

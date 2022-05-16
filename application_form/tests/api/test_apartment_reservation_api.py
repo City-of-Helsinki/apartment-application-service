@@ -3,6 +3,7 @@ import uuid
 from datetime import date
 from decimal import Decimal
 from django.urls import reverse
+from django.utils.timezone import localtime
 
 from apartment.tests.factories import ApartmentDocumentFactory
 from application_form.enums import (
@@ -16,6 +17,7 @@ from application_form.services.queue import add_application_to_queues
 from application_form.tests.factories import (
     ApartmentReservationFactory,
     ApplicationFactory,
+    OfferFactory,
 )
 from customer.tests.factories import CustomerFactory
 from invoicing.enums import (
@@ -38,6 +40,7 @@ def test_root_apartment_reservation_detail(
         apartment_uuid=apartments[0].uuid, list_position=1
     )
     installment = ApartmentInstallmentFactory(apartment_reservation=reservation)
+    offer = OfferFactory(apartment_reservation=reservation)
 
     response = api_client.get(
         reverse(
@@ -67,6 +70,14 @@ def test_root_apartment_reservation_detail(
         "lottery_position": None,
         "priority_number": reservation.application_apartment.priority_number,
         "customer_id": reservation.customer.id,
+        "offer": {
+            "id": offer.id,
+            "created_at": localtime(offer.created_at).isoformat(),
+            "valid_until": str(offer.valid_until),
+            "state": offer.state.value,
+            "concluded_at": offer.concluded_at,
+            "comment": offer.comment,
+        },
     }
 
 
@@ -486,6 +497,7 @@ def test_create_reservation(user_api_client, include_read_only_fields):
         "queue_position": 1,
         "priority_number": None,
         "state": "reserved",
+        "offer": None,
     }
 
     reservation = ApartmentReservation.objects.get(id=reservation_id)
