@@ -219,4 +219,8 @@ class OfferSerializer(EnumSupportSerializerMixin, serializers.ModelSerializer):
         return create_offer(validated_data)
 
     def update(self, instance, validated_data):
-        return update_offer(instance, validated_data)
+        if request := self.context.get("request"):
+            user = getattr(request, "user", None)
+        else:
+            user = None
+        return update_offer(instance, validated_data, user=user)

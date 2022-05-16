@@ -124,3 +124,19 @@ python manage.py create_sap_xml [reference numbers]
 ```
 python manage.py send_sap_xml <filename>
 ```
+
+## Cronjobs
+
+There are few commands that are needed to be run periodically to get full functionality of some features. The easiest way to do this should be using cron. 
+
+* to get SAP invoices actually sent to the SFTP server
+   ```
+   python manage.py send_pending_installments_to_sap
+   ```
+   once a day during night at some point.
+
+* to get reservation states updated based on expired offers
+   ```
+   python manage.py update_reservations_based_on_offer_expiration
+   ```
+   once a day as close to midnight as possible, but must be after it.

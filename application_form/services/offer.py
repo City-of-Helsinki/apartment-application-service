@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from apartment_application_service.utils import update_obj
 from application_form.enums import ApartmentReservationState, OfferState
-from application_form.models import Offer
+from application_form.models import ApartmentReservation, Offer
 
 User = get_user_model()
 
@@ -48,5 +48,42 @@ def update_offer(offer: Offer, offer_data: dict, user: User = None) -> Offer:
         offer.concluded_at = timezone.now()
 
     update_obj(offer, offer_data)
+    update_reservation_state_based_on_offer_expiration(offer.apartment_reservation)
 
     return offer
+
+
+def update_reservation_state_based_on_offer_expiration(
+    reservation: ApartmentReservation,
+    user: User = None,
+):
+    update_reservations_based_on_offer_expiration(
+        ApartmentReservation.objects.filter(pk=reservation.pk),
+        user=user,
+    )
+
+
+def update_reservations_based_on_offer_expiration(
+    reservation_qs=None, user: User = None
+) -> (int, int):
+    today = timezone.now().date()
+
+    if not reservation_qs:
+        reservation_qs = ApartmentReservation.objects.all()
+    reservation_qs = reservation_qs.filter(offer__state=OfferState.PENDING)
+
+    new_expired_reservations = reservation_qs.filter(
+        state=ApartmentReservationState.OFFERED,
+        offer__valid_until__lt=today,
+    )
+    not_anymore_expired_reservations = reservation_qs.filter(
+        state=ApartmentReservationState.OFFER_EXPIRED,
+        offer__valid_until__gte=today,
+    )
+
+    for reservation in new_expired_reservations:
+        reservation.set_state(ApartmentReservationState.OFFER_EXPIRED, user=user)
+    for reservation in not_anymore_expired_reservations:
+        reservation.set_state(ApartmentReservationState.OFFERED, user=user)
+
+    return new_expired_reservations.count(), not_anymore_expired_reservations.count()

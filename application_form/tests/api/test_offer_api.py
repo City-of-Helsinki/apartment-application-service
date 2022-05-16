@@ -217,3 +217,32 @@ def test_update_concluded_offer_comment(user_api_client, state):
     assert response.data["comment"] == "new comment"
     offer.refresh_from_db()
     assert offer.comment == "new comment"
+
+
+@pytest.mark.django_db
+def test_update_offer_change_to_expired(user_api_client):
+    today = timezone.now().date()
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid, state=ApartmentReservationState.OFFERED
+    )
+    offer = OfferFactory(
+        apartment_reservation=reservation,
+        state=OfferState.PENDING,
+        valid_until=today,
+    )
+
+    data = {"valid_until": str(today - timedelta(days=1))}
+
+    response = user_api_client.patch(
+        reverse(
+            "application_form:sales-offer-detail",
+            kwargs={"pk": offer.pk},
+        ),
+        data=data,
+        format="json",
+    )
+    assert response.status_code == 200
+
+    reservation.refresh_from_db()
+    assert reservation.state == ApartmentReservationState.OFFER_EXPIRED
