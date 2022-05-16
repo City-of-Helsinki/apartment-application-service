@@ -64,19 +64,23 @@ def test_export_lines(applicant_export_service):
     csv_lines = applicant_export_service.get_rows()
     assert len(applicant_export_service.get_reservations()) == 5
     assert len(csv_lines) == 6
-    assert csv_lines[0][0] == "Full name"
+    for idx, header in enumerate(csv_lines[0]):
+        assert header == ApplicantExportService.COLUMNS[idx][0]
     assert (
         csv_lines[1][0]
         == applicant_export_service.get_reservations()[
             0
         ].customer.primary_profile.full_name
     )
+
+    assert csv_lines[1][3] is None
     assert (
         csv_lines[2][0]
         == applicant_export_service.get_reservations()[
             1
         ].customer.primary_profile.full_name
     )
+    assert csv_lines[2][3] is None
 
 
 @pytest.mark.django_db
@@ -86,30 +90,23 @@ def test_export_lines_with_additional_applicant(
     export_service = applicant_export_service_with_additional_applicant
     csv_lines = export_service.get_rows()
     assert len(export_service.get_reservations()) == 5
-    assert len(csv_lines) == 11
-    assert csv_lines[0][0] == "Full name"
+    assert len(csv_lines) == 6
+    for idx, header in enumerate(csv_lines[0]):
+        assert header == ApplicantExportService.COLUMNS[idx][0]
     assert (
         csv_lines[1][0]
         == export_service.get_reservations()[0].customer.primary_profile.full_name
     )
     assert (
-        csv_lines[2][0]
+        csv_lines[1][3]
         == export_service.get_reservations()[0].customer.secondary_profile.full_name
-    )
-    assert (
-        csv_lines[3][0]
-        == export_service.get_reservations()[1].customer.primary_profile.full_name
-    )
-    assert (
-        csv_lines[4][0]
-        == export_service.get_reservations()[1].customer.secondary_profile.full_name
     )
 
 
 @pytest.mark.django_db
 def test_csv_output(applicant_export_service):
     csv_lines = _split_csv(applicant_export_service.get_csv_string())
-    assert csv_lines[0][0] == '"Full name"'
+    assert csv_lines[0][0] == '"Primary applicant"'
     for idx, col in enumerate(ApplicantExportService.COLUMNS):
         assert csv_lines[0][idx] == f'"{col[0]}"'
 
@@ -145,5 +142,5 @@ def test_write_csv_file(applicant_export_service, tmp_path):
     applicant_export_service.write_csv_file(output_file)
     with open(output_file, encoding="utf-8") as f:
         contents = f.read()
-        assert contents.startswith('"Full name";"Email address"')
+        assert contents.startswith('"Primary applicant";"Primary applicant address"')
         assert "äöÄÖtest" in contents

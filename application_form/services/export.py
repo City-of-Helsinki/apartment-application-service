@@ -1,4 +1,5 @@
 import csv
+import operator
 from io import StringIO
 
 from apartment.elastic.queries import get_apartment
@@ -8,8 +9,12 @@ class ApplicantExportService:
     CSV_DELIMITER = ";"
     FILE_ENCODING = "utf-8"
     COLUMNS = [
-        ("Full name", "full_name"),
-        ("Email address", "email"),
+        ("Primary applicant", "primary_profile.full_name"),
+        ("Primary applicant address", "primary_profile.street_address"),
+        ("Primary applicant e-mail", "primary_profile.email"),
+        ("Secondary applicant", "secondary_profile.full_name"),
+        ("Secondary applicant address", "secondary_profile.street_address"),
+        ("Secondary applicant e-mail", "secondary_profile.email"),
         ("Queue position", "queue_position"),
         ("Has children", "has_children"),
         ("Project address", "project_street_address"),
@@ -42,27 +47,26 @@ class ApplicantExportService:
             apartment = get_apartment(
                 reservation.apartment_uuid, include_project_fields=True
             )
-            row = self.get_row(
-                reservation.customer.primary_profile, reservation, apartment
-            )
+            row = self.get_row(reservation, apartment)
             rows.append(row)
-            # Some reservation there are co-applicants
-            if reservation.customer.secondary_profile:
-                row = self.get_row(
-                    reservation.customer.secondary_profile, reservation, apartment
-                )
-                rows.append(row)
         return rows
 
-    def get_row(self, profile, reservation, apartment):
+    def get_row(self, reservation, apartment):
         line = []
+        customer = reservation.customer
         for column in self.COLUMNS:
             cell_value = ""
             # Profile fields
-            if column[1] in ["full_name", "email"]:
-                cell_value = getattr(profile, column[1])
+            if column[1].startswith("primary") or column[1].startswith("secondary"):
+                if (
+                    column[1].startswith("secondary")
+                    and customer.secondary_profile is None
+                ):
+                    cell_value = None
+                else:
+                    cell_value = operator.attrgetter(column[1])(customer)
             if column[1] == "has_children":
-                cell_value = bool(reservation.customer.has_children)
+                cell_value = bool(customer.has_children)
             if column[1] == "queue_position":
                 cell_value = reservation.queue_position
             # Apartment fields
