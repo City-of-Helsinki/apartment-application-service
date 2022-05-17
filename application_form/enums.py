@@ -17,7 +17,9 @@ class ApartmentReservationState(Enum):
 class ApartmentReservationCancellationReason(Enum):
     TERMINATED = "terminated"  # Irtisanottu
     CANCELED = "canceled"  # Varaus peruttu
-    CONTRACT_TERMINATED = "contract_terminated"  # Varaussopimus peruttu
+    RESERVATION_AGREEMENT_CANCELED = (
+        "reservation_agreement_canceled"  # Varaussopimus peruttu
+    )
     TRANSFERRED = "transferred"  # Siirretty
 
 
