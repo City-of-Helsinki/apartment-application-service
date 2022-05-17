@@ -7,8 +7,8 @@ from invoicing.sap.sftp import sftp_put_file_object
 from invoicing.sap.xml import generate_installments_xml
 
 
-def send_pending_installments_to_sap() -> int:
-    installments = ApartmentInstallment.objects.sap_pending()
+def send_needed_installments_to_sap() -> int:
+    installments = ApartmentInstallment.objects.sending_to_sap_needed()
     num_of_installments = installments.count()
     if num_of_installments:
         xml = generate_installments_xml(installments)

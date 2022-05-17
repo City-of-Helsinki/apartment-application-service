@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from django.conf import settings
 from django.db import models, transaction
 from django.db.models import UniqueConstraint
@@ -41,9 +41,14 @@ class InstallmentBase(models.Model):
 
 
 class ApartmentInstallmentQuerySet(models.QuerySet):
-    def sap_pending(self):
+    def sending_to_sap_needed(self):
+        max_due_date = timezone.now().date() + timedelta(
+            days=settings.SAP_DAYS_UNTIL_INSTALLMENT_DUE_DATE
+        )
         return self.filter(
-            added_to_be_sent_to_sap_at__isnull=False, sent_to_sap_at__isnull=True
+            added_to_be_sent_to_sap_at__isnull=False,
+            sent_to_sap_at__isnull=True,
+            due_date__lt=max_due_date,
         )
 
     def set_sent_to_sap_at(self, dt: datetime = None):
