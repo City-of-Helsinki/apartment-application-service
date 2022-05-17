@@ -69,11 +69,6 @@ class CustomerCompactSerializer(serializers.ModelSerializer):
 
 
 class SalesApartmentReservationSerializer(ApartmentReservationSerializerBase):
-    applicants = ApplicantCompactSerializer(
-        source="application_apartment.application.applicants",
-        many=True,
-        allow_null=True,
-    )
     customer = CustomerCompactSerializer()
 
     # HITAS fields
@@ -91,7 +86,6 @@ class SalesApartmentReservationSerializer(ApartmentReservationSerializerBase):
 
     class Meta(ApartmentReservationSerializerBase.Meta):
         fields = ApartmentReservationSerializerBase.Meta.fields + (
-            "applicants",
             "customer",
             "has_children",
             "right_of_residence",
