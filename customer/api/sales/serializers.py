@@ -9,7 +9,7 @@ from application_form.api.serializers import (
     ApartmentReservationSerializerBase,
     ApartmentReservationStateChangeEventSerializer,
 )
-from application_form.models import ApartmentReservation
+from application_form.models import ApartmentReservation, LotteryEvent
 from customer.models import Customer
 from invoicing.api.serializers import ApartmentInstallmentSerializer
 from users.api.sales.serializers import ProfileSerializer
@@ -30,6 +30,7 @@ class CustomerApartmentReservationSerializer(ApartmentReservationSerializerBase)
     apartment_right_of_occupancy_payment = serializers.SerializerMethodField()
     apartment_installments = ApartmentInstallmentSerializer(many=True)
     state_change_events = ApartmentReservationStateChangeEventSerializer(many=True)
+    project_lottery_completed = serializers.SerializerMethodField()
 
     class Meta(ApartmentReservationSerializerBase.Meta):
         model = ApartmentReservation
@@ -49,6 +50,7 @@ class CustomerApartmentReservationSerializer(ApartmentReservationSerializerBase)
             "apartment_right_of_occupancy_payment",
             "apartment_installments",
             "state_change_events",
+            "project_lottery_completed",
         ) + ApartmentReservationSerializerBase.Meta.fields
 
     def to_representation(self, instance):
@@ -89,6 +91,12 @@ class CustomerApartmentReservationSerializer(ApartmentReservationSerializerBase)
 
     def get_apartment_right_of_occupancy_payment(self, obj) -> int:
         return self.context["apartment"].right_of_occupancy_payment
+
+    def get_project_lottery_completed(self, obj) -> bool:
+        lottery_completed = LotteryEvent.objects.filter(
+            apartment_uuid=obj.apartment_uuid
+        ).exists()
+        return lottery_completed
 
 
 class CustomerSerializer(serializers.ModelSerializer):
