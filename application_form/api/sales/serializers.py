@@ -11,6 +11,7 @@ from application_form.api.serializers import (
     ApplicantSerializerBase,
     ApplicationSerializerBase,
 )
+from application_form.enums import ApartmentReservationState
 from application_form.models import Applicant, LotteryEvent
 from application_form.services.reservation import create_reservation
 from customer.models import Customer
@@ -85,6 +86,9 @@ class SalesApartmentReservationSerializer(ApartmentReservationSerializerBase):
 
     has_multiple_winning_apartments = serializers.SerializerMethodField()
 
+    cancellation_reason = serializers.SerializerMethodField()
+    cancellation_timestamp = serializers.SerializerMethodField()
+
     class Meta(ApartmentReservationSerializerBase.Meta):
         fields = ApartmentReservationSerializerBase.Meta.fields + (
             "applicants",
@@ -92,6 +96,8 @@ class SalesApartmentReservationSerializer(ApartmentReservationSerializerBase):
             "has_children",
             "right_of_residence",
             "has_multiple_winning_apartments",
+            "cancellation_reason",
+            "cancellation_timestamp",
         )
 
     def get_has_multiple_winning_apartments(self, obj):
@@ -117,6 +123,35 @@ class SalesApartmentReservationSerializer(ApartmentReservationSerializerBase):
         if obj.application_apartment is not None:
             return obj.application_apartment.application.has_children
         return obj.customer.has_children
+
+    def get_cancellation_reason(self, obj):
+        if obj.state == ApartmentReservationState.CANCELED:
+            try:
+                latest_canceled_event = obj.state_change_events.filter(
+                    state=ApartmentReservationState.CANCELED
+                ).latest("timestamp")
+            except ObjectDoesNotExist:
+                return None
+            return (
+                latest_canceled_event.cancellation_reason.value
+                if latest_canceled_event.cancellation_reason
+                else None
+            )
+        return None
+
+    def get_cancellation_timestamp(self, obj):
+        if obj.state == ApartmentReservationState.CANCELED:
+            try:
+                return (
+                    obj.state_change_events.filter(
+                        state=ApartmentReservationState.CANCELED
+                    )
+                    .latest("timestamp")
+                    .timestamp
+                )
+            except ObjectDoesNotExist:
+                return None
+        return None
 
 
 class RootApartmentReservationSerializer(ApartmentReservationSerializerBase):

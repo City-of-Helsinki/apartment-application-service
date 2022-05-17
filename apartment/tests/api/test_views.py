@@ -3,8 +3,13 @@ import uuid
 from django.urls import reverse
 
 from apartment.elastic.queries import get_projects
-from application_form.enums import ApartmentReservationState, ApplicationType
+from application_form.enums import (
+    ApartmentReservationCancellationReason,
+    ApartmentReservationState,
+    ApplicationType,
+)
 from application_form.models import ApartmentReservation
+from application_form.services.application import cancel_reservation
 from application_form.services.lottery.machine import distribute_apartments
 from application_form.services.queue import add_application_to_queues
 from application_form.tests.factories import (
@@ -128,6 +133,13 @@ def _assert_apartment_reservations_data(reservations):
         else:
             assert reservation["has_children"] == reservation_obj.customer.has_children
 
+        if (
+            reservation["state"] == ApartmentReservationState.CANCELED.value
+            and reservation_obj.state_change_events.count() > 0
+        ):
+            assert reservation["cancellation_reason"] is not None
+            assert reservation["cancellation_timestamp"] is not None
+
 
 @pytest.mark.django_db
 def test_project_detail_apartment_reservations(
@@ -140,7 +152,9 @@ def test_project_detail_apartment_reservations(
     for apartment in apartments:
         for i in range(0, expect_reservations_per_apartment_count):
             ApartmentReservationFactory(
-                apartment_uuid=apartment.uuid, list_position=i + 1
+                apartment_uuid=apartment.uuid,
+                list_position=i + 1,
+                state=ApartmentReservationState.SUBMITTED,
             )
 
     profile = ProfileFactory()
@@ -191,9 +205,16 @@ def test_project_detail_apartment_reservations_has_children(
 
     project_uuid, apartments = elastic_project_with_5_apartments
     for apartment in apartments:
-        ApartmentReservationFactory(apartment_uuid=apartment.uuid, list_position=1)
         ApartmentReservationFactory(
-            apartment_uuid=apartment.uuid, list_position=2, application_apartment=None
+            apartment_uuid=apartment.uuid,
+            list_position=1,
+            state=ApartmentReservationState.SUBMITTED,
+        )
+        ApartmentReservationFactory(
+            apartment_uuid=apartment.uuid,
+            list_position=2,
+            application_apartment=None,
+            state=ApartmentReservationState.SUBMITTED,
         )
     profile = ProfileFactory()
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
@@ -364,3 +385,43 @@ def test_project_detail_apartment_states(
         "offered",
         "offer_accepted",
     ]
+
+
+@pytest.mark.django_db
+def test_project_detail_apartment_reservations_has_cancellation_info(
+    profile_api_client, elastic_project_with_5_apartments
+):
+    expect_apartments_count = 5
+
+    project_uuid, apartments = elastic_project_with_5_apartments
+    for apartment in apartments:
+        ApartmentReservationFactory(
+            apartment_uuid=apartment.uuid,
+            list_position=1,
+            state=ApartmentReservationState.SUBMITTED,
+        )
+        cancelled_reservation = ApartmentReservationFactory(
+            apartment_uuid=apartment.uuid,
+            list_position=2,
+            application_apartment=None,
+        )
+        cancel_reservation(
+            cancelled_reservation,
+            cancellation_reason=ApartmentReservationCancellationReason.CANCELED.value,
+        )
+
+    response = profile_api_client.get(
+        reverse("apartment:project-detail", kwargs={"project_uuid": project_uuid}),
+        format="json",
+    )
+    assert response.status_code == 200
+    assert response.data
+
+    assert response.data["apartments"]
+    apartments_data = response.data["apartments"]
+    assert len(apartments_data) == expect_apartments_count
+
+    for apartment_data in apartments_data:
+        assert apartment_data["reservations"]
+        assert len(apartment_data["reservations"]) == 2
+        _assert_apartment_reservations_data(apartment_data["reservations"])
