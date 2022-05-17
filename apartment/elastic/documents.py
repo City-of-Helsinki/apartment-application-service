@@ -142,6 +142,7 @@ class ApartmentDocument(ReadOnlyDocument):
     project_contract_other_terms = Keyword()
     project_contract_usage_fees = Keyword()
     project_contract_right_of_occupancy_payment_verification = Keyword()
+    project_contract_rs_bank = Keyword()
 
     class Index:
         name = settings.APARTMENT_INDEX_NAME

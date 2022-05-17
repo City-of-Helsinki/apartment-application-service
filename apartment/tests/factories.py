@@ -188,3 +188,4 @@ class ApartmentDocumentFactory(ElasticFactory):
     project_contract_usage_fees = fuzzy.FuzzyText()
     project_contract_right_of_occupancy_payment_verification = fuzzy.FuzzyText()
     project_property_number = fuzzy.FuzzyText(length=3)
+    project_contract_rs_bank = fuzzy.FuzzyText()

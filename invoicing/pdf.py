@@ -7,10 +7,26 @@ from typing import ClassVar, Dict
 from uuid import UUID
 
 from apartment.elastic.documents import ApartmentDocument
-from apartment.elastic.queries import get_apartment, get_projects
+from apartment.elastic.queries import get_apartment, get_project
 from apartment_application_service.pdf import create_pdf, PDFData
+from customer.models import Customer
 
 INVOICE_PDF_TEMPLATE_FILE_NAME = "invoice_template.pdf"
+
+
+def _get_payer_name_and_address(customer: Customer) -> str:
+    primary_profile = customer.primary_profile
+    payer_names = primary_profile.full_name
+    if secondary_profile := customer.secondary_profile:
+        payer_names = (
+            f"{primary_profile.full_name}"
+            + _("and")
+            + f" {secondary_profile.full_name}"
+        )
+    return (
+        f"{payer_names}\n\n{primary_profile.street_address}\n"
+        f"{primary_profile.postal_code} {primary_profile.city}"
+    )
 
 
 @dataclasses.dataclass
@@ -37,29 +53,30 @@ class InvoicePDFData(PDFData):
 def create_invoice_pdf_from_installments(installments):
     @lru_cache
     def get_cached_project(project_uuid: UUID):
-        return get_projects(project_uuid)[0]
+        return get_project(project_uuid)
 
     @lru_cache
     def get_cached_apartment(apartment_uuid: UUID) -> ApartmentDocument:
-        return get_apartment(apartment_uuid)
+        return get_apartment(apartment_uuid, include_project_fields=True)
 
     invoice_pdf_data_list = []
     for installment in installments:
         reservation = installment.apartment_reservation
-        profile = reservation.application_apartment.application.customer.primary_profile
+        payer_name_and_address = _get_payer_name_and_address(
+            installment.apartment_reservation.customer
+        )
         apartment = get_cached_apartment(reservation.apartment_uuid)
         project = get_cached_project(apartment.project_uuid)
         invoice_pdf_data = InvoicePDFData(
             recipient=project.project_housing_company,
-            recipient_account_number=installment.account_number,
-            payer_name_and_address=f"{profile.first_name} {profile.last_name}\n\n"
-            f"{profile.street_address}\n"
-            f"{profile.postal_code} {profile.city}",
+            recipient_account_number=f"{project.project_contract_rs_bank} "
+            f"{installment.account_number}",
+            payer_name_and_address=payer_name_and_address,
             reference_number=installment.reference_number,
             due_date=installment.due_date,
             amount=installment.value,
-            apartment=_("Apartment") + f" {apartment.apartment_number}\n\n"
-            f"{installment.type}"
+            apartment=_("Apartment")
+            + f" {apartment.apartment_number}\n\n{installment.type}"
             + 20 * " "
             + str(installment.value).replace(".", ",")
             + " €",

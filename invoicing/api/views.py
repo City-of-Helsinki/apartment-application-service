@@ -118,7 +118,7 @@ class ApartmentInstallmentInvoiceAPIView(APIView):
         pdf_data = create_invoice_pdf_from_installments(installments)
         apartment = get_apartment(reservation.apartment_uuid)
         title = (apartment.title or "").strip().lower().replace(" ", "_")
-        filename = f"laskut_{title}" if title else "laskut"
+        filename = f"laskut_{title}.pdf" if title else "laskut.pdf"
 
         response = HttpResponse(pdf_data, content_type="application/pdf")
         response["Content-Disposition"] = f"attachment; filename={filename}"

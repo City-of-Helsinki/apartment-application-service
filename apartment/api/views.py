@@ -12,7 +12,12 @@ from apartment.api.serializers import (
     ProjectDocumentDetailSerializer,
     ProjectDocumentListSerializer,
 )
-from apartment.elastic.queries import get_apartment_uuids, get_apartments, get_projects
+from apartment.elastic.queries import (
+    get_apartment_uuids,
+    get_apartments,
+    get_project,
+    get_projects,
+)
 from application_form.models import ApartmentReservation
 from application_form.services.export import ApplicantExportService
 
@@ -39,9 +44,10 @@ class ProjectAPIView(APIView):
     def get(self, request, project_uuid=None):
         many = project_uuid is None
         try:
-            project_data = get_projects(project_uuid)
             if not many:
-                project_data = project_data[0]
+                project_data = get_project(project_uuid)
+            else:
+                project_data = get_projects()
         except ObjectDoesNotExist:
             raise NotFound()
         serializer_class = (
@@ -58,7 +64,7 @@ class ProjectExportApplicantsAPIView(APIView):
     def get(self, request, project_uuid):
         try:
             apartment_uuids = get_apartment_uuids(project_uuid)
-            project = get_projects(project_uuid)[0]
+            project = get_project(project_uuid)
         except ObjectDoesNotExist:
             raise NotFound()
         reservations = ApartmentReservation.objects.filter(
