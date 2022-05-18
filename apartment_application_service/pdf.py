@@ -86,9 +86,11 @@ def create_pdf(
         pdf_data_list = [pdf_data_list]
     pdf = Pdf.new()
 
-    for pdf_data in pdf_data_list:
+    for idx, pdf_data in enumerate(pdf_data_list):
         single_pdf = _create_pdf(
-            f"{PDF_TEMPLATE_DIRECTORY}/{template_file_name}", pdf_data.to_data_dict()
+            f"{PDF_TEMPLATE_DIRECTORY}/{template_file_name}",
+            pdf_data.to_data_dict(),
+            idx,
         )
         if not hasattr(pdf.Root, "AcroForm") and hasattr(single_pdf.Root, "AcroForm"):
             acroform = pdf.copy_foreign(single_pdf.Root.AcroForm)
@@ -96,7 +98,6 @@ def create_pdf(
             del pdf.Root.AcroForm.Fields
             pdf.Root.AcroForm.NeedAppearances = True
         pdf.pages.extend(single_pdf.pages)
-
     pdf_bytes = BytesIO()
     pdf.save(pdf_bytes)
     pdf_bytes.seek(0)
@@ -104,7 +105,7 @@ def create_pdf(
     return pdf_bytes
 
 
-def _set_pdf_fields(pdf: Pdf, data_dict: DataDict) -> None:
+def _set_pdf_fields(pdf: Pdf, data_dict: DataDict, idx: None) -> None:
     for page in pdf.pages:
         for annot in page.Annots:
             if not hasattr(annot, "FT") and str(annot.Parent.T) in data_dict:
@@ -114,6 +115,10 @@ def _set_pdf_fields(pdf: Pdf, data_dict: DataDict) -> None:
                 continue
             if not hasattr(annot, "T") or (field_name := str(annot.T)) not in data_dict:
                 continue
+            if idx is not None:
+                # In case of merging multiple PDFs, need to rename the field, otherwise
+                # every field with the same name will display same values (latest value)
+                annot.T = String(str(annot.T) + "_" + str(idx))
             if annot.FT == "/Tx":  # text field
                 pdf_value = String(data_dict[field_name])
                 annot.V = pdf_value
@@ -132,7 +137,7 @@ def _set_pdf_fields(pdf: Pdf, data_dict: DataDict) -> None:
             annot.AP = ""
 
 
-def _create_pdf(template_file_name: str, data_dict: DataDict) -> Pdf:
+def _create_pdf(template_file_name: str, data_dict: DataDict, idx=None) -> Pdf:
     pdf = Pdf.open(template_file_name)
-    _set_pdf_fields(pdf, data_dict)
+    _set_pdf_fields(pdf, data_dict, idx=idx)
     return pdf
