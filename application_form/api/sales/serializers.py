@@ -1,6 +1,7 @@
 import logging
 from django.core.exceptions import ObjectDoesNotExist
 from drf_spectacular.utils import extend_schema_field
+from enumfields.drf import EnumSupportSerializerMixin
 from rest_framework import serializers
 from rest_framework.fields import UUIDField
 from uuid import UUID
@@ -12,7 +13,8 @@ from application_form.api.serializers import (
     ApplicationSerializerBase,
 )
 from application_form.enums import ApartmentReservationState
-from application_form.models import Applicant, LotteryEvent
+from application_form.models import ApartmentReservation, Applicant, LotteryEvent, Offer
+from application_form.services.offer import create_offer, update_offer
 from application_form.services.reservation import create_reservation
 from customer.models import Customer
 from invoicing.api.serializers import (
@@ -193,3 +195,32 @@ class RootApartmentReservationSerializer(ApartmentReservationSerializerBase):
 
     def create(self, validated_data):
         return create_reservation(validated_data)
+
+
+class OfferSerializer(EnumSupportSerializerMixin, serializers.ModelSerializer):
+    apartment_reservation_id = serializers.PrimaryKeyRelatedField(
+        source="apartment_reservation", queryset=ApartmentReservation.objects.all()
+    )
+
+    class Meta:
+        model = Offer
+        fields = (
+            "id",
+            "created_at",
+            "apartment_reservation_id",
+            "valid_until",
+            "state",
+            "concluded_at",
+            "comment",
+        )
+        read_only_fields = ("concluded_at",)
+
+    def create(self, validated_data):
+        return create_offer(validated_data)
+
+    def update(self, instance, validated_data):
+        if request := self.context.get("request"):
+            user = getattr(request, "user", None)
+        else:
+            user = None
+        return update_offer(instance, validated_data, user=user)

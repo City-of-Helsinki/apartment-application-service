@@ -100,6 +100,7 @@ def test_get_customer_api_detail(api_client):
             "queue_position": None,
             "priority_number": reservation.application_apartment.priority_number,
             "state": reservation.state.value,
+            "offer": None,
         }
     ]
 
