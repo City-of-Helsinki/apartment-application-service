@@ -1,7 +1,14 @@
 import pytest
 from _pytest.fixtures import fixture
 
-from application_form.services.export import ApplicantExportService
+from apartment.elastic.queries import get_apartment_uuids, get_project
+from application_form.services.application import cancel_reservation
+from application_form.services.export import (
+    ApplicantExportService,
+    ProjectLotteryResultExportService,
+)
+from application_form.services.lottery.machine import distribute_apartments
+from application_form.services.queue import add_application_to_queues
 from application_form.tests.factories import (
     ApartmentReservationFactory,
     ApplicationApartmentFactory,
@@ -60,7 +67,7 @@ def applicant_export_service_with_additional_applicant(
 
 
 @pytest.mark.django_db
-def test_export_lines(applicant_export_service):
+def test_export_applicants(applicant_export_service):
     csv_lines = applicant_export_service.get_rows()
     assert len(applicant_export_service.get_reservations()) == 5
     assert len(csv_lines) == 6
@@ -84,7 +91,7 @@ def test_export_lines(applicant_export_service):
 
 
 @pytest.mark.django_db
-def test_export_lines_with_additional_applicant(
+def test_export_applicants_and_secondary_applicants(
     applicant_export_service_with_additional_applicant,
 ):
     export_service = applicant_export_service_with_additional_applicant
@@ -101,6 +108,50 @@ def test_export_lines_with_additional_applicant(
         csv_lines[1][3]
         == export_service.get_reservations()[0].customer.secondary_profile.full_name
     )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("ownership_type", ["HITAS", "HASO"])
+def test_export_project_lottery_result(
+    ownership_type,
+    elastic_hitas_project_with_5_apartments,
+    elastic_haso_project_with_5_apartments,
+):
+    if ownership_type == "HITAS":
+        project_uuid, _ = elastic_hitas_project_with_5_apartments
+    else:
+        project_uuid, _ = elastic_haso_project_with_5_apartments
+
+    apartment_uuids = get_apartment_uuids(project_uuid)
+    for apartment_uuid in apartment_uuids:
+        apt_app = ApplicationApartmentFactory.create_batch(
+            2, apartment_uuid=apartment_uuid
+        )
+        add_application_to_queues(apt_app[0].application)
+        add_application_to_queues(apt_app[1].application)
+    distribute_apartments(project_uuid)
+
+    # cancelled reservation shouldn't be included
+    cancelled_app = ApplicationApartmentFactory(apartment_uuid=apartment_uuids[0])
+    add_application_to_queues(cancelled_app.application)
+    cancel_reservation(cancelled_app.apartment_reservation)
+
+    export_service = ProjectLotteryResultExportService(get_project(project_uuid))
+    csv_lines = export_service.get_rows()
+
+    assert len(csv_lines) == 11
+    for idx, header in enumerate(csv_lines[0]):
+        assert header == ProjectLotteryResultExportService.COLUMNS[idx][0]
+
+    first_reservation = export_service.get_reservations_by_apartment_uuid(
+        apartment_uuids[0]
+    ).first()
+    last_reservation = export_service.get_reservations_by_apartment_uuid(
+        apartment_uuids[-1]
+    ).last()
+
+    assert csv_lines[1][7] == first_reservation.customer.primary_profile.full_name
+    assert csv_lines[-1][7] == last_reservation.customer.primary_profile.full_name
 
 
 @pytest.mark.django_db

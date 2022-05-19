@@ -275,26 +275,67 @@ def test_project_detail_apartment_reservations_multiple_winning(
 
 @pytest.mark.django_db
 def test_export_applicants_csv_per_project(
-    api_client, elastic_project_with_5_apartments
+    profile_api_client, elastic_project_with_5_apartments
 ):
     """
     Test export applicants information to CSV
     """
     project_uuid, apartments = elastic_project_with_5_apartments
-    profile = ProfileFactory()
     project = get_project(project_uuid)
-    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
 
     data = {"project_uuid": uuid.uuid4()}
-    response = api_client.get(
+    response = profile_api_client.get(
         reverse("apartment:project-detail-export-applicant", kwargs=data),
         format="json",
     )
     assert response.status_code == 404
 
     data = {"project_uuid": project_uuid}
-    response = api_client.get(
+    response = profile_api_client.get(
         reverse("apartment:project-detail-export-applicant", kwargs=data),
+        format="json",
+    )
+    assert response.headers["Content-Type"] == "text/csv"
+    assert (
+        project.project_street_address.replace(" ", "_")
+        in response.headers["Content-Disposition"]
+    )
+    assert response.status_code == 200
+
+
+@pytest.mark.django_db
+def test_export_lottery_result_csv_per_project(
+    profile_api_client, elastic_project_with_5_apartments
+):
+    """
+    Test export applicants information to CSV
+    """
+    project_uuid, apartments = elastic_project_with_5_apartments
+    project = get_project(project_uuid)
+
+    data = {"project_uuid": uuid.uuid4()}
+    response = profile_api_client.get(
+        reverse("apartment:project-detail-lottery-result", kwargs=data),
+        format="json",
+    )
+    assert response.status_code == 404
+
+    data = {"project_uuid": project_uuid}
+    response = profile_api_client.get(
+        reverse("apartment:project-detail-lottery-result", kwargs=data),
+        format="json",
+    )
+    assert response.status_code == 400
+    assert "lottery has not happened" in str(response.data)
+
+    app = ApplicationFactory()
+    app.application_apartments.create(
+        apartment_uuid=apartments[0].uuid, priority_number=1
+    )
+    add_application_to_queues(app)
+    distribute_apartments(project_uuid)
+    response = profile_api_client.get(
+        reverse("apartment:project-detail-lottery-result", kwargs=data),
         format="json",
     )
     assert response.headers["Content-Type"] == "text/csv"
