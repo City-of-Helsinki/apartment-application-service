@@ -108,7 +108,7 @@ SAP_SFTP_PORT
 ```
 Also,
 ```
-python manage.py send_pending_installments_to_sap
+python manage.py send_installments_to_sap
 ```
 needs to be run periodically.
 

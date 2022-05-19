@@ -28,7 +28,7 @@ class Command(BaseCommand):
                 reference_number__in=reference_numbers
             )
         else:
-            installments = installments_with_due_date.sap_pending()
+            installments = installments_with_due_date.sending_to_sap_needed()
 
         if not installments.exists():
             self.stdout.write("No matching installments.")
