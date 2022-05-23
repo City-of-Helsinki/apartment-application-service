@@ -190,5 +190,9 @@ class ApartmentInstallmentSerializer(ApartmentInstallmentSerializerBase):
     def create(self, validated_data):
         if old_instance := self.context["old_instances"].get(validated_data["type"]):
             validated_data["reference_number"] = old_instance.reference_number
+            validated_data[
+                "added_to_be_sent_to_sap_at"
+            ] = old_instance.added_to_be_sent_to_sap_at
+            validated_data["sent_to_sap_at"] = old_instance.sent_to_sap_at
 
         return super().create(validated_data)
