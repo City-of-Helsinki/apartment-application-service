@@ -35,3 +35,9 @@ class Offer(TimestampedModel):
 
     class Meta:
         ordering = ("id",)
+
+    @property
+    def is_expired(self) -> bool:
+        return (
+            self.state == OfferState.PENDING and timezone.localdate() > self.valid_until
+        )
