@@ -562,7 +562,7 @@ def test_apartment_installment_invoice_pdf_filtering(
     )
 
     response = profile_api_client.get(
-        base_url + "?index=0",
+        base_url + "?types=PAYMENT_1",
         format="json",
     )
     assert response.status_code == 200
@@ -571,7 +571,7 @@ def test_apartment_installment_invoice_pdf_filtering(
     one_installment_invoice = response.content
 
     response = profile_api_client.get(
-        base_url + "?index=0,1",
+        base_url + "?types=PAYMENT_1,REFUND",
         format="json",
     )
     assert response.status_code == 200
@@ -582,10 +582,10 @@ def test_apartment_installment_invoice_pdf_filtering(
     assert len(two_installment_invoice) > len(one_installment_invoice)
 
 
-@pytest.mark.parametrize("index_param", ("x", "0,x", "2"))
+@pytest.mark.parametrize("types_param", ("PAYMENT_5", "xxx"))
 @pytest.mark.django_db
 def test_apartment_installment_invoice_pdf_filtering_errors(
-    profile_api_client, reservation_with_installments, index_param
+    profile_api_client, reservation_with_installments, types_param
 ):
     base_url = reverse(
         "application_form:apartment-installment-invoice",
@@ -593,12 +593,11 @@ def test_apartment_installment_invoice_pdf_filtering_errors(
     )
 
     response = profile_api_client.get(
-        base_url + "?index={index_param}",
+        base_url + "?types={types_param}",
         format="json",
     )
 
-    assert response.status_code == 400
-    assert "Invalid index" in response.data[0]["message"]
+    assert response.status_code == 404
 
 
 @pytest.mark.django_db
@@ -611,7 +610,7 @@ def test_add_installments_to_be_sent_to_sap_at(
     )
 
     response = api_client.post(
-        base_url + "?index=0",
+        base_url + "?types=PAYMENT_1",
         format="json",
     )
     assert response.status_code == 200
@@ -647,13 +646,13 @@ def test_add_installments_to_be_sent_to_sap_at_already_added(
     )
 
     response = api_client.post(
-        base_url + "?index=0",
+        base_url + "?types=PAYMENT_1",
         format="json",
     )
     assert response.status_code == 200
 
     response = api_client.post(
-        base_url + "?index=0",
+        base_url + "?types=PAYMENT_1",
         format="json",
     )
     assert response.status_code == 400

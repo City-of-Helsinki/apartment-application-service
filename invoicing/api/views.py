@@ -16,6 +16,7 @@ from ..api.serializers import (
     ApartmentInstallmentSerializer,
     ProjectInstallmentTemplateSerializer,
 )
+from ..enums import InstallmentType
 from ..models import (
     AlreadyAddedToBeSentToSapError,
     ApartmentInstallment,
@@ -88,8 +89,8 @@ class ApartmentInstallmentAPIView(InstallmentAPIViewBase):
     parameters=[
         OpenApiParameter(
             name="index",
-            description="Comma-separated row index numbers starting from 0.",
-            type={"type": "array", "items": {"type": "number"}},
+            description="Comma-separated installment types.",
+            type={"type": "array", "items": {"type": "string"}},
             location=OpenApiParameter.QUERY,
             required=False,
         )
@@ -101,19 +102,16 @@ class ApartmentInstallmentInvoiceAPIView(APIView):
         reservation = get_object_or_404(
             ApartmentReservation, pk=kwargs["apartment_reservation_id"]
         )
-        installments = list(
-            ApartmentInstallment.objects.filter(
-                apartment_reservation_id=reservation.id
-            ).order_by("id")
-        )
-        if not installments:
-            raise Http404
+        installments = ApartmentInstallment.objects.filter(
+            apartment_reservation_id=reservation.id
+        ).order_by("id")
 
-        if index_params := request.query_params.get("index"):
-            installments = [
-                _find_installment_by_index_param(index_param, installments)
-                for index_param in index_params.split(",")
-            ]
+        if type_params := request.query_params.get("types"):
+            types = [e for e in InstallmentType if e.value in type_params.split(",")]
+            installments = installments.filter(type__in=types)
+
+        if not installments.exists():
+            raise Http404
 
         pdf_data = create_invoice_pdf_from_installments(installments)
         apartment = get_apartment(reservation.apartment_uuid)
@@ -130,9 +128,9 @@ class ApartmentInstallmentInvoiceAPIView(APIView):
     description="Add apartment installments to be sent to SAP.",
     parameters=[
         OpenApiParameter(
-            name="index",
-            description="Comma-separated row index numbers starting from 0.",
-            type={"type": "array", "items": {"type": "number"}},
+            name="types",
+            description="Comma-separated installment types.",
+            type={"type": "array", "items": {"type": "string"}},
             location=OpenApiParameter.QUERY,
             required=False,
         )
@@ -143,19 +141,16 @@ class ApartmentInstallmentAddToSapAPIView(APIView):
         reservation = get_object_or_404(
             ApartmentReservation, pk=kwargs["apartment_reservation_id"]
         )
-        installments = list(
-            ApartmentInstallment.objects.filter(
-                apartment_reservation_id=reservation.id
-            ).order_by("id")
-        )
-        if not installments:
-            raise Http404
+        installments = ApartmentInstallment.objects.filter(
+            apartment_reservation_id=reservation.id
+        ).order_by("id")
 
-        if index_params := request.query_params.get("index"):
-            installments = [
-                _find_installment_by_index_param(index_param, installments)
-                for index_param in index_params.split(",")
-            ]
+        if type_params := request.query_params.get("types"):
+            types = [e for e in InstallmentType if e.value in type_params.split(",")]
+            installments = installments.filter(type__in=types)
+
+        if not installments.exists():
+            raise Http404
 
         with transaction.atomic():
             for installment in installments:
@@ -170,14 +165,3 @@ class ApartmentInstallmentAddToSapAPIView(APIView):
             reservation.apartment_installments.order_by("id"), many=True
         )
         return Response(seri.data)
-
-
-def _find_installment_by_index_param(index_param, installments):
-    try:
-        return next(
-            installment
-            for index, installment in enumerate(installments)
-            if str(index) == index_param.strip()
-        )
-    except StopIteration:
-        raise ValidationError(f"Invalid index {index_param}")
