@@ -177,12 +177,12 @@ class ApartmentDocumentFactory(ElasticFactory):
     right_of_occupancy_payment = fuzzy.FuzzyInteger(0, 999)
     right_of_occupancy_fee = fuzzy.FuzzyInteger(0, 999)
     project_contract_apartment_completion_selection_2_start = fuzzy.FuzzyDate(
-        start_date=timezone.now().date() - timedelta(days=7),
-        end_date=timezone.now().date() - timedelta(days=1),
+        start_date=timezone.localdate() - timedelta(days=7),
+        end_date=timezone.localdate() - timedelta(days=1),
     )
     project_contract_apartment_completion_selection_2_end = fuzzy.FuzzyDate(
-        start_date=timezone.now().date() + timedelta(days=1),
-        end_date=timezone.now().date() + timedelta(days=7),
+        start_date=timezone.localdate() + timedelta(days=1),
+        end_date=timezone.localdate() + timedelta(days=7),
     )
     project_contract_other_terms = fuzzy.FuzzyText()
     project_contract_usage_fees = fuzzy.FuzzyText()

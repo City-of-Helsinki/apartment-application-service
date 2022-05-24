@@ -13,7 +13,7 @@ class OfferQuerySet(models.QuerySet):
     def active(self):
         return self.filter(
             Q(state=OfferState.ACCEPTED)
-            | Q(Q(state=OfferState.PENDING) & Q(valid_until__gte=timezone.now().date()))
+            | Q(Q(state=OfferState.PENDING) & Q(valid_until__gte=timezone.localdate()))
         )
 
 

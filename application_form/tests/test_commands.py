@@ -9,7 +9,7 @@ from application_form.tests.factories import OfferFactory
 
 @pytest.mark.django_db
 def test_update_reservations_based_on_offer_expiration():
-    today = timezone.now().date()
+    today = timezone.localdate()
     yesterday = today - timedelta(days=1)
 
     offers = (
