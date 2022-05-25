@@ -18,6 +18,10 @@ class ApartmentSerializer(serializers.Serializer):
         reservations = (
             ApartmentReservation.objects.filter(apartment_uuid=obj["uuid"])
             .select_related("offer")
+            .select_related("customer")
+            .select_related("customer__primary_profile")
+            .select_related("customer__secondary_profile")
+            .select_related("application_apartment__application")
             .order_by(
                 "list_position",
             )

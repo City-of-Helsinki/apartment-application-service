@@ -95,6 +95,7 @@ class SalesApartmentReservationSerializer(ApartmentReservationSerializerBase):
             "cancellation_reason",
             "cancellation_timestamp",
         )
+        read_only_fields = fields
 
     def get_has_multiple_winning_apartments(self, obj):
         """
@@ -104,16 +105,17 @@ class SalesApartmentReservationSerializer(ApartmentReservationSerializerBase):
         project_uuid = self.context["project_uuid"]
         if not project_uuid:
             return False
-        apartment_uuids = get_apartment_uuids(project_uuid)
-        # Winning reservation will have state other than SUBMITTED and CANCELED
-        return (
-            obj.customer.apartment_reservations.reserved()
-            .filter(
-                apartment_uuid__in=apartment_uuids,
+        if obj.application_apartment is None:
+            apartment_uuids = get_apartment_uuids(project_uuid)
+            winner = obj.customer.apartment_reservations.reserved().filter(
+                apartment_uuid__in=apartment_uuids
             )
-            .count()
-            > 1
-        )
+        else:
+            winner = obj.customer.apartment_reservations.reserved().filter(
+                application_apartment__application=obj.application_apartment.application
+            )
+        # Winning reservation will have state other than SUBMITTED and CANCELED
+        return winner.count() > 1
 
     def get_has_children(self, obj):
         if obj.application_apartment is not None:
