@@ -25,13 +25,22 @@ class ApartmentReservationQuerySet(models.QuerySet):
             )
         )
 
+    def related_fields(self):
+        return (
+            self.select_related("offer")
+            .select_related("customer")
+            .select_related("customer__primary_profile")
+            .select_related("customer__secondary_profile")
+            .select_related("application_apartment")
+        )
+
 
 class ApartmentReservation(models.Model):
     """
     Stores an applicant's reservation for the apartment.
     """
 
-    apartment_uuid = models.UUIDField(verbose_name=_("apartment uuid"))
+    apartment_uuid = models.UUIDField(verbose_name=_("apartment uuid"), db_index=True)
     customer = models.ForeignKey(
         Customer,
         verbose_name=_("customer"),
