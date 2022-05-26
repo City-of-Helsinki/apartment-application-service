@@ -2,7 +2,7 @@ from rest_framework import serializers
 
 from apartment.api.sales.serializers import ApartmentSerializer
 from apartment.elastic.queries import get_apartment_uuids, get_apartments
-from application_form.models import LotteryEvent
+from application_form.models import ApartmentReservation, LotteryEvent
 from invoicing.api.serializers import ProjectInstallmentTemplateSerializer
 from invoicing.models import ProjectInstallmentTemplate
 
@@ -170,6 +170,18 @@ class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
 
     def get_apartments(self, obj):
         apartments = get_apartments(obj.project_uuid)
+        project_reservations = (
+            ApartmentReservation.objects.filter(
+                apartment_uuid__in=get_apartment_uuids(project_uuid=obj.project_uuid)
+            )
+            .related_fields()
+            .all()
+        )
         return ApartmentSerializer(
-            apartments, many=True, context={"project_uuid": obj.project_uuid}
+            apartments,
+            many=True,
+            context={
+                "project_uuid": obj.project_uuid,
+                "reservations": project_reservations,
+            },
         ).data
