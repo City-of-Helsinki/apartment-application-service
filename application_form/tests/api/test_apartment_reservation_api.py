@@ -77,6 +77,7 @@ def test_root_apartment_reservation_detail(
             "state": offer.state.value,
             "concluded_at": offer.concluded_at,
             "comment": offer.comment,
+            "is_expired": False,
         },
     }
 
