@@ -12,7 +12,7 @@ from application_form.tests.factories import ApartmentReservationFactory, OfferF
 def test_create_offer(user_api_client):
     apartment = ApartmentDocumentFactory()
     reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
-    week_in_future = timezone.now().date() + timedelta(days=7)
+    week_in_future = timezone.localdate() + timedelta(days=7)
 
     data = {
         "apartment_reservation_id": reservation.id,
@@ -53,7 +53,7 @@ def test_create_offer(user_api_client):
 def test_create_offer_already_exists(user_api_client):
     apartment = ApartmentDocumentFactory()
     reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
-    week_in_future = timezone.now().date() + timedelta(days=7)
+    week_in_future = timezone.localdate() + timedelta(days=7)
 
     data = {
         "apartment_reservation_id": reservation.id,
@@ -81,7 +81,7 @@ def test_create_offer_already_exists(user_api_client):
 
 @pytest.mark.django_db
 def test_update_offer(user_api_client):
-    today = timezone.now().date()
+    today = timezone.localdate()
     apartment = ApartmentDocumentFactory()
     reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
     offer = OfferFactory(
@@ -132,7 +132,7 @@ def test_update_offer_change_state(user_api_client, new_state):
     )
     offer = OfferFactory(
         apartment_reservation=reservation,
-        valid_until=timezone.now().date() + timedelta(days=1),
+        valid_until=timezone.localdate() + timedelta(days=1),
     )
 
     data = {"state": new_state}
@@ -168,7 +168,7 @@ def test_cannot_update_concluded_offer_valid_until_or_state(user_api_client, sta
     reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
     offer = OfferFactory(
         apartment_reservation=reservation,
-        valid_until=timezone.now().date() + timedelta(days=1),
+        valid_until=timezone.localdate() + timedelta(days=1),
         state=state,
     )
 
@@ -199,7 +199,7 @@ def test_update_concluded_offer_comment(user_api_client, state):
     reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
     offer = OfferFactory(
         apartment_reservation=reservation,
-        valid_until=timezone.now().date() + timedelta(days=1),
+        valid_until=timezone.localdate() + timedelta(days=1),
         state=state,
         comment="old comment",
     )
@@ -223,7 +223,7 @@ def test_update_concluded_offer_comment(user_api_client, state):
 
 @pytest.mark.django_db
 def test_update_offer_change_to_expired(user_api_client):
-    today = timezone.now().date()
+    today = timezone.localdate()
     apartment = ApartmentDocumentFactory()
     reservation = ApartmentReservationFactory(
         apartment_uuid=apartment.uuid, state=ApartmentReservationState.OFFERED

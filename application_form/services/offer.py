@@ -66,7 +66,7 @@ def update_reservation_state_based_on_offer_expiration(
 def update_reservations_based_on_offer_expiration(
     reservation_qs=None, user: User = None
 ) -> (int, int):
-    today = timezone.now().date()
+    today = timezone.localdate()
 
     if not reservation_qs:
         reservation_qs = ApartmentReservation.objects.all()

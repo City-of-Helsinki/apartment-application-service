@@ -26,7 +26,7 @@ def test_pending_installments_to_sap(send_xml_to_sap):
         apartment_reservation__list_position=2,
         added_to_be_sent_to_sap_at=timezone.now(),
         sent_to_sap_at=None,
-        due_date=timezone.now().date()
+        due_date=timezone.localdate()
         + timedelta(days=settings.SAP_DAYS_UNTIL_INSTALLMENT_DUE_DATE + 1),
     )
     should_get_sent = ApartmentInstallmentFactory(

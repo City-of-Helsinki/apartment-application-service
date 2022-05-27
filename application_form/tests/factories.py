@@ -139,6 +139,6 @@ class OfferFactory(factory.django.DjangoModelFactory):
     apartment_reservation = factory.SubFactory(ApartmentReservationFactory)
     comment = fuzzy.FuzzyText()
     valid_until = fuzzy.FuzzyDate(
-        start_date=timezone.now().date() + timedelta(days=7),
-        end_date=timezone.now().date() + timedelta(days=14),
+        start_date=timezone.localdate() + timedelta(days=7),
+        end_date=timezone.localdate() + timedelta(days=14),
     )

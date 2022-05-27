@@ -42,7 +42,7 @@ class InstallmentBase(models.Model):
 
 class ApartmentInstallmentQuerySet(models.QuerySet):
     def sending_to_sap_needed(self):
-        max_due_date = timezone.now().date() + timedelta(
+        max_due_date = timezone.localdate() + timedelta(
             days=settings.SAP_DAYS_UNTIL_INSTALLMENT_DUE_DATE
         )
         return self.filter(
