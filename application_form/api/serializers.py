@@ -160,6 +160,7 @@ class ReservationOfferSerializer(
             "state",
             "concluded_at",
             "comment",
+            "is_expired",
         )
 
 
