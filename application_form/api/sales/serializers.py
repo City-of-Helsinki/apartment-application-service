@@ -214,6 +214,7 @@ class OfferSerializer(EnumSupportSerializerMixin, serializers.ModelSerializer):
             "state",
             "concluded_at",
             "comment",
+            "is_expired",
         )
         read_only_fields = ("concluded_at",)
 

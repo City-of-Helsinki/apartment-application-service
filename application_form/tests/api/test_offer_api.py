@@ -38,6 +38,7 @@ def test_create_offer(user_api_client):
         "valid_until": str(week_in_future),
         "state": "pending",
         "concluded_at": None,
+        "is_expired": False,
     }
 
     offer = reservation.offer
@@ -112,6 +113,7 @@ def test_update_offer(user_api_client):
         "state": "pending",
         "concluded_at": None,
         "comment": "new comment",
+        "is_expired": False,
     }
 
     offer.refresh_from_db()
@@ -243,6 +245,7 @@ def test_update_offer_change_to_expired(user_api_client):
         format="json",
     )
     assert response.status_code == 200
+    assert response.data["is_expired"] is True
 
     reservation.refresh_from_db()
     assert reservation.state == ApartmentReservationState.OFFER_EXPIRED
