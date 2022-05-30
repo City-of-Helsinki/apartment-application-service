@@ -6,6 +6,7 @@ from apartment.api.views import (
     ProjectAPIView,
     ProjectExportApplicantsAPIView,
     ProjectExportLotteryResultsAPIView,
+    SaleReportAPIView,
 )
 from invoicing.api.views import ProjectInstallmentTemplateAPIView
 
@@ -13,6 +14,7 @@ router = DefaultRouter()
 
 urlpatterns = [
     path("sales/apartments/", ApartmentAPIView.as_view(), name="apartment-list"),
+    path("sales/report/", SaleReportAPIView.as_view(), name="sale-report"),
     path(
         "sales/projects/",
         ProjectAPIView.as_view(),

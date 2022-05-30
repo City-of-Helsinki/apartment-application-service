@@ -21,6 +21,22 @@ def get_apartment(apartment_uuid, include_project_fields=False):
     return apartment
 
 
+def get_apartment_project_uuid(apartment_uuid):
+    search = ApartmentDocument.search()
+
+    # Filters
+    search = search.filter("term", uuid__keyword=apartment_uuid)
+    search = search.source(includes=["project_uuid"])
+
+    # Get item
+    try:
+        apartment = search.execute()[0]
+    except IndexError:
+        raise ObjectDoesNotExist("Apartment does not exist in ElasticSearch.")
+
+    return apartment
+
+
 def get_apartments(project_uuid=None):
     search = ApartmentDocument.search()
 
