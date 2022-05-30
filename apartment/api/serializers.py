@@ -2,6 +2,8 @@ from rest_framework import serializers
 
 from apartment.api.sales.serializers import ApartmentSerializer
 from apartment.elastic.queries import get_apartment_uuids, get_apartments
+from apartment.models import ProjectExtraData
+from application_form.api.sales.serializers import ProjectExtraDataSerializer
 from application_form.models import ApartmentReservation, LotteryEvent
 from invoicing.api.serializers import ProjectInstallmentTemplateSerializer
 from invoicing.models import ProjectInstallmentTemplate
@@ -159,6 +161,7 @@ class ProjectDocumentListSerializer(ProjectDocumentSerializerBase):
 class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
     installment_templates = serializers.SerializerMethodField()
     apartments = serializers.SerializerMethodField()
+    extra_data = serializers.SerializerMethodField()
 
     def get_installment_templates(self, obj):
         installment_templates = ProjectInstallmentTemplate.objects.filter(
@@ -185,3 +188,10 @@ class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
                 "reservations": project_reservations,
             },
         ).data
+
+    def get_extra_data(self, obj):
+        try:
+            extra_data = ProjectExtraData.objects.get(project_uuid=obj.project_uuid)
+        except ProjectExtraData.DoesNotExist:
+            extra_data = ProjectExtraData()
+        return ProjectExtraDataSerializer(extra_data).data

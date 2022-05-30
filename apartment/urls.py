@@ -6,6 +6,7 @@ from apartment.api.views import (
     ProjectAPIView,
     ProjectExportApplicantsAPIView,
     ProjectExportLotteryResultsAPIView,
+    ProjectExtraDataAPIView,
     SaleReportAPIView,
 )
 from invoicing.api.views import ProjectInstallmentTemplateAPIView
@@ -39,6 +40,11 @@ urlpatterns = [
         "sales/projects/<uuid:project_uuid>/export_lottery_result/",
         ProjectExportLotteryResultsAPIView.as_view(),
         name="project-detail-lottery-result",
+    ),
+    path(
+        "sales/projects/<uuid:project_uuid>/extra_data/",
+        ProjectExtraDataAPIView.as_view(),
+        name="project-detail-extra-data",
     ),
     path("", include(router.urls)),
 ]

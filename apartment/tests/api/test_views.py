@@ -4,6 +4,8 @@ from django.urls import reverse
 from urllib.parse import urlencode
 
 from apartment.elastic.queries import get_project
+from apartment.models import ProjectExtraData
+from apartment.tests.factories import ApartmentDocumentFactory
 from application_form.enums import (
     ApartmentReservationCancellationReason,
     ApartmentReservationState,
@@ -516,3 +518,97 @@ def test_export_sale_report(profile_api_client, elastic_project_with_5_apartment
 
 def _build_url_with_query_params(base_url, query_params):
     return "{}?{}".format(base_url, urlencode(query_params))
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("has_extra_data_instance", (False, True))
+def test_get_project_extra_data_endpoint(api_client, has_extra_data_instance):
+    apartment = ApartmentDocumentFactory()
+    project_uuid = apartment.project_uuid
+
+    if has_extra_data_instance:
+        ProjectExtraData.objects.create(
+            project_uuid=project_uuid,
+            offer_message_intro="test intro",
+            offer_message_content="test content",
+        )
+
+    url = reverse("apartment:project-detail", kwargs={"project_uuid": project_uuid})
+
+    response = api_client.get(url, format="json")
+    assert response.status_code == 200
+    expected = (
+        {"offer_message_intro": "test intro", "offer_message_content": "test content"}
+        if has_extra_data_instance
+        else {"offer_message_intro": "", "offer_message_content": ""}
+    )
+    assert response.data["extra_data"] == expected
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("has_extra_data_instance", (False, True))
+def test_put_project_extra_data_endpoint(api_client, has_extra_data_instance):
+    apartment = ApartmentDocumentFactory()
+    project_uuid = apartment.project_uuid
+
+    if has_extra_data_instance:
+        ProjectExtraData.objects.create(
+            project_uuid=project_uuid,
+            offer_message_intro="test intro",
+            offer_message_content="test content",
+        )
+
+    data = {
+        "offer_message_intro": "updated test intro",
+        "offer_message_content": "updated test content",
+    }
+
+    url = reverse(
+        "apartment:project-detail-extra-data", kwargs={"project_uuid": project_uuid}
+    )
+
+    response = api_client.put(url, data=data, format="json")
+    assert response.status_code == 200
+    assert response.data == {
+        "offer_message_intro": "updated test intro",
+        "offer_message_content": "updated test content",
+    }
+    extra_data = ProjectExtraData.objects.get(project_uuid=project_uuid)
+    assert extra_data.offer_message_intro == "updated test intro"
+    assert extra_data.offer_message_content == "updated test content"
+
+
+@pytest.mark.django_db
+def test_get_project_extra_data_endpoint_non_existing_project(api_client):
+    ApartmentDocumentFactory()
+    project_uuid = uuid.uuid4()
+
+    url = reverse("apartment:project-detail", kwargs={"project_uuid": project_uuid})
+    response = api_client.get(url, format="json")
+
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("has_extra_data_instance", (False, True))
+def test_get_project_detail_extra_data_field(api_client, has_extra_data_instance):
+    apartment = ApartmentDocumentFactory()
+    project_uuid = apartment.project_uuid
+
+    if has_extra_data_instance:
+        ProjectExtraData.objects.create(
+            project_uuid=project_uuid,
+            offer_message_intro="test intro",
+            offer_message_content="test content",
+        )
+
+    url = reverse("apartment:project-detail", kwargs={"project_uuid": project_uuid})
+
+    response = api_client.get(url, format="json")
+    assert response.status_code == 200
+    expected = (
+        {"offer_message_intro": "test intro", "offer_message_content": "test content"}
+        if has_extra_data_instance
+        else {"offer_message_intro": "", "offer_message_content": ""}
+    )
+    assert response.data["extra_data"] == expected

@@ -1,10 +1,11 @@
 from dateutil import parser
 from django.core.exceptions import ObjectDoesNotExist
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse
 from django.utils.text import format_lazy
 from django.utils.translation import gettext_lazy as _
 from rest_framework import permissions
 from rest_framework.exceptions import NotFound, ValidationError
+from rest_framework.generics import RetrieveUpdateAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -19,6 +20,8 @@ from apartment.elastic.queries import (
     get_project,
     get_projects,
 )
+from apartment.models import ProjectExtraData
+from application_form.api.sales.serializers import ProjectExtraDataSerializer
 from application_form.enums import ApartmentReservationState
 from application_form.models import (
     ApartmentReservation,
@@ -153,3 +156,25 @@ class SaleReportAPIView(APIView):
             file_name=file_name
         )
         return response
+
+
+class ProjectExtraDataAPIView(RetrieveUpdateAPIView):
+    queryset = ProjectExtraData.objects.all()
+    serializer_class = ProjectExtraDataSerializer
+    lookup_field = "project_uuid"
+
+    def get_object(self):
+        try:
+            get_project(self.kwargs["project_uuid"])
+        except ObjectDoesNotExist as e:
+            raise NotFound(e)
+        try:
+            return super().get_object()
+        except Http404:
+            # When the ProjectExtraData instance does not exist already, this works for
+            # both retrieve and update:
+            #   * when retrieving, we want to return the object same kind of object with
+            #     fields empty rather than 404
+            #   * when updating, we want to create the ProjectExtraData instance if it
+            #     doesn't exist already.
+            return ProjectExtraData(project_uuid=self.kwargs["project_uuid"])
