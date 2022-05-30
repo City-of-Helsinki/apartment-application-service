@@ -2,8 +2,8 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse
 from django.views.decorators.http import require_http_methods
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema, OpenApiExample
-from rest_framework import mixins, permissions, status, viewsets
+from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiExample
+from rest_framework import mixins, permissions, serializers, status, viewsets
 from rest_framework.decorators import (
     action,
     api_view,
@@ -14,8 +14,11 @@ from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
 
 from apartment.elastic.queries import get_apartment, get_project
+from apartment.models import ProjectExtraData
+from apartment.services import get_offer_message
 from application_form.api.sales.serializers import (
     OfferSerializer,
+    ProjectExtraDataSerializer,
     ProjectUUIDSerializer,
     RootApartmentReservationSerializer,
     SalesApplicationSerializer,
@@ -211,6 +214,37 @@ class ApartmentReservationViewSet(
             status=status.HTTP_200_OK,
         )
 
+    @extend_schema(
+        responses=inline_serializer(
+            name="offer_message", fields={"message": serializers.CharField()}
+        ),
+        examples=[
+            OpenApiExample(
+                "Offer message example",
+                value={
+                    "message": """Lorem ipsum
+
+Huoneisto: A1
+Huoneistotyyppi: 5h+k
+
+Ipsum
+Lorem
+""".replace(
+                        "\n", "\r\n"
+                    )
+                },
+            ),
+        ],
+    )
+    @action(methods=["GET"], detail=True)
+    def offer_message(self, request, pk=None):
+        reservation = self.get_object()
+
+        return Response(
+            {"message": get_offer_message(reservation)},
+            status=status.HTTP_200_OK,
+        )
+
 
 class OfferViewSet(
     mixins.RetrieveModelMixin,
@@ -220,3 +254,12 @@ class OfferViewSet(
 ):
     queryset = Offer.objects.all()
     serializer_class = OfferSerializer
+
+
+class ProjectExtraDataViewSet(
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    viewsets.GenericViewSet,
+):
+    queryset = ProjectExtraData.objects.all()
+    serializer_class = ProjectExtraDataSerializer

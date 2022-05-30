@@ -5,6 +5,7 @@ from decimal import Decimal
 from django.urls import reverse
 from django.utils.timezone import localtime
 
+from apartment.models import ProjectExtraData
 from apartment.tests.factories import ApartmentDocumentFactory
 from application_form.enums import (
     ApartmentReservationCancellationReason,
@@ -610,3 +611,88 @@ def test_create_reservation_queue_already_has_reserved_reservation(user_api_clie
 
     assert response.data["state"] == "submitted"
     assert response.data["queue_position"] == 2
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("ownership_type", ["puolihitas", "hitas", "haso"])
+def test_get_offer_message(user_api_client, ownership_type):
+    apartment = ApartmentDocumentFactory(
+        apartment_number="A1",
+        apartment_structure="5h+k",
+        living_area=5.0,
+        floor=3,
+        sales_price=400000,
+        debt_free_sales_price=500000,
+        maintenance_fee=10000,
+        right_of_occupancy_payment=30000,
+        right_of_occupancy_fee=40000,
+        right_of_occupancy_deposit=5000,
+        project_ownership_type=ownership_type,
+    )
+
+    ProjectExtraData.objects.create(
+        project_uuid=apartment.project_uuid,
+        offer_message_intro="this is intro\r\n",
+        offer_message_content="this\r\nis\ncontent\r\n",
+    )
+
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        customer__right_of_residence=777,
+        customer__is_age_over_55=True,
+        customer__is_right_of_occupancy_housing_changer=False,
+        customer__has_children=True,
+    )
+
+    response = user_api_client.get(
+        reverse(
+            "application_form:sales-apartment-reservation-offer-message",
+            kwargs={"pk": reservation.id},
+        ),
+    )
+    assert response.status_code == 200, response.status_code
+
+    if ownership_type == "haso":
+        expected = """this is intro
+
+Huoneisto: A1
+Huoneistotyyppi: 5h+k
+Pinta-ala: 5.0
+Kerros: 3. krs
+
+Alustava asumisoikeusmaksu: 300,00 €
+Alustava käyttövastike: 400,00 €
+Käyttövakuus: 50,00 €
+
+Asumisoikeusnumero: 777
+Yli 55v: Kyllä
+Haso-vaihtaja: Ei
+
+this
+is
+content
+""".replace(
+            "\n", "\r\n"
+        )
+    else:
+        expected = """this is intro
+
+Huoneisto: A1
+Huoneistotyyppi: 5h+k
+Pinta-ala: 5.0
+Kerros: 3. krs
+
+Myyntihinta: 4 000,00 €
+Velaton hinta: 5 000,00 €
+Alustava vastike: 100,00 €
+
+Lapsiperhe: Kyllä
+
+this
+is
+content
+""".replace(
+            "\n", "\r\n"
+        )
+
+    assert response.data == {"message": expected}
