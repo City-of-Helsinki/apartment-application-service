@@ -1,11 +1,19 @@
 import pytest
 from _pytest.fixtures import fixture
+from datetime import timedelta
+from django.utils import timezone
 
 from apartment.elastic.queries import get_apartment_uuids, get_project
+from application_form.enums import ApartmentReservationState
+from application_form.models import (
+    ApartmentReservation,
+    ApartmentReservationStateChangeEvent,
+)
 from application_form.services.application import cancel_reservation
 from application_form.services.export import (
     ApplicantExportService,
     ProjectLotteryResultExportService,
+    SaleReportExportService,
 )
 from application_form.services.lottery.machine import distribute_apartments
 from application_form.services.queue import add_application_to_queues
@@ -152,6 +160,59 @@ def test_export_project_lottery_result(
 
     assert csv_lines[1][7] == first_reservation.customer.primary_profile.full_name
     assert csv_lines[-1][7] == last_reservation.customer.primary_profile.full_name
+
+
+@pytest.mark.django_db
+def test_export_sale_report(
+    elastic_hitas_project_with_5_apartments,
+    elastic_haso_project_with_5_apartments,
+):
+    project_uuids = []
+    for i in range(2):
+        if i % 2 == 0:
+            project_uuid, _ = elastic_hitas_project_with_5_apartments
+        else:
+            project_uuid, _ = elastic_haso_project_with_5_apartments
+        apartment_uuids = get_apartment_uuids(project_uuid)
+        for apartment_uuid in apartment_uuids:
+            apt_app = ApplicationApartmentFactory.create_batch(
+                2, apartment_uuid=apartment_uuid
+            )
+            add_application_to_queues(apt_app[0].application)
+            add_application_to_queues(apt_app[1].application)
+        distribute_apartments(project_uuid)
+        project_uuids.append(project_uuid)
+
+    # Now sold some apartment
+    for project_uuid in project_uuids:
+        # 1 apartment sold per project
+        apartment_uuids = get_apartment_uuids(project_uuid)
+        reservation = (
+            ApartmentReservation.objects.filter(apartment_uuid=apartment_uuids[0])
+            .reserved()
+            .first()
+        )
+        reservation.set_state(ApartmentReservationState.SOLD)
+
+    start_date = timezone.localdate() - timedelta(days=7)
+    end_date = timezone.localdate() + timedelta(days=7)
+    state_events = ApartmentReservationStateChangeEvent.objects.filter(
+        state=ApartmentReservationState.SOLD, timestamp__range=[start_date, end_date]
+    )
+    assert state_events.count() == 2
+    export_service = SaleReportExportService(state_events)
+    csv_lines = export_service.get_rows()
+
+    assert len(csv_lines) == 4
+    for idx, header in enumerate(csv_lines[0]):
+        assert header == SaleReportExportService.COLUMNS[idx][0]
+    assert (csv_lines[1][1] == "" and csv_lines[1][2] == 1) or (
+        csv_lines[1][1] == 1 and csv_lines[1][2] == ""
+    )
+    assert (csv_lines[2][1] == "" and csv_lines[2][2] == 1) or (
+        csv_lines[2][1] == 1 and csv_lines[2][2] == ""
+    )
+    assert csv_lines[3][:3] == ["Total", 1, 1]
 
 
 @pytest.mark.django_db

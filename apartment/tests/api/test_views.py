@@ -1,6 +1,7 @@
 import pytest
 import uuid
 from django.urls import reverse
+from urllib.parse import urlencode
 
 from apartment.elastic.queries import get_project
 from application_form.enums import (
@@ -466,3 +467,52 @@ def test_project_detail_apartment_reservations_has_cancellation_info(
         assert apartment_data["reservations"]
         assert len(apartment_data["reservations"]) == 2
         _assert_apartment_reservations_data(apartment_data["reservations"])
+
+
+@pytest.mark.django_db
+def test_export_sale_report(profile_api_client, elastic_project_with_5_apartments):
+    """
+    Test export applicants information to CSV
+    """
+    project_uuid, apartments = elastic_project_with_5_apartments
+
+    response = profile_api_client.get(
+        reverse("apartment:sale-report"),
+        format="json",
+    )
+    assert response.status_code == 400
+    assert "Missing start date or end date" in str(response.data)
+    base_url = reverse("apartment:sale-report")
+    query_params = {
+        "start_date": "1990-22-12",
+        "end_date": "1990-22-12",
+    }
+    response = profile_api_client.get(
+        _build_url_with_query_params(base_url, query_params), format="json"
+    )
+    assert response.status_code == 400
+    assert "Invalid datetime format" in str(response.data)
+
+    query_params = {
+        "start_date": "1990-02-12",
+        "end_date": "1990-01-12",
+    }
+    response = profile_api_client.get(
+        _build_url_with_query_params(base_url, query_params), format="json"
+    )
+    assert response.status_code == 400
+    assert "greater than" in str(response.data)
+
+    query_params = {
+        "start_date": "2020-02-12",
+        "end_date": "2020-03-12",
+    }
+    response = profile_api_client.get(
+        _build_url_with_query_params(base_url, query_params), format="json"
+    )
+    assert response.headers["Content-Type"] == "text/csv"
+    assert response.status_code == 200
+
+
+def _build_url_with_query_params(base_url, query_params):
+    return "{}?{}".format(base_url, urlencode(query_params))

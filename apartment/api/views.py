@@ -1,3 +1,4 @@
+from dateutil import parser
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse
 from django.utils.text import format_lazy
@@ -18,10 +19,16 @@ from apartment.elastic.queries import (
     get_project,
     get_projects,
 )
-from application_form.models import ApartmentReservation, LotteryEvent
+from application_form.enums import ApartmentReservationState
+from application_form.models import (
+    ApartmentReservation,
+    ApartmentReservationStateChangeEvent,
+    LotteryEvent,
+)
 from application_form.services.export import (
     ApplicantExportService,
     ProjectLotteryResultExportService,
+    SaleReportExportService,
 )
 
 
@@ -103,6 +110,43 @@ class ProjectExportLotteryResultsAPIView(APIView):
         file_name = format_lazy(
             _("[Project {title}] Lottery result"),
             title=project.project_street_address,
+        ).replace(" ", "_")
+        response = HttpResponse(csv_file, content_type="text/csv")
+        response["Content-Disposition"] = "attachment; filename={file_name}.csv".format(
+            file_name=file_name
+        )
+        return response
+
+
+class SaleReportAPIView(APIView):
+    permission_classes = [permissions.AllowAny]
+    http_method_names = ["get"]
+
+    def get(self, request):
+        start_date = request.query_params.get("start_date")
+        end_date = request.query_params.get("end_date")
+        if start_date is None or end_date is None:
+            raise ValidationError("Missing start date or end date")
+        try:
+            start_date_obj = parser.isoparse(start_date)
+            end_date_obj = parser.isoparse(end_date)
+        except ValueError:
+            raise ValidationError(
+                "Invalid datetime format, "
+                "the correct format is - `YYYY-MM-DD` or `YYYYMMDD`"
+            )
+        if start_date_obj > end_date_obj:
+            raise ValidationError("Start date cannot be greater than end date")
+        state_events = ApartmentReservationStateChangeEvent.objects.filter(
+            timestamp__range=[start_date_obj, end_date_obj],
+            state=ApartmentReservationState.SOLD,
+        )
+        export_services = SaleReportExportService(state_events)
+        csv_file = export_services.get_csv_string()
+        file_name = format_lazy(
+            _("Sale report {start_date} - {end_date}"),
+            start_date=start_date,
+            end_date=end_date,
         ).replace(" ", "_")
         response = HttpResponse(csv_file, content_type="text/csv")
         response["Content-Disposition"] = "attachment; filename={file_name}.csv".format(

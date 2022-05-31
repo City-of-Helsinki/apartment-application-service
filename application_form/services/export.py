@@ -3,7 +3,14 @@ import operator
 from abc import abstractmethod
 from io import StringIO
 
-from apartment.elastic.queries import get_apartment, get_apartment_uuids
+from apartment.elastic.queries import (
+    get_apartment,
+    get_apartment_project_uuid,
+    get_apartment_uuids,
+    get_project,
+)
+from apartment.enums import ApartmentState
+from apartment.utils import get_apartment_state
 from application_form.enums import ApartmentReservationState
 from application_form.models import ApartmentReservation
 
@@ -168,3 +175,69 @@ class ProjectLotteryResultExportService(CSVExportService):
             )
             line.append(cell_value)
         return line
+
+
+class SaleReportExportService(CSVExportService):
+    COLUMNS = [
+        ("Project address", "project_street_address"),
+        ("Sold HITAS apartments", "hitas_sold_apartment_count"),
+        ("Sold HASO apartments", "haso_sold_apartment_count"),
+        ("Unsold apartments", "unsold_apartment_count"),
+    ]
+
+    def __init__(self, sold_events):
+        self.sold_events = sold_events
+        self.project_uuids = self._get_project_uuids()
+
+    def get_rows(self):
+        rows = [self._get_header_row()]
+        total_hitas_sold = total_haso_sold = total_unsold = 0
+        for project_uuid in self.project_uuids:
+            project = get_project(project_uuid)
+            row = self.get_row(project)
+            rows.append(row)
+            total_hitas_sold += int(row[1] or 0)
+            total_haso_sold += int(row[2] or 0)
+            total_unsold += int(row[3])
+        # Add a total row at the bottom
+        total_row = ["Total", total_hitas_sold, total_haso_sold, total_unsold]
+        rows.append(total_row)
+        return rows
+
+    def get_row(self, project):
+        line = []
+        apartment_uuids = get_apartment_uuids(project.project_uuid)
+        total_sold = len(
+            [
+                apartment_uuid
+                for apartment_uuid in apartment_uuids
+                if get_apartment_state(apartment_uuid) == ApartmentState.SOLD.value
+            ]
+        )
+        reported_sold = len(
+            [
+                e
+                for e in self.sold_events
+                if str(e.reservation.apartment_uuid) in apartment_uuids
+            ]
+        )
+        remaining = project.project_apartment_count - total_sold
+        for column in self.COLUMNS:
+            cell_value = ""
+            if column[1].startswith(project.project_ownership_type.lower()):
+                cell_value = reported_sold
+            if column[1] == "project_street_address":
+                cell_value = project.project_street_address
+            if column[1] == "unsold_apartment_count":
+                cell_value = remaining
+            line.append(cell_value)
+        return line
+
+    def _get_project_uuids(self):
+        project_uuids = set()
+        for e in self.sold_events:
+            project_uuid = get_apartment_project_uuid(
+                e.reservation.apartment_uuid
+            ).project_uuid
+            project_uuids.add(project_uuid)
+        return project_uuids

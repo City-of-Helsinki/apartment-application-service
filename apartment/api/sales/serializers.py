@@ -1,8 +1,7 @@
 from rest_framework import serializers
 
-from apartment.enums import ApartmentState
+from apartment.utils import get_apartment_state
 from application_form.api.sales.serializers import SalesApartmentReservationSerializer
-from application_form.models import ApartmentReservation
 
 
 class ApartmentSerializer(serializers.Serializer):
@@ -30,15 +29,4 @@ class ApartmentSerializer(serializers.Serializer):
         ).data
 
     def get_state(self, obj):
-        try:
-            reserved_reservation = ApartmentReservation.objects.reserved().get(
-                apartment_uuid=obj.uuid
-            )
-        except ApartmentReservation.DoesNotExist:
-            return ApartmentState.FREE.value
-        except ApartmentReservation.MultipleObjectsReturned:
-            return ApartmentState.REVIEW.value
-
-        return ApartmentState.get_from_reserved_reservation_state(
-            reserved_reservation.state
-        ).value
+        return get_apartment_state(obj.uuid)
