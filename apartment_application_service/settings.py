@@ -224,6 +224,12 @@ LOGGING = {
             # required to avoid double logging with root logger
             "propagate": False,
         },
+        "invoicing": {
+            "level": env("APPS_LOG_LEVEL"),
+            "handlers": ["console"],
+            # required to avoid double logging with root logger
+            "propagate": False,
+        },
     },
 }
 
