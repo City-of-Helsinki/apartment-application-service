@@ -19,7 +19,9 @@ def send_needed_installments_to_sap() -> int:
 
 def generate_sap_xml_filename() -> str:
     return (
-        settings.SAP_SFTP_FILENAME_PREFIX + f"{timezone.now().strftime('%Y%m%d%H%M%S')}"
+        settings.SAP_SFTP_FILENAME_PREFIX
+        + f"{timezone.now().strftime('%Y%m%d%H%M%S')}"
+        + ".xml"
     )
 
 
