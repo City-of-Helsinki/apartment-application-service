@@ -21,6 +21,7 @@ class ApartmentReservationCancellationReason(Enum):
         "reservation_agreement_canceled"  # Varaussopimus peruttu
     )
     TRANSFERRED = "transferred"  # Siirretty
+    OTHER_APARTMENT_OFFERED = "other_apartment_offered"
 
 
 class ApplicationType(Enum):
