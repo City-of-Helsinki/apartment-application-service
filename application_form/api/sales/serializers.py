@@ -7,6 +7,7 @@ from rest_framework.fields import UUIDField
 from uuid import UUID
 
 from apartment.elastic.queries import get_apartment, get_apartment_uuids
+from apartment.models import ProjectExtraData
 from application_form.api.serializers import (
     ApartmentReservationSerializerBase,
     ApplicantSerializerBase,
@@ -227,3 +228,9 @@ class OfferSerializer(EnumSupportSerializerMixin, serializers.ModelSerializer):
         else:
             user = None
         return update_offer(instance, validated_data, user=user)
+
+
+class ProjectExtraDataSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProjectExtraData
+        fields = ("offer_message_intro", "offer_message_content")
