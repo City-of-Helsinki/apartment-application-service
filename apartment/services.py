@@ -6,7 +6,7 @@ from apartment.models import ProjectExtraData
 from application_form.models import ApartmentReservation
 
 
-def get_offer_message(reservation: ApartmentReservation) -> str:
+def get_offer_message_subject_and_body(reservation: ApartmentReservation) -> (str, str):
     apartment = get_apartment(reservation.apartment_uuid, include_project_fields=True)
 
     try:
@@ -17,14 +17,19 @@ def get_offer_message(reservation: ApartmentReservation) -> str:
         intro = ""
         content = ""
 
-    dynamic = _get_offer_message_dynamic_part(reservation, apartment)
+    dynamic = _get_offer_message_body_dynamic_part(reservation, apartment)
 
-    message = "\n".join([part for part in (intro, dynamic, content) if part])
+    body = "\n".join([part for part in (intro, dynamic, content) if part]).replace(
+        "\n", "\r\n"
+    )
+    subject = (
+        f"Tarjous {apartment.project_housing_company} {apartment.apartment_number}"
+    )
 
-    return message.replace("\n", "\r\n")
+    return subject, body
 
 
-def _get_offer_message_dynamic_part(
+def _get_offer_message_body_dynamic_part(
     reservation: ApartmentReservation, apartment
 ) -> str:
     common = f"""Huoneisto: {apartment.apartment_number}

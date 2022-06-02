@@ -30,6 +30,7 @@ from invoicing.tests.factories import (
     ApartmentInstallmentFactory,
     ProjectInstallmentTemplateFactory,
 )
+from users.tests.factories import ProfileFactory
 
 
 @pytest.mark.django_db
@@ -628,6 +629,7 @@ def test_get_offer_message(user_api_client, ownership_type):
         right_of_occupancy_fee=40000,
         right_of_occupancy_deposit=5000,
         project_ownership_type=ownership_type,
+        project_housing_company="As Oy Pojanlohi",
     )
 
     ProjectExtraData.objects.create(
@@ -642,6 +644,9 @@ def test_get_offer_message(user_api_client, ownership_type):
         customer__is_age_over_55=True,
         customer__is_right_of_occupancy_housing_changer=False,
         customer__has_children=True,
+        customer__primary_profile__first_name="Ulla",
+        customer__primary_profile__last_name="Taalasmaa",
+        customer__primary_profile__email="ulla@example.com",
     )
 
     response = user_api_client.get(
@@ -650,10 +655,12 @@ def test_get_offer_message(user_api_client, ownership_type):
             kwargs={"pk": reservation.id},
         ),
     )
-    assert response.status_code == 200, response.status_code
+    assert response.status_code == 200
+
+    expected_subject = "Tarjous As Oy Pojanlohi A1"
 
     if ownership_type == "haso":
-        expected = """this is intro
+        expected_body = """this is intro
 
 Huoneisto: A1
 Huoneistotyyppi: 5h+k
@@ -675,7 +682,7 @@ content
             "\n", "\r\n"
         )
     else:
-        expected = """this is intro
+        expected_body = """this is intro
 
 Huoneisto: A1
 Huoneistotyyppi: 5h+k
@@ -695,4 +702,35 @@ content
             "\n", "\r\n"
         )
 
-    assert response.data == {"message": expected}
+    expected_recipients = [
+        {"name": "Ulla Taalasmaa", "email": "ulla@example.com"},
+    ]
+
+    expected_data = {
+        "subject": expected_subject,
+        "body": expected_body,
+        "recipients": expected_recipients,
+    }
+    assert response.data == expected_data
+
+    # test also with multiple recipients
+
+    reservation.customer.secondary_profile = ProfileFactory(
+        first_name="Suppo",
+        last_name="Taalasmaa",
+        email="suppo@example.com",
+    )
+    reservation.customer.save()
+
+    response = user_api_client.get(
+        reverse(
+            "application_form:sales-apartment-reservation-offer-message",
+            kwargs={"pk": reservation.id},
+        ),
+    )
+    assert response.status_code == 200
+
+    expected_data["recipients"].append(
+        {"name": "Suppo Taalasmaa", "email": "suppo@example.com"},
+    )
+    assert response.data == expected_data
