@@ -8,6 +8,7 @@ from uuid import UUID
 
 from apartment.elastic.queries import get_apartment, get_apartment_uuids
 from apartment.models import ProjectExtraData
+from apartment.services import get_offer_message_subject_and_body
 from application_form.api.serializers import (
     ApartmentReservationSerializerBase,
     ApplicantSerializerBase,
@@ -234,3 +235,39 @@ class ProjectExtraDataSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProjectExtraData
         fields = ("offer_message_intro", "offer_message_content")
+
+
+class RecipientSerializer(serializers.ModelSerializer):
+    name = serializers.CharField(source="full_name")
+
+    class Meta:
+        model = Profile
+        fields = ("name", "email")
+
+
+class OfferMessageSerializer(serializers.Serializer):
+    subject = serializers.CharField()
+    body = serializers.CharField()
+    recipients = RecipientSerializer(many=True)
+
+    class Meta:
+        fields = ("subject", "body", "recipients")
+
+    def to_representation(self, instance: ApartmentReservation):
+        subject, body = get_offer_message_subject_and_body(instance)
+        recipients = RecipientSerializer(
+            [
+                p
+                for p in (
+                    instance.customer.primary_profile,
+                    instance.customer.secondary_profile,
+                )
+                if p
+            ],
+            many=True,
+        ).data
+        return {
+            "subject": subject,
+            "body": body,
+            "recipients": recipients,
+        }

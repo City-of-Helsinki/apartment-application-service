@@ -2,8 +2,8 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse
 from django.views.decorators.http import require_http_methods
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiExample
-from rest_framework import mixins, permissions, serializers, status, viewsets
+from drf_spectacular.utils import extend_schema, OpenApiExample
+from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.decorators import (
     action,
     api_view,
@@ -15,8 +15,8 @@ from rest_framework.response import Response
 
 from apartment.elastic.queries import get_apartment, get_project
 from apartment.models import ProjectExtraData
-from apartment.services import get_offer_message
 from application_form.api.sales.serializers import (
+    OfferMessageSerializer,
     OfferSerializer,
     ProjectExtraDataSerializer,
     ProjectUUIDSerializer,
@@ -215,23 +215,26 @@ class ApartmentReservationViewSet(
         )
 
     @extend_schema(
-        responses=inline_serializer(
-            name="offer_message", fields={"message": serializers.CharField()}
-        ),
+        responses=OfferMessageSerializer(),
         examples=[
             OpenApiExample(
                 "Offer message example",
                 value={
-                    "message": """Lorem ipsum
+                    "subject": "Tarjous As Oy Pojanlohi C4",
+                    "body": """Lorem ipsum
 
-Huoneisto: A1
+Huoneisto: C4
 Huoneistotyyppi: 5h+k
 
 Ipsum
 Lorem
 """.replace(
                         "\n", "\r\n"
-                    )
+                    ),
+                    "recipients": [
+                        {"name": "Ulla Taalasmaa", "email": "ulla@example.com"},
+                        {"name": "Suppo Taalasmaa", "email": "suppo@example.com"},
+                    ],
                 },
             ),
         ],
@@ -239,10 +242,8 @@ Lorem
     @action(methods=["GET"], detail=True)
     def offer_message(self, request, pk=None):
         reservation = self.get_object()
-
         return Response(
-            {"message": get_offer_message(reservation)},
-            status=status.HTTP_200_OK,
+            OfferMessageSerializer(reservation).data, status=status.HTTP_200_OK
         )
 
 
