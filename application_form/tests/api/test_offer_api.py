@@ -4,8 +4,17 @@ from django.urls import reverse
 from django.utils import timezone
 
 from apartment.tests.factories import ApartmentDocumentFactory
-from application_form.enums import ApartmentReservationState, OfferState
+from application_form.enums import (
+    ApartmentReservationCancellationReason,
+    ApartmentReservationState,
+    OfferState,
+)
+from application_form.models import (
+    ApartmentReservation,
+    ApartmentReservationStateChangeEvent,
+)
 from application_form.tests.factories import ApartmentReservationFactory, OfferFactory
+from customer.tests.factories import CustomerFactory
 
 
 @pytest.mark.django_db
@@ -249,3 +258,70 @@ def test_update_offer_change_to_expired(user_api_client):
 
     reservation.refresh_from_db()
     assert reservation.state == ApartmentReservationState.OFFER_EXPIRED
+
+
+@pytest.mark.django_db
+def test_create_offer_cancel_other_reservations(user_api_client):
+    apartment_1 = ApartmentDocumentFactory()
+    apartment_2 = ApartmentDocumentFactory(project_uuid=apartment_1.project_uuid)
+    apartment_3 = ApartmentDocumentFactory(project_uuid=apartment_1.project_uuid)
+    customer = CustomerFactory()
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment_1.uuid,
+        state=ApartmentReservationState.SUBMITTED,
+        list_position=1,
+        customer=customer,
+    )
+    ApartmentReservationFactory(
+        apartment_uuid=apartment_2.uuid,
+        state=ApartmentReservationState.CANCELED,
+        list_position=1,
+        customer=customer,
+    )
+    other_reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment_3.uuid,
+        list_position=1,
+        customer=customer,
+        state=ApartmentReservationState.SUBMITTED,
+    )
+    week_in_future = timezone.localdate() + timedelta(days=7)
+
+    data = {
+        "apartment_reservation_id": reservation.id,
+        "valid_until": week_in_future,
+        "comment": "Foobar.",
+    }
+
+    assert (
+        ApartmentReservation.objects.filter(
+            customer=customer, state=ApartmentReservationState.CANCELED
+        ).count()
+        == 1
+    )
+
+    response = user_api_client.post(
+        reverse(
+            "application_form:sales-offer-list",
+        ),
+        data=data,
+        format="json",
+    )
+
+    assert response.status_code == 201, response.data
+    reservation.refresh_from_db()
+    assert reservation.state == ApartmentReservationState.OFFERED
+    assert (
+        ApartmentReservation.objects.filter(
+            customer=customer, state=ApartmentReservationState.CANCELED
+        ).count()
+        == 2
+    )
+    state_change_event = ApartmentReservationStateChangeEvent.objects.filter(
+        reservation=other_reservation, state=ApartmentReservationState.CANCELED
+    )
+    assert state_change_event.count() == 1
+    assert (
+        state_change_event[0].cancellation_reason
+        == ApartmentReservationCancellationReason.OTHER_APARTMENT_OFFERED
+    )
+    assert apartment_1.apartment_number in state_change_event[0].comment
