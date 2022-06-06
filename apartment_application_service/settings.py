@@ -250,7 +250,7 @@ SESSION_SERIALIZER = "django.contrib.sessions.serializers.PickleSerializer"
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
-        "helusers.oidc.ApiTokenAuthentication",
+        "apartment_application_service.oidc.TunnistamoFixedApiTokenAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ),
     "DEFAULT_SCHEMA_CLASS": "apartment_application_service.openapi.AutoSchema",
