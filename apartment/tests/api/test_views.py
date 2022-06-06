@@ -21,29 +21,24 @@ from application_form.tests.factories import (
     LotteryEventFactory,
 )
 from customer.tests.factories import CustomerFactory
-from users.tests.factories import ProfileFactory
-from users.tests.utils import _create_token, assert_customer_match_data
+from users.tests.utils import assert_customer_match_data
 
 
 @pytest.mark.django_db
 @pytest.mark.usefixtures("elastic_apartments")
-def test_apartment_list_get(api_client):
-    profile = ProfileFactory()
-    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
-    response = api_client.get(reverse("apartment:apartment-list"), format="json")
+def test_apartment_list_get(user_api_client):
+    response = user_api_client.get(reverse("apartment:apartment-list"), format="json")
     assert response.status_code == 200
     assert len(response.data) > 0
 
 
 @pytest.mark.django_db
 def test_apartment_list_get_with_project_uuid(
-    api_client, elastic_project_with_5_apartments
+    user_api_client, elastic_project_with_5_apartments
 ):
     project_uuid, apartments = elastic_project_with_5_apartments
-    profile = ProfileFactory()
-    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
     data = {"project_uuid": project_uuid}
-    response = api_client.get(
+    response = user_api_client.get(
         reverse("apartment:apartment-list"),
         data=data,
         format="json",
@@ -55,10 +50,8 @@ def test_apartment_list_get_with_project_uuid(
 
 @pytest.mark.django_db
 @pytest.mark.usefixtures("elastic_apartments")
-def test_project_list_get(api_client):
-    profile = ProfileFactory()
-    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
-    response = api_client.get(reverse("apartment:project-list"), format="json")
+def test_project_list_get(user_api_client):
+    response = user_api_client.get(reverse("apartment:project-list"), format="json")
     assert response.status_code == 200
     assert len(response.data) > 0
 
@@ -67,11 +60,9 @@ def test_project_list_get(api_client):
 @pytest.mark.parametrize("endpoint", ["list", "detail"])
 @pytest.mark.parametrize("lottery_exists", (True, False))
 def test_project_list_lottery_completed_field(
-    api_client, elastic_project_with_5_apartments, endpoint, lottery_exists
+    user_api_client, elastic_project_with_5_apartments, endpoint, lottery_exists
 ):
     project_uuid, apartments = elastic_project_with_5_apartments
-    profile = ProfileFactory()
-    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
 
     if lottery_exists:
         LotteryEventFactory(apartment_uuid=apartments[0].uuid)
@@ -84,7 +75,7 @@ def test_project_list_lottery_completed_field(
             kwargs={"project_uuid": project_uuid},
         )
     )
-    response = api_client.get(url, format="json")
+    response = user_api_client.get(url, format="json")
     assert response.status_code == 200
 
     data = response.data[0] if endpoint == "list" else response.data
@@ -92,11 +83,11 @@ def test_project_list_lottery_completed_field(
 
 
 @pytest.mark.django_db
-def test_project_get_with_project_uuid(api_client, elastic_project_with_5_apartments):
+def test_project_get_with_project_uuid(
+    user_api_client, elastic_project_with_5_apartments
+):
     project_uuid, _ = elastic_project_with_5_apartments
-    profile = ProfileFactory()
-    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
-    response = api_client.get(
+    response = user_api_client.get(
         reverse("apartment:project-detail", kwargs={"project_uuid": project_uuid}),
         format="json",
     )
@@ -109,10 +100,8 @@ def test_project_get_with_project_uuid(api_client, elastic_project_with_5_apartm
 
 
 @pytest.mark.django_db
-def test_project_get_with_project_uuid_not_exist(api_client):
-    profile = ProfileFactory()
-    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
-    response = api_client.get(
+def test_project_get_with_project_uuid_not_exist(user_api_client):
+    response = user_api_client.get(
         reverse("apartment:project-detail", kwargs={"project_uuid": uuid.uuid4()}),
         format="json",
     )
@@ -146,7 +135,7 @@ def _assert_apartment_reservations_data(reservations):
 
 @pytest.mark.django_db
 def test_project_detail_apartment_reservations(
-    api_client, elastic_project_with_5_apartments
+    user_api_client, elastic_project_with_5_apartments
 ):
     expect_apartments_count = 5
     expect_reservations_per_apartment_count = 5
@@ -160,9 +149,7 @@ def test_project_detail_apartment_reservations(
                 state=ApartmentReservationState.SUBMITTED,
             )
 
-    profile = ProfileFactory()
-    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
-    response = api_client.get(
+    response = user_api_client.get(
         reverse("apartment:project-detail", kwargs={"project_uuid": project_uuid}),
         format="json",
     )
@@ -202,7 +189,7 @@ def test_project_detail_apartment_reservations(
 
 @pytest.mark.django_db
 def test_project_detail_apartment_reservations_has_children(
-    api_client, elastic_project_with_5_apartments
+    user_api_client, elastic_project_with_5_apartments
 ):
     expect_apartments_count = 5
 
@@ -219,9 +206,7 @@ def test_project_detail_apartment_reservations_has_children(
             application_apartment=None,
             state=ApartmentReservationState.SUBMITTED,
         )
-    profile = ProfileFactory()
-    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
-    response = api_client.get(
+    response = user_api_client.get(
         reverse("apartment:project-detail", kwargs={"project_uuid": project_uuid}),
         format="json",
     )
@@ -240,7 +225,7 @@ def test_project_detail_apartment_reservations_has_children(
 
 @pytest.mark.django_db
 def test_project_detail_apartment_reservations_multiple_winning(
-    api_client, elastic_project_with_5_apartments
+    user_api_client, elastic_project_with_5_apartments
 ):
     project_uuid, apartments = elastic_project_with_5_apartments
     customer = CustomerFactory()
@@ -261,9 +246,7 @@ def test_project_detail_apartment_reservations_multiple_winning(
     add_application_to_queues(app1)
     add_application_to_queues(app2)
     distribute_apartments(project_uuid)
-    profile = ProfileFactory()
-    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
-    response = api_client.get(
+    response = user_api_client.get(
         reverse("apartment:project-detail", kwargs={"project_uuid": project_uuid}),
         format="json",
     )
@@ -278,7 +261,7 @@ def test_project_detail_apartment_reservations_multiple_winning(
 
 @pytest.mark.django_db
 def test_export_applicants_csv_per_project(
-    profile_api_client, elastic_project_with_5_apartments
+    user_api_client, elastic_project_with_5_apartments
 ):
     """
     Test export applicants information to CSV
@@ -287,14 +270,14 @@ def test_export_applicants_csv_per_project(
     project = get_project(project_uuid)
 
     data = {"project_uuid": uuid.uuid4()}
-    response = profile_api_client.get(
+    response = user_api_client.get(
         reverse("apartment:project-detail-export-applicant", kwargs=data),
         format="json",
     )
     assert response.status_code == 404
 
     data = {"project_uuid": project_uuid}
-    response = profile_api_client.get(
+    response = user_api_client.get(
         reverse("apartment:project-detail-export-applicant", kwargs=data),
         format="json",
     )
@@ -308,7 +291,7 @@ def test_export_applicants_csv_per_project(
 
 @pytest.mark.django_db
 def test_export_lottery_result_csv_per_project(
-    profile_api_client, elastic_project_with_5_apartments
+    user_api_client, elastic_project_with_5_apartments
 ):
     """
     Test export applicants information to CSV
@@ -317,14 +300,14 @@ def test_export_lottery_result_csv_per_project(
     project = get_project(project_uuid)
 
     data = {"project_uuid": uuid.uuid4()}
-    response = profile_api_client.get(
+    response = user_api_client.get(
         reverse("apartment:project-detail-lottery-result", kwargs=data),
         format="json",
     )
     assert response.status_code == 404
 
     data = {"project_uuid": project_uuid}
-    response = profile_api_client.get(
+    response = user_api_client.get(
         reverse("apartment:project-detail-lottery-result", kwargs=data),
         format="json",
     )
@@ -337,7 +320,7 @@ def test_export_lottery_result_csv_per_project(
     )
     add_application_to_queues(app)
     distribute_apartments(project_uuid)
-    response = profile_api_client.get(
+    response = user_api_client.get(
         reverse("apartment:project-detail-lottery-result", kwargs=data),
         format="json",
     )
@@ -351,7 +334,7 @@ def test_export_lottery_result_csv_per_project(
 
 @pytest.mark.django_db
 def test_project_detail_apartment_states(
-    profile_api_client, elastic_project_with_5_apartments
+    user_api_client, elastic_project_with_5_apartments
 ):
     project_uuid, apartments = elastic_project_with_5_apartments
     apartments = sorted(apartments, key=lambda x: x["uuid"])
@@ -412,7 +395,7 @@ def test_project_detail_apartment_states(
     )
     LotteryEventFactory(apartment_uuid=apartments[4].uuid)
 
-    response = profile_api_client.get(
+    response = user_api_client.get(
         reverse("apartment:project-detail", kwargs={"project_uuid": project_uuid}),
         format="json",
     )
@@ -433,7 +416,7 @@ def test_project_detail_apartment_states(
 
 @pytest.mark.django_db
 def test_project_detail_apartment_reservations_has_cancellation_info(
-    profile_api_client, elastic_project_with_5_apartments
+    user_api_client, elastic_project_with_5_apartments
 ):
     expect_apartments_count = 5
 
@@ -454,7 +437,7 @@ def test_project_detail_apartment_reservations_has_cancellation_info(
             cancellation_reason=ApartmentReservationCancellationReason.CANCELED.value,
         )
 
-    response = profile_api_client.get(
+    response = user_api_client.get(
         reverse("apartment:project-detail", kwargs={"project_uuid": project_uuid}),
         format="json",
     )
@@ -472,13 +455,13 @@ def test_project_detail_apartment_reservations_has_cancellation_info(
 
 
 @pytest.mark.django_db
-def test_export_sale_report(profile_api_client, elastic_project_with_5_apartments):
+def test_export_sale_report(user_api_client, elastic_project_with_5_apartments):
     """
     Test export applicants information to CSV
     """
     project_uuid, apartments = elastic_project_with_5_apartments
 
-    response = profile_api_client.get(
+    response = user_api_client.get(
         reverse("apartment:sale-report"),
         format="json",
     )
@@ -489,7 +472,7 @@ def test_export_sale_report(profile_api_client, elastic_project_with_5_apartment
         "start_date": "1990-22-12",
         "end_date": "1990-22-12",
     }
-    response = profile_api_client.get(
+    response = user_api_client.get(
         _build_url_with_query_params(base_url, query_params), format="json"
     )
     assert response.status_code == 400
@@ -499,7 +482,7 @@ def test_export_sale_report(profile_api_client, elastic_project_with_5_apartment
         "start_date": "1990-02-12",
         "end_date": "1990-01-12",
     }
-    response = profile_api_client.get(
+    response = user_api_client.get(
         _build_url_with_query_params(base_url, query_params), format="json"
     )
     assert response.status_code == 400
@@ -509,7 +492,7 @@ def test_export_sale_report(profile_api_client, elastic_project_with_5_apartment
         "start_date": "2020-02-12",
         "end_date": "2020-03-12",
     }
-    response = profile_api_client.get(
+    response = user_api_client.get(
         _build_url_with_query_params(base_url, query_params), format="json"
     )
     assert response.headers["Content-Type"] == "text/csv"
@@ -522,7 +505,7 @@ def _build_url_with_query_params(base_url, query_params):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("has_extra_data_instance", (False, True))
-def test_get_project_extra_data_endpoint(api_client, has_extra_data_instance):
+def test_get_project_extra_data_endpoint(user_api_client, has_extra_data_instance):
     apartment = ApartmentDocumentFactory()
     project_uuid = apartment.project_uuid
 
@@ -535,7 +518,7 @@ def test_get_project_extra_data_endpoint(api_client, has_extra_data_instance):
 
     url = reverse("apartment:project-detail", kwargs={"project_uuid": project_uuid})
 
-    response = api_client.get(url, format="json")
+    response = user_api_client.get(url, format="json")
     assert response.status_code == 200
     expected = (
         {"offer_message_intro": "test intro", "offer_message_content": "test content"}
@@ -547,7 +530,7 @@ def test_get_project_extra_data_endpoint(api_client, has_extra_data_instance):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("has_extra_data_instance", (False, True))
-def test_put_project_extra_data_endpoint(api_client, has_extra_data_instance):
+def test_put_project_extra_data_endpoint(user_api_client, has_extra_data_instance):
     apartment = ApartmentDocumentFactory()
     project_uuid = apartment.project_uuid
 
@@ -567,7 +550,7 @@ def test_put_project_extra_data_endpoint(api_client, has_extra_data_instance):
         "apartment:project-detail-extra-data", kwargs={"project_uuid": project_uuid}
     )
 
-    response = api_client.put(url, data=data, format="json")
+    response = user_api_client.put(url, data=data, format="json")
     assert response.status_code == 200
     assert response.data == {
         "offer_message_intro": "updated test intro",
@@ -579,19 +562,19 @@ def test_put_project_extra_data_endpoint(api_client, has_extra_data_instance):
 
 
 @pytest.mark.django_db
-def test_get_project_extra_data_endpoint_non_existing_project(api_client):
+def test_get_project_extra_data_endpoint_non_existing_project(user_api_client):
     ApartmentDocumentFactory()
     project_uuid = uuid.uuid4()
 
     url = reverse("apartment:project-detail", kwargs={"project_uuid": project_uuid})
-    response = api_client.get(url, format="json")
+    response = user_api_client.get(url, format="json")
 
     assert response.status_code == 404
 
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("has_extra_data_instance", (False, True))
-def test_get_project_detail_extra_data_field(api_client, has_extra_data_instance):
+def test_get_project_detail_extra_data_field(user_api_client, has_extra_data_instance):
     apartment = ApartmentDocumentFactory()
     project_uuid = apartment.project_uuid
 
@@ -604,7 +587,7 @@ def test_get_project_detail_extra_data_field(api_client, has_extra_data_instance
 
     url = reverse("apartment:project-detail", kwargs={"project_uuid": project_uuid})
 
-    response = api_client.get(url, format="json")
+    response = user_api_client.get(url, format="json")
     assert response.status_code == 200
     expected = (
         {"offer_message_intro": "test intro", "offer_message_content": "test content"}

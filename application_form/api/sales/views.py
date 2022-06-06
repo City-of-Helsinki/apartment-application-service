@@ -4,12 +4,7 @@ from django.views.decorators.http import require_http_methods
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema, OpenApiExample
 from rest_framework import mixins, permissions, status, viewsets
-from rest_framework.decorators import (
-    action,
-    api_view,
-    authentication_classes,
-    permission_classes,
-)
+from rest_framework.decorators import action, api_view
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
 
@@ -47,8 +42,6 @@ from users.permissions import IsSalesperson
 
 
 @api_view(http_method_names=["POST"])
-@permission_classes([permissions.AllowAny])
-@authentication_classes([])
 @require_http_methods(["POST"])  # For SonarCloud
 def execute_lottery_for_project(request):
     """
@@ -84,7 +77,6 @@ class ApartmentReservationViewSet(
 ):
     queryset = ApartmentReservation.objects.select_related("offer")
     serializer_class = RootApartmentReservationSerializer
-    permission_classes = [permissions.AllowAny]
 
     @extend_schema(
         description="Create either a Hitas contract or a HASO contract PDF based on "

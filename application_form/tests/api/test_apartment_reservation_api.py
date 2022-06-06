@@ -35,7 +35,7 @@ from users.tests.factories import ProfileFactory
 
 @pytest.mark.django_db
 def test_root_apartment_reservation_detail(
-    api_client, elastic_project_with_5_apartments
+    user_api_client, elastic_project_with_5_apartments
 ):
     _, apartments = elastic_project_with_5_apartments
     reservation = ApartmentReservationFactory(
@@ -44,7 +44,7 @@ def test_root_apartment_reservation_detail(
     installment = ApartmentInstallmentFactory(apartment_reservation=reservation)
     offer = OfferFactory(apartment_reservation=reservation)
 
-    response = api_client.get(
+    response = user_api_client.get(
         reverse(
             "application_form:sales-apartment-reservation-detail",
             kwargs={"pk": reservation.id},
@@ -85,7 +85,7 @@ def test_root_apartment_reservation_detail(
 
 
 @pytest.mark.django_db
-def test_root_apartment_reservation_detail_installment_candidates(api_client):
+def test_root_apartment_reservation_detail_installment_candidates(user_api_client):
     apartment = ApartmentDocumentFactory(
         sales_price=12345678, debt_free_sales_price=9876543  # 123456,78e and 98765,43e
     )
@@ -131,7 +131,7 @@ def test_root_apartment_reservation_detail_installment_candidates(api_client):
         due_date=None,
     )
 
-    response = api_client.get(
+    response = user_api_client.get(
         reverse(
             "application_form:sales-apartment-reservation-detail",
             kwargs={"pk": reservation.id},
@@ -174,11 +174,11 @@ def test_root_apartment_reservation_detail_installment_candidates(api_client):
 
 @pytest.mark.parametrize("ownership_type", ("HASO", "Hitas"))
 @pytest.mark.django_db
-def test_contract_pdf_creation(profile_api_client, ownership_type):
+def test_contract_pdf_creation(user_api_client, ownership_type):
     apartment = ApartmentDocumentFactory(project_ownership_type=ownership_type)
     reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
 
-    response = profile_api_client.get(
+    response = user_api_client.get(
         reverse(
             "application_form:sales-apartment-reservation-contract",
             kwargs={"pk": reservation.id},
@@ -310,7 +310,7 @@ def test_apartment_reservation_cancellation_reason_validation(user_api_client):
 
 @pytest.mark.django_db
 def test_apartment_reservation_hide_queue_position(
-    api_client, elastic_hitas_project_with_5_apartments
+    user_api_client, elastic_hitas_project_with_5_apartments
 ):
     project_uuid, apartments = elastic_hitas_project_with_5_apartments
     first_apartment_uuid = apartments[0].uuid
@@ -320,7 +320,7 @@ def test_apartment_reservation_hide_queue_position(
     )
     add_application_to_queues(app)
 
-    response = api_client.get(
+    response = user_api_client.get(
         reverse(
             "application_form:sales-apartment-reservation-detail",
             kwargs={"pk": app_apartment.apartment_reservation.id},
@@ -333,7 +333,7 @@ def test_apartment_reservation_hide_queue_position(
 
     distribute_apartments(project_uuid)
 
-    response = api_client.get(
+    response = user_api_client.get(
         reverse(
             "application_form:sales-apartment-reservation-detail",
             kwargs={"pk": app_apartment.apartment_reservation.id},
@@ -346,7 +346,7 @@ def test_apartment_reservation_hide_queue_position(
 
 
 @pytest.mark.django_db
-def test_transfer_reservation_to_another_customer(api_client):
+def test_transfer_reservation_to_another_customer(user_api_client):
     apartment = ApartmentDocumentFactory()
     customer = CustomerFactory()
     another_customer = CustomerFactory()
@@ -379,7 +379,7 @@ def test_transfer_reservation_to_another_customer(api_client):
         customer=customer,
     )
 
-    response = api_client.post(
+    response = user_api_client.post(
         reverse(
             "application_form:sales-apartment-reservation-cancel",
             kwargs={"pk": reservation_2.id},

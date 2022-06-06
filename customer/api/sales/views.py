@@ -1,5 +1,4 @@
 from django.db.models import Q
-from rest_framework import permissions
 
 from audit_log.viewsets import AuditLoggingModelViewSet
 from customer.api.sales.serializers import CustomerListSerializer, CustomerSerializer
@@ -13,7 +12,6 @@ class CustomerViewSet(AuditLoggingModelViewSet):
         "primary_profile__last_name", "primary_profile__first_name"
     )
     serializer_class = CustomerSerializer
-    permission_classes = [permissions.AllowAny]
     http_method_names = ["get", "post", "put", "head"]  # disable PATCH
 
     def get_queryset(self):

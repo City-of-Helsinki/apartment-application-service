@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from rest_framework import status
 from rest_framework.response import Response
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from audit_log.viewsets import AuditLoggingModelViewSet
@@ -29,6 +30,7 @@ MASKED_ID_PARAMETER = OpenApiParameter(
 class ProfileViewSet(AuditLoggingModelViewSet):
     queryset = Profile.objects.all()
     serializer_class = ProfileSerializer
+    authentication_classes = [JWTAuthentication]
     permission_classes = [IsCreatingOrAuthenticated]
     http_method_names = ["get", "post", "put", "delete"]
 
