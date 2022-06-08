@@ -18,7 +18,7 @@ from customer.tests.factories import CustomerFactory
 
 
 @pytest.mark.django_db
-def test_create_offer(user_api_client):
+def test_create_offer(salesperson_api_client):
     apartment = ApartmentDocumentFactory()
     reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
     week_in_future = timezone.localdate() + timedelta(days=7)
@@ -29,7 +29,7 @@ def test_create_offer(user_api_client):
         "comment": "Foobar.",
     }
 
-    response = user_api_client.post(
+    response = salesperson_api_client.post(
         reverse(
             "application_form:sales-offer-list",
         ),
@@ -59,7 +59,7 @@ def test_create_offer(user_api_client):
 
 
 @pytest.mark.django_db
-def test_create_offer_already_exists(user_api_client):
+def test_create_offer_already_exists(salesperson_api_client):
     apartment = ApartmentDocumentFactory()
     reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
     week_in_future = timezone.localdate() + timedelta(days=7)
@@ -76,7 +76,7 @@ def test_create_offer_already_exists(user_api_client):
         concluded_at=timezone.now(),
     )
 
-    response = user_api_client.post(
+    response = salesperson_api_client.post(
         reverse(
             "application_form:sales-offer-list",
         ),
@@ -89,7 +89,7 @@ def test_create_offer_already_exists(user_api_client):
 
 
 @pytest.mark.django_db
-def test_update_offer(user_api_client):
+def test_update_offer(salesperson_api_client):
     today = timezone.localdate()
     apartment = ApartmentDocumentFactory()
     reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
@@ -104,7 +104,7 @@ def test_update_offer(user_api_client):
         "comment": "new comment",
     }
 
-    response = user_api_client.patch(
+    response = salesperson_api_client.patch(
         reverse(
             "application_form:sales-offer-detail",
             kwargs={"pk": offer.pk},
@@ -134,7 +134,7 @@ def test_update_offer(user_api_client):
 
 @pytest.mark.parametrize("new_state", ("accepted", "rejected"))
 @pytest.mark.django_db
-def test_update_offer_change_state(user_api_client, new_state):
+def test_update_offer_change_state(salesperson_api_client, new_state):
     apartment = ApartmentDocumentFactory()
     reservation = ApartmentReservationFactory(
         apartment_uuid=apartment.uuid, state=ApartmentReservationState.OFFERED
@@ -146,7 +146,7 @@ def test_update_offer_change_state(user_api_client, new_state):
 
     data = {"state": new_state}
 
-    response = user_api_client.patch(
+    response = salesperson_api_client.patch(
         reverse(
             "application_form:sales-offer-detail",
             kwargs={"pk": offer.pk},
@@ -172,7 +172,9 @@ def test_update_offer_change_state(user_api_client, new_state):
 
 @pytest.mark.parametrize("state", ("accepted", "rejected"))
 @pytest.mark.django_db
-def test_cannot_update_concluded_offer_valid_until_or_state(user_api_client, state):
+def test_cannot_update_concluded_offer_valid_until_or_state(
+    salesperson_api_client, state
+):
     apartment = ApartmentDocumentFactory()
     reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
     offer = OfferFactory(
@@ -189,7 +191,7 @@ def test_cannot_update_concluded_offer_valid_until_or_state(user_api_client, sta
             "state": "accepted" if state == "rejected" else "rejected",
         },
     ):
-        response = user_api_client.patch(
+        response = salesperson_api_client.patch(
             reverse(
                 "application_form:sales-offer-detail",
                 kwargs={"pk": offer.pk},
@@ -203,7 +205,7 @@ def test_cannot_update_concluded_offer_valid_until_or_state(user_api_client, sta
 
 @pytest.mark.parametrize("state", ("accepted", "rejected"))
 @pytest.mark.django_db
-def test_update_concluded_offer_comment(user_api_client, state):
+def test_update_concluded_offer_comment(salesperson_api_client, state):
     apartment = ApartmentDocumentFactory()
     reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
     offer = OfferFactory(
@@ -215,7 +217,7 @@ def test_update_concluded_offer_comment(user_api_client, state):
 
     data = {"comment": "new comment"}
 
-    response = user_api_client.patch(
+    response = salesperson_api_client.patch(
         reverse(
             "application_form:sales-offer-detail",
             kwargs={"pk": offer.pk},
@@ -231,7 +233,7 @@ def test_update_concluded_offer_comment(user_api_client, state):
 
 
 @pytest.mark.django_db
-def test_update_offer_change_to_expired(user_api_client):
+def test_update_offer_change_to_expired(salesperson_api_client):
     today = timezone.localdate()
     apartment = ApartmentDocumentFactory()
     reservation = ApartmentReservationFactory(
@@ -245,7 +247,7 @@ def test_update_offer_change_to_expired(user_api_client):
 
     data = {"valid_until": str(today - timedelta(days=1))}
 
-    response = user_api_client.patch(
+    response = salesperson_api_client.patch(
         reverse(
             "application_form:sales-offer-detail",
             kwargs={"pk": offer.pk},
@@ -261,7 +263,7 @@ def test_update_offer_change_to_expired(user_api_client):
 
 
 @pytest.mark.django_db
-def test_create_offer_cancel_other_reservations(user_api_client):
+def test_create_offer_cancel_other_reservations(salesperson_api_client):
     apartment_1 = ApartmentDocumentFactory()
     apartment_2 = ApartmentDocumentFactory(project_uuid=apartment_1.project_uuid)
     apartment_3 = ApartmentDocumentFactory(project_uuid=apartment_1.project_uuid)
@@ -299,7 +301,7 @@ def test_create_offer_cancel_other_reservations(user_api_client):
         == 1
     )
 
-    response = user_api_client.post(
+    response = salesperson_api_client.post(
         reverse(
             "application_form:sales-offer-list",
         ),

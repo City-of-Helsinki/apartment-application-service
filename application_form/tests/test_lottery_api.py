@@ -9,8 +9,8 @@ from application_form.tests.factories import ApplicationFactory
 
 @pytest.mark.django_db
 @pytest.mark.usefixtures("elastic_apartments")
-def test_execute_lottery_for_project_post_without_project_uuid(user_api_client):
-    response = user_api_client.post(
+def test_execute_lottery_for_project_post_without_project_uuid(salesperson_api_client):
+    response = salesperson_api_client.post(
         reverse("application_form:execute_lottery_for_project"), format="json"
     )
     assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -18,9 +18,11 @@ def test_execute_lottery_for_project_post_without_project_uuid(user_api_client):
 
 @pytest.mark.django_db
 @pytest.mark.usefixtures("elastic_apartments")
-def test_execute_lottery_for_project_post_badly_formatted_project_uuid(user_api_client):
+def test_execute_lottery_for_project_post_badly_formatted_project_uuid(
+    salesperson_api_client,
+):
     data = {"project_uuid": "lizard"}
-    response = user_api_client.post(
+    response = salesperson_api_client.post(
         reverse("application_form:execute_lottery_for_project"), data, format="json"
     )
     assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -29,7 +31,7 @@ def test_execute_lottery_for_project_post_badly_formatted_project_uuid(user_api_
 @pytest.mark.django_db
 @pytest.mark.usefixtures("elastic_apartments")
 def test_execute_lottery_for_project_post_fails_application_time_not_finished(
-    user_api_client, elastic_project_application_time_active
+    salesperson_api_client, elastic_project_application_time_active
 ):
     project_uuid, apartment = elastic_project_application_time_active
 
@@ -38,7 +40,7 @@ def test_execute_lottery_for_project_post_fails_application_time_not_finished(
     add_application_to_queues(app)
 
     data = {"project_uuid": project_uuid}
-    response = user_api_client.post(
+    response = salesperson_api_client.post(
         reverse("application_form:execute_lottery_for_project"), data, format="json"
     )
     assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -49,9 +51,9 @@ def test_execute_lottery_for_project_post_fails_application_time_not_finished(
 
 @pytest.mark.django_db
 @pytest.mark.usefixtures("elastic_apartments")
-def test_execute_lottery_for_project_post_not_found(user_api_client):
+def test_execute_lottery_for_project_post_not_found(salesperson_api_client):
     data = {"project_uuid": 1234}
-    response = user_api_client.post(
+    response = salesperson_api_client.post(
         reverse("application_form:execute_lottery_for_project"), data, format="json"
     )
     assert response.status_code == status.HTTP_404_NOT_FOUND
@@ -59,7 +61,7 @@ def test_execute_lottery_for_project_post_not_found(user_api_client):
 
 @pytest.mark.django_db
 def test_execute_hitas_lottery_for_project_post(
-    user_api_client, elastic_hitas_project_application_end_time_finished
+    salesperson_api_client, elastic_hitas_project_application_end_time_finished
 ):
     project_uuid, apartment = elastic_hitas_project_application_end_time_finished
 
@@ -68,7 +70,7 @@ def test_execute_hitas_lottery_for_project_post(
     add_application_to_queues(app)
 
     data = {"project_uuid": project_uuid}
-    response = user_api_client.post(
+    response = salesperson_api_client.post(
         reverse("application_form:execute_lottery_for_project"), data, format="json"
     )
     assert response.status_code == status.HTTP_200_OK
@@ -76,12 +78,12 @@ def test_execute_hitas_lottery_for_project_post(
 
 @pytest.mark.django_db
 def test_execute_hitas_lottery_for_project_post_without_applications(
-    user_api_client, elastic_hitas_project_with_5_apartments
+    salesperson_api_client, elastic_hitas_project_with_5_apartments
 ):
     project_uuid, apartments = elastic_hitas_project_with_5_apartments
 
     data = {"project_uuid": project_uuid}
-    response = user_api_client.post(
+    response = salesperson_api_client.post(
         reverse("application_form:execute_lottery_for_project"), data, format="json"
     )
     assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -89,7 +91,7 @@ def test_execute_hitas_lottery_for_project_post_without_applications(
 
 @pytest.mark.django_db
 def test_execute_haso_lottery_for_project_post(
-    user_api_client, elastic_haso_project_application_end_time_finished
+    salesperson_api_client, elastic_haso_project_application_end_time_finished
 ):
     project_uuid, apartment = elastic_haso_project_application_end_time_finished
 
@@ -98,7 +100,7 @@ def test_execute_haso_lottery_for_project_post(
     add_application_to_queues(app)
 
     data = {"project_uuid": project_uuid}
-    response = user_api_client.post(
+    response = salesperson_api_client.post(
         reverse("application_form:execute_lottery_for_project"), data, format="json"
     )
     assert response.status_code == status.HTTP_200_OK
@@ -106,12 +108,12 @@ def test_execute_haso_lottery_for_project_post(
 
 @pytest.mark.django_db
 def test_execute_haso_lottery_for_project_post_without_applications(
-    user_api_client, elastic_haso_project_with_5_apartments
+    salesperson_api_client, elastic_haso_project_with_5_apartments
 ):
     project_uuid, apartments = elastic_haso_project_with_5_apartments
 
     data = {"project_uuid": project_uuid}
-    response = user_api_client.post(
+    response = salesperson_api_client.post(
         reverse("application_form:execute_lottery_for_project"), data, format="json"
     )
     assert response.status_code == status.HTTP_400_BAD_REQUEST

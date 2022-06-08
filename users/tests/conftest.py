@@ -1,7 +1,9 @@
 import faker.config
 import pytest
+from django.contrib.auth.models import Group
 from rest_framework.test import APIClient
 
+from users.enums import Roles
 from users.tests.factories import ProfileFactory, UserFactory
 from users.tests.utils import _create_profile, _create_token
 
@@ -57,4 +59,14 @@ def user_api_client():
     api_client = APIClient()
     api_client.force_authenticate(user)
     api_client.user = user
+    return api_client
+
+
+@pytest.fixture
+def salesperson_api_client():
+    user = UserFactory()
+    api_client = APIClient()
+    api_client.force_authenticate(user)
+    api_client.user = user
+    Group.objects.get(name__iexact=Roles.SALESPERSON.name).user_set.add(user)
     return api_client
