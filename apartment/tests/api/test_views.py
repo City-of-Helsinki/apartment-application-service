@@ -26,6 +26,13 @@ from users.tests.utils import assert_customer_match_data
 
 @pytest.mark.django_db
 @pytest.mark.usefixtures("elastic_apartments")
+def test_apartment_list_get_unauthorized(user_api_client):
+    response = user_api_client.get(reverse("apartment:apartment-list"), format="json")
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("elastic_apartments")
 def test_apartment_list_get(salesperson_api_client):
     response = salesperson_api_client.get(
         reverse("apartment:apartment-list"), format="json"
@@ -48,6 +55,13 @@ def test_apartment_list_get_with_project_uuid(
     assert response.status_code == 200
     assert len(response.data) == 5
     assert response.data[0].get("uuid") == apartments[0].uuid
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("elastic_apartments")
+def test_project_list_get_unauthorized(user_api_client):
+    response = user_api_client.get(reverse("apartment:project-list"), format="json")
+    assert response.status_code == 403
 
 
 @pytest.mark.django_db
@@ -84,6 +98,18 @@ def test_project_list_lottery_completed_field(
 
     data = response.data[0] if endpoint == "list" else response.data
     assert data["lottery_completed"] is lottery_exists
+
+
+@pytest.mark.django_db
+def test_project_get_with_project_uuid_unauthorized(
+    user_api_client, elastic_project_with_5_apartments
+):
+    project_uuid, _ = elastic_project_with_5_apartments
+    response = user_api_client.get(
+        reverse("apartment:project-detail", kwargs={"project_uuid": project_uuid}),
+        format="json",
+    )
+    assert response.status_code == 403
 
 
 @pytest.mark.django_db
@@ -264,6 +290,20 @@ def test_project_detail_apartment_reservations_multiple_winning(
 
 
 @pytest.mark.django_db
+def test_export_applicants_csv_per_project_unauthorized(
+    user_api_client, elastic_project_with_5_apartments
+):
+    project_uuid, apartments = elastic_project_with_5_apartments
+
+    data = {"project_uuid": uuid.uuid4()}
+    response = user_api_client.get(
+        reverse("apartment:project-detail-export-applicant", kwargs=data),
+        format="json",
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
 def test_export_applicants_csv_per_project(
     salesperson_api_client, elastic_project_with_5_apartments
 ):
@@ -291,6 +331,28 @@ def test_export_applicants_csv_per_project(
         in response.headers["Content-Disposition"]
     )
     assert response.status_code == 200
+
+
+@pytest.mark.django_db
+def test_export_lottery_result_csv_per_project_unauthorized(
+    user_api_client, elastic_project_with_5_apartments
+):
+    project_uuid, apartments = elastic_project_with_5_apartments
+
+    app = ApplicationFactory()
+    app.application_apartments.create(
+        apartment_uuid=apartments[0].uuid, priority_number=1
+    )
+    add_application_to_queues(app)
+    distribute_apartments(project_uuid)
+
+    data = {"project_uuid": project_uuid}
+    response = user_api_client.get(
+        reverse("apartment:project-detail-lottery-result", kwargs=data),
+        format="json",
+    )
+
+    assert response.status_code == 403
 
 
 @pytest.mark.django_db
@@ -459,6 +521,21 @@ def test_project_detail_apartment_reservations_has_cancellation_info(
 
 
 @pytest.mark.django_db
+def test_export_sale_report_unauthorized(
+    user_api_client, elastic_project_with_5_apartments
+):
+    query_params = {
+        "start_date": "2020-02-12",
+        "end_date": "2020-03-12",
+    }
+    response = user_api_client.get(
+        _build_url_with_query_params(reverse("apartment:sale-report"), query_params),
+        format="json",
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
 def test_export_sale_report(salesperson_api_client, elastic_project_with_5_apartments):
     """
     Test export applicants information to CSV
@@ -508,6 +585,19 @@ def _build_url_with_query_params(base_url, query_params):
 
 
 @pytest.mark.django_db
+def test_get_project_extra_data_endpoint_unauthorized(user_api_client):
+    apartment = ApartmentDocumentFactory()
+    project_uuid = apartment.project_uuid
+
+    url = reverse(
+        "apartment:project-detail-extra-data", kwargs={"project_uuid": project_uuid}
+    )
+
+    response = user_api_client.get(url, format="json")
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize("has_extra_data_instance", (False, True))
 def test_get_project_extra_data_endpoint(
     salesperson_api_client, has_extra_data_instance
@@ -522,7 +612,9 @@ def test_get_project_extra_data_endpoint(
             offer_message_content="test content",
         )
 
-    url = reverse("apartment:project-detail", kwargs={"project_uuid": project_uuid})
+    url = reverse(
+        "apartment:project-detail-extra-data", kwargs={"project_uuid": project_uuid}
+    )
 
     response = salesperson_api_client.get(url, format="json")
     assert response.status_code == 200
@@ -531,7 +623,25 @@ def test_get_project_extra_data_endpoint(
         if has_extra_data_instance
         else {"offer_message_intro": "", "offer_message_content": ""}
     )
-    assert response.data["extra_data"] == expected
+    assert response.data == expected
+
+
+@pytest.mark.django_db
+def test_put_project_extra_data_endpoint_unauthorized(user_api_client):
+    apartment = ApartmentDocumentFactory()
+    project_uuid = apartment.project_uuid
+
+    data = {
+        "offer_message_intro": "updated test intro",
+        "offer_message_content": "updated test content",
+    }
+
+    url = reverse(
+        "apartment:project-detail-extra-data", kwargs={"project_uuid": project_uuid}
+    )
+
+    response = user_api_client.put(url, data=data, format="json")
+    assert response.status_code == 403
 
 
 @pytest.mark.django_db

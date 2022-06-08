@@ -60,6 +60,23 @@ def test_execute_lottery_for_project_post_not_found(salesperson_api_client):
 
 
 @pytest.mark.django_db
+def test_execute_hitas_lottery_for_project_post_unauthorized(
+    user_api_client, elastic_hitas_project_application_end_time_finished
+):
+    project_uuid, apartment = elastic_hitas_project_application_end_time_finished
+
+    app = ApplicationFactory(type=ApplicationType.HITAS)
+    app.application_apartments.create(apartment_uuid=apartment.uuid, priority_number=0)
+    add_application_to_queues(app)
+
+    data = {"project_uuid": project_uuid}
+    response = user_api_client.post(
+        reverse("application_form:execute_lottery_for_project"), data, format="json"
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
 def test_execute_hitas_lottery_for_project_post(
     salesperson_api_client, elastic_hitas_project_application_end_time_finished
 ):
@@ -87,6 +104,23 @@ def test_execute_hitas_lottery_for_project_post_without_applications(
         reverse("application_form:execute_lottery_for_project"), data, format="json"
     )
     assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+@pytest.mark.django_db
+def test_execute_haso_lottery_for_project_post_unauthorized(
+    user_api_client, elastic_haso_project_application_end_time_finished
+):
+    project_uuid, apartment = elastic_haso_project_application_end_time_finished
+
+    app = ApplicationFactory(type=ApplicationType.HASO)
+    app.application_apartments.create(apartment_uuid=apartment.uuid, priority_number=0)
+    add_application_to_queues(app)
+
+    data = {"project_uuid": project_uuid}
+    response = user_api_client.post(
+        reverse("application_form:execute_lottery_for_project"), data, format="json"
+    )
+    assert response.status_code == 403
 
 
 @pytest.mark.django_db

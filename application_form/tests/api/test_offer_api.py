@@ -18,6 +18,29 @@ from customer.tests.factories import CustomerFactory
 
 
 @pytest.mark.django_db
+def test_create_offer_unauthorized(user_api_client):
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
+    week_in_future = timezone.localdate() + timedelta(days=7)
+
+    data = {
+        "apartment_reservation_id": reservation.id,
+        "valid_until": week_in_future,
+        "comment": "Foobar.",
+    }
+
+    response = user_api_client.post(
+        reverse(
+            "application_form:sales-offer-list",
+        ),
+        data=data,
+        format="json",
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
 def test_create_offer(salesperson_api_client):
     apartment = ApartmentDocumentFactory()
     reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
@@ -86,6 +109,33 @@ def test_create_offer_already_exists(salesperson_api_client):
 
     assert response.status_code == 400
     assert "already" in str(response.data)
+
+
+@pytest.mark.django_db
+def test_update_offer_unauthorized(user_api_client):
+    today = timezone.localdate()
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
+    offer = OfferFactory(
+        apartment_reservation=reservation,
+        valid_until=today + timedelta(days=1),
+        comment="old comment",
+    )
+
+    data = {
+        "valid_until": str(today + timedelta(days=2)),
+        "comment": "new comment",
+    }
+
+    response = user_api_client.patch(
+        reverse(
+            "application_form:sales-offer-detail",
+            kwargs={"pk": offer.pk},
+        ),
+        data=data,
+        format="json",
+    )
+    assert response.status_code == 403
 
 
 @pytest.mark.django_db

@@ -34,6 +34,25 @@ from users.tests.factories import ProfileFactory
 
 
 @pytest.mark.django_db
+def test_root_apartment_reservation_detail_unauthorized(
+    user_api_client, elastic_project_with_5_apartments
+):
+    _, apartments = elastic_project_with_5_apartments
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartments[0].uuid, list_position=1
+    )
+
+    response = user_api_client.get(
+        reverse(
+            "application_form:sales-apartment-reservation-detail",
+            kwargs={"pk": reservation.id},
+        ),
+        format="json",
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
 def test_root_apartment_reservation_detail(
     salesperson_api_client, elastic_project_with_5_apartments
 ):
@@ -174,6 +193,22 @@ def test_root_apartment_reservation_detail_installment_candidates(
     }
 
 
+@pytest.mark.django_db
+def test_contract_pdf_creation_unauthorized(user_api_client):
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
+
+    response = user_api_client.get(
+        reverse(
+            "application_form:sales-apartment-reservation-contract",
+            kwargs={"pk": reservation.id},
+        ),
+        format="json",
+    )
+
+    assert response.status_code == 403
+
+
 @pytest.mark.parametrize("ownership_type", ("HASO", "Hitas"))
 @pytest.mark.django_db
 def test_contract_pdf_creation(salesperson_api_client, ownership_type):
@@ -197,6 +232,25 @@ def test_contract_pdf_creation(salesperson_api_client, ownership_type):
         else apartment.project_realty_id
     )
     assert bytes(test_value, encoding="utf-8") in response.content
+
+
+@pytest.mark.django_db
+def test_apartment_reservation_set_state_unauthorized(user_api_client):
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid, state=ApartmentReservationState.SUBMITTED
+    )
+
+    data = {"state": "reserved"}
+    response = user_api_client.post(
+        reverse(
+            "application_form:sales-apartment-reservation-set-state",
+            kwargs={"pk": reservation.id},
+        ),
+        data=data,
+        format="json",
+    )
+    assert response.status_code == 403
 
 
 @pytest.mark.parametrize("comment", ("Foo", ""))
@@ -231,6 +285,25 @@ def test_apartment_reservation_set_state(salesperson_api_client, comment):
     assert state_change_event.state == ApartmentReservationState.RESERVED
     assert state_change_event.comment == comment
     assert state_change_event.user == salesperson_api_client.user
+
+
+@pytest.mark.django_db
+def test_apartment_reservation_canceling_unauthorized(user_api_client):
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid, state=ApartmentReservationState.SUBMITTED
+    )
+
+    data = {"cancellation_reason": "terminated", "comment": "Foo"}
+    response = user_api_client.post(
+        reverse(
+            "application_form:sales-apartment-reservation-cancel",
+            kwargs={"pk": reservation.id},
+        ),
+        data=data,
+        format="json",
+    )
+    assert response.status_code == 403
 
 
 @pytest.mark.parametrize("ownership_type", ("Haso", "Puolihitas", "Hitas"))
@@ -459,6 +532,28 @@ def test_transferring_apartment_reservation_requires_customer(salesperson_api_cl
     assert "new_customer_id is required" in str(response.data)
 
 
+@pytest.mark.django_db
+def test_create_reservation_unauthorized(user_api_client):
+    apartment = ApartmentDocumentFactory()
+    customer = CustomerFactory()
+    LotteryEvent.objects.create(apartment_uuid=apartment.uuid)
+
+    data = {
+        "apartment_uuid": apartment.uuid,
+        "customer_id": customer.id,
+    }
+
+    response = user_api_client.post(
+        reverse(
+            "application_form:sales-apartment-reservation-list",
+        ),
+        data=data,
+        format="json",
+    )
+
+    assert response.status_code == 403
+
+
 @pytest.mark.parametrize("include_read_only_fields", (False, True))
 @pytest.mark.django_db
 def test_create_reservation(salesperson_api_client, include_read_only_fields):
@@ -618,6 +713,23 @@ def test_create_reservation_queue_already_has_reserved_reservation(
 
     assert response.data["state"] == "submitted"
     assert response.data["queue_position"] == 2
+
+
+@pytest.mark.django_db
+def test_get_offer_message_unauthorized(user_api_client):
+    apartment = ApartmentDocumentFactory()
+
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+    )
+
+    response = user_api_client.get(
+        reverse(
+            "application_form:sales-apartment-reservation-offer-message",
+            kwargs={"pk": reservation.id},
+        ),
+    )
+    assert response.status_code == 403
 
 
 @pytest.mark.django_db

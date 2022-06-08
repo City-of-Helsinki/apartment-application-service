@@ -22,6 +22,18 @@ from users.tests.utils import (
 
 
 @pytest.mark.django_db
+def test_get_customer_api_detail_unauthorized(user_api_client):
+    customer = CustomerFactory()
+
+    response = user_api_client.get(
+        reverse("customer:sales-customer-detail", args=(customer.pk,)),
+        format="json",
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
 def test_get_customer_api_detail(salesperson_api_client):
     apartment = ApartmentDocumentFactory(
         sales_price=2000,

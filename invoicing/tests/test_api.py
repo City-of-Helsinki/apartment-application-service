@@ -66,6 +66,53 @@ def test_project_list_does_not_include_installments(
         "endpoint",
     ],
 )
+def test_project_detail_installments_field_and_endpoint_data_unauthorized(
+    apartment_document, user_api_client, target
+):
+    project_uuid = apartment_document.project_uuid
+    ProjectInstallmentTemplateFactory(
+        project_uuid=project_uuid,
+        **{
+            "type": InstallmentType.PAYMENT_1,
+            "value": "53.5",
+            "unit": InstallmentUnit.PERCENT,
+            "percentage_specifier": InstallmentPercentageSpecifier.SALES_PRICE,
+            "account_number": "123123123-123",
+            "due_date": "2022-02-19",
+        }
+    )
+    ProjectInstallmentTemplateFactory(
+        project_uuid=project_uuid,
+        **{
+            "type": InstallmentType.REFUND,
+            "value": "100.00",
+            "unit": InstallmentUnit.EURO,
+            "account_number": "123123123-123",
+            "due_date": None,
+        }
+    )
+
+    if target == "field":
+        url = reverse("apartment:project-detail", kwargs={"project_uuid": project_uuid})
+    else:
+        url = reverse(
+            "apartment:project-installment-template-list",
+            kwargs={"project_uuid": project_uuid},
+        )
+
+    response = user_api_client.get(url, format="json")
+
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "target",
+    [
+        "field",
+        "endpoint",
+    ],
+)
 def test_project_detail_installments_field_and_installments_endpoint_data(
     apartment_document, salesperson_api_client, target
 ):
@@ -123,6 +170,36 @@ def test_project_detail_installments_field_and_installments_endpoint_data(
             "due_date": None,
         },
     ]
+
+
+@pytest.mark.django_db
+def test_set_project_installments_unauthorized(apartment_document, user_api_client):
+    project_uuid = apartment_document.project_uuid
+    data = [
+        {
+            "type": "PAYMENT_1",
+            "percentage": "53.5",
+            "percentage_specifier": "SALES_PRICE",
+            "account_number": "123123123-123",
+            "due_date": "2022-02-19",
+        },
+        {
+            "type": "REFUND",
+            "amount": 10000,
+            "account_number": "123123123-123",
+            "due_date": None,
+        },
+    ]
+
+    response = user_api_client.post(
+        reverse(
+            "apartment:project-installment-template-list",
+            kwargs={"project_uuid": project_uuid},
+        ),
+        data=data,
+        format="json",
+    )
+    assert response.status_code == 403
 
 
 @pytest.mark.parametrize("has_old_installments", (False, True))
@@ -273,6 +350,41 @@ def test_set_project_installments_errors(
     )
     assert response.status_code == 400
     assert expected_error in str(response.data)
+
+
+@pytest.mark.django_db
+def test_apartment_installments_endpoint_unauthorized(
+    apartment_document, user_api_client
+):
+    reservation = ApartmentReservationFactory()
+    ApartmentInstallmentFactory(
+        apartment_reservation=reservation,
+        **{
+            "type": InstallmentType.PAYMENT_1,
+            "value": "1000.00",
+            "account_number": "123123123-123",
+            "due_date": "2022-02-19",
+            "reference_number": "REFERENCE-123",
+        }
+    )
+    ApartmentInstallmentFactory(
+        apartment_reservation=reservation,
+        **{
+            "type": InstallmentType.REFUND,
+            "value": "100.55",
+            "account_number": "123123123-123",
+            "due_date": None,
+            "reference_number": "REFERENCE-321",
+        }
+    )
+
+    url = reverse(
+        "application_form:apartment-installment-list",
+        kwargs={"apartment_reservation_id": reservation.id},
+    )
+    response = user_api_client.get(url, format="json")
+
+    assert response.status_code == 403
 
 
 @pytest.mark.django_db
@@ -535,6 +647,20 @@ def test_apartment_installment_reference_number_populating_on_update(
 
 
 @pytest.mark.django_db
+def test_apartment_installment_invoice_pdf_unauthorized(
+    user_api_client, reservation_with_installments
+):
+    response = user_api_client.get(
+        reverse(
+            "application_form:apartment-installment-invoice",
+            kwargs={"apartment_reservation_id": reservation_with_installments.id},
+        ),
+        format="json",
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
 def test_apartment_installment_invoice_pdf(
     salesperson_api_client, reservation_with_installments
 ):
@@ -602,6 +728,22 @@ def test_apartment_installment_invoice_pdf_filtering_errors(
     )
 
     assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_add_installments_to_be_sent_to_sap_at_unauthorized(
+    user_api_client, reservation_with_installments
+):
+    base_url = reverse(
+        "application_form:apartment-installment-add-to-be-sent-to-sap",
+        kwargs={"apartment_reservation_id": reservation_with_installments.id},
+    )
+
+    response = user_api_client.post(
+        base_url + "?types=PAYMENT_1",
+        format="json",
+    )
+    assert response.status_code == 403
 
 
 @pytest.mark.django_db
