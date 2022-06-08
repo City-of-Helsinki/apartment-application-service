@@ -252,7 +252,7 @@ REST_FRAMEWORK = {
         "apartment_application_service.oidc.TunnistamoFixedApiTokenAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ),
-    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
+    "DEFAULT_PERMISSION_CLASSES": ("users.permissions.IsSalesperson",),
     "DEFAULT_SCHEMA_CLASS": "apartment_application_service.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "apartment_application_service.exceptions.drf_exception_handler",  # noqa: E501
 }
