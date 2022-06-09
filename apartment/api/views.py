@@ -3,7 +3,6 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.http import Http404, HttpResponse
 from django.utils.text import format_lazy
 from django.utils.translation import gettext_lazy as _
-from rest_framework import permissions
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.generics import RetrieveUpdateAPIView
 from rest_framework.response import Response
@@ -36,9 +35,6 @@ from application_form.services.export import (
 
 
 class ApartmentAPIView(APIView):
-    permission_classes = [
-        permissions.AllowAny,
-    ]
     http_method_names = ["get"]
 
     def get(self, request):
@@ -49,9 +45,6 @@ class ApartmentAPIView(APIView):
 
 
 class ProjectAPIView(APIView):
-    permission_classes = [
-        permissions.AllowAny,
-    ]
     http_method_names = ["get"]
 
     def get(self, request, project_uuid=None):
@@ -71,7 +64,6 @@ class ProjectAPIView(APIView):
 
 
 class ProjectExportApplicantsAPIView(APIView):
-    permission_classes = [permissions.AllowAny]
     http_method_names = ["get"]
 
     def get(self, request, project_uuid):
@@ -97,7 +89,6 @@ class ProjectExportApplicantsAPIView(APIView):
 
 
 class ProjectExportLotteryResultsAPIView(APIView):
-    permission_classes = [permissions.AllowAny]
     http_method_names = ["get"]
 
     def get(self, request, project_uuid):
@@ -122,7 +113,6 @@ class ProjectExportLotteryResultsAPIView(APIView):
 
 
 class SaleReportAPIView(APIView):
-    permission_classes = [permissions.AllowAny]
     http_method_names = ["get"]
 
     def get(self, request):

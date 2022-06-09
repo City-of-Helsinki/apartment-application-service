@@ -1,6 +1,7 @@
 from rest_framework import permissions
 from rest_framework.generics import GenericAPIView
 from rest_framework.response import Response
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from apartment.elastic.queries import get_apartment_uuids
 from application_form.api.serializers import (
@@ -14,6 +15,7 @@ from audit_log.viewsets import AuditLoggingModelViewSet
 class ApplicationViewSet(AuditLoggingModelViewSet):
     queryset = Application.objects.all()
     serializer_class = ApplicationSerializer
+    authentication_classes = [JWTAuthentication]
     permission_classes = [permissions.IsAuthenticated]
     lookup_field = "external_uuid"
     http_method_names = ["post"]
@@ -25,6 +27,7 @@ class ListProjectReservations(GenericAPIView):
     """
 
     serializer_class = ApartmentReservationSerializer
+    authentication_classes = [JWTAuthentication]
     permission_classes = [permissions.IsAuthenticated]
     http_method_names = ["get"]
 

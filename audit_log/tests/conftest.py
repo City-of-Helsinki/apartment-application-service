@@ -1,15 +1,10 @@
 from datetime import datetime, timezone
 from pytest import fixture
-from rest_framework.test import APIClient
 from typing import Callable
 
 from users.models import Profile, User
+from users.tests.conftest import api_client, user_api_client  # noqa: F401
 from users.tests.factories import ProfileFactory
-
-
-@fixture
-def api_client():
-    return APIClient()
 
 
 @fixture

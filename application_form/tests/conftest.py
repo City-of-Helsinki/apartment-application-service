@@ -7,7 +7,6 @@ from elasticsearch.helpers.test import get_test_client
 from elasticsearch_dsl.connections import add_connection
 from factory.faker import faker
 from pytest import fixture
-from rest_framework.test import APIClient
 from unittest.mock import Mock
 
 from apartment.tests.factories import ApartmentDocumentFactory
@@ -20,32 +19,13 @@ from application_form.tests.utils import (
     get_elastic_apartments_uuids,
 )
 from connections.tests.factories import ApartmentMinimalFactory
-from users.tests.factories import ProfileFactory, UserFactory
-from users.tests.utils import _create_token
+from users.tests.conftest import (  # noqa: F401
+    api_client,
+    profile_api_client,
+    user_api_client,
+)
 
 faker.config.DEFAULT_LOCALE = "fi_FI"
-
-
-@fixture
-def api_client():
-    return APIClient()
-
-
-@fixture
-def profile_api_client():
-    api_client = APIClient()
-    profile = ProfileFactory()
-    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
-    return api_client
-
-
-@fixture
-def user_api_client():
-    api_client = APIClient()
-    user = UserFactory()
-    api_client.force_authenticate(user=user)
-    api_client.user = user
-    return api_client
 
 
 def setup_elasticsearch():
