@@ -81,6 +81,7 @@ def test_root_apartment_reservation_detail(
             "comment": offer.comment,
             "is_expired": False,
         },
+        "right_of_residence": reservation.right_of_residence,
     }
 
 
@@ -503,6 +504,7 @@ def test_create_reservation(user_api_client, include_read_only_fields):
         "priority_number": None,
         "state": "reserved",
         "offer": None,
+        "right_of_residence": 777,
     }
 
     reservation = ApartmentReservation.objects.get(id=reservation_id)

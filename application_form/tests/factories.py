@@ -105,6 +105,11 @@ class ApartmentReservationFactory(factory.django.DjangoModelFactory):
     list_position = fuzzy.FuzzyInteger(1)
     application_apartment = factory.SubFactory(ApplicationApartmentFactory)
     state = fuzzy.FuzzyChoice(list(ApartmentReservationState))
+    right_of_residence = LazyAttribute(
+        lambda o: o.application_apartment.application.right_of_residence
+        if o.application_apartment
+        else o.customer.right_of_residence
+    )
 
 
 class LotteryEventFactory(factory.django.DjangoModelFactory):
