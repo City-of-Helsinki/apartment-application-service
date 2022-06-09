@@ -4,6 +4,7 @@ from django.db import models, transaction
 from django.db.models import Deferrable, UniqueConstraint
 from django.utils.translation import gettext_lazy as _
 from enumfields import EnumField
+from pgcrypto.fields import IntegerPGPPublicKeyField
 
 from application_form.enums import (
     ApartmentQueueChangeEventType,
@@ -63,6 +64,9 @@ class ApartmentReservation(models.Model):
         max_length=32,
         default=ApartmentReservationState.SUBMITTED,
         verbose_name=_("apartment reservation state"),
+    )
+    right_of_residence = IntegerPGPPublicKeyField(
+        _("right of residence number"), blank=True, null=True
     )
 
     objects = ApartmentReservationQuerySet.as_manager()
