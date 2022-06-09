@@ -87,6 +87,7 @@ def create_reservation(reservation_data: dict) -> ApartmentReservation:
             state=state,
             list_position=(max_list_position or 0) + 1,
             queue_position=(max_queue_position or 0) + 1,
+            right_of_residence=reservation_data["customer"].right_of_residence,
         )
 
     return reservation
