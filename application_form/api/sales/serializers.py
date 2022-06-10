@@ -69,7 +69,14 @@ class CustomerCompactSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Customer
-        fields = ("id", "primary_profile", "secondary_profile")
+        fields = (
+            "id",
+            "primary_profile",
+            "secondary_profile",
+            "has_hitas_ownership",
+            "is_age_over_55",
+            "is_right_of_occupancy_housing_changer",
+        )
 
 
 class SalesApartmentReservationSerializer(ApartmentReservationSerializerBase):
