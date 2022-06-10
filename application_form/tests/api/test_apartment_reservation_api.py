@@ -643,7 +643,7 @@ def test_get_offer_message(user_api_client, ownership_type):
         customer__right_of_residence=777,
         customer__is_age_over_55=True,
         customer__is_right_of_occupancy_housing_changer=False,
-        customer__has_children=True,
+        customer__has_children=None,
         customer__primary_profile__first_name="Ulla",
         customer__primary_profile__last_name="Taalasmaa",
         customer__primary_profile__email="ulla@example.com",
@@ -673,7 +673,7 @@ Käyttövakuus: 50,00 €
 
 Asumisoikeusnumero: 777
 Yli 55v: Kyllä
-Haso-vaihtaja: Ei
+Asumisoikeusasunnon vaihtaja: Ei
 
 this
 is
@@ -693,7 +693,7 @@ Myyntihinta: 4 000,00 €
 Velaton hinta: 5 000,00 €
 Alustava vastike: 100,00 €
 
-Lapsiperhe: Kyllä
+Lapsiperhe: Ei tiedossa
 
 this
 is
