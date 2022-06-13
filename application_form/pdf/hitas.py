@@ -120,7 +120,7 @@ class HitasContractPDFData(PDFData):
 
     # 22
     project_contract_other_terms: Union[str, None]
-    project_contract_customer_document_handover: Union[str, None]
+    project_documents_delivered: Union[str, None]
 
     # contract part "allekirjoitukset" (signings)
     signing_place_and_time: Union[str, None]
@@ -213,7 +213,7 @@ class HitasContractPDFData(PDFData):
         "project_contract_default_collateral": "suorituskyvyttömyysvakuutus",
         "project_contract_construction_permit_requested": "Text4",
         "project_contract_other_terms": "22 Muut ehdot Uatkoa",
-        "project_contract_customer_document_handover": "Kauppakirjan liitteet",
+        "project_documents_delivered": "Kauppakirjan liitteet",
         "signing_place_and_time": "Text7",
         "signing_text": "oikeaksi todistetaan",
         "salesperson": "Text5",
@@ -401,7 +401,7 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         if apartment.project_contract_construction_permit_requested
         else None,
         project_contract_other_terms=apartment.project_contract_other_terms,
-        project_contract_customer_document_handover=apartment.project_contract_customer_document_handover,  # noqa E501
+        project_documents_delivered=apartment.project_documents_delivered,
         signing_place_and_time="Helsingin kaupunki",
         signing_text="Kauppakirja oikeaksi todistetaan",
         salesperson=None,
