@@ -11,8 +11,12 @@ def get_offer_message_subject_and_body(reservation: ApartmentReservation) -> (st
 
     try:
         project_data = ProjectExtraData.objects.get(project_uuid=apartment.project_uuid)
-        intro = project_data.offer_message_intro.replace("\r\n", "\n")
-        content = project_data.offer_message_content.replace("\r\n", "\n")
+        intro = (
+            project_data.offer_message_intro.replace("\r\n", "\n").rstrip("\n") + "\n"
+        )
+        content = (
+            project_data.offer_message_content.replace("\r\n", "\n").rstrip("\n") + "\n"
+        )
     except ProjectExtraData.DoesNotExist:
         intro = ""
         content = ""
@@ -62,9 +66,9 @@ def _get_haso_dynamic_part(reservation: ApartmentReservation, apartment) -> str:
 Alustava käyttövastike: {_get_price_str(apartment.right_of_occupancy_fee)}
 Käyttövakuus: {_get_price_str(apartment.right_of_occupancy_deposit)}
 
-Asumisoikeusnumero: {reservation.customer.right_of_residence}
+Asumisoikeusnumero: {_get_int_str(reservation.customer.right_of_residence)}
 Yli 55v: {_get_bool_str(reservation.customer.is_age_over_55)}
-Haso-vaihtaja: {_get_bool_str(reservation.customer.is_right_of_occupancy_housing_changer)}
+Asumisoikeusasunnon vaihtaja: {_get_bool_str(reservation.customer.is_right_of_occupancy_housing_changer)}
 """  # noqa: E501
 
 
@@ -78,5 +82,11 @@ def _get_price_str(cents: int) -> str:
 
 def _get_bool_str(value: Union[bool, None]) -> str:
     if value is None:
-        return ""
+        return "Ei tiedossa"
     return "Kyllä" if value else "Ei"
+
+
+def _get_int_str(value: Union[int, None]) -> str:
+    if value is None:
+        return "Ei tiedossa"
+    return str(value)
