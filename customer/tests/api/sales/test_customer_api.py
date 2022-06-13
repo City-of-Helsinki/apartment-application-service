@@ -103,6 +103,7 @@ def test_get_customer_api_detail(user_api_client):
             "state": reservation.state.value,
             "offer": None,
             "right_of_residence": application.right_of_residence,
+            "has_children": application.has_children,
         }
     ]
 
