@@ -68,6 +68,7 @@ def test_get_customer_api_detail(user_api_client):
             "state": reservation.state_change_events.first().state.value,
         }
     ]
+    application = reservation.application_apartment.application
     assert response.data["apartment_reservations"] == [
         {
             "id": reservation.id,
@@ -101,6 +102,7 @@ def test_get_customer_api_detail(user_api_client):
             "priority_number": reservation.application_apartment.priority_number,
             "state": reservation.state.value,
             "offer": None,
+            "right_of_residence": application.right_of_residence,
         }
     ]
 

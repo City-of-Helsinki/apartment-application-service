@@ -2,6 +2,7 @@ import pytest
 from datetime import date
 
 from application_form.enums import ApplicationType
+from application_form.models import ApartmentReservation
 from application_form.services.application import (
     create_application,
     get_ordered_applications,
@@ -73,6 +74,11 @@ def test_create_application(num_applicants, elastic_single_project_with_apartmen
             date.today().year - data["additional_applicant"]["date_of_birth"].year,
             date.today().year - data["additional_applicant"]["date_of_birth"].year - 1,
         )
+
+    for reservation in ApartmentReservation.objects.filter(
+        application_apartment__application=application
+    ):
+        assert reservation.right_of_residence == application.right_of_residence
 
 
 @pytest.mark.django_db

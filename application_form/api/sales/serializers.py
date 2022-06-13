@@ -78,11 +78,6 @@ class SalesApartmentReservationSerializer(ApartmentReservationSerializerBase):
     # HITAS fields
     has_children = serializers.SerializerMethodField()
 
-    # HASO fields
-    right_of_residence = serializers.CharField(
-        source="application_apartment.application.right_of_residence", allow_null=True
-    )
-
     has_multiple_winning_apartments = serializers.SerializerMethodField()
 
     cancellation_reason = serializers.SerializerMethodField()

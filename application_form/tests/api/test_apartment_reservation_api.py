@@ -81,6 +81,7 @@ def test_root_apartment_reservation_detail(
             "comment": offer.comment,
             "is_expired": False,
         },
+        "right_of_residence": reservation.right_of_residence,
     }
 
 
@@ -461,7 +462,9 @@ def test_transferring_apartment_reservation_requires_customer(user_api_client):
 @pytest.mark.django_db
 def test_create_reservation(user_api_client, include_read_only_fields):
     apartment = ApartmentDocumentFactory()
-    customer = CustomerFactory()
+    customer = CustomerFactory(
+        right_of_residence=777,
+    )
     LotteryEvent.objects.create(apartment_uuid=apartment.uuid)
 
     data = {
@@ -501,12 +504,14 @@ def test_create_reservation(user_api_client, include_read_only_fields):
         "priority_number": None,
         "state": "reserved",
         "offer": None,
+        "right_of_residence": 777,
     }
 
     reservation = ApartmentReservation.objects.get(id=reservation_id)
     assert reservation.list_position == 1
     assert reservation.queue_position == 1
     assert reservation.state == ApartmentReservationState.RESERVED
+    assert reservation.right_of_residence == 777
 
 
 @pytest.mark.django_db
