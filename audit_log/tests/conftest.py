@@ -3,7 +3,7 @@ from pytest import fixture
 from typing import Callable
 
 from users.models import Profile, User
-from users.tests.conftest import api_client, user_api_client  # noqa: F401
+from users.tests.conftest import api_client, salesperson_api_client  # noqa: F401
 from users.tests.factories import ProfileFactory
 
 

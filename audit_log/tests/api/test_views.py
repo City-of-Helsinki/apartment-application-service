@@ -32,9 +32,9 @@ def test_audit_log_post_writes_audit_log_without_authorized_user(api_client):
 
 
 @pytest.mark.django_db
-def test_audit_log_post_writes_audit_log_with_authorized_user(user_api_client):
+def test_audit_log_post_writes_audit_log_with_authorized_user(salesperson_api_client):
     data = _common_fields
-    user_api_client.post(reverse("audit_log:auditlog-list"), data, format="json")
+    salesperson_api_client.post(reverse("audit_log:auditlog-list"), data, format="json")
     audit_event = AuditLog.objects.get().message["audit_event"]
 
     assert audit_event["origin"] == data["audit_event"]["origin"]
@@ -55,24 +55,24 @@ def test_audit_log_post_writes_audit_log_with_authorized_user(user_api_client):
 
 
 @pytest.mark.django_db
-def test_audit_log_get_not_allowed(user_api_client):
-    response = user_api_client.get(reverse("audit_log:auditlog-list"))
+def test_audit_log_get_not_allowed(salesperson_api_client):
+    response = salesperson_api_client.get(reverse("audit_log:auditlog-list"))
     assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
 
 
 @pytest.mark.django_db
-def test_audit_log_put_not_allowed(user_api_client):
-    response = user_api_client.put(reverse("audit_log:auditlog-list"))
+def test_audit_log_put_not_allowed(salesperson_api_client):
+    response = salesperson_api_client.put(reverse("audit_log:auditlog-list"))
     assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
 
 
 @pytest.mark.django_db
-def test_audit_log_patch_not_allowed(user_api_client):
-    response = user_api_client.patch(reverse("audit_log:auditlog-list"))
+def test_audit_log_patch_not_allowed(salesperson_api_client):
+    response = salesperson_api_client.patch(reverse("audit_log:auditlog-list"))
     assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
 
 
 @pytest.mark.django_db
-def test_audit_log_delete_not_allowed(user_api_client):
-    response = user_api_client.delete(reverse("audit_log:auditlog-list"))
+def test_audit_log_delete_not_allowed(salesperson_api_client):
+    response = salesperson_api_client.delete(reverse("audit_log:auditlog-list"))
     assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED

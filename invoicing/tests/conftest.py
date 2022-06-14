@@ -1,6 +1,10 @@
 import pytest
 
-from users.tests.conftest import api_client, user_api_client  # noqa: F401
+from users.tests.conftest import (  # noqa: F401
+    api_client,
+    salesperson_api_client,
+    user_api_client,
+)
 
 
 @pytest.fixture(autouse=True)
