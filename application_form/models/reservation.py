@@ -1,3 +1,4 @@
+import uuid
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
@@ -5,6 +6,7 @@ from django.db.models import Deferrable, UniqueConstraint
 from django.utils.translation import gettext_lazy as _
 from enumfields import EnumField
 from pgcrypto.fields import IntegerPGPPublicKeyField
+from typing import Optional
 
 from application_form.enums import (
     ApartmentQueueChangeEventType,
@@ -34,6 +36,21 @@ class ApartmentReservationQuerySet(models.QuerySet):
             .select_related("customer__secondary_profile")
             .select_related("application_apartment")
         )
+
+    def active(self):
+        return self.exclude(state=ApartmentReservationState.CANCELED)
+
+    def first_in_queue(
+        self, apartment_uuid: uuid.UUID
+    ) -> Optional["ApartmentReservation"]:
+        try:
+            return (
+                self.active()
+                .filter(apartment_uuid=apartment_uuid)
+                .earliest("queue_position")
+            )
+        except ApartmentReservation.DoesNotExist:
+            return None
 
 
 class ApartmentReservation(models.Model):

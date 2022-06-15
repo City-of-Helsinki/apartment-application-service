@@ -8,7 +8,9 @@ from application_form.services.application import (
 )
 from application_form.services.lottery.haso import _distribute_haso_apartments
 from application_form.services.queue import add_application_to_queues
+from application_form.services.reservation import create_reservation
 from application_form.tests.factories import ApplicationFactory
+from customer.tests.factories import CustomerFactory
 
 
 @fixture(autouse=True)
@@ -161,6 +163,15 @@ def test_removing_application_from_queue_cancels_application_and_decides_new_win
     add_application_to_queues(old_winner)
     add_application_to_queues(new_winner)
     _distribute_haso_apartments(project_uuid)
+
+    # Add third reservation that does not have an application
+    reservation_without_application = create_reservation(
+        {
+            "apartment_uuid": first_apartment_uuid,
+            "customer": CustomerFactory(),
+        }
+    )
+
     assert list(get_ordered_applications(first_apartment_uuid)) == [
         old_winner,
         new_winner,
@@ -186,6 +197,13 @@ def test_removing_application_from_queue_cancels_application_and_decides_new_win
         new_app_apartment.apartment_reservation.state
         == ApartmentReservationState.RESERVED
     )
+    reservation_without_application.refresh_from_db()
+    assert reservation_without_application.state == ApartmentReservationState.SUBMITTED
+
+    cancel_reservation(new_app_apartment.apartment_reservation)
+
+    reservation_without_application.refresh_from_db()
+    assert reservation_without_application.state == ApartmentReservationState.RESERVED
 
 
 @mark.django_db

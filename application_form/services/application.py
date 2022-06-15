@@ -49,7 +49,7 @@ def cancel_reservation(
     apartment_uuid = apartment_reservation.apartment_uuid
     apartment = get_apartment(apartment_uuid, include_project_fields=True)
 
-    if ownership_type := apartment.project_ownership_type.upper() not in (
+    if (ownership_type := apartment.project_ownership_type.upper()) not in (
         "HASO",
         "HITAS",
         "PUOLIHITAS",
@@ -232,13 +232,22 @@ def _reserve_haso_apartment(apartment_uuid: uuid.UUID) -> None:
     # winning candidates with the same right of residence number.
     winning_applications = _find_winning_candidates(applications)
 
-    # Set the reservation state to either "RESERVED" or "REVIEW"
-    _update_reservation_state(winning_applications, apartment_uuid)
+    if winning_applications.exists():
+        # Set the reservation state to either "RESERVED" or "REVIEW"
+        _update_reservation_state(winning_applications, apartment_uuid)
 
-    # At this point the winner has been decided, but the winner may have outstanding
-    # applications to other apartments. If they are lower priority, they should be
-    # marked as "CANCELED" and deleted from the respective queues.
-    _cancel_lower_priority_haso_applications(winning_applications, apartment_uuid)
+        # At this point the winner has been decided, but the winner may have outstanding
+        # applications to other apartments. If they are lower priority, they should be
+        # marked as "CANCELED" and deleted from the respective queues.
+        _cancel_lower_priority_haso_applications(winning_applications, apartment_uuid)
+    else:
+        # There are no applications so the winning reservation is the one that is first
+        # in the queue.
+        winning_reservation = ApartmentReservation.objects.first_in_queue(
+            apartment_uuid
+        )
+        if winning_reservation:
+            winning_reservation.set_state(ApartmentReservationState.RESERVED)
 
 
 def _update_reservation_state(
@@ -261,15 +270,29 @@ def _update_reservation_state(
 def _reserve_apartment(apartment_uuid: uuid.UUID) -> Optional[ApplicationApartment]:
     # The winning application is whoever is at first position in the queue
     winning_application = get_ordered_applications(apartment_uuid).first()
-    if winning_application is None:
-        return None
-    application_apartment = winning_application.application_apartments.get(
-        apartment_uuid=apartment_uuid
-    )
-    application_apartment.apartment_reservation.set_state(
-        ApartmentReservationState.RESERVED
-    )
-    return application_apartment
+
+    if winning_application:
+        winning_reservation = winning_application.application_apartments.get(
+            apartment_uuid=apartment_uuid
+        ).apartment_reservation
+    else:
+        # There are no applications so the winning reservation is the first reservation
+        # in the queue
+        winning_reservation = (
+            ApartmentReservation.objects.exclude(
+                state=ApartmentReservationState.CANCELED
+            )
+            .filter(apartment_uuid=apartment_uuid)
+            .order_by("queue_position")
+            .first()
+        )
+
+        if not winning_reservation:
+            return None
+
+    winning_reservation.set_state(ApartmentReservationState.RESERVED)
+
+    return winning_reservation.application_apartment
 
 
 def _cancel_lower_priority_haso_applications(

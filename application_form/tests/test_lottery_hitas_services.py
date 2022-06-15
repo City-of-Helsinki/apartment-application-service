@@ -9,7 +9,9 @@ from application_form.services.application import (
 )
 from application_form.services.lottery.hitas import _distribute_hitas_apartments
 from application_form.services.queue import add_application_to_queues
+from application_form.services.reservation import create_reservation
 from application_form.tests.factories import ApplicationFactory
+from customer.tests.factories import CustomerFactory
 
 
 @fixture(autouse=True)
@@ -221,6 +223,14 @@ def test_canceling_winning_application_marks_next_application_in_queue_as_reserv
     # Decide the result
     _distribute_hitas_apartments(project_uuid)
 
+    # Add third reservation that does not have an application
+    reservation_without_application = create_reservation(
+        {
+            "apartment_uuid": apartment.uuid,
+            "customer": CustomerFactory(),
+        }
+    )
+
     family_app.refresh_from_db()
     single_app.refresh_from_db()
 
@@ -233,12 +243,21 @@ def test_canceling_winning_application_marks_next_application_in_queue_as_reserv
 
     family_app.refresh_from_db()
     single_app.refresh_from_db()
+    reservation_without_application.refresh_from_db()
 
     # The family should have been removed from the queue, and the other application
     # should have become the new winner.
     assert list(get_ordered_applications(apartment.uuid)) == [single]
     assert family_app.apartment_reservation.state == ApartmentReservationState.CANCELED
     assert single_app.apartment_reservation.state == ApartmentReservationState.RESERVED
+    assert reservation_without_application.state == ApartmentReservationState.SUBMITTED
+
+    # Cancel the second reservation that has an application
+    cancel_reservation(single_app.apartment_reservation)
+
+    # The reservation without an application should be the winner now
+    reservation_without_application.refresh_from_db()
+    assert reservation_without_application.state == ApartmentReservationState.RESERVED
 
 
 @mark.django_db
