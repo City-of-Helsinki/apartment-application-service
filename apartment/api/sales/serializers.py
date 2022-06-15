@@ -16,11 +16,14 @@ class ApartmentSerializer(serializers.Serializer):
     def get_reservations(self, obj):
         reservations = []
         if self.context.get("reservations"):
-            reservations = [
-                r
-                for r in self.context.get("reservations")
-                if str(r.apartment_uuid) == obj.uuid
-            ]
+            reservations = sorted(
+                [
+                    r
+                    for r in self.context.get("reservations")
+                    if str(r.apartment_uuid) == obj.uuid
+                ],
+                key=lambda x: x.list_position,
+            )
 
         return SalesApartmentReservationSerializer(
             reservations,
