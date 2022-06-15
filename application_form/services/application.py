@@ -49,7 +49,7 @@ def cancel_reservation(
     apartment_uuid = apartment_reservation.apartment_uuid
     apartment = get_apartment(apartment_uuid, include_project_fields=True)
 
-    if ownership_type := apartment.project_ownership_type.upper() not in (
+    if (ownership_type := apartment.project_ownership_type.upper()) not in (
         "HASO",
         "HITAS",
         "PUOLIHITAS",
