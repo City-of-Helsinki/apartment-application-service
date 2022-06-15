@@ -258,16 +258,28 @@ def test_cannot_update_concluded_offer_valid_until_or_state(
 def test_update_concluded_offer_comment(salesperson_api_client, state):
     apartment = ApartmentDocumentFactory()
     reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
+    another_reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid, list_position=reservation.list_position + 1
+    )
+
     offer = OfferFactory(
         apartment_reservation=reservation,
         valid_until=timezone.localdate() + timedelta(days=1),
         state=state,
         comment="old comment",
+        concluded_at=timezone.now(),
     )
+    old_concluded_at = offer.concluded_at
 
-    data = {"comment": "new comment"}
+    data = {
+        "state": offer.state.value,
+        "valid_until": offer.valid_until,
+        "comment": "new comment",
+        # make sure reservation cannot be changed
+        "apartment_reservation_id": another_reservation.id,
+    }
 
-    response = salesperson_api_client.patch(
+    response = salesperson_api_client.put(
         reverse(
             "application_form:sales-offer-detail",
             kwargs={"pk": offer.pk},
@@ -275,11 +287,13 @@ def test_update_concluded_offer_comment(salesperson_api_client, state):
         data=data,
         format="json",
     )
-    assert response.status_code == 200
+    assert response.status_code == 200, response.data
 
     assert response.data["comment"] == "new comment"
     offer.refresh_from_db()
     assert offer.comment == "new comment"
+    assert offer.concluded_at == old_concluded_at
+    assert offer.apartment_reservation == reservation
 
 
 @pytest.mark.django_db

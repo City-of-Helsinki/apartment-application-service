@@ -43,14 +43,13 @@ def update_offer(offer: Offer, offer_data: dict, user: User = None) -> Offer:
                     'Only comment can be edited when state is "accepted" or "rejected".'
                 )
 
-    new_offer_state = offer_data.get("state")
-    if new_offer_state and new_offer_state != OfferState.PENDING:
-        if new_offer_state == OfferState.ACCEPTED:
+    if "state" in offer_data and offer_data["state"] != offer.state:
+        if offer_data["state"] == OfferState.ACCEPTED:
             new_reservation_state = ApartmentReservationState.OFFER_ACCEPTED
-        elif new_offer_state == OfferState.REJECTED:
+        elif offer_data["state"] == OfferState.REJECTED:
             new_reservation_state = ApartmentReservationState.CANCELED
         else:
-            raise ValueError(f"Invalid OfferState: {new_offer_state}")
+            raise ValueError(f'Invalid OfferState: {offer_data["state"]}')
         offer.apartment_reservation.set_state(new_reservation_state, user=user)
         offer.concluded_at = timezone.now()
 

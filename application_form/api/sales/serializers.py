@@ -222,6 +222,11 @@ class OfferSerializer(EnumSupportSerializerMixin, serializers.ModelSerializer):
         )
         read_only_fields = ("concluded_at",)
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.context["view"].action in ("update", "partial_update"):
+            self.fields["apartment_reservation_id"].read_only = True
+
     def create(self, validated_data):
         return create_offer(validated_data)
 
