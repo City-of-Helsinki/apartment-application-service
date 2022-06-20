@@ -46,6 +46,8 @@ def test_get_customer_api_detail(salesperson_api_client):
         application_apartment__apartment_uuid=apartment.uuid,
         customer=customer,
         apartment_uuid=apartment.uuid,
+        has_hitas_ownership=True,
+        has_children=False,
     )
     installment = ApartmentInstallmentFactory(
         apartment_reservation=reservation, value=100
@@ -82,7 +84,6 @@ def test_get_customer_api_detail(salesperson_api_client):
             "state": reservation.state_change_events.first().state.value,
         }
     ]
-    application = reservation.application_apartment.application
     assert response.data["apartment_reservations"] == [
         {
             "id": reservation.id,
@@ -116,8 +117,11 @@ def test_get_customer_api_detail(salesperson_api_client):
             "priority_number": reservation.application_apartment.priority_number,
             "state": reservation.state.value,
             "offer": None,
-            "right_of_residence": application.right_of_residence,
-            "has_children": application.has_children,
+            "right_of_residence": reservation.right_of_residence,
+            "has_children": reservation.has_children,
+            "has_hitas_ownership": reservation.has_hitas_ownership,
+            "is_age_over_55": reservation.is_age_over_55,
+            "is_right_of_occupancy_housing_changer": reservation.is_right_of_occupancy_housing_changer,  # noqa: E501
         }
     ]
 

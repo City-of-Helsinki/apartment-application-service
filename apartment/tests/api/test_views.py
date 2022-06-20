@@ -143,17 +143,6 @@ def _assert_apartment_reservations_data(reservations):
         assert "priority_number" in reservation
         assert "has_children" in reservation
         reservation_obj = ApartmentReservation.objects.get(pk=reservation["id"])
-        if reservation_obj.application_apartment:
-            assert (
-                reservation["has_children"]
-                == reservation_obj.application_apartment.application.has_children
-            )
-            assert (
-                reservation["priority_number"]
-                == reservation_obj.application_apartment.priority_number
-            )
-        else:
-            assert reservation["has_children"] == reservation_obj.customer.has_children
 
         if (
             reservation["state"] == ApartmentReservationState.CANCELED.value
