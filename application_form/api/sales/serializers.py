@@ -73,9 +73,6 @@ class CustomerCompactSerializer(serializers.ModelSerializer):
             "id",
             "primary_profile",
             "secondary_profile",
-            "has_hitas_ownership",
-            "is_age_over_55",
-            "is_right_of_occupancy_housing_changer",
         )
 
 
