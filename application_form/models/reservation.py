@@ -5,7 +5,7 @@ from django.db import models, transaction
 from django.db.models import Deferrable, UniqueConstraint
 from django.utils.translation import gettext_lazy as _
 from enumfields import EnumField
-from pgcrypto.fields import IntegerPGPPublicKeyField
+from pgcrypto.fields import BooleanPGPPublicKeyField, IntegerPGPPublicKeyField
 from typing import Optional
 
 from application_form.enums import (
@@ -81,6 +81,16 @@ class ApartmentReservation(models.Model):
         max_length=32,
         default=ApartmentReservationState.SUBMITTED,
         verbose_name=_("apartment reservation state"),
+    )
+    has_children = BooleanPGPPublicKeyField(_("has children"), blank=True, null=True)
+    has_hitas_ownership = BooleanPGPPublicKeyField(
+        _("has hitas ownership"), blank=True, null=True
+    )
+    is_age_over_55 = BooleanPGPPublicKeyField(
+        _("is age over 55"), blank=True, null=True
+    )
+    is_right_of_occupancy_housing_changer = BooleanPGPPublicKeyField(
+        _("is right-of-occupancy housing changer"), blank=True, null=True
     )
     right_of_residence = IntegerPGPPublicKeyField(
         _("right of residence number"), blank=True, null=True
