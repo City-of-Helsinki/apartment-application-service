@@ -101,6 +101,10 @@ def test_root_apartment_reservation_detail(
             "is_expired": False,
         },
         "right_of_residence": reservation.right_of_residence,
+        "has_children": reservation.has_children,
+        "has_hitas_ownership": reservation.has_hitas_ownership,
+        "is_age_over_55": reservation.is_age_over_55,
+        "is_right_of_occupancy_housing_changer": reservation.is_right_of_occupancy_housing_changer,  # noqa: E501
     }
 
 
@@ -561,6 +565,10 @@ def test_create_reservation(salesperson_api_client, include_read_only_fields):
     apartment = ApartmentDocumentFactory()
     customer = CustomerFactory(
         right_of_residence=777,
+        has_children=None,
+        has_hitas_ownership=None,
+        is_age_over_55=True,
+        is_right_of_occupancy_housing_changer=False,
     )
     LotteryEvent.objects.create(apartment_uuid=apartment.uuid)
 
@@ -577,6 +585,10 @@ def test_create_reservation(salesperson_api_client, include_read_only_fields):
                 "priority_number": 11,
                 "queue_position": 4,
                 "state": "offered",
+                "has_children": True,
+                "has_hitas_ownership": False,
+                "is_age_over_55": None,
+                "is_right_of_occupancy_housing_changer": None,
             }
         )
 
@@ -602,6 +614,10 @@ def test_create_reservation(salesperson_api_client, include_read_only_fields):
         "state": "reserved",
         "offer": None,
         "right_of_residence": 777,
+        "has_children": None,
+        "has_hitas_ownership": None,
+        "is_age_over_55": True,
+        "is_right_of_occupancy_housing_changer": False,
     }
 
     reservation = ApartmentReservation.objects.get(id=reservation_id)
@@ -609,6 +625,10 @@ def test_create_reservation(salesperson_api_client, include_read_only_fields):
     assert reservation.queue_position == 1
     assert reservation.state == ApartmentReservationState.RESERVED
     assert reservation.right_of_residence == 777
+    assert reservation.has_children is None
+    assert reservation.has_hitas_ownership is None
+    assert reservation.is_age_over_55 is True
+    assert reservation.is_right_of_occupancy_housing_changer is False
 
 
 @pytest.mark.django_db

@@ -88,6 +88,12 @@ def create_reservation(reservation_data: dict) -> ApartmentReservation:
             list_position=(max_list_position or 0) + 1,
             queue_position=(max_queue_position or 0) + 1,
             right_of_residence=reservation_data["customer"].right_of_residence,
+            has_children=reservation_data["customer"].has_children,
+            has_hitas_ownership=reservation_data["customer"].has_hitas_ownership,
+            is_age_over_55=reservation_data["customer"].is_age_over_55,
+            is_right_of_occupancy_housing_changer=reservation_data[
+                "customer"
+            ].is_right_of_occupancy_housing_changer,  # noqa: E501
         )
 
     return reservation

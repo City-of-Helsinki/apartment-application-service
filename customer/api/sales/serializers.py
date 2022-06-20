@@ -1,7 +1,6 @@
 from django.db import transaction
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
-from typing import Optional
 from uuid import UUID
 
 from apartment.elastic.queries import get_apartment
@@ -32,7 +31,6 @@ class CustomerApartmentReservationSerializer(ApartmentReservationSerializerBase)
     apartment_installments = ApartmentInstallmentSerializer(many=True)
     state_change_events = ApartmentReservationStateChangeEventSerializer(many=True)
     project_lottery_completed = serializers.SerializerMethodField()
-    has_children = serializers.SerializerMethodField()
 
     class Meta(ApartmentReservationSerializerBase.Meta):
         model = ApartmentReservation
@@ -53,8 +51,6 @@ class CustomerApartmentReservationSerializer(ApartmentReservationSerializerBase)
             "apartment_installments",
             "state_change_events",
             "project_lottery_completed",
-            "right_of_residence",
-            "has_children",
         ) + ApartmentReservationSerializerBase.Meta.fields
 
     def to_representation(self, instance):
@@ -101,11 +97,6 @@ class CustomerApartmentReservationSerializer(ApartmentReservationSerializerBase)
             apartment_uuid=obj.apartment_uuid
         ).exists()
         return lottery_completed
-
-    def get_has_children(self, obj) -> Optional[bool]:
-        if obj.application_apartment is not None:
-            return obj.application_apartment.application.has_children
-        return obj.customer.has_children
 
 
 class CustomerSerializer(serializers.ModelSerializer):
