@@ -792,12 +792,11 @@ def test_get_offer_message(salesperson_api_client, ownership_type):
         customer__primary_profile__email="ulla@example.com",
     )
 
-    response = salesperson_api_client.get(
-        reverse(
-            "application_form:sales-apartment-reservation-offer-message",
-            kwargs={"pk": reservation.id},
-        ),
-    )
+    url = reverse(
+        "application_form:sales-apartment-reservation-offer-message",
+        kwargs={"pk": reservation.id},
+    ) + ("?valid_until=2022-03-04" if ownership_type == "haso" else "")
+    response = salesperson_api_client.get(url)
     assert response.status_code == 200
 
     expected_subject = "Tarjous As Oy Pojanlohi A1"
@@ -818,6 +817,8 @@ Asumisoikeusnumero: 777
 Yli 55v: Kyllä
 Asumisoikeusasunnon vaihtaja: Ei
 
+Tarjouksen viimeinen voimassaolopäivä: 4.3.2022
+
 this
 is
 content
@@ -837,6 +838,8 @@ Velaton hinta: 5 000,00 €
 Alustava vastike: 100,00 €
 
 Lapsiperhe: Ei tiedossa
+
+Tarjouksen viimeinen voimassaolopäivä: Ei tiedossa
 
 this
 is
@@ -865,12 +868,7 @@ content
     )
     reservation.customer.save()
 
-    response = salesperson_api_client.get(
-        reverse(
-            "application_form:sales-apartment-reservation-offer-message",
-            kwargs={"pk": reservation.id},
-        ),
-    )
+    response = salesperson_api_client.get(url)
     assert response.status_code == 200
 
     expected_data["recipients"].append(

@@ -289,3 +289,7 @@ class ApartmentReservationCancelEventSerializer(
             ret.pop("new_customer_id", None)
             ret.pop("new_reservation_id", None)
         return ret
+
+
+class OfferMessageQueryParamsSerializer(serializers.Serializer):
+    valid_until = serializers.DateField(required=False)
