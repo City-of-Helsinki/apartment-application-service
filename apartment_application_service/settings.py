@@ -274,6 +274,10 @@ OIDC_API_TOKEN_AUTH = {
     "ISSUER": env("OIDC_ISSUER"),
 }
 
+# drf-oidc-auth rejects tokens older this so we don't want to use the default value 600s
+# see https://github.com/ByteInternet/drf-oidc-auth/issues/28
+OIDC_AUTH = {"OIDC_LEEWAY": 61 * 60}
+
 SOCIAL_AUTH_TUNNISTAMO_KEY = env("SOCIAL_AUTH_TUNNISTAMO_KEY")
 SOCIAL_AUTH_TUNNISTAMO_SECRET = env("SOCIAL_AUTH_TUNNISTAMO_SECRET")
 SOCIAL_AUTH_TUNNISTAMO_OIDC_ENDPOINT = env("SOCIAL_AUTH_TUNNISTAMO_OIDC_ENDPOINT")
