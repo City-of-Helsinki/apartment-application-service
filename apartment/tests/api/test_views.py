@@ -75,29 +75,25 @@ def test_project_list_get(salesperson_api_client):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("endpoint", ["list", "detail"])
 @pytest.mark.parametrize("lottery_exists", (True, False))
-def test_project_list_lottery_completed_field(
-    salesperson_api_client, elastic_project_with_5_apartments, endpoint, lottery_exists
+def test_project_detail_lottery_completed_at_field(
+    salesperson_api_client, elastic_project_with_5_apartments, lottery_exists
 ):
     project_uuid, apartments = elastic_project_with_5_apartments
 
     if lottery_exists:
-        LotteryEventFactory(apartment_uuid=apartments[0].uuid)
+        lottery_event = LotteryEventFactory(apartment_uuid=apartments[0].uuid)
 
-    url = (
-        reverse("apartment:project-list")
-        if endpoint == "list"
-        else reverse(
-            "apartment:project-detail",
-            kwargs={"project_uuid": project_uuid},
-        )
+    url = reverse(
+        "apartment:project-detail",
+        kwargs={"project_uuid": project_uuid},
     )
     response = salesperson_api_client.get(url, format="json")
     assert response.status_code == 200
 
-    data = response.data[0] if endpoint == "list" else response.data
-    assert data["lottery_completed"] is lottery_exists
+    assert response.data["lottery_completed_at"] == (
+        lottery_event.timestamp if lottery_exists else None
+    )
 
 
 @pytest.mark.django_db

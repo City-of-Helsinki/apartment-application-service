@@ -1,3 +1,5 @@
+from datetime import datetime
+from django.db.models import Max
 from rest_framework import serializers
 
 from apartment.api.sales.serializers import ApartmentSerializer
@@ -144,15 +146,6 @@ class ProjectDocumentSerializerBase(serializers.Serializer):
     published = serializers.BooleanField(source="project_published")
     archived = serializers.BooleanField(source="project_archived")
 
-    lottery_completed = serializers.SerializerMethodField()
-
-    def get_lottery_completed(self, obj):
-        apartment_uuids = get_apartment_uuids(obj["project_uuid"])
-        lottery_completed = LotteryEvent.objects.filter(
-            apartment_uuid__in=apartment_uuids
-        ).exists()
-        return lottery_completed
-
 
 class ProjectDocumentListSerializer(ProjectDocumentSerializerBase):
     pass
@@ -162,6 +155,7 @@ class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
     installment_templates = serializers.SerializerMethodField()
     apartments = serializers.SerializerMethodField()
     extra_data = serializers.SerializerMethodField()
+    lottery_completed_at = serializers.SerializerMethodField()
 
     def get_installment_templates(self, obj):
         installment_templates = ProjectInstallmentTemplate.objects.filter(
@@ -195,3 +189,10 @@ class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
         except ProjectExtraData.DoesNotExist:
             extra_data = ProjectExtraData()
         return ProjectExtraDataSerializer(extra_data).data
+
+    def get_lottery_completed_at(self, obj) -> datetime:
+        apartment_uuids = get_apartment_uuids(obj["project_uuid"])
+        lottery_completed_at = LotteryEvent.objects.filter(
+            apartment_uuid__in=apartment_uuids
+        ).aggregate(Max("timestamp"))["timestamp__max"]
+        return lottery_completed_at
