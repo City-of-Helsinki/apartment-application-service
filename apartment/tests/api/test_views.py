@@ -17,6 +17,7 @@ from application_form.services.lottery.machine import distribute_apartments
 from application_form.services.queue import add_application_to_queues
 from application_form.tests.factories import (
     ApartmentReservationFactory,
+    ApplicationApartmentFactory,
     ApplicationFactory,
     LotteryEventFactory,
 )
@@ -94,6 +95,40 @@ def test_project_detail_lottery_completed_at_field(
     assert response.data["lottery_completed_at"] == (
         lottery_event.timestamp if lottery_exists else None
     )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("applications_exist", (True, False))
+def test_project_detail_application_count_field(
+    salesperson_api_client, elastic_project_with_5_apartments, applications_exist
+):
+    project_uuid, apartments = elastic_project_with_5_apartments
+
+    if applications_exist:
+        # two applications, the first one is for two apartments which should not matter
+        application_1 = ApplicationFactory()
+        ApplicationApartmentFactory(
+            application=application_1, apartment_uuid=apartments[0].uuid
+        )
+        ApplicationApartmentFactory(
+            application=application_1, apartment_uuid=apartments[1].uuid
+        )
+        application_2 = ApplicationFactory()
+        ApplicationApartmentFactory(
+            application=application_2, apartment_uuid=apartments[2].uuid
+        )
+
+    # another project application that should not be counted
+    ApplicationApartmentFactory()
+
+    url = reverse(
+        "apartment:project-detail",
+        kwargs={"project_uuid": project_uuid},
+    )
+    response = salesperson_api_client.get(url, format="json")
+    assert response.status_code == 200
+
+    assert response.data["application_count"] == (2 if applications_exist else 0)
 
 
 @pytest.mark.django_db

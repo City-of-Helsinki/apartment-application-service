@@ -1,12 +1,13 @@
 from datetime import datetime
 from django.db.models import Max
+from django.utils.functional import cached_property
 from rest_framework import serializers
 
 from apartment.api.sales.serializers import ApartmentSerializer
-from apartment.elastic.queries import get_apartment_uuids, get_apartments
+from apartment.elastic.queries import get_apartments
 from apartment.models import ProjectExtraData
 from application_form.api.sales.serializers import ProjectExtraDataSerializer
-from application_form.models import ApartmentReservation, LotteryEvent
+from application_form.models import ApartmentReservation, Application, LotteryEvent
 from invoicing.api.serializers import ProjectInstallmentTemplateSerializer
 from invoicing.models import ProjectInstallmentTemplate
 
@@ -156,6 +157,7 @@ class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
     apartments = serializers.SerializerMethodField()
     extra_data = serializers.SerializerMethodField()
     lottery_completed_at = serializers.SerializerMethodField()
+    application_count = serializers.SerializerMethodField()
 
     def get_installment_templates(self, obj):
         installment_templates = ProjectInstallmentTemplate.objects.filter(
@@ -166,16 +168,13 @@ class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
         ).data
 
     def get_apartments(self, obj):
-        apartments = get_apartments(obj.project_uuid)
         project_reservations = (
-            ApartmentReservation.objects.filter(
-                apartment_uuid__in=get_apartment_uuids(project_uuid=obj.project_uuid)
-            )
+            ApartmentReservation.objects.filter(apartment_uuid__in=self.apartment_uuids)
             .related_fields()
             .all()
         )
         return ApartmentSerializer(
-            apartments,
+            self.apartment_objs,
             many=True,
             context={
                 "project_uuid": obj.project_uuid,
@@ -191,8 +190,24 @@ class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
         return ProjectExtraDataSerializer(extra_data).data
 
     def get_lottery_completed_at(self, obj) -> datetime:
-        apartment_uuids = get_apartment_uuids(obj["project_uuid"])
         lottery_completed_at = LotteryEvent.objects.filter(
-            apartment_uuid__in=apartment_uuids
+            apartment_uuid__in=self.apartment_uuids
         ).aggregate(Max("timestamp"))["timestamp__max"]
         return lottery_completed_at
+
+    def get_application_count(self, obj) -> int:
+        return (
+            Application.objects.filter(
+                application_apartments__apartment_uuid__in=self.apartment_uuids
+            )
+            .distinct()
+            .count()
+        )
+
+    @cached_property
+    def apartment_objs(self):
+        return get_apartments(self.instance.project_uuid)
+
+    @cached_property
+    def apartment_uuids(self):
+        return [a.uuid for a in self.apartment_objs]
