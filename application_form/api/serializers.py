@@ -188,6 +188,10 @@ class ApartmentReservationSerializerBase(serializers.ModelSerializer):
             "state",
             "offer",
             "right_of_residence",
+            "has_children",
+            "has_hitas_ownership",
+            "is_age_over_55",
+            "is_right_of_occupancy_housing_changer",
         )
         read_only_fields = (
             "id",
@@ -196,6 +200,10 @@ class ApartmentReservationSerializerBase(serializers.ModelSerializer):
             "priority_number",
             "state",
             "right_of_residence",
+            "has_children",
+            "has_hitas_ownership",
+            "is_age_over_55",
+            "is_right_of_occupancy_housing_changer",
         )
 
     def get_queue_position(self, obj):

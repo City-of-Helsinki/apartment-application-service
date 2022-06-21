@@ -70,6 +70,10 @@ def add_application_to_queues(application: Application, comment: str = "") -> No
                 application_apartment=application_apartment,
                 apartment_uuid=apartment_uuid,
                 right_of_residence=application.right_of_residence,
+                has_children=application.has_children,
+                has_hitas_ownership=application.has_hitas_ownership,
+                is_age_over_55=application.customer.is_age_over_55,
+                is_right_of_occupancy_housing_changer=application.is_right_of_occupancy_housing_changer,  # noqa: E501
             )
             apartment_reservation.queue_change_events.create(
                 type=ApartmentQueueChangeEventType.ADDED,

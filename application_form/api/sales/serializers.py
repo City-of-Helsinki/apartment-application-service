@@ -73,28 +73,18 @@ class CustomerCompactSerializer(serializers.ModelSerializer):
             "id",
             "primary_profile",
             "secondary_profile",
-            "has_hitas_ownership",
-            "is_age_over_55",
-            "is_right_of_occupancy_housing_changer",
         )
 
 
 class SalesApartmentReservationSerializer(ApartmentReservationSerializerBase):
     customer = CustomerCompactSerializer()
-
-    # HITAS fields
-    has_children = serializers.SerializerMethodField()
-
     has_multiple_winning_apartments = serializers.SerializerMethodField()
-
     cancellation_reason = serializers.SerializerMethodField()
     cancellation_timestamp = serializers.SerializerMethodField()
 
     class Meta(ApartmentReservationSerializerBase.Meta):
         fields = ApartmentReservationSerializerBase.Meta.fields + (
             "customer",
-            "has_children",
-            "right_of_residence",
             "has_multiple_winning_apartments",
             "cancellation_reason",
             "cancellation_timestamp",
@@ -120,11 +110,6 @@ class SalesApartmentReservationSerializer(ApartmentReservationSerializerBase):
             )
         # Winning reservation will have state other than SUBMITTED and CANCELED
         return winner.count() > 1
-
-    def get_has_children(self, obj):
-        if obj.application_apartment is not None:
-            return obj.application_apartment.application.has_children
-        return obj.customer.has_children
 
     def get_cancellation_reason(self, obj):
         if obj.state == ApartmentReservationState.CANCELED:
