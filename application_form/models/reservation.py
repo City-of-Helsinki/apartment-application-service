@@ -126,9 +126,6 @@ class ApartmentReservation(models.Model):
         cancellation_reason: ApartmentReservationCancellationReason = None,
         replaced_by: "ApartmentReservation" = None,
     ) -> "ApartmentReservationStateChangeEvent":
-        if user and user.is_anonymous:
-            # TODO this should be removed after proper authentication has been added
-            user = None
         if cancellation_reason and state != ApartmentReservationState.CANCELED:
             raise ValidationError(
                 "cancellation_reason cannot be set when state is not canceled."

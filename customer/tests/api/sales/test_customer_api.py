@@ -18,11 +18,7 @@ from customer.tests.utils import assert_customer_list_match_data
 from invoicing.tests.factories import ApartmentInstallmentFactory
 from users.models import Profile
 from users.tests.factories import ProfileFactory
-from users.tests.utils import (
-    _create_token,
-    assert_customer_match_data,
-    assert_profile_match_data,
-)
+from users.tests.utils import assert_customer_match_data, assert_profile_match_data
 
 
 @pytest.mark.django_db
@@ -57,10 +53,6 @@ def test_get_customer_api_detail(salesperson_api_client):
         apartment_reservation=reservation, value=100
     )
 
-    profile = ProfileFactory()
-    salesperson_api_client.credentials(
-        HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}"
-    )
     response = salesperson_api_client.get(
         reverse("customer:sales-customer-detail", args=(customer.pk,)),
         format="json",
