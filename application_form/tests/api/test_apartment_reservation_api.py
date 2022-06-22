@@ -783,10 +783,10 @@ def test_get_offer_message(salesperson_api_client, ownership_type):
 
     reservation = ApartmentReservationFactory(
         apartment_uuid=apartment.uuid,
-        customer__right_of_residence=777,
-        customer__is_age_over_55=True,
-        customer__is_right_of_occupancy_housing_changer=False,
-        customer__has_children=None,
+        right_of_residence=777,
+        is_age_over_55=True,
+        is_right_of_occupancy_housing_changer=False,
+        has_children=None,
         customer__primary_profile__first_name="Ulla",
         customer__primary_profile__last_name="Taalasmaa",
         customer__primary_profile__email="ulla@example.com",
