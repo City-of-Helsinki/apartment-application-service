@@ -221,10 +221,7 @@ class HitasContractPDFData(PDFData):
 
 
 def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
-    customer = SafeAttributeObject(
-        reservation.application_apartment.application.customer
-    )
-
+    customer = SafeAttributeObject(reservation.customer)
     primary_profile = SafeAttributeObject(customer.primary_profile)
     secondary_profile = SafeAttributeObject(customer.secondary_profile)
     apartment = SafeAttributeObject(

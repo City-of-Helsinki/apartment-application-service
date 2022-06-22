@@ -214,11 +214,20 @@ def test_contract_pdf_creation_unauthorized(user_api_client):
     assert response.status_code == 403
 
 
+@pytest.mark.parametrize("reservation_has_application", (True, False))
 @pytest.mark.parametrize("ownership_type", ("HASO", "Hitas"))
 @pytest.mark.django_db
-def test_contract_pdf_creation(salesperson_api_client, ownership_type):
+def test_contract_pdf_creation(
+    salesperson_api_client, ownership_type, reservation_has_application
+):
     apartment = ApartmentDocumentFactory(project_ownership_type=ownership_type)
-    reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
+
+    if reservation_has_application:
+        reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
+    else:
+        reservation = ApartmentReservationFactory(
+            apartment_uuid=apartment.uuid, application_apartment=None
+        )
 
     response = salesperson_api_client.get(
         reverse(
