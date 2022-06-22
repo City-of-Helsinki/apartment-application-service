@@ -72,7 +72,7 @@ def _get_hitas_dynamic_part(reservation: ApartmentReservation, apartment) -> str
 Velaton hinta: {_get_price_str(apartment.debt_free_sales_price)}
 Alustava vastike: {_get_price_str(apartment.maintenance_fee)}
 
-Lapsiperhe: {_get_bool_str(reservation.customer.has_children)}
+Lapsiperhe: {_get_bool_str(reservation.has_children)}
 """
 
 
@@ -81,9 +81,9 @@ def _get_haso_dynamic_part(reservation: ApartmentReservation, apartment) -> str:
 Alustava käyttövastike: {_get_price_str(apartment.right_of_occupancy_fee)}
 Käyttövakuus: {_get_price_str(apartment.right_of_occupancy_deposit)}
 
-Asumisoikeusnumero: {_get_int_str(reservation.customer.right_of_residence)}
-Yli 55v: {_get_bool_str(reservation.customer.is_age_over_55)}
-Asumisoikeusasunnon vaihtaja: {_get_bool_str(reservation.customer.is_right_of_occupancy_housing_changer)}
+Asumisoikeusnumero: {_get_int_str(reservation.right_of_residence)}
+Yli 55v: {_get_bool_str(reservation.is_age_over_55)}
+Asumisoikeusasunnon vaihtaja: {_get_bool_str(reservation.is_right_of_occupancy_housing_changer)}
 """  # noqa: E501
 
 
