@@ -6,6 +6,10 @@ from django.urls import reverse
 from rest_framework import status
 
 from apartment.tests.factories import ApartmentDocumentFactory
+from application_form.enums import (
+    ApartmentReservationCancellationReason,
+    ApartmentReservationState,
+)
 from application_form.tests.factories import ApartmentReservationFactory
 from customer.api.sales.views import CustomerViewSet
 from customer.models import Customer
@@ -82,6 +86,7 @@ def test_get_customer_api_detail(salesperson_api_client):
         {
             "comment": reservation.state_change_events.first().comment,
             "state": reservation.state_change_events.first().state.value,
+            "cancellation_reason": None,
         }
     ]
     assert response.data["apartment_reservations"] == [
@@ -124,6 +129,36 @@ def test_get_customer_api_detail(salesperson_api_client):
             "is_right_of_occupancy_housing_changer": reservation.is_right_of_occupancy_housing_changer,  # noqa: E501
         }
     ]
+
+
+@pytest.mark.django_db
+def test_customer_detail_cancellation_reason(salesperson_api_client):
+    apartment = ApartmentDocumentFactory(
+        sales_price=2000,
+        debt_free_sales_price=1500,
+        right_of_occupancy_payment=300,
+    )
+    customer = CustomerFactory(secondary_profile=ProfileFactory())
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        customer=customer,
+    )
+    reservation.set_state(
+        ApartmentReservationState.CANCELED,
+        cancellation_reason=ApartmentReservationCancellationReason.CANCELED,
+    )
+
+    response = salesperson_api_client.get(
+        reverse("customer:sales-customer-detail", args=(customer.pk,)),
+        format="json",
+    )
+
+    assert (
+        response.data["apartment_reservations"][0]["state_change_events"][1][
+            "cancellation_reason"
+        ]
+        == "canceled"
+    )
 
 
 @pytest.mark.django_db

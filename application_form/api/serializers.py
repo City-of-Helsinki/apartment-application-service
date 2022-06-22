@@ -222,7 +222,7 @@ class ApartmentReservationStateChangeEventSerializer(
 ):
     class Meta:
         model = ApartmentReservationStateChangeEvent
-        fields = ("timestamp", "state", "comment")
+        fields = ("timestamp", "state", "comment", "cancellation_reason")
         read_only_fields = ("timestamp",)
 
     def __init__(self, *args, **kwargs):
