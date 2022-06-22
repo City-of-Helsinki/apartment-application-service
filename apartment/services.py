@@ -1,13 +1,22 @@
+from datetime import date
 from decimal import Decimal
-from typing import Union
+from typing import Optional, Union
 
 from apartment.elastic.queries import get_apartment
 from apartment.models import ProjectExtraData
-from application_form.models import ApartmentReservation
+from application_form.models import ApartmentReservation, Offer
 
 
-def get_offer_message_subject_and_body(reservation: ApartmentReservation) -> (str, str):
+def get_offer_message_subject_and_body(
+    reservation: ApartmentReservation, valid_until=Optional[date]
+) -> (str, str):
     apartment = get_apartment(reservation.apartment_uuid, include_project_fields=True)
+
+    if not valid_until:
+        try:
+            valid_until = reservation.offer.valid_until
+        except Offer.DoesNotExist:
+            pass
 
     try:
         project_data = ProjectExtraData.objects.get(project_uuid=apartment.project_uuid)
@@ -21,7 +30,9 @@ def get_offer_message_subject_and_body(reservation: ApartmentReservation) -> (st
         intro = ""
         content = ""
 
-    dynamic = _get_offer_message_body_dynamic_part(reservation, apartment)
+    dynamic = _get_offer_message_body_dynamic_part(
+        reservation, apartment, valid_until=valid_until
+    )
 
     body = "\n".join([part for part in (intro, dynamic, content) if part]).replace(
         "\n", "\r\n"
@@ -34,22 +45,26 @@ def get_offer_message_subject_and_body(reservation: ApartmentReservation) -> (st
 
 
 def _get_offer_message_body_dynamic_part(
-    reservation: ApartmentReservation, apartment
+    reservation: ApartmentReservation, apartment, valid_until=Optional[date]
 ) -> str:
-    common = f"""Huoneisto: {apartment.apartment_number}
+    common_part = f"""Huoneisto: {apartment.apartment_number}
 Huoneistotyyppi: {apartment.apartment_structure}
 Pinta-ala: {apartment.living_area}
 Kerros: {apartment.floor}. krs
 """
     ownership_type = apartment.project_ownership_type.lower()
     if ownership_type in ("hitas", "puolihitas"):
-        ownership_specific = _get_hitas_dynamic_part(reservation, apartment)
+        ownership_specific_part = _get_hitas_dynamic_part(reservation, apartment)
     elif ownership_type == "haso":
-        ownership_specific = _get_haso_dynamic_part(reservation, apartment)
+        ownership_specific_part = _get_haso_dynamic_part(reservation, apartment)
     else:
         raise ValueError(f'Unknown project ownership_type "{ownership_type}"')
 
-    return common + "\n" + ownership_specific
+    valid_until_part = (
+        f"Tarjouksen viimeinen voimassaolopäivä: {_get_date_str(valid_until)}\n"
+    )
+
+    return common_part + "\n" + ownership_specific_part + "\n" + valid_until_part
 
 
 def _get_hitas_dynamic_part(reservation: ApartmentReservation, apartment) -> str:
@@ -90,3 +105,9 @@ def _get_int_str(value: Union[int, None]) -> str:
     if value is None:
         return "Ei tiedossa"
     return str(value)
+
+
+def _get_date_str(value: Union[date, None]) -> str:
+    if value is None:
+        return "Ei tiedossa"
+    return value.strftime("%-d.%-m.%Y")

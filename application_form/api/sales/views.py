@@ -2,7 +2,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse
 from django.views.decorators.http import require_http_methods
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema, OpenApiExample
+from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiParameter
 from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.decorators import action, api_view
 from rest_framework.exceptions import NotFound, ValidationError
@@ -21,6 +21,7 @@ from application_form.api.sales.serializers import (
 from application_form.api.serializers import (
     ApartmentReservationCancelEventSerializer,
     ApartmentReservationStateChangeEventSerializer,
+    OfferMessageQueryParamsSerializer,
 )
 from application_form.api.views import ApplicationViewSet
 from application_form.enums import (
@@ -208,6 +209,9 @@ class ApartmentReservationViewSet(
 
     @extend_schema(
         responses=OfferMessageSerializer(),
+        parameters=[
+            OpenApiParameter("valid_until", OpenApiTypes.DATE, OpenApiParameter.QUERY)
+        ],
         examples=[
             OpenApiExample(
                 "Offer message example",
@@ -234,8 +238,22 @@ Lorem
     @action(methods=["GET"], detail=True)
     def offer_message(self, request, pk=None):
         reservation = self.get_object()
+
+        query_params_serializer = OfferMessageQueryParamsSerializer(
+            data=request.query_params
+        )
+        query_params_serializer.is_valid(raise_exception=True)
+
         return Response(
-            OfferMessageSerializer(reservation).data, status=status.HTTP_200_OK
+            OfferMessageSerializer(
+                reservation,
+                context={
+                    "valid_until": query_params_serializer.validated_data.get(
+                        "valid_until"
+                    )
+                },
+            ).data,
+            status=status.HTTP_200_OK,
         )
 
 

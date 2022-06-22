@@ -246,7 +246,9 @@ class OfferMessageSerializer(serializers.Serializer):
         fields = ("subject", "body", "recipients")
 
     def to_representation(self, instance: ApartmentReservation):
-        subject, body = get_offer_message_subject_and_body(instance)
+        subject, body = get_offer_message_subject_and_body(
+            instance, valid_until=self.context.get("valid_until")
+        )
         recipients = RecipientSerializer(
             [
                 p
