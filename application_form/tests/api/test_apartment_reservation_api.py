@@ -145,7 +145,7 @@ def test_root_apartment_reservation_detail_installment_candidates(
         type=InstallmentType.PAYMENT_3,
         value=Decimal("17.25"),
         unit=InstallmentUnit.PERCENT,
-        percentage_specifier=InstallmentPercentageSpecifier.DEBT_FREE_SALES_PRICE_FLEXIBLE,  # noqa: E501
+        percentage_specifier=InstallmentPercentageSpecifier.SALES_PRICE_FLEXIBLE,
         due_date=None,
     )
     # another project

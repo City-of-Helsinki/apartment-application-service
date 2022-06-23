@@ -47,9 +47,9 @@ class InstallmentUnit(Enum):
 class InstallmentPercentageSpecifier(Enum):
     SALES_PRICE = "SALES_PRICE"
     DEBT_FREE_SALES_PRICE = "DEBT_FREE_SALES_PRICE"
-    DEBT_FREE_SALES_PRICE_FLEXIBLE = "DEBT_FREE_SALES_PRICE_FLEXIBLE"
+    SALES_PRICE_FLEXIBLE = "SALES_PRICE_FLEXIBLE"
 
     class Labels:
         SALES_PRICE = _("sales price")
         DEBT_FREE_SALES_PRICE = _("debt free sales price")
-        DEBT_FREE_SALES_PRICE_FLEXIBLE = _("debt free sales price flexible")
+        SALES_PRICE_FLEXIBLE = _("sales price flexible")
