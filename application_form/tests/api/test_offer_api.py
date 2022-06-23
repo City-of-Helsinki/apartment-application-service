@@ -187,11 +187,17 @@ def test_update_offer(salesperson_api_client):
 def test_update_offer_change_state(salesperson_api_client, new_state):
     apartment = ApartmentDocumentFactory()
     reservation = ApartmentReservationFactory(
-        apartment_uuid=apartment.uuid, state=ApartmentReservationState.OFFERED
+        apartment_uuid=apartment.uuid,
+        state=ApartmentReservationState.OFFERED,
+        list_position=1,
+        queue_position=1,
     )
     offer = OfferFactory(
         apartment_reservation=reservation,
         valid_until=timezone.localdate() + timedelta(days=1),
+    )
+    second_reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid, list_position=2, queue_position=2
     )
 
     data = {"state": new_state}
@@ -211,12 +217,15 @@ def test_update_offer_change_state(salesperson_api_client, new_state):
 
     offer.refresh_from_db()
     reservation.refresh_from_db()
+    second_reservation.refresh_from_db()
     if new_state == "accepted":
         assert offer.state == OfferState.ACCEPTED
         assert reservation.state == ApartmentReservationState.OFFER_ACCEPTED
     else:
         assert offer.state == OfferState.REJECTED
         assert reservation.state == ApartmentReservationState.CANCELED
+        assert second_reservation.queue_position == 1
+        assert second_reservation.state == ApartmentReservationState.RESERVED
     assert offer.concluded_at
 
 
