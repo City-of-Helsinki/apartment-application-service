@@ -2,23 +2,25 @@
 Test cases for customer api of sales.
 """
 import pytest
+from django.contrib.auth.models import Group
 from django.urls import reverse
 from rest_framework import status
 
 from apartment.tests.factories import ApartmentDocumentFactory
+from application_form.enums import (
+    ApartmentReservationCancellationReason,
+    ApartmentReservationState,
+)
 from application_form.tests.factories import ApartmentReservationFactory
 from customer.api.sales.views import CustomerViewSet
 from customer.models import Customer
 from customer.tests.factories import CustomerFactory
 from customer.tests.utils import assert_customer_list_match_data
 from invoicing.tests.factories import ApartmentInstallmentFactory
+from users.enums import Roles
 from users.models import Profile
-from users.tests.factories import ProfileFactory
-from users.tests.utils import (
-    _create_token,
-    assert_customer_match_data,
-    assert_profile_match_data,
-)
+from users.tests.factories import ProfileFactory, UserFactory
+from users.tests.utils import assert_customer_match_data, assert_profile_match_data
 
 
 @pytest.mark.django_db
@@ -53,10 +55,6 @@ def test_get_customer_api_detail(salesperson_api_client):
         apartment_reservation=reservation, value=100
     )
 
-    profile = ProfileFactory()
-    salesperson_api_client.credentials(
-        HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}"
-    )
     response = salesperson_api_client.get(
         reverse("customer:sales-customer-detail", args=(customer.pk,)),
         format="json",
@@ -82,6 +80,8 @@ def test_get_customer_api_detail(salesperson_api_client):
         {
             "comment": reservation.state_change_events.first().comment,
             "state": reservation.state_change_events.first().state.value,
+            "cancellation_reason": None,
+            "changed_by": None,
         }
     ]
     assert response.data["apartment_reservations"] == [
@@ -124,6 +124,72 @@ def test_get_customer_api_detail(salesperson_api_client):
             "is_right_of_occupancy_housing_changer": reservation.is_right_of_occupancy_housing_changer,  # noqa: E501
         }
     ]
+
+
+@pytest.mark.django_db
+def test_customer_detail_state_event_cancellation_reason(salesperson_api_client):
+    apartment = ApartmentDocumentFactory(
+        sales_price=2000,
+        debt_free_sales_price=1500,
+        right_of_occupancy_payment=300,
+    )
+    customer = CustomerFactory(secondary_profile=ProfileFactory())
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        customer=customer,
+    )
+    reservation.set_state(
+        ApartmentReservationState.CANCELED,
+        cancellation_reason=ApartmentReservationCancellationReason.CANCELED,
+    )
+
+    response = salesperson_api_client.get(
+        reverse("customer:sales-customer-detail", args=(customer.pk,)),
+        format="json",
+    )
+
+    assert (
+        response.data["apartment_reservations"][0]["state_change_events"][1][
+            "cancellation_reason"
+        ]
+        == "canceled"
+    )
+
+
+@pytest.mark.django_db
+def test_customer_detail_state_event_changed_by(salesperson_api_client):
+    apartment = ApartmentDocumentFactory(
+        sales_price=2000,
+        debt_free_sales_price=1500,
+        right_of_occupancy_payment=300,
+    )
+    customer = CustomerFactory(secondary_profile=ProfileFactory())
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        customer=customer,
+    )
+    user = UserFactory()
+    Group.objects.get(name__iexact=Roles.SALESPERSON.name).user_set.add(user)
+
+    reservation.set_state(
+        ApartmentReservationState.CANCELED,
+        cancellation_reason=ApartmentReservationCancellationReason.CANCELED,
+        user=user,
+    )
+
+    response = salesperson_api_client.get(
+        reverse("customer:sales-customer-detail", args=(customer.pk,)),
+        format="json",
+    )
+
+    assert response.data["apartment_reservations"][0]["state_change_events"][1][
+        "changed_by"
+    ] == {
+        "id": user.id,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "email": user.email,
+    }
 
 
 @pytest.mark.django_db

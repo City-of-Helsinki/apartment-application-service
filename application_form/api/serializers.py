@@ -1,4 +1,5 @@
 import logging
+from django.contrib.auth import get_user_model
 from enumfields.drf import EnumField, EnumSupportSerializerMixin
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -23,6 +24,9 @@ from application_form.validators import ProjectApplicantValidator, SSNSuffixVali
 from customer.models import Customer
 
 _logger = logging.getLogger(__name__)
+
+
+User = get_user_model()
 
 
 class ApplicantSerializerBase(serializers.ModelSerializer):
@@ -217,13 +221,26 @@ class ApartmentReservationSerializer(ApartmentReservationSerializerBase):
     pass
 
 
+class ApartmentReservationStateChangeEventUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ("id", "first_name", "last_name", "email")
+
+
 class ApartmentReservationStateChangeEventSerializer(
     EnumSupportSerializerMixin, serializers.ModelSerializer
 ):
+    changed_by = ApartmentReservationStateChangeEventUserSerializer(
+        source="user", read_only=True
+    )
+
     class Meta:
         model = ApartmentReservationStateChangeEvent
-        fields = ("timestamp", "state", "comment")
-        read_only_fields = ("timestamp",)
+        fields = ("timestamp", "state", "comment", "cancellation_reason", "changed_by")
+        read_only_fields = (
+            "timestamp",
+            "changed_by",
+        )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

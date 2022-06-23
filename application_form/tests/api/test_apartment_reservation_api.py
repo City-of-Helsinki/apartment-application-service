@@ -277,11 +277,19 @@ def test_apartment_reservation_set_state(salesperson_api_client, comment):
     )
     assert response.status_code == 200
 
-    assert len(response.data.keys()) == 3
     assert response.data.pop("timestamp")
+
+    user = salesperson_api_client.user
     assert response.data == {
         "state": "reserved",
         "comment": comment,
+        "cancellation_reason": None,
+        "changed_by": {
+            "id": user.id,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "email": user.email,
+        },
     }
 
     assert reservation.state_change_events.count() == 2
