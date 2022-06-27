@@ -1,5 +1,5 @@
 from datetime import datetime
-from django.db.models import Max
+from django.db.models import Exists, Max, OuterRef
 from django.utils.functional import cached_property
 from rest_framework import serializers
 
@@ -168,11 +168,25 @@ class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
         ).data
 
     def get_apartments(self, obj):
+        customer_other_winning_apartments = (
+            ApartmentReservation.objects.reserved()
+            .exclude(pk=OuterRef("pk"))
+            .filter(
+                apartment_uuid__in=self.apartment_uuids,
+                customer=OuterRef("customer__pk"),
+            )
+        )
+
         project_reservations = (
             ApartmentReservation.objects.filter(apartment_uuid__in=self.apartment_uuids)
             .related_fields()
-            .all()
+            .annotate(
+                customer_has_other_winning_apartments=Exists(
+                    customer_other_winning_apartments
+                )
+            )
         )
+
         return ApartmentSerializer(
             self.apartment_objs,
             many=True,

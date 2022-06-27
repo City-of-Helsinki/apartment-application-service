@@ -6,7 +6,7 @@ from rest_framework import serializers
 from rest_framework.fields import UUIDField
 from uuid import UUID
 
-from apartment.elastic.queries import get_apartment, get_apartment_uuids
+from apartment.elastic.queries import get_apartment
 from apartment.models import ProjectExtraData
 from apartment.services import get_offer_message_subject_and_body
 from application_form.api.serializers import (
@@ -78,7 +78,9 @@ class CustomerCompactSerializer(serializers.ModelSerializer):
 
 class SalesApartmentReservationSerializer(ApartmentReservationSerializerBase):
     customer = CustomerCompactSerializer()
-    has_multiple_winning_apartments = serializers.SerializerMethodField()
+    has_multiple_winning_apartments = serializers.BooleanField(
+        source="customer_has_other_winning_apartments"
+    )
     cancellation_reason = serializers.SerializerMethodField()
     cancellation_timestamp = serializers.SerializerMethodField()
 
@@ -90,26 +92,6 @@ class SalesApartmentReservationSerializer(ApartmentReservationSerializerBase):
             "cancellation_timestamp",
         )
         read_only_fields = fields
-
-    def get_has_multiple_winning_apartments(self, obj):
-        """
-        Return True if the customer of this reservation already has multiple
-        1st place in other apartments of the same project.
-        """
-        project_uuid = self.context["project_uuid"]
-        if not project_uuid:
-            return False
-        if obj.application_apartment is None:
-            apartment_uuids = get_apartment_uuids(project_uuid)
-            winner = obj.customer.apartment_reservations.reserved().filter(
-                apartment_uuid__in=apartment_uuids
-            )
-        else:
-            winner = obj.customer.apartment_reservations.reserved().filter(
-                application_apartment__application=obj.application_apartment.application
-            )
-        # Winning reservation will have state other than SUBMITTED and CANCELED
-        return winner.count() > 1
 
     def get_cancellation_reason(self, obj):
         if obj.state == ApartmentReservationState.CANCELED:
