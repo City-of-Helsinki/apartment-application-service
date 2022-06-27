@@ -448,7 +448,7 @@ def test_set_apartment_installments(salesperson_api_client, has_old_installments
     data = [
         {
             "type": "PAYMENT_1",
-            "amount": 100000,
+            "amount": 100055,
             "account_number": "123123123-123",
             "due_date": "2022-02-19",
             "reference_number": "REFERENCE-123",
@@ -456,7 +456,7 @@ def test_set_apartment_installments(salesperson_api_client, has_old_installments
         },
         {
             "type": "REFUND",
-            "amount": 10055,
+            "amount": 0,
             "account_number": "123123123-123",
             "due_date": None,
             "reference_number": "REFERENCE-321",
@@ -500,12 +500,12 @@ def test_set_apartment_installments(salesperson_api_client, has_old_installments
     )
 
     assert installment_1.type == InstallmentType.PAYMENT_1
-    assert installment_1.value == Decimal("1000.00")
+    assert installment_1.value == Decimal("1000.55")
     assert installment_1.account_number == "123123123-123"
     assert installment_1.due_date == datetime.date(2022, 2, 19)
 
     assert installment_2.type == InstallmentType.REFUND
-    assert installment_2.value == Decimal("100.55")
+    assert installment_2.value == Decimal("0")
     assert installment_2.account_number == "123123123-123"
     assert installment_2.due_date is None
 

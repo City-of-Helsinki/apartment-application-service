@@ -94,15 +94,17 @@ class ProjectInstallmentTemplateSerializer(InstallmentSerializerBase):
 
     def create(self, validated_data):
         amount = validated_data.pop("get_amount", None)
+        has_amount = amount is not None
         percentage = validated_data.pop("get_percentage", None)
+        has_percentage = percentage is not None
         percentage_specifier = validated_data.pop("percentage_specifier", None)
 
-        if (amount and percentage) or not (amount or percentage):
+        if (has_amount and has_percentage) or not (has_amount or has_percentage):
             raise exceptions.ValidationError(
                 "Either amount or percentage is required but not both."
             )
 
-        if amount:
+        if has_amount:
             validated_data.update(
                 {
                     "value": amount,
