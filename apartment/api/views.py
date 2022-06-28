@@ -81,7 +81,7 @@ class ProjectExportApplicantsAPIView(APIView):
             _("[Project {title}] Applicants information"),
             title=project.project_street_address,
         ).replace(" ", "_")
-        response = HttpResponse(csv_file, content_type="text/csv")
+        response = HttpResponse(csv_file, content_type="text/csv; charset=utf-8-sig")
         response["Content-Disposition"] = "attachment; filename={file_name}.csv".format(
             file_name=file_name
         )
@@ -105,7 +105,7 @@ class ProjectExportLotteryResultsAPIView(APIView):
             _("[Project {title}] Lottery result"),
             title=project.project_street_address,
         ).replace(" ", "_")
-        response = HttpResponse(csv_file, content_type="text/csv")
+        response = HttpResponse(csv_file, content_type="text/csv; charset=utf-8-sig")
         response["Content-Disposition"] = "attachment; filename={file_name}.csv".format(
             file_name=file_name
         )
@@ -141,7 +141,7 @@ class SaleReportAPIView(APIView):
             start_date=start_date,
             end_date=end_date,
         ).replace(" ", "_")
-        response = HttpResponse(csv_file, content_type="text/csv")
+        response = HttpResponse(csv_file, content_type="text/csv; charset=utf-8-sig")
         response["Content-Disposition"] = "attachment; filename={file_name}.csv".format(
             file_name=file_name
         )

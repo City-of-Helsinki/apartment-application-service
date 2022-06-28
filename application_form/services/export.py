@@ -47,7 +47,7 @@ def _get_reservation_cell_value(column_name, apartment, reservation, application
 
 class CSVExportService:
     CSV_DELIMITER = ";"
-    FILE_ENCODING = "utf-8"
+    FILE_ENCODING = "utf-8-sig"
     COLUMNS = []
 
     @abstractmethod

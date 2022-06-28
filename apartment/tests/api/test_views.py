@@ -345,7 +345,7 @@ def test_export_applicants_csv_per_project(
         reverse("apartment:project-detail-export-applicant", kwargs=data),
         format="json",
     )
-    assert response.headers["Content-Type"] == "text/csv"
+    assert response.headers["Content-Type"] == "text/csv; charset=utf-8-sig"
     assert (
         project.project_street_address.replace(" ", "_")
         in response.headers["Content-Disposition"]
@@ -410,7 +410,7 @@ def test_export_lottery_result_csv_per_project(
         reverse("apartment:project-detail-lottery-result", kwargs=data),
         format="json",
     )
-    assert response.headers["Content-Type"] == "text/csv"
+    assert response.headers["Content-Type"] == "text/csv; charset=utf-8-sig"
     assert (
         project.project_street_address.replace(" ", "_")
         in response.headers["Content-Disposition"]
@@ -596,7 +596,7 @@ def test_export_sale_report(salesperson_api_client, elastic_project_with_5_apart
     response = salesperson_api_client.get(
         _build_url_with_query_params(base_url, query_params), format="json"
     )
-    assert response.headers["Content-Type"] == "text/csv"
+    assert response.headers["Content-Type"] == "text/csv; charset=utf-8-sig"
     assert response.status_code == 200
 
 
