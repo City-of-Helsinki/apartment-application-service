@@ -127,7 +127,6 @@ class ApplicantExportService(CSVExportService):
 
 class ProjectLotteryResultExportService(CSVExportService):
     COLUMNS = [
-        ("Project address", "project_street_address"),
         ("Apartment number", "apartment_number"),
         ("Apartment structure", "apartment_structure"),
         ("Apartment area", "living_area"),
@@ -135,11 +134,7 @@ class ProjectLotteryResultExportService(CSVExportService):
         ("Queue position", "queue_position"),
         ("Right of residence", "right_of_residence"),
         ("Primary applicant", "primary_profile.full_name"),
-        ("Primary applicant address", "primary_profile.street_address"),
-        ("Primary applicant e-mail", "primary_profile.email"),
         ("Secondary applicant", "secondary_profile.full_name"),
-        ("Secondary applicant address", "secondary_profile.street_address"),
-        ("Secondary applicant e-mail", "secondary_profile.email"),
         ("Has children", "has_children"),
     ]
 
