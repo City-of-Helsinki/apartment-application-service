@@ -647,6 +647,12 @@ def test_create_reservation(salesperson_api_client, include_read_only_fields):
     assert reservation.is_age_over_55 is True
     assert reservation.is_right_of_occupancy_housing_changer is False
 
+    assert reservation.state_change_events.count() == 1
+    state_change_event = reservation.state_change_events.first()
+    assert state_change_event.state == ApartmentReservationState.RESERVED
+    assert state_change_event.timestamp
+    assert state_change_event.user == salesperson_api_client.user
+
 
 @pytest.mark.django_db
 def test_create_reservation_lottery_not_executed(salesperson_api_client):

@@ -64,7 +64,9 @@ def transfer_reservation_to_another_customer(
     return state_change_event
 
 
-def create_reservation(reservation_data: dict) -> ApartmentReservation:
+def create_reservation(
+    reservation_data: dict, user: User = None
+) -> ApartmentReservation:
     with lock_table(ApartmentReservation):
         existing_reservations = ApartmentReservation.objects.filter(
             apartment_uuid=reservation_data["apartment_uuid"]
@@ -82,7 +84,7 @@ def create_reservation(reservation_data: dict) -> ApartmentReservation:
             state=ApartmentReservationState.CANCELED
         ).aggregate(max_queue_position=Max("queue_position"))["max_queue_position"]
 
-        reservation = ApartmentReservation.objects.create(
+        reservation = ApartmentReservation(
             **reservation_data,
             state=state,
             list_position=(max_list_position or 0) + 1,
@@ -95,5 +97,6 @@ def create_reservation(reservation_data: dict) -> ApartmentReservation:
                 "customer"
             ].is_right_of_occupancy_housing_changer,  # noqa: E501
         )
+        reservation.save(user=user)
 
     return reservation

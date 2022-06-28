@@ -111,10 +111,11 @@ class ApartmentReservation(models.Model):
     @transaction.atomic
     def save(self, *args, **kwargs):
         creating = self._state.adding
+        user = kwargs.pop("user", None)
         super().save(*args, **kwargs)
         if creating:
             ApartmentReservationStateChangeEvent.objects.create(
-                reservation=self, state=self.state
+                reservation=self, state=self.state, user=user
             )
 
     @transaction.atomic
