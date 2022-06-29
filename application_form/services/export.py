@@ -16,9 +16,7 @@ from application_form.models import ApartmentReservation
 from application_form.utils import get_apartment_number_sort_tuple
 
 
-def _get_reservation_cell_value(
-    column_name, apartment, reservation=None, application=None
-):
+def _get_reservation_cell_value(column_name, apartment, reservation=None):
     # Apartment fields
     if column_name in [
         "project_street_address",
@@ -43,9 +41,8 @@ def _get_reservation_cell_value(
         return bool(reservation.customer.has_children)
     if column_name == "queue_position":
         return reservation.queue_position
-    # Application fields
-    if column_name == "right_of_residence" and application is not None:
-        return application.right_of_residence
+    if column_name == "right_of_residence":
+        return reservation.right_of_residence
     return ""
 
 
@@ -130,20 +127,30 @@ class ApplicantExportService(CSVExportService):
 
 
 class ProjectLotteryResultExportService(CSVExportService):
-    COLUMNS = [
-        ("Apartment number", "apartment_number"),
-        ("Apartment structure", "apartment_structure"),
-        ("Apartment area", "living_area"),
-        ("Apartment floor", "floor"),
-        ("Queue position", "queue_position"),
-        ("Right of residence", "right_of_residence"),
-        ("Primary applicant", "primary_profile.full_name"),
-        ("Secondary applicant", "secondary_profile.full_name"),
-        ("Has children", "has_children"),
-    ]
-
     def __init__(self, project):
         self.project = project
+        if project.project_ownership_type.lower() == "haso":
+            self.COLUMNS = [
+                ("Apartment number", "apartment_number"),
+                ("Apartment structure", "apartment_structure"),
+                ("Apartment area", "living_area"),
+                ("Apartment floor", "floor"),
+                ("Queue position", "queue_position"),
+                ("Right of residence", "right_of_residence"),
+                ("Primary applicant", "primary_profile.full_name"),
+                ("Secondary applicant", "secondary_profile.full_name"),
+            ]
+        else:
+            self.COLUMNS = [
+                ("Apartment number", "apartment_number"),
+                ("Apartment structure", "apartment_structure"),
+                ("Apartment area", "living_area"),
+                ("Apartment floor", "floor"),
+                ("Queue position", "queue_position"),
+                ("Primary applicant", "primary_profile.full_name"),
+                ("Secondary applicant", "secondary_profile.full_name"),
+                ("Has children", "has_children"),
+            ]
 
     def get_reservations_by_apartment_uuid(self, apartment_uuid):
         return (
@@ -182,13 +189,8 @@ class ProjectLotteryResultExportService(CSVExportService):
 
     def get_row(self, apartment, reservation=None):
         line = []
-        application = None
-        if reservation and reservation.application_apartment is not None:
-            application = reservation.application_apartment.application
         for column in self.COLUMNS:
-            cell_value = _get_reservation_cell_value(
-                column[1], apartment, reservation, application=application
-            )
+            cell_value = _get_reservation_cell_value(column[1], apartment, reservation)
             line.append(cell_value)
         return line
 
