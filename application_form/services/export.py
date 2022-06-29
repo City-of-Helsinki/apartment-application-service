@@ -11,7 +11,6 @@ from apartment.elastic.queries import (
 )
 from apartment.enums import ApartmentState
 from apartment.utils import get_apartment_state
-from application_form.enums import ApartmentReservationState
 from application_form.models import ApartmentReservation
 from application_form.utils import get_apartment_number_sort_tuple
 
@@ -155,7 +154,7 @@ class ProjectLotteryResultExportService(CSVExportService):
     def get_reservations_by_apartment_uuid(self, apartment_uuid):
         return (
             ApartmentReservation.objects.filter(apartment_uuid=apartment_uuid)
-            .exclude(state=ApartmentReservationState.CANCELED)
+            .exclude(application_apartment__lotteryeventresult__isnull=True)
             .order_by("queue_position")
         )
 
