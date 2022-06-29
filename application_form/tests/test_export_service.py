@@ -9,7 +9,6 @@ from application_form.models import (
     ApartmentReservation,
     ApartmentReservationStateChangeEvent,
 )
-from application_form.services.application import cancel_reservation
 from application_form.services.export import (
     ApplicantExportService,
     ProjectLotteryResultExportService,
@@ -139,17 +138,15 @@ def test_export_project_lottery_result(
         add_application_to_queues(apt_app[1].application)
     distribute_apartments(project_uuid)
 
-    # cancelled reservation shouldn't be included
-    cancelled_app = ApplicationApartmentFactory(apartment_uuid=apartment_uuids[0])
-    add_application_to_queues(cancelled_app.application)
-    cancel_reservation(cancelled_app.apartment_reservation)
+    # reservations added after the lottery shouldn't be included
+    ApartmentReservationFactory(apartment_uuid=apartment_uuids[0], list_position=777)
 
     export_service = ProjectLotteryResultExportService(get_project(project_uuid))
     csv_lines = export_service.get_rows()
 
     assert len(csv_lines) == 11
     for idx, header in enumerate(csv_lines[0]):
-        assert header == ProjectLotteryResultExportService.COLUMNS[idx][0]
+        assert header == export_service.COLUMNS[idx][0]
 
     first_reservation = export_service.get_reservations_by_apartment_uuid(
         apartment_uuids[0]
@@ -158,8 +155,25 @@ def test_export_project_lottery_result(
         apartment_uuids[-1]
     ).last()
 
-    assert csv_lines[1][7] == first_reservation.customer.primary_profile.full_name
-    assert csv_lines[-1][7] == last_reservation.customer.primary_profile.full_name
+    primary_applicant_column = 5 if ownership_type == "HITAS" else 6
+    assert next(
+        (
+            line
+            for line in csv_lines
+            if line[primary_applicant_column]
+            == first_reservation.customer.primary_profile.full_name
+        ),
+        None,
+    )
+    assert next(
+        (
+            line
+            for line in csv_lines
+            if line[primary_applicant_column]
+            == last_reservation.customer.primary_profile.full_name
+        ),
+        None,
+    )
 
 
 @pytest.mark.django_db
@@ -252,7 +266,7 @@ def test_write_csv_file(applicant_export_service, tmp_path):
     profile.save()
     output_file = tmp_path / "output.csv"
     applicant_export_service.write_csv_file(output_file)
-    with open(output_file, encoding="utf-8") as f:
+    with open(output_file, encoding="utf-8-sig") as f:
         contents = f.read()
         assert contents.startswith('"Primary applicant";"Primary applicant address"')
         assert "äöÄÖtest" in contents
