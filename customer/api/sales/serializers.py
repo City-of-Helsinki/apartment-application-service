@@ -9,7 +9,9 @@ from application_form.api.serializers import (
     ApartmentReservationSerializerBase,
     ApartmentReservationStateChangeEventSerializer,
 )
+from application_form.enums import ApartmentReservationState
 from application_form.models import ApartmentReservation, LotteryEvent
+from application_form.utils import get_apartment_number_sort_tuple
 from customer.models import Customer
 from invoicing.api.serializers import ApartmentInstallmentSerializer
 from users.api.sales.serializers import ProfileSerializer
@@ -124,7 +126,25 @@ class CustomerSerializer(serializers.ModelSerializer):
     @extend_schema_field(CustomerApartmentReservationSerializer(many=True))
     def get_apartment_reservations(self, obj):
         reservations = ApartmentReservation.objects.filter(customer=obj)
-        return CustomerApartmentReservationSerializer(reservations, many=True).data
+        serialized_reservations = CustomerApartmentReservationSerializer(
+            reservations, many=True
+        ).data
+
+        # sort reservations by
+        #   1. canceled as last ones
+        #   2. queue_position
+        #   3. apartment number
+        #   4. id
+        sorted_serialized_reservations = sorted(
+            serialized_reservations,
+            key=lambda x: (
+                x["state"] == ApartmentReservationState.CANCELED.value,
+                x["queue_position"] if (x["queue_position"] is not None) else 999999,
+                *get_apartment_number_sort_tuple(x["apartment_number"]),
+                x["id"],
+            ),
+        )
+        return sorted_serialized_reservations
 
     @transaction.atomic
     def create(self, validated_data):

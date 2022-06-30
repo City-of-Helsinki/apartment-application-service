@@ -2,6 +2,7 @@
 Test cases for customer api of sales.
 """
 import pytest
+import uuid
 from django.contrib.auth.models import Group
 from django.urls import reverse
 from rest_framework import status
@@ -11,6 +12,7 @@ from application_form.enums import (
     ApartmentReservationCancellationReason,
     ApartmentReservationState,
 )
+from application_form.models import LotteryEvent
 from application_form.tests.factories import ApartmentReservationFactory
 from customer.api.sales.views import CustomerViewSet
 from customer.models import Customer
@@ -391,3 +393,61 @@ def test_get_customer_api_list_with_parameters(salesperson_api_client):
     assert len(response.data) == 1
     for item in response.data:
         assert_customer_list_match_data(customers[item["id"]], item)
+
+
+@pytest.mark.django_db
+def test_customer_reservation_ordering(salesperson_api_client):
+    project_uuid = uuid.uuid4()
+    apartment_a5 = ApartmentDocumentFactory(
+        project_uuid=project_uuid, apartment_number="A5"
+    )
+    apartment_a10 = ApartmentDocumentFactory(
+        project_uuid=project_uuid, apartment_number="A10"
+    )
+    LotteryEvent.objects.create(apartment_uuid=apartment_a5.uuid)
+    LotteryEvent.objects.create(apartment_uuid=apartment_a10.uuid)
+
+    customer = CustomerFactory()
+
+    # these should be returned in reversed order
+    reservations = [
+        ApartmentReservationFactory(
+            apartment_uuid=apartment_a10.uuid,
+            customer=customer,
+            state=ApartmentReservationState.CANCELED,
+            queue_position=None,
+            list_position=2,
+        ),
+        ApartmentReservationFactory(
+            apartment_uuid=apartment_a5.uuid,
+            customer=customer,
+            state=ApartmentReservationState.CANCELED,
+            queue_position=None,
+            list_position=1,
+        ),
+        ApartmentReservationFactory(
+            apartment_uuid=apartment_a5.uuid,
+            customer=customer,
+            state=ApartmentReservationState.SUBMITTED,
+            queue_position=2,
+            list_position=2,
+        ),
+        ApartmentReservationFactory(
+            apartment_uuid=apartment_a10.uuid,
+            customer=customer,
+            state=ApartmentReservationState.RESERVED,
+            queue_position=1,
+            list_position=1,
+        ),
+    ]
+    reservation_ids = [r.id for r in reservations]
+
+    response = salesperson_api_client.get(
+        reverse("customer:sales-customer-detail", kwargs={"pk": customer.pk}),
+        format="json",
+    )
+    assert response.status_code == status.HTTP_200_OK
+
+    returned_ids = [r["id"] for r in response.data["apartment_reservations"]]
+
+    assert returned_ids == list(reversed(reservation_ids))
