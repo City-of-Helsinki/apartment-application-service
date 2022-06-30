@@ -167,7 +167,7 @@ class RootApartmentReservationSerializer(ApartmentReservationSerializerBase):
         return value
 
     def create(self, validated_data):
-        return create_reservation(validated_data)
+        return create_reservation(validated_data, user=self.context["request"].user)
 
 
 class OfferSerializer(EnumSupportSerializerMixin, serializers.ModelSerializer):
