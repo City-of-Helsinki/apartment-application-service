@@ -38,8 +38,8 @@ def _get_reservation_cell_value(column_name, apartment, reservation=None):
             return operator.attrgetter(column_name)(reservation.customer)
     if column_name == "has_children":
         return bool(reservation.customer.has_children)
-    if column_name == "queue_position":
-        return reservation.queue_position
+    if column_name == "lottery_position":
+        return reservation.application_apartment.lotteryeventresult.result_position
     if column_name == "right_of_residence":
         return reservation.right_of_residence
     return ""
@@ -134,7 +134,7 @@ class ProjectLotteryResultExportService(CSVExportService):
                 ("Apartment structure", "apartment_structure"),
                 ("Apartment area", "living_area"),
                 ("Apartment floor", "floor"),
-                ("Queue position", "queue_position"),
+                ("Position", "lottery_position"),
                 ("Right of residence", "right_of_residence"),
                 ("Primary applicant", "primary_profile.full_name"),
                 ("Secondary applicant", "secondary_profile.full_name"),
@@ -145,7 +145,7 @@ class ProjectLotteryResultExportService(CSVExportService):
                 ("Apartment structure", "apartment_structure"),
                 ("Apartment area", "living_area"),
                 ("Apartment floor", "floor"),
-                ("Queue position", "queue_position"),
+                ("Position", "lottery_position"),
                 ("Primary applicant", "primary_profile.full_name"),
                 ("Secondary applicant", "secondary_profile.full_name"),
                 ("Has children", "has_children"),
@@ -155,7 +155,7 @@ class ProjectLotteryResultExportService(CSVExportService):
         return (
             ApartmentReservation.objects.filter(apartment_uuid=apartment_uuid)
             .exclude(application_apartment__lotteryeventresult__isnull=True)
-            .order_by("queue_position")
+            .order_by("application_apartment__lotteryeventresult")
         )
 
     def get_rows(self):
