@@ -155,7 +155,7 @@ class ProjectLotteryResultExportService(CSVExportService):
         return (
             ApartmentReservation.objects.filter(apartment_uuid=apartment_uuid)
             .exclude(application_apartment__lotteryeventresult__isnull=True)
-            .order_by("application_apartment__lotteryeventresult")
+            .order_by("application_apartment__lotteryeventresult__result_position")
         )
 
     def get_rows(self):
