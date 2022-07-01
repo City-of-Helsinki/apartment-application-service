@@ -11,25 +11,11 @@ from apartment.elastic.queries import (
 )
 from apartment.enums import ApartmentState
 from apartment.utils import get_apartment_state
-from application_form.enums import ApartmentReservationState
 from application_form.models import ApartmentReservation
+from application_form.utils import get_apartment_number_sort_tuple
 
 
-def _get_reservation_cell_value(column_name, apartment, reservation, application=None):
-    cell_value = ""
-    # Profile fields
-    if column_name.startswith("primary") or column_name.startswith("secondary"):
-        if (
-            column_name.startswith("secondary")
-            and reservation.customer.secondary_profile is None
-        ):
-            cell_value = None
-        else:
-            cell_value = operator.attrgetter(column_name)(reservation.customer)
-    if column_name == "has_children":
-        cell_value = bool(reservation.customer.has_children)
-    if column_name == "queue_position":
-        cell_value = reservation.queue_position
+def _get_reservation_cell_value(column_name, apartment, reservation=None):
     # Apartment fields
     if column_name in [
         "project_street_address",
@@ -38,16 +24,30 @@ def _get_reservation_cell_value(column_name, apartment, reservation, application
         "living_area",
         "floor",
     ]:
-        cell_value = getattr(apartment, column_name)
-    # Application fields
-    if column_name == "right_of_residence" and application is not None:
-        cell_value = application.right_of_residence
-    return cell_value
+        return getattr(apartment, column_name)
+    if not reservation:
+        return ""
+    # Profile fields
+    if column_name.startswith("primary") or column_name.startswith("secondary"):
+        if (
+            column_name.startswith("secondary")
+            and reservation.customer.secondary_profile is None
+        ):
+            return None
+        else:
+            return operator.attrgetter(column_name)(reservation.customer)
+    if column_name == "has_children":
+        return bool(reservation.customer.has_children)
+    if column_name == "queue_position":
+        return reservation.queue_position
+    if column_name == "right_of_residence":
+        return reservation.right_of_residence
+    return ""
 
 
 class CSVExportService:
     CSV_DELIMITER = ";"
-    FILE_ENCODING = "utf-8"
+    FILE_ENCODING = "utf-8-sig"
     COLUMNS = []
 
     @abstractmethod
@@ -126,53 +126,70 @@ class ApplicantExportService(CSVExportService):
 
 
 class ProjectLotteryResultExportService(CSVExportService):
-    COLUMNS = [
-        ("Project address", "project_street_address"),
-        ("Apartment number", "apartment_number"),
-        ("Apartment structure", "apartment_structure"),
-        ("Apartment area", "living_area"),
-        ("Apartment floor", "floor"),
-        ("Queue position", "queue_position"),
-        ("Right of residence", "right_of_residence"),
-        ("Primary applicant", "primary_profile.full_name"),
-        ("Primary applicant address", "primary_profile.street_address"),
-        ("Primary applicant e-mail", "primary_profile.email"),
-        ("Secondary applicant", "secondary_profile.full_name"),
-        ("Secondary applicant address", "secondary_profile.street_address"),
-        ("Secondary applicant e-mail", "secondary_profile.email"),
-        ("Has children", "has_children"),
-    ]
-
     def __init__(self, project):
         self.project = project
+        if project.project_ownership_type.lower() == "haso":
+            self.COLUMNS = [
+                ("Apartment number", "apartment_number"),
+                ("Apartment structure", "apartment_structure"),
+                ("Apartment area", "living_area"),
+                ("Apartment floor", "floor"),
+                ("Queue position", "queue_position"),
+                ("Right of residence", "right_of_residence"),
+                ("Primary applicant", "primary_profile.full_name"),
+                ("Secondary applicant", "secondary_profile.full_name"),
+            ]
+        else:
+            self.COLUMNS = [
+                ("Apartment number", "apartment_number"),
+                ("Apartment structure", "apartment_structure"),
+                ("Apartment area", "living_area"),
+                ("Apartment floor", "floor"),
+                ("Queue position", "queue_position"),
+                ("Primary applicant", "primary_profile.full_name"),
+                ("Secondary applicant", "secondary_profile.full_name"),
+                ("Has children", "has_children"),
+            ]
 
     def get_reservations_by_apartment_uuid(self, apartment_uuid):
         return (
             ApartmentReservation.objects.filter(apartment_uuid=apartment_uuid)
-            .exclude(state=ApartmentReservationState.CANCELED)
+            .exclude(application_apartment__lotteryeventresult__isnull=True)
             .order_by("queue_position")
         )
 
     def get_rows(self):
         rows = [self._get_header_row()]
         apartment_uuids = get_apartment_uuids(self.project.project_uuid)
+
+        # collect rows first to this dict grouped by apartment number so that they can
+        # be sorted by apartment number for the final result
+        apartment_dict = {}
+
         for apartment_uuid in apartment_uuids:
             reservations = self.get_reservations_by_apartment_uuid(apartment_uuid)
             apartment = get_apartment(apartment_uuid, include_project_fields=True)
-            for reservation in reservations:
-                row = self.get_row(reservation, apartment)
-                rows.append(row)
+            apartment_dict[apartment.apartment_number] = [
+                self.get_row(apartment, r) for r in reservations
+            ] or [
+                # no reservations, just apartment fields
+                self.get_row(apartment)
+            ]
+
+        for apartment_rows in dict(
+            sorted(
+                apartment_dict.items(),
+                key=lambda item: get_apartment_number_sort_tuple(item[0]),
+            )
+        ).values():
+            rows.extend(apartment_rows)
+
         return rows
 
-    def get_row(self, reservation, apartment):
+    def get_row(self, apartment, reservation=None):
         line = []
-        application = None
-        if reservation.application_apartment is not None:
-            application = reservation.application_apartment.application
         for column in self.COLUMNS:
-            cell_value = _get_reservation_cell_value(
-                column[1], apartment, reservation, application=application
-            )
+            cell_value = _get_reservation_cell_value(column[1], apartment, reservation)
             line.append(cell_value)
         return line
 
