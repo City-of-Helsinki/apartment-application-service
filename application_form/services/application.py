@@ -158,7 +158,7 @@ def get_ordered_applications(apartment_uuid: uuid.UUID) -> QuerySet:
         application_apartments__in=ApplicationApartment.objects.filter(
             apartment_uuid=apartment_uuid
         ).exclude(
-            apartment_reservation__queue_change_events__type=ApartmentQueueChangeEventType.REMOVED  # noqa: E501
+            apartment_reservation__state=ApartmentReservationState.CANCELED
         )
     ).order_by("application_apartments__apartment_reservation__queue_position")
 
