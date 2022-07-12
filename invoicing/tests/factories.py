@@ -37,6 +37,7 @@ class ApartmentInstallmentFactory(InstallmentBaseFactory):
         "pystr_format", string_format="#########", letters="1234567890"
     )
     reference_number = factory.Faker("uuid4")
+    handler = factory.Faker("name")
 
     class Meta:
         model = ApartmentInstallment

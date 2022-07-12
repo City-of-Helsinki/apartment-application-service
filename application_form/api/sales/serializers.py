@@ -14,7 +14,7 @@ from application_form.api.serializers import (
     ApplicantSerializerBase,
     ApplicationSerializerBase,
 )
-from application_form.enums import ApartmentReservationState
+from application_form.enums import ApartmentReservationState, ApplicationArrivalMethod
 from application_form.models import ApartmentReservation, Applicant, LotteryEvent, Offer
 from application_form.services.offer import create_offer, update_offer
 from application_form.services.reservation import create_reservation
@@ -45,6 +45,23 @@ class SalesApplicationSerializer(ApplicationSerializerBase):
 
     class Meta(ApplicationSerializerBase.Meta):
         fields = ApplicationSerializerBase.Meta.fields + ("profile",)
+
+    def _get_senders_name_from_applicants_data(self, validated_data):
+        additional_applicant = validated_data.get("additional_applicant")
+        sender_names = validated_data["profile"].full_name
+        if additional_applicant:
+            additional_applicant_name = " ".join(
+                [additional_applicant["first_name"], additional_applicant["last_name"]]
+            )
+            sender_names += "/ {}".format(additional_applicant_name)
+        return sender_names
+
+    def prepare_metadata(self, validated_data):
+        validated_data["sender_names"] = self._get_senders_name_from_applicants_data(
+            validated_data
+        )
+        validated_data["method_of_arrival"] = ApplicationArrivalMethod.POST
+        return super().prepare_metadata(validated_data)
 
 
 class ApplicantCompactSerializer(serializers.ModelSerializer):
@@ -195,7 +212,11 @@ class OfferSerializer(EnumSupportSerializerMixin, serializers.ModelSerializer):
             self.fields["apartment_reservation_id"].read_only = True
 
     def create(self, validated_data):
-        return create_offer(validated_data)
+        if request := self.context.get("request"):
+            user = getattr(request, "user", None)
+        else:
+            user = None
+        return create_offer(validated_data, user=user)
 
     def update(self, instance, validated_data):
         if request := self.context.get("request"):

@@ -79,6 +79,8 @@ def test_create_offer(salesperson_api_client):
     assert offer.valid_until == week_in_future
     assert offer.state == OfferState.PENDING
     assert offer.concluded_at is None
+    # Check if handler metadata is saved
+    assert offer.handler == salesperson_api_client.user.profile.full_name
 
 
 @pytest.mark.django_db

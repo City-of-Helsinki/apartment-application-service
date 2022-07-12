@@ -898,3 +898,34 @@ content
         {"name": "Suppo Taalasmaa", "email": "suppo@example.com"},
     )
     assert response.data == expected_data
+
+
+@pytest.mark.django_db
+def test_salesperson_create_reservation_generate_metadata(salesperson_api_client):
+    apartment = ApartmentDocumentFactory()
+    customer = CustomerFactory(
+        right_of_residence=777,
+        has_children=None,
+        has_hitas_ownership=None,
+        is_age_over_55=True,
+        is_right_of_occupancy_housing_changer=False,
+    )
+    LotteryEvent.objects.create(apartment_uuid=apartment.uuid)
+
+    data = {
+        "apartment_uuid": apartment.uuid,
+        "customer_id": customer.id,
+    }
+
+    response = salesperson_api_client.post(
+        reverse(
+            "application_form:sales-apartment-reservation-list",
+        ),
+        data=data,
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert (reservation_id := response.data.pop("id"))
+    reservation = ApartmentReservation.objects.get(id=reservation_id)
+    assert reservation.handler == salesperson_api_client.user.profile.full_name

@@ -67,6 +67,16 @@ def salesperson_api_client():
     user = UserFactory()
     api_client = APIClient()
     api_client.force_authenticate(user)
+    ProfileFactory(user=user)
     api_client.user = user
+    Group.objects.get(name__iexact=Roles.SALESPERSON.name).user_set.add(user)
+    return api_client
+
+
+@pytest.fixture
+def salesperson_api_client_without_profile():
+    user = UserFactory()
+    api_client = APIClient()
+    api_client.force_authenticate(user)
     Group.objects.get(name__iexact=Roles.SALESPERSON.name).user_set.add(user)
     return api_client

@@ -803,3 +803,41 @@ def test_add_installments_to_be_sent_to_sap_at_already_added(
     )
     assert response.status_code == 400
     assert "already" in str(response.data)
+
+
+@pytest.mark.django_db
+def test_set_apartment_installments_generate_metadata(salesperson_api_client):
+    reservation = ApartmentReservationFactory()
+
+    data = [
+        {
+            "type": "PAYMENT_1",
+            "amount": 100055,
+            "account_number": "123123123-123",
+            "due_date": "2022-02-19",
+            "reference_number": "REFERENCE-123",
+            "added_to_be_sent_to_sap_at": timezone.now(),
+        },
+        {
+            "type": "REFUND",
+            "amount": 0,
+            "account_number": "123123123-123",
+            "due_date": None,
+            "reference_number": "REFERENCE-321",
+            "added_to_be_sent_to_sap_at": timezone.now(),
+        },
+    ]
+
+    response = salesperson_api_client.post(
+        reverse(
+            "application_form:apartment-installment-list",
+            kwargs={"apartment_reservation_id": reservation.id},
+        ),
+        data=data,
+        format="json",
+    )
+    assert response.status_code == 201
+    installments = ApartmentInstallment.objects.all()
+    assert len(installments) == 2
+    assert installments[0].handler == salesperson_api_client.user.profile.full_name
+    assert installments[1].handler == salesperson_api_client.user.profile.full_name

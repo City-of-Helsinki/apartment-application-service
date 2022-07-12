@@ -22,6 +22,9 @@ class User(AbstractUser):
         verbose_name = _("user")
         verbose_name_plural = _("users")
 
+    def is_salesperson(self):
+        return self.groups.filter(name__iexact=Roles.SALESPERSON.name).exists()
+
 
 class Profile(TimestampedModel):
     CONTACT_LANGUAGE_CHOICES = [
@@ -84,7 +87,7 @@ class Profile(TimestampedModel):
         super(Profile, self).save(*args, **kwargs)
 
     def is_salesperson(self) -> bool:
-        return self.user.groups.filter(name__iexact=Roles.SALESPERSON.name).exists()
+        return self.user.is_salesperson()
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"

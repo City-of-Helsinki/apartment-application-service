@@ -190,6 +190,12 @@ class ApartmentInstallmentSerializer(ApartmentInstallmentSerializerBase):
         read_only_fields = ("reference_number", "added_to_be_sent_to_sap_at")
 
     def create(self, validated_data):
+        if request := self.context.get("request"):
+            user = getattr(request, "user", None)
+        else:
+            user = None
+        if user and user.profile:
+            validated_data["handler"] = user.profile.full_name
         if old_instance := self.context["old_instances"].get(validated_data["type"]):
             validated_data["reference_number"] = old_instance.reference_number
             validated_data[
