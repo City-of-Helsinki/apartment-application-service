@@ -35,6 +35,7 @@ def transfer_reservation_to_another_customer(
         list_position=old_reservation.list_position + 1,
         state=old_reservation.state,
         customer=customer,
+        handler=user.profile.full_name,
     )
 
     # Shift reservations after the old reservation one step back to make room for the
@@ -83,6 +84,9 @@ def create_reservation(
         max_queue_position = existing_reservations.exclude(
             state=ApartmentReservationState.CANCELED
         ).aggregate(max_queue_position=Max("queue_position"))["max_queue_position"]
+
+        if user and user.profile:
+            reservation_data["handler"] = user.profile.full_name
 
         reservation = ApartmentReservation(
             **reservation_data,

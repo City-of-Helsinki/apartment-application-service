@@ -5,10 +5,16 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.fields import CharField, IntegerField, UUIDField
 
+from apartment_application_service.settings import (
+    METADATA_HANDLER_INFORMATION,
+    METADATA_HASO_PROCESS_NUMBER,
+    METADATA_HITAS_PROCESS_NUMBER,
+)
 from application_form import error_codes
 from application_form.enums import (
     ApartmentReservationCancellationReason,
     ApartmentReservationState,
+    ApplicationArrivalMethod,
     ApplicationType,
 )
 from application_form.models import (
@@ -104,16 +110,44 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
         }
 
     def create(self, validated_data):
+        validated_data = self.prepare_metadata(validated_data)
         return create_application(validated_data)
+
+    def prepare_metadata(self, validated_data):
+        if validated_data.get("type", None) == ApplicationType.HASO:
+            validated_data["process_number"] = METADATA_HASO_PROCESS_NUMBER
+        else:
+            validated_data["process_number"] = METADATA_HITAS_PROCESS_NUMBER
+        validated_data["handler_information"] = METADATA_HANDLER_INFORMATION
+        return validated_data
 
 
 class ApplicationSerializer(ApplicationSerializerBase):
     additional_applicant = ApplicantSerializer(write_only=True, allow_null=True)
     project_id = UUIDField(write_only=True)
 
+    def _get_senders_name_from_applicants_data(self, validated_data):
+        additional_applicant = validated_data.get("additional_applicant")
+        sender_names = validated_data["profile"].full_name
+        if additional_applicant:
+            additional_applicant_name = " ".join(
+                [additional_applicant["first_name"], additional_applicant["last_name"]]
+            )
+            sender_names += "/ {}".format(additional_applicant_name)
+        return sender_names
+
     def create(self, validated_data):
         validated_data["profile"] = self.context["request"].user.profile
         return super().create(validated_data)
+
+    def prepare_metadata(self, validated_data):
+        validated_data["sender_names"] = self._get_senders_name_from_applicants_data(
+            validated_data
+        )
+        validated_data[
+            "method_of_arrival"
+        ] = ApplicationArrivalMethod.ELECTRONICAL_SYSTEM
+        return super().prepare_metadata(validated_data)
 
     def validate_ssn_suffix(self, value):
         date_of_birth = self.context["request"].user.profile.date_of_birth

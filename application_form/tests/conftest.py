@@ -10,8 +10,13 @@ from pytest import fixture
 from unittest.mock import Mock
 
 from apartment.tests.factories import ApartmentDocumentFactory
+from apartment_application_service.settings import (
+    METADATA_HANDLER_INFORMATION,
+    METADATA_HASO_PROCESS_NUMBER,
+    METADATA_HITAS_PROCESS_NUMBER,
+)
 from application_form.api.serializers import ApplicationSerializer
-from application_form.enums import ApplicationType
+from application_form.enums import ApplicationArrivalMethod, ApplicationType
 from application_form.models import ApartmentReservation
 from application_form.tests.factories import ApplicantFactory
 from application_form.tests.utils import (
@@ -279,3 +284,20 @@ def create_validated_application_data(
     )
     serializer.is_valid(raise_exception=True)
     return {**serializer.validated_data, "profile": profile}
+
+
+def prepare_metadata(data, profile):
+    process_number = (
+        METADATA_HASO_PROCESS_NUMBER
+        if data["type"] == ApplicationType.HASO
+        else METADATA_HITAS_PROCESS_NUMBER
+    )
+    data.update(
+        {
+            "handler_information": METADATA_HANDLER_INFORMATION,
+            "process_number": process_number,
+            "method_of_arrival": ApplicationArrivalMethod.ELECTRONICAL_SYSTEM.value,
+            "sender_names": profile.full_name,
+        }
+    )
+    return data

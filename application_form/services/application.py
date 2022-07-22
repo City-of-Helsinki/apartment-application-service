@@ -96,6 +96,10 @@ def create_application(application_data: dict) -> Application:
             "is_right_of_occupancy_housing_changer"
         ),
         customer=customer,
+        process_number=data.pop("process_number"),
+        handler_information=data.pop("handler_information"),
+        method_of_arrival=data.pop("method_of_arrival"),
+        sender_names=data.pop("sender_names"),
     )
     Applicant.objects.create(
         first_name=profile.first_name,

@@ -211,7 +211,9 @@ def test_get_customer_api_list_without_any_parameters(salesperson_api_client):
 
 @pytest.mark.parametrize("with_secondary_profile", (False, True))
 @pytest.mark.django_db
-def test_create_customer(salesperson_api_client, with_secondary_profile):
+def test_create_customer(
+    salesperson_api_client_without_profile, with_secondary_profile
+):
     data = {
         "additional_information": "",
         "has_children": False,
@@ -250,7 +252,7 @@ def test_create_customer(salesperson_api_client, with_secondary_profile):
     else:
         data["secondary_profile"] = None
 
-    response = salesperson_api_client.post(
+    response = salesperson_api_client_without_profile.post(
         reverse("customer:sales-customer-list"), data=data, format="json"
     )
     assert response.status_code == status.HTTP_201_CREATED, response.data
@@ -265,7 +267,9 @@ def test_create_customer(salesperson_api_client, with_secondary_profile):
 @pytest.mark.parametrize("updated_with_secondary_profile", (False, True))
 @pytest.mark.django_db
 def test_update_customer(
-    salesperson_api_client, has_secondary_profile, updated_with_secondary_profile
+    salesperson_api_client_without_profile,
+    has_secondary_profile,
+    updated_with_secondary_profile,
 ):
     customer = CustomerFactory(
         primary_profile=ProfileFactory(),
@@ -310,7 +314,7 @@ def test_update_customer(
     else:
         data["secondary_profile"] = None
 
-    response = salesperson_api_client.put(
+    response = salesperson_api_client_without_profile.put(
         reverse("customer:sales-customer-detail", kwargs={"pk": customer.pk}),
         data=data,
         format="json",

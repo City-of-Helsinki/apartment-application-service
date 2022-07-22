@@ -4,7 +4,7 @@ from django.views.decorators.http import require_http_methods
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiParameter
 from rest_framework import mixins, permissions, status, viewsets
-from rest_framework.decorators import action, api_view
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
 
@@ -43,6 +43,7 @@ from users.permissions import IsSalesperson
 
 
 @api_view(http_method_names=["POST"])
+@permission_classes([IsSalesperson])
 @require_http_methods(["POST"])  # For SonarCloud
 def execute_lottery_for_project(request):
     """
@@ -59,7 +60,7 @@ def execute_lottery_for_project(request):
         raise NotFound(detail="Project not found.")
 
     try:
-        distribute_apartments(project_uuid)
+        distribute_apartments(project_uuid, request.user)
     except ProjectDoesNotHaveApplicationsException as ex:
         raise ValidationError(detail="Project does not have applications.") from ex
     except ApplicationTimeNotFinishedException as ex:

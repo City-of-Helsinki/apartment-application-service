@@ -78,6 +78,12 @@ env = environ.Env(
     SAP_SFTP_PORT=(int, 22),
     SAP_SFTP_FILENAME_PREFIX=(str, "MR_IN_ID066_2800_"),
     SAP_DAYS_UNTIL_INSTALLMENT_DUE_DATE=(int, 30),
+    METADATA_HANDLER_INFORMATION=(
+        str,
+        "0201256-6 / Kaupunkiympäristön toimiala / Asuntotuotanto / Asuntomyynti",
+    ),
+    METADATA_HITAS_PROCESS_NUMBER=(str, "10 07 05 00"),
+    METADATA_HASO_PROCESS_NUMBER=(str, "10 07 04 01"),
 )
 if os.path.exists(env_file):
     env.read_env(env_file)
@@ -350,6 +356,11 @@ SIMPLE_JWT = {"ACCESS_TOKEN_LIFETIME": timedelta(minutes=30)}
 # For pgcrypto
 PUBLIC_PGP_KEY = env.str("PUBLIC_PGP_KEY", multiline=True)
 PRIVATE_PGP_KEY = env.str("PRIVATE_PGP_KEY", multiline=True)
+
+# Metadata constants =
+METADATA_HANDLER_INFORMATION = env.str("METADATA_HANDLER_INFORMATION")
+METADATA_HITAS_PROCESS_NUMBER = env.str("METADATA_HITAS_PROCESS_NUMBER")
+METADATA_HASO_PROCESS_NUMBER = env.str("METADATA_HASO_PROCESS_NUMBER")
 
 # local_settings.py can be used to override environment-specific settings
 # like database and email that differ between development and production.

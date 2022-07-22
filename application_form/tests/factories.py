@@ -6,6 +6,11 @@ from django.utils import timezone
 from factory import Faker, fuzzy, LazyAttribute
 from typing import List
 
+from apartment_application_service.settings import (
+    METADATA_HANDLER_INFORMATION,
+    METADATA_HASO_PROCESS_NUMBER,
+    METADATA_HITAS_PROCESS_NUMBER,
+)
 from application_form.enums import ApartmentReservationState, ApplicationType
 from application_form.models import (
     ApartmentReservation,
@@ -33,6 +38,11 @@ class ApplicationFactory(factory.django.DjangoModelFactory):
     right_of_residence = fuzzy.FuzzyInteger(1, 1000000000)
     has_children = Faker("boolean")
     customer = factory.SubFactory(CustomerFactory)
+    handler_information = METADATA_HANDLER_INFORMATION
+    process_number = fuzzy.FuzzyChoice(
+        [METADATA_HITAS_PROCESS_NUMBER, METADATA_HASO_PROCESS_NUMBER]
+    )
+    sender_names = Faker("name")
 
 
 class ApplicantFactory(factory.django.DjangoModelFactory):
@@ -110,6 +120,7 @@ class ApartmentReservationFactory(factory.django.DjangoModelFactory):
         if o.application_apartment
         else o.customer.right_of_residence
     )
+    handler = factory.Faker("name")
 
 
 class LotteryEventFactory(factory.django.DjangoModelFactory):
@@ -117,6 +128,7 @@ class LotteryEventFactory(factory.django.DjangoModelFactory):
         model = LotteryEvent
 
     apartment_uuid = factory.Faker("uuid4")
+    handler = factory.Faker("name")
 
 
 class LotteryEventResultFactory(factory.django.DjangoModelFactory):
@@ -147,3 +159,4 @@ class OfferFactory(factory.django.DjangoModelFactory):
         start_date=timezone.localdate() + timedelta(days=7),
         end_date=timezone.localdate() + timedelta(days=14),
     )
+    handler = factory.Faker("name")

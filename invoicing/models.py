@@ -1,11 +1,13 @@
 from datetime import date, datetime, timedelta
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db import models, transaction
 from django.db.models import UniqueConstraint
 from django.utils import timezone
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 from enumfields import EnumField
+from pgcrypto.fields import CharPGPPublicKeyField
 from uuid import uuid4
 
 from application_form.models import ApartmentReservation
@@ -19,6 +21,8 @@ from invoicing.utils import (
     get_euros_from_cents,
     get_rounded_price,
 )
+
+User = get_user_model()
 
 
 class AlreadyAddedToBeSentToSapError(Exception):
@@ -73,6 +77,10 @@ class ApartmentInstallment(InstallmentBase):
     )
     sent_to_sap_at = models.DateTimeField(
         verbose_name=_("sent to SAP at"), null=True, blank=True
+    )
+    # Metadata fields
+    handler = CharPGPPublicKeyField(
+        verbose_name=_("handler"), max_length=200, blank=True
     )
 
     objects = ApartmentInstallmentQuerySet.as_manager()

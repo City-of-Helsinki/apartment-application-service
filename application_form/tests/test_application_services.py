@@ -7,7 +7,10 @@ from application_form.services.application import (
     create_application,
     get_ordered_applications,
 )
-from application_form.tests.conftest import create_validated_application_data
+from application_form.tests.conftest import (
+    create_validated_application_data,
+    prepare_metadata,
+)
 from users.tests.factories import ProfileFactory
 
 
@@ -18,6 +21,7 @@ def test_create_application(num_applicants, elastic_single_project_with_apartmen
     data = create_validated_application_data(
         profile, ApplicationType.HASO, num_applicants
     )
+    data = prepare_metadata(data, profile)
     application = create_application(data)
 
     # A new application should have been created
@@ -88,6 +92,7 @@ def test_create_application_type(
 ):
     profile = ProfileFactory()
     data = create_validated_application_data(profile, application_type)
+    data = prepare_metadata(data, profile)
     application = create_application(data)
     assert application.type == application_type
 
@@ -96,7 +101,9 @@ def test_create_application_type(
 def test_create_application_adds_haso_application_to_queue_by_right_of_residence(
     elastic_single_project_with_apartments,
 ):
-    data = create_validated_application_data(ProfileFactory(), ApplicationType.HASO)
+    profile = ProfileFactory()
+    data = create_validated_application_data(profile, ApplicationType.HASO)
+    data = prepare_metadata(data, profile)
     application2 = create_application({**data, "right_of_residence": 2})
     application1 = create_application({**data, "right_of_residence": 1})
     for application_apartment in application1.application_apartments.all():
@@ -110,7 +117,9 @@ def test_create_application_adds_haso_application_to_queue_by_right_of_residence
 def test_create_application_adds_hitas_application_to_queue_by_application_order(
     elastic_single_project_with_apartments,
 ):
-    data = create_validated_application_data(ProfileFactory(), ApplicationType.HITAS)
+    profile = ProfileFactory()
+    data = create_validated_application_data(profile, ApplicationType.HITAS)
+    data = prepare_metadata(data, profile)
     application2 = create_application({**data, "right_of_residence": 2})
     application1 = create_application({**data, "right_of_residence": 1})
     for application_apartment in application1.application_apartments.all():

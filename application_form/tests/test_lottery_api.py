@@ -1,8 +1,13 @@
 import pytest
+from datetime import timedelta
 from django.urls import reverse
+from django.utils import timezone
 from rest_framework import status
 
+from apartment.tests.factories import ApartmentDocumentFactory
+from apartment_application_service.settings import METADATA_HANDLER_INFORMATION
 from application_form.enums import ApplicationType
+from application_form.models import ApartmentReservation, LotteryEvent
 from application_form.services.queue import add_application_to_queues
 from application_form.tests.factories import ApplicationFactory
 
@@ -151,3 +156,41 @@ def test_execute_haso_lottery_for_project_post_without_applications(
         reverse("application_form:execute_lottery_for_project"), data, format="json"
     )
     assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+@pytest.mark.parametrize(
+    "application_type", (ApplicationType.HASO, ApplicationType.HITAS)
+)
+@pytest.mark.django_db
+def test_execute_lottery_generate_metadata(salesperson_api_client, application_type):
+    if application_type == ApplicationType.HASO:
+        apartment = ApartmentDocumentFactory(
+            project_ownership_type="Haso",
+            project_application_end_time=timezone.now() - timedelta(days=1),
+        )
+    else:
+        apartment = ApartmentDocumentFactory(
+            project_ownership_type="Hitas",
+            project_application_end_time=timezone.now() - timedelta(days=1),
+        )
+
+    app = ApplicationFactory(type=application_type)
+    app.application_apartments.create(apartment_uuid=apartment.uuid, priority_number=0)
+    add_application_to_queues(app)
+
+    data = {"project_uuid": apartment.project_uuid}
+    response = salesperson_api_client.post(
+        reverse("application_form:execute_lottery_for_project"), data, format="json"
+    )
+    assert response.status_code == status.HTTP_200_OK
+
+    lottery_event = LotteryEvent.objects.get(apartment_uuid=apartment.uuid)
+    assert (
+        lottery_event.handler
+        == METADATA_HANDLER_INFORMATION
+        + " / "
+        + salesperson_api_client.user.profile.full_name
+    )
+    reservations = ApartmentReservation.objects.filter(apartment_uuid=apartment.uuid)
+    for r in reservations:
+        assert r.handler == salesperson_api_client.user.profile.full_name

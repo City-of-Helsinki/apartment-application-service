@@ -39,3 +39,11 @@ class OfferState(Enum):
     PENDING = "pending"
     ACCEPTED = "accepted"
     REJECTED = "rejected"
+
+
+class ApplicationArrivalMethod(Enum):
+    ELECTRONICAL_SYSTEM = "electronical_system"
+    EMAIL = "email"
+    POST = "post"
+    DELIVERED = "delivered"
+    PHONE = "phone"

@@ -26,7 +26,8 @@ def create_offer(offer_data: dict, user: User = None) -> Offer:
             f"{offer_data['apartment_reservation'].id} "
             f"because it already has an offer."
         )
-
+    if user and user.profile:
+        offer_data["handler"] = user.profile.full_name
     offer = Offer.objects.create(**offer_data)
     apartment_reservation.set_state(ApartmentReservationState.OFFERED, user=user)
     update_other_customer_reservations_states(apartment_reservation)
@@ -53,7 +54,8 @@ def update_offer(offer: Offer, offer_data: dict, user: User = None) -> Offer:
         else:
             raise ValueError(f'Invalid OfferState: {offer_data["state"]}')
         offer.concluded_at = timezone.now()
-
+    if user and user.profile:
+        offer_data["handler"] = user.profile.full_name
     update_obj(offer, offer_data)
     update_reservation_state_based_on_offer_expiration(offer.apartment_reservation)
 

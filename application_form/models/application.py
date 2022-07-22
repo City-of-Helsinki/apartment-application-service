@@ -1,6 +1,7 @@
 from django.core.validators import MinLengthValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+from enumfields import EnumField
 from pgcrypto.fields import (
     CharPGPPublicKeyField,
     DatePGPPublicKeyField,
@@ -15,7 +16,7 @@ from apartment_application_service.fields import (
     UUIDPGPPublicKeyField,
 )
 from apartment_application_service.models import TimestampedModel
-from application_form.enums import ApplicationType
+from application_form.enums import ApplicationArrivalMethod, ApplicationType
 from customer.models import Customer
 from users.models import Profile
 
@@ -42,6 +43,17 @@ class Application(TimestampedModel):
     is_right_of_occupancy_housing_changer = BooleanPGPPublicKeyField(
         "is right of occupancy housing changer", blank=True, null=True
     )
+
+    # Metadata fields
+    process_number = models.CharField(_("process number"), max_length=32)
+    handler_information = models.CharField(_("handler information"), max_length=100)
+    method_of_arrival = EnumField(
+        ApplicationArrivalMethod,
+        max_length=50,
+        verbose_name=_("method of arrival"),
+        default=ApplicationArrivalMethod.ELECTRONICAL_SYSTEM,
+    )
+    sender_names = CharPGPPublicKeyField(_("sender names"), max_length=200)
 
     audit_log_id_field = "external_uuid"
 
