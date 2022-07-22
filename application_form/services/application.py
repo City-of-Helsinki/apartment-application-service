@@ -23,6 +23,8 @@ from application_form.services.queue import (
     add_application_to_queues,
     remove_reservation_from_queue,
 )
+from audit_log import audit_logging
+from audit_log.enums import Operation
 from customer.services import get_or_create_customer_from_profiles
 
 _logger = logging.getLogger(__name__)
@@ -72,6 +74,8 @@ def cancel_reservation(
         else:
             _reserve_apartments([apartment_uuid], False)
 
+    # Audit logging
+    audit_logging.log(user, Operation.UPDATE, apartment_reservation)
     return state_change_event
 
 

@@ -9,6 +9,8 @@ from application_form.models import ApartmentReservation, Application, LotteryEv
 from application_form.services.lottery.exceptions import (
     ApplicationTimeNotFinishedException,
 )
+from audit_log import audit_logging
+from audit_log.enums import Operation
 
 User = get_user_model()
 
@@ -42,6 +44,7 @@ def _save_application_order(apartment_uuid: uuid.UUID, user: User = None) -> Non
         if user:
             apartment_reservation.handler = user.profile.full_name
             apartment_reservation.save()
+    audit_logging.log(user, Operation.CREATE, event)
 
 
 def _validate_project_has_applications(project_uuid: uuid.UUID):

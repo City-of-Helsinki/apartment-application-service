@@ -5,6 +5,9 @@ from enumfields.drf.fields import EnumField
 from enumfields.drf.serializers import EnumSupportSerializerMixin
 from rest_framework import exceptions, serializers
 
+from audit_log import audit_logging
+from audit_log.enums import Operation
+
 from ..enums import InstallmentPercentageSpecifier, InstallmentUnit
 from ..models import ApartmentInstallment, ProjectInstallmentTemplate
 from ..utils import remove_exponent
@@ -93,6 +96,10 @@ class ProjectInstallmentTemplateSerializer(InstallmentSerializerBase):
         )
 
     def create(self, validated_data):
+        if request := self.context.get("request"):
+            user = getattr(request, "user", None)
+        else:
+            user = None
         amount = validated_data.pop("get_amount", None)
         has_amount = amount is not None
         percentage = validated_data.pop("get_percentage", None)
@@ -125,7 +132,9 @@ class ProjectInstallmentTemplateSerializer(InstallmentSerializerBase):
                 }
             )
 
-        return super().create(validated_data)
+        instance = super().create(validated_data)
+        audit_logging.log(user, Operation.CREATE, instance)
+        return instance
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -203,4 +212,6 @@ class ApartmentInstallmentSerializer(ApartmentInstallmentSerializerBase):
             ] = old_instance.added_to_be_sent_to_sap_at
             validated_data["sent_to_sap_at"] = old_instance.sent_to_sap_at
 
-        return super().create(validated_data)
+        instance = super().create(validated_data)
+        audit_logging.log(user, Operation.CREATE, instance)
+        return instance

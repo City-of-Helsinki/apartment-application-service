@@ -11,6 +11,8 @@ from rest_framework.views import APIView
 
 from apartment.elastic.queries import get_apartment
 from application_form.models import ApartmentReservation
+from audit_log import audit_logging
+from audit_log.enums import Operation
 
 from ..api.serializers import (
     ApartmentInstallmentSerializer,
@@ -160,6 +162,7 @@ class ApartmentInstallmentAddToSapAPIView(APIView):
                     raise ValidationError(
                         f"{installment.type.value} already added to be sent to SAP."
                     )
+                audit_logging.log(self.request.user, Operation.UPDATE, installment)
 
         seri = ApartmentInstallmentSerializer(
             reservation.apartment_installments.order_by("id"), many=True

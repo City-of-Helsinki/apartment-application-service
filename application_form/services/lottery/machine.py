@@ -1,5 +1,6 @@
 import uuid
 from django.contrib.auth import get_user_model
+from django.db import transaction
 from django.utils.translation import ugettext_lazy as _
 
 from apartment.elastic.queries import get_project
@@ -14,6 +15,7 @@ from application_form.services.lottery.utils import (
 User = get_user_model()
 
 
+@transaction.atomic
 def distribute_apartments(project_uuid: uuid.UUID, user: User = None) -> None:
     _validate_project_has_applications(project_uuid)
     _validate_project_application_time_has_finished(project_uuid)

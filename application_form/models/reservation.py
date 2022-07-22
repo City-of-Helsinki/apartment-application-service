@@ -18,6 +18,8 @@ from application_form.enums import (
     ApartmentReservationState,
 )
 from application_form.models import ApplicationApartment
+from audit_log import audit_logging
+from audit_log.enums import Operation
 from customer.models import Customer
 
 User = get_user_model()
@@ -150,7 +152,7 @@ class ApartmentReservation(models.Model):
         )
         self.state = state
         self.save(update_fields=("state",))
-
+        audit_logging.log(user, operation=Operation.CREATE, target=state_change_event)
         return state_change_event
 
 
