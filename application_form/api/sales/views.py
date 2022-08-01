@@ -39,6 +39,7 @@ from application_form.services.lottery.machine import distribute_apartments
 from application_form.services.reservation import (
     transfer_reservation_to_another_customer,
 )
+from audit_log.viewsets import AuditLoggingModelViewSet
 from users.permissions import IsSalesperson
 
 
@@ -258,14 +259,13 @@ Lorem
         )
 
 
-class OfferViewSet(
-    mixins.RetrieveModelMixin,
-    mixins.CreateModelMixin,
-    mixins.UpdateModelMixin,
-    viewsets.GenericViewSet,
-):
+class OfferViewSet(AuditLoggingModelViewSet):
     queryset = Offer.objects.all()
     serializer_class = OfferSerializer
+    http_method_names = ["get", "post", "put", "patch"]
+
+    def list(self, request, *args, **kwargs):
+        return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 class ProjectExtraDataViewSet(

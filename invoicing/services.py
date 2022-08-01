@@ -3,6 +3,8 @@ from django.utils import timezone
 from io import BytesIO
 from logging import getLogger
 
+from audit_log import audit_logging
+from audit_log.enums import Operation
 from invoicing.models import ApartmentInstallment
 from invoicing.sap.sftp import sftp_put_file_object
 from invoicing.sap.xml import generate_installments_xml
@@ -19,6 +21,8 @@ def send_needed_installments_to_sap() -> int:
         logger.debug(f"Generated XML:\n{xml.decode('utf-8')}")
         send_xml_to_sap(xml)
         installments.set_sent_to_sap_at()
+        for installment in installments:
+            audit_logging.log(None, Operation.UPDATE, installment)
     return num_of_installments
 
 
