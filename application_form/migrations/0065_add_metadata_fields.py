@@ -14,7 +14,7 @@ from application_form.enums import ApplicationArrivalMethod, ApplicationType
 
 def populate_metadata(apps, schema_editor):
     Application = apps.get_model("application_form", "Application")
-    for instance in Application.objects.all().iterator():
+    for instance in Application.objects.all():
         instance.handler_information = METADATA_HANDLER_INFORMATION
         if instance.type == ApplicationType.HASO:
             instance.process_number = METADATA_HASO_PROCESS_NUMBER
@@ -22,7 +22,7 @@ def populate_metadata(apps, schema_editor):
             # Puolihitas and hitas using the same process number
             instance.process_number = METADATA_HITAS_PROCESS_NUMBER
         instance.method_of_arrival = ApplicationArrivalMethod.ELECTRONICAL_SYSTEM
-        instance.sender_names = instance.customer.primary_profile.full_name
+        instance.sender_names = f"{instance.customer.primary_profile.first_name} {instance.customer.primary_profile.last_name}"
         instance.save()
 
 
@@ -37,14 +37,15 @@ class Migration(migrations.Migration):
             model_name="apartmentreservation",
             name="handler",
             field=pgcrypto.fields.CharPGPPublicKeyField(
-                blank=True, max_length=200, verbose_name="handler"
+                blank=True, null=True, max_length=200, verbose_name="handler"
             ),
         ),
         migrations.AddField(
             model_name="application",
             name="handler_information",
+            preserve_default=False,
             field=models.CharField(
-                blank=True, max_length=200, verbose_name="handler information"
+                default="", max_length=100, verbose_name="handler information"
             ),
         ),
         migrations.AddField(
@@ -60,47 +61,31 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="application",
             name="process_number",
+            preserve_default=False,
             field=models.CharField(
-                blank=True, max_length=32, verbose_name="process number"
+                default="", max_length=32, verbose_name="process number"
             ),
         ),
         migrations.AddField(
             model_name="application",
             name="sender_names",
             field=pgcrypto.fields.CharPGPPublicKeyField(
-                blank=True, max_length=200, verbose_name="sender names"
+                blank=True, null=True, max_length=200, verbose_name="sender names"
             ),
         ),
         migrations.AddField(
             model_name="lotteryevent",
             name="handler",
             field=pgcrypto.fields.CharPGPPublicKeyField(
-                blank=True, max_length=200, verbose_name="handler"
+                blank=True, null=True, max_length=200, verbose_name="handler"
             ),
         ),
         migrations.AddField(
             model_name="offer",
             name="handler",
             field=pgcrypto.fields.CharPGPPublicKeyField(
-                blank=True, max_length=200, verbose_name="handler"
+                blank=True, null=True, max_length=200, verbose_name="handler"
             ),
         ),
         migrations.RunPython(populate_metadata, reverse_code=migrations.RunPython.noop),
-        migrations.AlterField(
-            model_name="application",
-            name="handler_information",
-            field=models.CharField(max_length=100, verbose_name="handler information"),
-        ),
-        migrations.AlterField(
-            model_name="application",
-            name="process_number",
-            field=models.CharField(max_length=32, verbose_name="process number"),
-        ),
-        migrations.AlterField(
-            model_name="application",
-            name="sender_names",
-            field=pgcrypto.fields.CharPGPPublicKeyField(
-                max_length=200, verbose_name="sender names"
-            ),
-        ),
     ]

@@ -13,7 +13,7 @@ class LotteryEvent(models.Model):
     timestamp = models.DateTimeField(auto_now_add=True)
     # Metadata fields
     handler = CharPGPPublicKeyField(
-        verbose_name=_("handler"), max_length=200, blank=True
+        verbose_name=_("handler"), max_length=200, blank=True, null=True
     )
 
 
