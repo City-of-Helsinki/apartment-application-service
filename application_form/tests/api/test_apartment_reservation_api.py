@@ -901,7 +901,9 @@ content
 
 
 @pytest.mark.django_db
-def test_salesperson_create_reservation_generate_metadata(salesperson_api_client):
+def test_salesperson_create_reservation_generate_metadata(
+    salesperson_api_client_without_profile,
+):
     apartment = ApartmentDocumentFactory()
     customer = CustomerFactory(
         right_of_residence=777,
@@ -917,7 +919,7 @@ def test_salesperson_create_reservation_generate_metadata(salesperson_api_client
         "customer_id": customer.id,
     }
 
-    response = salesperson_api_client.post(
+    response = salesperson_api_client_without_profile.post(
         reverse(
             "application_form:sales-apartment-reservation-list",
         ),
@@ -928,4 +930,5 @@ def test_salesperson_create_reservation_generate_metadata(salesperson_api_client
     assert response.status_code == 201
     assert (reservation_id := response.data.pop("id"))
     reservation = ApartmentReservation.objects.get(id=reservation_id)
-    assert reservation.handler == salesperson_api_client.user.profile.full_name
+    user = salesperson_api_client_without_profile.user
+    assert reservation.handler == f"{user.first_name} {user.last_name}"

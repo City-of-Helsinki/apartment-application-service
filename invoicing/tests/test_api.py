@@ -31,7 +31,7 @@ def reservation_with_installments():
             "account_number": "123123123-123",
             "due_date": "2022-02-19",
             "reference_number": "REFERENCE-123",
-        }
+        },
     )
     ApartmentInstallmentFactory(
         apartment_reservation=reservation,
@@ -40,7 +40,7 @@ def reservation_with_installments():
             "value": "100.55",
             "account_number": "123123123-123",
             "reference_number": "REFERENCE-321",
-        }
+        },
     )
     return reservation
 
@@ -79,7 +79,7 @@ def test_project_detail_installments_field_and_endpoint_data_unauthorized(
             "percentage_specifier": InstallmentPercentageSpecifier.SALES_PRICE,
             "account_number": "123123123-123",
             "due_date": "2022-02-19",
-        }
+        },
     )
     ProjectInstallmentTemplateFactory(
         project_uuid=project_uuid,
@@ -89,7 +89,7 @@ def test_project_detail_installments_field_and_endpoint_data_unauthorized(
             "unit": InstallmentUnit.EURO,
             "account_number": "123123123-123",
             "due_date": None,
-        }
+        },
     )
 
     if target == "field":
@@ -126,7 +126,7 @@ def test_project_detail_installments_field_and_installments_endpoint_data(
             "percentage_specifier": InstallmentPercentageSpecifier.SALES_PRICE,
             "account_number": "123123123-123",
             "due_date": "2022-02-19",
-        }
+        },
     )
     ProjectInstallmentTemplateFactory(
         project_uuid=project_uuid,
@@ -136,7 +136,7 @@ def test_project_detail_installments_field_and_installments_endpoint_data(
             "unit": InstallmentUnit.EURO,
             "account_number": "123123123-123",
             "due_date": None,
-        }
+        },
     )
 
     if target == "field":
@@ -365,7 +365,7 @@ def test_apartment_installments_endpoint_unauthorized(
             "account_number": "123123123-123",
             "due_date": "2022-02-19",
             "reference_number": "REFERENCE-123",
-        }
+        },
     )
     ApartmentInstallmentFactory(
         apartment_reservation=reservation,
@@ -375,7 +375,7 @@ def test_apartment_installments_endpoint_unauthorized(
             "account_number": "123123123-123",
             "due_date": None,
             "reference_number": "REFERENCE-321",
-        }
+        },
     )
 
     url = reverse(
@@ -400,7 +400,7 @@ def test_apartment_installments_endpoint_data(
             "account_number": "123123123-123",
             "due_date": "2022-02-19",
             "reference_number": "REFERENCE-123",
-        }
+        },
     )
     ApartmentInstallmentFactory(
         apartment_reservation=reservation,
@@ -410,7 +410,7 @@ def test_apartment_installments_endpoint_data(
             "account_number": "123123123-123",
             "due_date": None,
             "reference_number": "REFERENCE-321",
-        }
+        },
     )
 
     url = reverse(
@@ -806,7 +806,9 @@ def test_add_installments_to_be_sent_to_sap_at_already_added(
 
 
 @pytest.mark.django_db
-def test_set_apartment_installments_generate_metadata(salesperson_api_client):
+def test_set_apartment_installments_generate_metadata(
+    salesperson_api_client_without_profile,
+):
     reservation = ApartmentReservationFactory()
 
     data = [
@@ -828,7 +830,7 @@ def test_set_apartment_installments_generate_metadata(salesperson_api_client):
         },
     ]
 
-    response = salesperson_api_client.post(
+    response = salesperson_api_client_without_profile.post(
         reverse(
             "application_form:apartment-installment-list",
             kwargs={"apartment_reservation_id": reservation.id},
@@ -839,5 +841,7 @@ def test_set_apartment_installments_generate_metadata(salesperson_api_client):
     assert response.status_code == 201
     installments = ApartmentInstallment.objects.all()
     assert len(installments) == 2
-    assert installments[0].handler == salesperson_api_client.user.profile.full_name
-    assert installments[1].handler == salesperson_api_client.user.profile.full_name
+    user = salesperson_api_client_without_profile.user
+    expected_handler = f"{user.first_name} {user.last_name}".strip()
+    assert installments[0].handler == expected_handler
+    assert installments[1].handler == expected_handler

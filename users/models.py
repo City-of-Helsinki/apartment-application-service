@@ -25,6 +25,10 @@ class User(AbstractUser):
     def is_salesperson(self):
         return self.groups.filter(name__iexact=Roles.SALESPERSON.name).exists()
 
+    @property
+    def full_name(self):
+        return f"{self.first_name} {self.last_name}".strip()
+
 
 class Profile(TimestampedModel):
     CONTACT_LANGUAGE_CHOICES = [

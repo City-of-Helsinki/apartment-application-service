@@ -41,7 +41,7 @@ def test_create_offer_unauthorized(user_api_client):
 
 
 @pytest.mark.django_db
-def test_create_offer(salesperson_api_client):
+def test_create_offer(salesperson_api_client_without_profile):
     apartment = ApartmentDocumentFactory()
     reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
     week_in_future = timezone.localdate() + timedelta(days=7)
@@ -52,7 +52,7 @@ def test_create_offer(salesperson_api_client):
         "comment": "Foobar.",
     }
 
-    response = salesperson_api_client.post(
+    response = salesperson_api_client_without_profile.post(
         reverse(
             "application_form:sales-offer-list",
         ),
@@ -80,7 +80,8 @@ def test_create_offer(salesperson_api_client):
     assert offer.state == OfferState.PENDING
     assert offer.concluded_at is None
     # Check if handler metadata is saved
-    assert offer.handler == salesperson_api_client.user.profile.full_name
+    user = salesperson_api_client_without_profile.user
+    assert offer.handler == f"{user.first_name} {user.last_name}".strip()
 
 
 @pytest.mark.django_db

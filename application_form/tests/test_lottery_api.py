@@ -162,7 +162,9 @@ def test_execute_haso_lottery_for_project_post_without_applications(
     "application_type", (ApplicationType.HASO, ApplicationType.HITAS)
 )
 @pytest.mark.django_db
-def test_execute_lottery_generate_metadata(salesperson_api_client, application_type):
+def test_execute_lottery_generate_metadata(
+    salesperson_api_client_without_profile, application_type
+):
     if application_type == ApplicationType.HASO:
         apartment = ApartmentDocumentFactory(
             project_ownership_type="Haso",
@@ -179,7 +181,7 @@ def test_execute_lottery_generate_metadata(salesperson_api_client, application_t
     add_application_to_queues(app)
 
     data = {"project_uuid": apartment.project_uuid}
-    response = salesperson_api_client.post(
+    response = salesperson_api_client_without_profile.post(
         reverse("application_form:execute_lottery_for_project"), data, format="json"
     )
     assert response.status_code == status.HTTP_200_OK
@@ -189,8 +191,8 @@ def test_execute_lottery_generate_metadata(salesperson_api_client, application_t
         lottery_event.handler
         == METADATA_HANDLER_INFORMATION
         + " / "
-        + salesperson_api_client.user.profile.full_name
+        + salesperson_api_client_without_profile.user.full_name
     )
     reservations = ApartmentReservation.objects.filter(apartment_uuid=apartment.uuid)
     for r in reservations:
-        assert r.handler == salesperson_api_client.user.profile.full_name
+        assert r.handler == salesperson_api_client_without_profile.user.full_name

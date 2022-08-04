@@ -85,8 +85,8 @@ def create_reservation(
             state=ApartmentReservationState.CANCELED
         ).aggregate(max_queue_position=Max("queue_position"))["max_queue_position"]
 
-        if user and user.profile:
-            reservation_data["handler"] = user.profile.full_name
+        if user:
+            reservation_data["handler"] = user.full_name
 
         reservation = ApartmentReservation(
             **reservation_data,
