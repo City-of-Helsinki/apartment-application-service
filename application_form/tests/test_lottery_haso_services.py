@@ -8,7 +8,7 @@ from application_form.services.application import (
 )
 from application_form.services.lottery.haso import _distribute_haso_apartments
 from application_form.services.queue import add_application_to_queues
-from application_form.services.reservation import create_reservation
+from application_form.services.reservation import create_reservation_without_application
 from application_form.tests.factories import ApplicationFactory
 from customer.tests.factories import CustomerFactory
 
@@ -165,7 +165,7 @@ def test_removing_application_from_queue_cancels_application_and_decides_new_win
     _distribute_haso_apartments(project_uuid)
 
     # Add third reservation that does not have an application
-    reservation_without_application = create_reservation(
+    reservation_without_application = create_reservation_without_application(
         {
             "apartment_uuid": first_apartment_uuid,
             "customer": CustomerFactory(),

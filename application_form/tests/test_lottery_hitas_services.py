@@ -9,7 +9,7 @@ from application_form.services.application import (
 )
 from application_form.services.lottery.hitas import _distribute_hitas_apartments
 from application_form.services.queue import add_application_to_queues
-from application_form.services.reservation import create_reservation
+from application_form.services.reservation import create_reservation_without_application
 from application_form.tests.factories import ApplicationFactory
 from customer.tests.factories import CustomerFactory
 
@@ -224,7 +224,7 @@ def test_canceling_winning_application_marks_next_application_in_queue_as_reserv
     _distribute_hitas_apartments(project_uuid)
 
     # Add third reservation that does not have an application
-    reservation_without_application = create_reservation(
+    reservation_without_application = create_reservation_without_application(
         {
             "apartment_uuid": apartment.uuid,
             "customer": CustomerFactory(),

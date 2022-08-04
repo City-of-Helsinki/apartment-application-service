@@ -65,7 +65,7 @@ def transfer_reservation_to_another_customer(
     return state_change_event
 
 
-def create_reservation(
+def create_reservation_without_application(
     reservation_data: dict, user: User = None
 ) -> ApartmentReservation:
     with lock_table(ApartmentReservation):
