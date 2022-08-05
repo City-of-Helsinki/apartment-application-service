@@ -103,7 +103,7 @@ class ApartmentReservation(models.Model):
     )
     # Metadata fields
     handler = CharPGPPublicKeyField(
-        verbose_name=_("handler"), max_length=200, blank=True, null=True
+        verbose_name=_("handler"), max_length=200, blank=True
     )
 
     objects = ApartmentReservationQuerySet.as_manager()
