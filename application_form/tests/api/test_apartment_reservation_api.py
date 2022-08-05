@@ -54,7 +54,7 @@ def test_root_apartment_reservation_detail_unauthorized(
 
 @pytest.mark.django_db
 def test_root_apartment_reservation_detail(
-    salesperson_api_client, elastic_project_with_5_apartments
+    drupal_salesperson_api_client, elastic_project_with_5_apartments
 ):
     _, apartments = elastic_project_with_5_apartments
     reservation = ApartmentReservationFactory(
@@ -63,7 +63,7 @@ def test_root_apartment_reservation_detail(
     installment = ApartmentInstallmentFactory(apartment_reservation=reservation)
     offer = OfferFactory(apartment_reservation=reservation)
 
-    response = salesperson_api_client.get(
+    response = drupal_salesperson_api_client.get(
         reverse(
             "application_form:sales-apartment-reservation-detail",
             kwargs={"pk": reservation.id},
@@ -110,7 +110,7 @@ def test_root_apartment_reservation_detail(
 
 @pytest.mark.django_db
 def test_root_apartment_reservation_detail_installment_candidates(
-    salesperson_api_client,
+    drupal_salesperson_api_client,
 ):
     apartment = ApartmentDocumentFactory(
         sales_price=12345678, debt_free_sales_price=9876543  # 123456,78e and 98765,43e
@@ -157,7 +157,7 @@ def test_root_apartment_reservation_detail_installment_candidates(
         due_date=None,
     )
 
-    response = salesperson_api_client.get(
+    response = drupal_salesperson_api_client.get(
         reverse(
             "application_form:sales-apartment-reservation-detail",
             kwargs={"pk": reservation.id},
@@ -218,7 +218,7 @@ def test_contract_pdf_creation_unauthorized(user_api_client):
 @pytest.mark.parametrize("ownership_type", ("HASO", "Hitas"))
 @pytest.mark.django_db
 def test_contract_pdf_creation(
-    salesperson_api_client, ownership_type, reservation_has_application
+    drupal_salesperson_api_client, ownership_type, reservation_has_application
 ):
     apartment = ApartmentDocumentFactory(project_ownership_type=ownership_type)
 
@@ -229,7 +229,7 @@ def test_contract_pdf_creation(
             apartment_uuid=apartment.uuid, application_apartment=None
         )
 
-    response = salesperson_api_client.get(
+    response = drupal_salesperson_api_client.get(
         reverse(
             "application_form:sales-apartment-reservation-contract",
             kwargs={"pk": reservation.id},
@@ -269,14 +269,14 @@ def test_apartment_reservation_set_state_unauthorized(user_api_client):
 
 @pytest.mark.parametrize("comment", ("Foo", ""))
 @pytest.mark.django_db
-def test_apartment_reservation_set_state(salesperson_api_client, comment):
+def test_apartment_reservation_set_state(drupal_salesperson_api_client, comment):
     apartment = ApartmentDocumentFactory()
     reservation = ApartmentReservationFactory(
         apartment_uuid=apartment.uuid, state=ApartmentReservationState.SUBMITTED
     )
 
     data = {"state": "reserved", "comment": comment}
-    response = salesperson_api_client.post(
+    response = drupal_salesperson_api_client.post(
         reverse(
             "application_form:sales-apartment-reservation-set-state",
             kwargs={"pk": reservation.id},
@@ -288,7 +288,7 @@ def test_apartment_reservation_set_state(salesperson_api_client, comment):
 
     assert response.data.pop("timestamp")
 
-    user = salesperson_api_client.user
+    user = drupal_salesperson_api_client.user
     assert response.data == {
         "state": "reserved",
         "comment": comment,
@@ -306,7 +306,7 @@ def test_apartment_reservation_set_state(salesperson_api_client, comment):
     assert state_change_event.timestamp
     assert state_change_event.state == ApartmentReservationState.RESERVED
     assert state_change_event.comment == comment
-    assert state_change_event.user == salesperson_api_client.user
+    assert state_change_event.user == drupal_salesperson_api_client.user
 
 
 @pytest.mark.django_db
@@ -330,14 +330,14 @@ def test_apartment_reservation_canceling_unauthorized(user_api_client):
 
 @pytest.mark.parametrize("ownership_type", ("Haso", "Puolihitas", "Hitas"))
 @pytest.mark.django_db
-def test_apartment_reservation_canceling(salesperson_api_client, ownership_type):
+def test_apartment_reservation_canceling(drupal_salesperson_api_client, ownership_type):
     apartment = ApartmentDocumentFactory(project_ownership_type=ownership_type)
     reservation = ApartmentReservationFactory(
         apartment_uuid=apartment.uuid, state=ApartmentReservationState.SUBMITTED
     )
 
     data = {"cancellation_reason": "terminated", "comment": "Foo"}
-    response = salesperson_api_client.post(
+    response = drupal_salesperson_api_client.post(
         reverse(
             "application_form:sales-apartment-reservation-cancel",
             kwargs={"pk": reservation.id},
@@ -360,11 +360,13 @@ def test_apartment_reservation_canceling(salesperson_api_client, ownership_type)
     assert state_change_event.timestamp
     assert state_change_event.state == ApartmentReservationState.CANCELED
     assert state_change_event.cancellation_reason
-    assert state_change_event.user == salesperson_api_client.user
+    assert state_change_event.user == drupal_salesperson_api_client.user
 
 
 @pytest.mark.django_db
-def test_cannot_cancel_already_canceled_apartment_reservation(salesperson_api_client):
+def test_cannot_cancel_already_canceled_apartment_reservation(
+    drupal_salesperson_api_client,
+):
     apartment = ApartmentDocumentFactory()
     reservation = ApartmentReservationFactory(
         apartment_uuid=apartment.uuid,
@@ -373,7 +375,7 @@ def test_cannot_cancel_already_canceled_apartment_reservation(salesperson_api_cl
     )
 
     data = {"cancellation_reason": "terminated", "comment": "Foo"}
-    response = salesperson_api_client.post(
+    response = drupal_salesperson_api_client.post(
         reverse(
             "application_form:sales-apartment-reservation-cancel",
             kwargs={"pk": reservation.id},
@@ -386,14 +388,16 @@ def test_cannot_cancel_already_canceled_apartment_reservation(salesperson_api_cl
 
 
 @pytest.mark.django_db
-def test_apartment_reservation_cancellation_reason_validation(salesperson_api_client):
+def test_apartment_reservation_cancellation_reason_validation(
+    drupal_salesperson_api_client,
+):
     apartment = ApartmentDocumentFactory()
     reservation = ApartmentReservationFactory(
         apartment_uuid=apartment.uuid, state=ApartmentReservationState.SUBMITTED
     )
 
     data = {"comment": "Foo"}
-    response = salesperson_api_client.post(
+    response = drupal_salesperson_api_client.post(
         reverse(
             "application_form:sales-apartment-reservation-cancel",
             kwargs={"pk": reservation.id},
@@ -407,7 +411,7 @@ def test_apartment_reservation_cancellation_reason_validation(salesperson_api_cl
 
 @pytest.mark.django_db
 def test_apartment_reservation_hide_queue_position(
-    salesperson_api_client, elastic_hitas_project_with_5_apartments
+    drupal_salesperson_api_client, elastic_hitas_project_with_5_apartments
 ):
     project_uuid, apartments = elastic_hitas_project_with_5_apartments
     first_apartment_uuid = apartments[0].uuid
@@ -417,7 +421,7 @@ def test_apartment_reservation_hide_queue_position(
     )
     add_application_to_queues(app)
 
-    response = salesperson_api_client.get(
+    response = drupal_salesperson_api_client.get(
         reverse(
             "application_form:sales-apartment-reservation-detail",
             kwargs={"pk": app_apartment.apartment_reservation.id},
@@ -430,7 +434,7 @@ def test_apartment_reservation_hide_queue_position(
 
     distribute_apartments(project_uuid)
 
-    response = salesperson_api_client.get(
+    response = drupal_salesperson_api_client.get(
         reverse(
             "application_form:sales-apartment-reservation-detail",
             kwargs={"pk": app_apartment.apartment_reservation.id},
@@ -443,7 +447,7 @@ def test_apartment_reservation_hide_queue_position(
 
 
 @pytest.mark.django_db
-def test_transfer_reservation_to_another_customer(salesperson_api_client):
+def test_transfer_reservation_to_another_customer(drupal_salesperson_api_client):
     apartment = ApartmentDocumentFactory()
     customer = CustomerFactory()
     another_customer = CustomerFactory()
@@ -476,7 +480,7 @@ def test_transfer_reservation_to_another_customer(salesperson_api_client):
         customer=customer,
     )
 
-    response = salesperson_api_client.post(
+    response = drupal_salesperson_api_client.post(
         reverse(
             "application_form:sales-apartment-reservation-cancel",
             kwargs={"pk": reservation_2.id},
@@ -534,7 +538,9 @@ def test_transfer_reservation_to_another_customer(salesperson_api_client):
 
 
 @pytest.mark.django_db
-def test_transferring_apartment_reservation_requires_customer(salesperson_api_client):
+def test_transferring_apartment_reservation_requires_customer(
+    drupal_salesperson_api_client,
+):
     apartment = ApartmentDocumentFactory()
     reservation = ApartmentReservationFactory(
         apartment_uuid=apartment.uuid,
@@ -542,7 +548,7 @@ def test_transferring_apartment_reservation_requires_customer(salesperson_api_cl
     )
 
     data = {"cancellation_reason": "transferred", "comment": "Foo"}
-    response = salesperson_api_client.post(
+    response = drupal_salesperson_api_client.post(
         reverse(
             "application_form:sales-apartment-reservation-cancel",
             kwargs={"pk": reservation.id},
@@ -578,7 +584,7 @@ def test_create_reservation_unauthorized(user_api_client):
 
 @pytest.mark.parametrize("include_read_only_fields", (False, True))
 @pytest.mark.django_db
-def test_create_reservation(salesperson_api_client, include_read_only_fields):
+def test_create_reservation(drupal_salesperson_api_client, include_read_only_fields):
     apartment = ApartmentDocumentFactory()
     customer = CustomerFactory(
         right_of_residence=777,
@@ -609,7 +615,7 @@ def test_create_reservation(salesperson_api_client, include_read_only_fields):
             }
         )
 
-    response = salesperson_api_client.post(
+    response = drupal_salesperson_api_client.post(
         reverse(
             "application_form:sales-apartment-reservation-list",
         ),
@@ -651,11 +657,11 @@ def test_create_reservation(salesperson_api_client, include_read_only_fields):
     state_change_event = reservation.state_change_events.first()
     assert state_change_event.state == ApartmentReservationState.RESERVED
     assert state_change_event.timestamp
-    assert state_change_event.user == salesperson_api_client.user
+    assert state_change_event.user == drupal_salesperson_api_client.user
 
 
 @pytest.mark.django_db
-def test_create_reservation_lottery_not_executed(salesperson_api_client):
+def test_create_reservation_lottery_not_executed(drupal_salesperson_api_client):
     apartment = ApartmentDocumentFactory()
     customer = CustomerFactory()
 
@@ -664,7 +670,7 @@ def test_create_reservation_lottery_not_executed(salesperson_api_client):
         "customer_id": customer.id,
     }
 
-    response = salesperson_api_client.post(
+    response = drupal_salesperson_api_client.post(
         reverse(
             "application_form:sales-apartment-reservation-list",
         ),
@@ -677,7 +683,9 @@ def test_create_reservation_lottery_not_executed(salesperson_api_client):
 
 
 @pytest.mark.django_db
-def test_create_reservation_lottery_non_existing_apartment(salesperson_api_client):
+def test_create_reservation_lottery_non_existing_apartment(
+    drupal_salesperson_api_client,
+):
     apartment = ApartmentDocumentFactory()
     customer = CustomerFactory()
     LotteryEvent.objects.create(apartment_uuid=apartment.uuid)
@@ -687,7 +695,7 @@ def test_create_reservation_lottery_non_existing_apartment(salesperson_api_clien
         "customer_id": customer.id,
     }
 
-    response = salesperson_api_client.post(
+    response = drupal_salesperson_api_client.post(
         reverse(
             "application_form:sales-apartment-reservation-list",
         ),
@@ -701,7 +709,7 @@ def test_create_reservation_lottery_non_existing_apartment(salesperson_api_clien
 
 @pytest.mark.django_db
 def test_create_reservation_queue_already_has_canceled_reservation(
-    salesperson_api_client,
+    drupal_salesperson_api_client,
 ):
     apartment = ApartmentDocumentFactory()
     customer = CustomerFactory()
@@ -718,7 +726,7 @@ def test_create_reservation_queue_already_has_canceled_reservation(
         "customer_id": customer.id,
     }
 
-    response = salesperson_api_client.post(
+    response = drupal_salesperson_api_client.post(
         reverse(
             "application_form:sales-apartment-reservation-list",
         ),
@@ -733,7 +741,7 @@ def test_create_reservation_queue_already_has_canceled_reservation(
 
 @pytest.mark.django_db
 def test_create_reservation_queue_already_has_reserved_reservation(
-    salesperson_api_client,
+    drupal_salesperson_api_client,
 ):
     apartment = ApartmentDocumentFactory()
     customer = CustomerFactory()
@@ -750,7 +758,7 @@ def test_create_reservation_queue_already_has_reserved_reservation(
         "customer_id": customer.id,
     }
 
-    response = salesperson_api_client.post(
+    response = drupal_salesperson_api_client.post(
         reverse(
             "application_form:sales-apartment-reservation-list",
         ),
@@ -782,7 +790,7 @@ def test_get_offer_message_unauthorized(user_api_client):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("ownership_type", ["puolihitas", "hitas", "haso"])
-def test_get_offer_message(salesperson_api_client, ownership_type):
+def test_get_offer_message(drupal_salesperson_api_client, ownership_type):
     apartment = ApartmentDocumentFactory(
         apartment_number="A1",
         apartment_structure="5h+k",
@@ -819,7 +827,7 @@ def test_get_offer_message(salesperson_api_client, ownership_type):
         "application_form:sales-apartment-reservation-offer-message",
         kwargs={"pk": reservation.id},
     ) + ("?valid_until=2022-03-04" if ownership_type == "haso" else "")
-    response = salesperson_api_client.get(url)
+    response = drupal_salesperson_api_client.get(url)
     assert response.status_code == 200
 
     expected_subject = "Tarjous As Oy Pojanlohi A1"
@@ -891,7 +899,7 @@ content
     )
     reservation.customer.save()
 
-    response = salesperson_api_client.get(url)
+    response = drupal_salesperson_api_client.get(url)
     assert response.status_code == 200
 
     expected_data["recipients"].append(
@@ -902,7 +910,7 @@ content
 
 @pytest.mark.django_db
 def test_salesperson_create_reservation_generate_metadata(
-    salesperson_api_client_without_profile,
+    sales_ui_salesperson_api_client,
 ):
     apartment = ApartmentDocumentFactory()
     customer = CustomerFactory(
@@ -919,7 +927,7 @@ def test_salesperson_create_reservation_generate_metadata(
         "customer_id": customer.id,
     }
 
-    response = salesperson_api_client_without_profile.post(
+    response = sales_ui_salesperson_api_client.post(
         reverse(
             "application_form:sales-apartment-reservation-list",
         ),
@@ -930,5 +938,5 @@ def test_salesperson_create_reservation_generate_metadata(
     assert response.status_code == 201
     assert (reservation_id := response.data.pop("id"))
     reservation = ApartmentReservation.objects.get(id=reservation_id)
-    user = salesperson_api_client_without_profile.user
+    user = sales_ui_salesperson_api_client.user
     assert reservation.handler == f"{user.first_name} {user.last_name}"

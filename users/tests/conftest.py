@@ -63,10 +63,11 @@ def user_api_client():
 
 
 @pytest.fixture
-def salesperson_api_client():
+def drupal_salesperson_api_client():
     user = UserFactory()
     api_client = APIClient()
     api_client.force_authenticate(user)
+    # Drupal salespersons have a profile contrary to sales UI salespersons
     ProfileFactory(user=user)
     api_client.user = user
     Group.objects.get(name__iexact=Roles.SALESPERSON.name).user_set.add(user)
@@ -74,7 +75,7 @@ def salesperson_api_client():
 
 
 @pytest.fixture
-def salesperson_api_client_without_profile():
+def sales_ui_salesperson_api_client():
     user = UserFactory()
     api_client = APIClient()
     api_client.force_authenticate(user)
