@@ -44,7 +44,7 @@ public_urlpatterns = [
 
 urlpatterns = [
     path(
-        r"sales/execute_lottery_for_project",
+        r"sales/execute_lottery_for_project/",
         execute_lottery_for_project,
         name="execute_lottery_for_project",
     ),
