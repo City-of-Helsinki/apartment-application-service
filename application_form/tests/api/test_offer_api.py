@@ -199,7 +199,10 @@ def test_update_offer_change_state(salesperson_api_client, new_state):
         valid_until=timezone.localdate() + timedelta(days=1),
     )
     second_reservation = ApartmentReservationFactory(
-        apartment_uuid=apartment.uuid, list_position=2, queue_position=2
+        apartment_uuid=apartment.uuid,
+        list_position=2,
+        queue_position=2,
+        state=ApartmentReservationState.SUBMITTED,
     )
 
     data = {"state": new_state}
