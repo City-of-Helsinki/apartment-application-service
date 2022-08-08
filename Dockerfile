@@ -47,7 +47,7 @@ EXPOSE 8081/tcp
 FROM appbase as production
 # ==============================
 
-COPY --from=staticbuilder --chown=appuser:appuser /app/static /app/static
+COPY --from=staticbuilder --chown=1001:1001 /app/static /app/static
 COPY --chown=1001:1001 . /app/
 
 USER 1001
