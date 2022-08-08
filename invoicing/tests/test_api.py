@@ -31,7 +31,7 @@ def reservation_with_installments():
             "account_number": "123123123-123",
             "due_date": "2022-02-19",
             "reference_number": "REFERENCE-123",
-        }
+        },
     )
     ApartmentInstallmentFactory(
         apartment_reservation=reservation,
@@ -40,18 +40,18 @@ def reservation_with_installments():
             "value": "100.55",
             "account_number": "123123123-123",
             "reference_number": "REFERENCE-321",
-        }
+        },
     )
     return reservation
 
 
 @pytest.mark.django_db
 def test_project_list_does_not_include_installments(
-    apartment_document, salesperson_api_client
+    apartment_document, drupal_salesperson_api_client
 ):
     ProjectInstallmentTemplateFactory()
 
-    response = salesperson_api_client.get(
+    response = drupal_salesperson_api_client.get(
         reverse("apartment:project-list"), format="json"
     )
     assert response.status_code == 200
@@ -79,7 +79,7 @@ def test_project_detail_installments_field_and_endpoint_data_unauthorized(
             "percentage_specifier": InstallmentPercentageSpecifier.SALES_PRICE,
             "account_number": "123123123-123",
             "due_date": "2022-02-19",
-        }
+        },
     )
     ProjectInstallmentTemplateFactory(
         project_uuid=project_uuid,
@@ -89,7 +89,7 @@ def test_project_detail_installments_field_and_endpoint_data_unauthorized(
             "unit": InstallmentUnit.EURO,
             "account_number": "123123123-123",
             "due_date": None,
-        }
+        },
     )
 
     if target == "field":
@@ -114,7 +114,7 @@ def test_project_detail_installments_field_and_endpoint_data_unauthorized(
     ],
 )
 def test_project_detail_installments_field_and_installments_endpoint_data(
-    apartment_document, salesperson_api_client, target
+    apartment_document, drupal_salesperson_api_client, target
 ):
     project_uuid = apartment_document.project_uuid
     ProjectInstallmentTemplateFactory(
@@ -126,7 +126,7 @@ def test_project_detail_installments_field_and_installments_endpoint_data(
             "percentage_specifier": InstallmentPercentageSpecifier.SALES_PRICE,
             "account_number": "123123123-123",
             "due_date": "2022-02-19",
-        }
+        },
     )
     ProjectInstallmentTemplateFactory(
         project_uuid=project_uuid,
@@ -136,7 +136,7 @@ def test_project_detail_installments_field_and_installments_endpoint_data(
             "unit": InstallmentUnit.EURO,
             "account_number": "123123123-123",
             "due_date": None,
-        }
+        },
     )
 
     if target == "field":
@@ -147,7 +147,7 @@ def test_project_detail_installments_field_and_installments_endpoint_data(
             kwargs={"project_uuid": project_uuid},
         )
 
-    response = salesperson_api_client.get(url, format="json")
+    response = drupal_salesperson_api_client.get(url, format="json")
     assert response.status_code == 200
 
     if target == "field":
@@ -205,7 +205,7 @@ def test_set_project_installments_unauthorized(apartment_document, user_api_clie
 @pytest.mark.parametrize("has_old_installments", (False, True))
 @pytest.mark.django_db
 def test_set_project_installments(
-    apartment_document, salesperson_api_client, has_old_installments
+    apartment_document, drupal_salesperson_api_client, has_old_installments
 ):
     project_uuid = apartment_document.project_uuid
     data = [
@@ -234,7 +234,7 @@ def test_set_project_installments(
         ProjectInstallmentTemplate.objects.count() == 3 if has_old_installments else 1
     )
 
-    response = salesperson_api_client.post(
+    response = drupal_salesperson_api_client.post(
         reverse(
             "apartment:project-installment-template-list",
             kwargs={"project_uuid": project_uuid},
@@ -275,7 +275,7 @@ def test_set_project_installments(
 
 @pytest.mark.django_db
 def test_set_project_installments_percentage_specifier_required_for_percentages(
-    apartment_document, salesperson_api_client
+    apartment_document, drupal_salesperson_api_client
 ):
     project_uuid = apartment_document.project_uuid
     data = [
@@ -287,7 +287,7 @@ def test_set_project_installments_percentage_specifier_required_for_percentages(
         }
     ]
 
-    response = salesperson_api_client.post(
+    response = drupal_salesperson_api_client.post(
         reverse(
             "apartment:project-installment-template-list",
             kwargs={"project_uuid": project_uuid},
@@ -335,12 +335,12 @@ def test_set_project_installments_percentage_specifier_required_for_percentages(
     ],
 )
 def test_set_project_installments_errors(
-    apartment_document, salesperson_api_client, input, expected_error
+    apartment_document, drupal_salesperson_api_client, input, expected_error
 ):
     project_uuid = apartment_document.project_uuid
     data = [input]
 
-    response = salesperson_api_client.post(
+    response = drupal_salesperson_api_client.post(
         reverse(
             "apartment:project-installment-template-list",
             kwargs={"project_uuid": project_uuid},
@@ -365,7 +365,7 @@ def test_apartment_installments_endpoint_unauthorized(
             "account_number": "123123123-123",
             "due_date": "2022-02-19",
             "reference_number": "REFERENCE-123",
-        }
+        },
     )
     ApartmentInstallmentFactory(
         apartment_reservation=reservation,
@@ -375,7 +375,7 @@ def test_apartment_installments_endpoint_unauthorized(
             "account_number": "123123123-123",
             "due_date": None,
             "reference_number": "REFERENCE-321",
-        }
+        },
     )
 
     url = reverse(
@@ -389,7 +389,7 @@ def test_apartment_installments_endpoint_unauthorized(
 
 @pytest.mark.django_db
 def test_apartment_installments_endpoint_data(
-    apartment_document, salesperson_api_client
+    apartment_document, drupal_salesperson_api_client
 ):
     reservation = ApartmentReservationFactory()
     ApartmentInstallmentFactory(
@@ -400,7 +400,7 @@ def test_apartment_installments_endpoint_data(
             "account_number": "123123123-123",
             "due_date": "2022-02-19",
             "reference_number": "REFERENCE-123",
-        }
+        },
     )
     ApartmentInstallmentFactory(
         apartment_reservation=reservation,
@@ -410,14 +410,14 @@ def test_apartment_installments_endpoint_data(
             "account_number": "123123123-123",
             "due_date": None,
             "reference_number": "REFERENCE-321",
-        }
+        },
     )
 
     url = reverse(
         "application_form:apartment-installment-list",
         kwargs={"apartment_reservation_id": reservation.id},
     )
-    response = salesperson_api_client.get(url, format="json")
+    response = drupal_salesperson_api_client.get(url, format="json")
 
     assert response.status_code == 200
     assert response.data == [
@@ -442,7 +442,9 @@ def test_apartment_installments_endpoint_data(
 
 @pytest.mark.parametrize("has_old_installments", (False, True))
 @pytest.mark.django_db
-def test_set_apartment_installments(salesperson_api_client, has_old_installments):
+def test_set_apartment_installments(
+    drupal_salesperson_api_client, has_old_installments
+):
     reservation = ApartmentReservationFactory()
 
     data = [
@@ -472,7 +474,7 @@ def test_set_apartment_installments(salesperson_api_client, has_old_installments
 
     assert ApartmentInstallment.objects.count() == 3 if has_old_installments else 1
 
-    response = salesperson_api_client.post(
+    response = drupal_salesperson_api_client.post(
         reverse(
             "application_form:apartment-installment-list",
             kwargs={"apartment_reservation_id": reservation.id},
@@ -513,7 +515,7 @@ def test_set_apartment_installments(salesperson_api_client, has_old_installments
 @pytest.mark.parametrize("reference_number_given", (False, True))
 @pytest.mark.django_db
 def test_apartment_installment_reference_number_populating(
-    salesperson_api_client, reference_number_given
+    drupal_salesperson_api_client, reference_number_given
 ):
     reservation = ApartmentReservationFactory()
 
@@ -529,7 +531,7 @@ def test_apartment_installment_reference_number_populating(
     if reference_number_given:
         data[0]["reference_number"] = "THIS-SHOULD-BE-IGNORED"
 
-    response = salesperson_api_client.post(
+    response = drupal_salesperson_api_client.post(
         reverse(
             "application_form:apartment-installment-list",
             kwargs={"apartment_reservation_id": reservation.id},
@@ -548,7 +550,7 @@ def test_apartment_installment_reference_number_populating(
 @pytest.mark.parametrize("reference_number_given", (False, True))
 @pytest.mark.django_db
 def test_apartment_installment_reference_number_populating_on_update(
-    salesperson_api_client, reference_number_given
+    drupal_salesperson_api_client, reference_number_given
 ):
     original_reference_number = "ORIGINAL-REFERENCE-NUMBER"
     reservation = ApartmentReservationFactory()
@@ -570,7 +572,7 @@ def test_apartment_installment_reference_number_populating_on_update(
     if reference_number_given:
         data[0]["reference_number"] = "THIS-SHOULD-BE-IGNORED"
 
-    response = salesperson_api_client.post(
+    response = drupal_salesperson_api_client.post(
         reverse(
             "application_form:apartment-installment-list",
             kwargs={"apartment_reservation_id": reservation.id},
@@ -599,7 +601,7 @@ def test_apartment_installment_reference_number_populating_on_update(
     if reference_number_given:
         data[0]["reference_number"] = "THIS-SHOULD-BE-IGNORED"
 
-    response = salesperson_api_client.post(
+    response = drupal_salesperson_api_client.post(
         reverse(
             "application_form:apartment-installment-list",
             kwargs={"apartment_reservation_id": reservation.id},
@@ -628,7 +630,7 @@ def test_apartment_installment_reference_number_populating_on_update(
     if reference_number_given:
         data[0]["reference_number"] = "THIS-SHOULD-BE-IGNORED"
 
-    response = salesperson_api_client.post(
+    response = drupal_salesperson_api_client.post(
         reverse(
             "application_form:apartment-installment-list",
             kwargs={"apartment_reservation_id": reservation.id},
@@ -662,9 +664,9 @@ def test_apartment_installment_invoice_pdf_unauthorized(
 
 @pytest.mark.django_db
 def test_apartment_installment_invoice_pdf(
-    salesperson_api_client, reservation_with_installments
+    drupal_salesperson_api_client, reservation_with_installments
 ):
-    response = salesperson_api_client.get(
+    response = drupal_salesperson_api_client.get(
         reverse(
             "application_form:apartment-installment-invoice",
             kwargs={"apartment_reservation_id": reservation_with_installments.id},
@@ -684,14 +686,14 @@ def test_apartment_installment_invoice_pdf(
 
 @pytest.mark.django_db
 def test_apartment_installment_invoice_pdf_filtering(
-    salesperson_api_client, reservation_with_installments
+    drupal_salesperson_api_client, reservation_with_installments
 ):
     base_url = reverse(
         "application_form:apartment-installment-invoice",
         kwargs={"apartment_reservation_id": reservation_with_installments.id},
     )
 
-    response = salesperson_api_client.get(
+    response = drupal_salesperson_api_client.get(
         base_url + "?types=PAYMENT_1",
         format="json",
     )
@@ -700,7 +702,7 @@ def test_apartment_installment_invoice_pdf_filtering(
     assert response.content
     one_installment_invoice = response.content
 
-    response = salesperson_api_client.get(
+    response = drupal_salesperson_api_client.get(
         base_url + "?types=PAYMENT_1,REFUND",
         format="json",
     )
@@ -715,14 +717,14 @@ def test_apartment_installment_invoice_pdf_filtering(
 @pytest.mark.parametrize("types_param", ("PAYMENT_5", "xxx"))
 @pytest.mark.django_db
 def test_apartment_installment_invoice_pdf_filtering_errors(
-    salesperson_api_client, reservation_with_installments, types_param
+    drupal_salesperson_api_client, reservation_with_installments, types_param
 ):
     base_url = reverse(
         "application_form:apartment-installment-invoice",
         kwargs={"apartment_reservation_id": reservation_with_installments.id},
     )
 
-    response = salesperson_api_client.get(
+    response = drupal_salesperson_api_client.get(
         base_url + "?types={types_param}",
         format="json",
     )
@@ -748,14 +750,14 @@ def test_add_installments_to_be_sent_to_sap_at_unauthorized(
 
 @pytest.mark.django_db
 def test_add_installments_to_be_sent_to_sap_at(
-    salesperson_api_client, reservation_with_installments
+    drupal_salesperson_api_client, reservation_with_installments
 ):
     base_url = reverse(
         "application_form:apartment-installment-add-to-be-sent-to-sap",
         kwargs={"apartment_reservation_id": reservation_with_installments.id},
     )
 
-    response = salesperson_api_client.post(
+    response = drupal_salesperson_api_client.post(
         base_url + "?types=PAYMENT_1",
         format="json",
     )
@@ -784,20 +786,20 @@ def test_add_installments_to_be_sent_to_sap_at(
 
 @pytest.mark.django_db
 def test_add_installments_to_be_sent_to_sap_at_already_added(
-    salesperson_api_client, reservation_with_installments
+    drupal_salesperson_api_client, reservation_with_installments
 ):
     base_url = reverse(
         "application_form:apartment-installment-add-to-be-sent-to-sap",
         kwargs={"apartment_reservation_id": reservation_with_installments.id},
     )
 
-    response = salesperson_api_client.post(
+    response = drupal_salesperson_api_client.post(
         base_url + "?types=PAYMENT_1",
         format="json",
     )
     assert response.status_code == 200
 
-    response = salesperson_api_client.post(
+    response = drupal_salesperson_api_client.post(
         base_url + "?types=PAYMENT_1",
         format="json",
     )
@@ -806,7 +808,9 @@ def test_add_installments_to_be_sent_to_sap_at_already_added(
 
 
 @pytest.mark.django_db
-def test_set_apartment_installments_generate_metadata(salesperson_api_client):
+def test_set_apartment_installments_generate_metadata(
+    sales_ui_salesperson_api_client,
+):
     reservation = ApartmentReservationFactory()
 
     data = [
@@ -828,7 +832,7 @@ def test_set_apartment_installments_generate_metadata(salesperson_api_client):
         },
     ]
 
-    response = salesperson_api_client.post(
+    response = sales_ui_salesperson_api_client.post(
         reverse(
             "application_form:apartment-installment-list",
             kwargs={"apartment_reservation_id": reservation.id},
@@ -839,5 +843,7 @@ def test_set_apartment_installments_generate_metadata(salesperson_api_client):
     assert response.status_code == 201
     installments = ApartmentInstallment.objects.all()
     assert len(installments) == 2
-    assert installments[0].handler == salesperson_api_client.user.profile.full_name
-    assert installments[1].handler == salesperson_api_client.user.profile.full_name
+    user = sales_ui_salesperson_api_client.user
+    expected_handler = f"{user.first_name} {user.last_name}".strip()
+    assert installments[0].handler == expected_handler
+    assert installments[1].handler == expected_handler

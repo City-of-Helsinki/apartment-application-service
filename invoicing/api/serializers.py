@@ -203,8 +203,8 @@ class ApartmentInstallmentSerializer(ApartmentInstallmentSerializerBase):
             user = getattr(request, "user", None)
         else:
             user = None
-        if user and user.profile:
-            validated_data["handler"] = user.profile.full_name
+        if user:
+            validated_data["handler"] = user.full_name
         if old_instance := self.context["old_instances"].get(validated_data["type"]):
             validated_data["reference_number"] = old_instance.reference_number
             validated_data[

@@ -17,7 +17,7 @@ from application_form.api.serializers import (
 from application_form.enums import ApartmentReservationState, ApplicationArrivalMethod
 from application_form.models import ApartmentReservation, Applicant, LotteryEvent, Offer
 from application_form.services.offer import create_offer, update_offer
-from application_form.services.reservation import create_reservation
+from application_form.services.reservation import create_reservation_without_application
 from customer.models import Customer
 from invoicing.api.serializers import (
     ApartmentInstallmentCandidateSerializer,
@@ -184,7 +184,9 @@ class RootApartmentReservationSerializer(ApartmentReservationSerializerBase):
         return value
 
     def create(self, validated_data):
-        return create_reservation(validated_data, user=self.context["request"].user)
+        return create_reservation_without_application(
+            validated_data, user=self.context["request"].user
+        )
 
 
 class OfferSerializer(EnumSupportSerializerMixin, serializers.ModelSerializer):

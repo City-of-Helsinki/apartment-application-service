@@ -65,7 +65,7 @@ def transfer_reservation_to_another_customer(
     return state_change_event
 
 
-def create_reservation(
+def create_reservation_without_application(
     reservation_data: dict, user: User = None
 ) -> ApartmentReservation:
     with lock_table(ApartmentReservation):
@@ -85,8 +85,8 @@ def create_reservation(
             state=ApartmentReservationState.CANCELED
         ).aggregate(max_queue_position=Max("queue_position"))["max_queue_position"]
 
-        if user and user.profile:
-            reservation_data["handler"] = user.profile.full_name
+        if user:
+            reservation_data["handler"] = user.full_name
 
         reservation = ApartmentReservation(
             **reservation_data,

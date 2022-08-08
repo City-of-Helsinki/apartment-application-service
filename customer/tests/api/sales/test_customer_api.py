@@ -38,7 +38,7 @@ def test_get_customer_api_detail_unauthorized(user_api_client):
 
 
 @pytest.mark.django_db
-def test_get_customer_api_detail(salesperson_api_client):
+def test_get_customer_api_detail(drupal_salesperson_api_client):
     apartment = ApartmentDocumentFactory(
         sales_price=2000,
         debt_free_sales_price=1500,
@@ -57,7 +57,7 @@ def test_get_customer_api_detail(salesperson_api_client):
         apartment_reservation=reservation, value=100
     )
 
-    response = salesperson_api_client.get(
+    response = drupal_salesperson_api_client.get(
         reverse("customer:sales-customer-detail", args=(customer.pk,)),
         format="json",
     )
@@ -129,7 +129,7 @@ def test_get_customer_api_detail(salesperson_api_client):
 
 
 @pytest.mark.django_db
-def test_customer_detail_state_event_cancellation_reason(salesperson_api_client):
+def test_customer_detail_state_event_cancellation_reason(drupal_salesperson_api_client):
     apartment = ApartmentDocumentFactory(
         sales_price=2000,
         debt_free_sales_price=1500,
@@ -145,7 +145,7 @@ def test_customer_detail_state_event_cancellation_reason(salesperson_api_client)
         cancellation_reason=ApartmentReservationCancellationReason.CANCELED,
     )
 
-    response = salesperson_api_client.get(
+    response = drupal_salesperson_api_client.get(
         reverse("customer:sales-customer-detail", args=(customer.pk,)),
         format="json",
     )
@@ -159,7 +159,7 @@ def test_customer_detail_state_event_cancellation_reason(salesperson_api_client)
 
 
 @pytest.mark.django_db
-def test_customer_detail_state_event_changed_by(salesperson_api_client):
+def test_customer_detail_state_event_changed_by(drupal_salesperson_api_client):
     apartment = ApartmentDocumentFactory(
         sales_price=2000,
         debt_free_sales_price=1500,
@@ -179,7 +179,7 @@ def test_customer_detail_state_event_changed_by(salesperson_api_client):
         user=user,
     )
 
-    response = salesperson_api_client.get(
+    response = drupal_salesperson_api_client.get(
         reverse("customer:sales-customer-detail", args=(customer.pk,)),
         format="json",
     )
@@ -195,13 +195,13 @@ def test_customer_detail_state_event_changed_by(salesperson_api_client):
 
 
 @pytest.mark.django_db
-def test_get_customer_api_list_without_any_parameters(salesperson_api_client):
+def test_get_customer_api_list_without_any_parameters(drupal_salesperson_api_client):
     CustomerFactory(secondary_profile=None)
     CustomerFactory(secondary_profile=ProfileFactory())
 
     expected_data = []
 
-    response = salesperson_api_client.get(
+    response = drupal_salesperson_api_client.get(
         reverse("customer:sales-customer-list"), format="json"
     )
 
@@ -211,9 +211,7 @@ def test_get_customer_api_list_without_any_parameters(salesperson_api_client):
 
 @pytest.mark.parametrize("with_secondary_profile", (False, True))
 @pytest.mark.django_db
-def test_create_customer(
-    salesperson_api_client_without_profile, with_secondary_profile
-):
+def test_create_customer(sales_ui_salesperson_api_client, with_secondary_profile):
     data = {
         "additional_information": "",
         "has_children": False,
@@ -252,7 +250,7 @@ def test_create_customer(
     else:
         data["secondary_profile"] = None
 
-    response = salesperson_api_client_without_profile.post(
+    response = sales_ui_salesperson_api_client.post(
         reverse("customer:sales-customer-list"), data=data, format="json"
     )
     assert response.status_code == status.HTTP_201_CREATED, response.data
@@ -267,7 +265,7 @@ def test_create_customer(
 @pytest.mark.parametrize("updated_with_secondary_profile", (False, True))
 @pytest.mark.django_db
 def test_update_customer(
-    salesperson_api_client_without_profile,
+    sales_ui_salesperson_api_client,
     has_secondary_profile,
     updated_with_secondary_profile,
 ):
@@ -314,7 +312,7 @@ def test_update_customer(
     else:
         data["secondary_profile"] = None
 
-    response = salesperson_api_client_without_profile.put(
+    response = sales_ui_salesperson_api_client.put(
         reverse("customer:sales-customer-detail", kwargs={"pk": customer.pk}),
         data=data,
         format="json",
@@ -334,7 +332,7 @@ def test_update_customer(
 
 
 @pytest.mark.django_db
-def test_get_customer_api_list_with_parameters(salesperson_api_client):
+def test_get_customer_api_list_with_parameters(drupal_salesperson_api_client):
     customers = {}
     customer = CustomerFactory(
         primary_profile__first_name="John",
@@ -351,7 +349,7 @@ def test_get_customer_api_list_with_parameters(salesperson_api_client):
     customers[customer_with_secondary.id] = customer_with_secondary
 
     # Search value is less than min length
-    response = salesperson_api_client.get(
+    response = drupal_salesperson_api_client.get(
         reverse("customer:sales-customer-list"),
         data={
             "last_name": customer.primary_profile.last_name[
@@ -364,7 +362,7 @@ def test_get_customer_api_list_with_parameters(salesperson_api_client):
     assert response.data == []
 
     # Search value's minimum length has reached
-    response = salesperson_api_client.get(
+    response = drupal_salesperson_api_client.get(
         reverse("customer:sales-customer-list"),
         data={
             "last_name": customer.primary_profile.last_name[
@@ -380,7 +378,7 @@ def test_get_customer_api_list_with_parameters(salesperson_api_client):
         assert_customer_list_match_data(customers[item["id"]], item)
 
     # Search value with two params
-    response = salesperson_api_client.get(
+    response = drupal_salesperson_api_client.get(
         reverse("customer:sales-customer-list"),
         data={
             "first_name": customer_with_secondary.primary_profile.first_name[
@@ -400,7 +398,7 @@ def test_get_customer_api_list_with_parameters(salesperson_api_client):
 
 
 @pytest.mark.django_db
-def test_customer_reservation_ordering(salesperson_api_client):
+def test_customer_reservation_ordering(drupal_salesperson_api_client):
     project_uuid = uuid.uuid4()
     apartment_a5 = ApartmentDocumentFactory(
         project_uuid=project_uuid, apartment_number="A5"
@@ -446,7 +444,7 @@ def test_customer_reservation_ordering(salesperson_api_client):
     ]
     reservation_ids = [r.id for r in reservations]
 
-    response = salesperson_api_client.get(
+    response = drupal_salesperson_api_client.get(
         reverse("customer:sales-customer-detail", kwargs={"pk": customer.pk}),
         format="json",
     )
