@@ -37,7 +37,7 @@ RUN pip install --no-cache-dir -r /app/requirements-dev.txt
 
 ENV DEV_SERVER=1
 
-COPY --chown=appuser:appuser . /app/
+COPY --chown=1001:1001 . /app/
 
 USER 1001
 
