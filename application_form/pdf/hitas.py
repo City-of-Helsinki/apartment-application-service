@@ -287,7 +287,7 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         occupant_1=primary_profile.full_name,
         occupant_1_address=(
             (primary_profile.street_address or "")
-            + "\n"
+            + ", "
             + (primary_profile.postal_code or "")
             + " "
             + (primary_profile.city or "")
@@ -298,7 +298,7 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         occupant_2=secondary_profile.full_name,
         occupant_2_address=(
             (secondary_profile.street_address or "")
-            + "\n"
+            + ", "
             + (secondary_profile.postal_code or "")
             + " "
             + (secondary_profile.city or "")
