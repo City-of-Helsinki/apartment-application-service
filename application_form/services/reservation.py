@@ -35,7 +35,7 @@ def transfer_reservation_to_another_customer(
         list_position=old_reservation.list_position + 1,
         state=old_reservation.state,
         customer=customer,
-        handler=user.profile.full_name,
+        handler=user.full_name,
     )
 
     # Shift reservations after the old reservation one step back to make room for the
