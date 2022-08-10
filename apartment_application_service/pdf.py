@@ -2,7 +2,7 @@ import dataclasses
 from datetime import date
 from decimal import Decimal
 from io import BytesIO
-from pikepdf import Pdf, String
+from pikepdf import Name, Pdf, String
 from typing import ClassVar, Dict, Iterable, Union
 
 PDF_TEMPLATE_DIRECTORY = "pdf_templates"
@@ -123,18 +123,17 @@ def _set_pdf_fields(pdf: Pdf, data_dict: DataDict, idx: None) -> None:
                 pdf_value = String(data_dict[field_name])
                 annot.V = pdf_value
                 annot.DV = pdf_value
+                # Required to show the filled fields in almost every MacOS PDF viewer
+                # Source: https://stackoverflow.com/a/63025285
+                annot.AP = ""
             elif annot.FT == "/Btn":  # checkbox
                 if not data_dict[field_name]:
                     continue
-                pdf_value = "True"
+                pdf_value = Name("/Kyllä")
                 annot.AS = pdf_value
                 annot.V = pdf_value
-                annot.DV = pdf_value
             else:
                 raise PDFError(f"Field {field_name} has an unsupported type {annot.FT}")
-            # Required to show the filled fields in almost every MacOS PDF viewer
-            # Source: https://stackoverflow.com/a/63025285
-            annot.AP = ""
 
 
 def _create_pdf(template_file_name: str, data_dict: DataDict, idx=None) -> Pdf:
