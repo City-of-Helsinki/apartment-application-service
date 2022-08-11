@@ -58,8 +58,10 @@ def _validate_project_has_applications(project_uuid: uuid.UUID):
 
 def _validate_project_application_time_has_finished(project_uuid: uuid.UUID):
     project = get_project(project_uuid)
-    if (
-        not project.project_application_end_time
-        or project.project_application_end_time >= timezone.now()
-    ):
+    application_end_time = project.project_application_end_time
+    if not application_end_time:
+        raise ApplicationTimeNotFinishedException()
+    if timezone.is_naive(application_end_time):
+        application_end_time = timezone.make_aware(application_end_time)
+    if application_end_time >= timezone.now():
         raise ApplicationTimeNotFinishedException()
