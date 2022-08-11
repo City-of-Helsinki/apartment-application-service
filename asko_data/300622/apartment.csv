@@ -1,0 +1,49 @@
+﻿Taulun avainkenttä (apartment uuid);Vierasavain Project-tauluun (KohdeID);project_housing_company;apartment_address;project_ownership_type;apartment_state_of_sale;apartment_number;housing_shares;living_area;floor;apartment_structure;sales_price;debt_free_sales_price;loan_share;price_m2;housing_company_fee;financing_fee;financing_fee_m2;maintenance_fee;maintenance_fee_m2;right_of_occupancy_fee;right_of_occupancy_deposit;right_of_occupancy_payment
+745;36;As Oy Helsingin Hitaskohde;Hitaskatu 1  A  1;Hitas;SOLD;A  1;1-670;67;1;3h+kt+s;109 297,13;272 690,00;163 392,87;4 070,00;1 182,41;827,31;12,35;355,10;5,30;;;
+746;36;As Oy Helsingin Hitaskohde;Hitaskatu 1  A  2;Hitas;SOLD;A  2;671-1540;87;1;3-4h+kt+s;141 734,29;354 090,00;212 355,71;4 070,00;1 536,33;1 075,23;12,36;461,10;5,30;;;
+747;36;As Oy Helsingin Hitaskohde;Hitaskatu 1  A  3;Hitas;SOLD;A  3;1541-2210;67;2;3h+kt+s;111 595,98;279 390,00;167 794,02;4 170,00;1 204,70;849,60;12,68;355,10;5,30;;;
+748;36;As Oy Helsingin Hitaskohde;Hitaskatu 1  A  4;Hitas;RESERVED;A  4;2211-3080;87;2;3-4h+kt+s;145 482,99;362 790,00;217 307,01;4 170,00;1 561,40;1 100,30;12,65;461,10;5,30;;;
+749;36;As Oy Helsingin Hitaskohde;Hitaskatu 1  A  5;Hitas;SOLD;A  5;3081-3760;68;2;3h+kt+s;113 695,26;284 240,00;170 544,74;4 180,00;1 223,92;863,52;12,70;360,40;5,30;;;
+750;36;As Oy Helsingin Hitaskohde;Hitaskatu 1  A  6;Hitas;RESERVED;A  6;3761-4755;99,5;2;4h+kt+s;183 177,98;457 700,00;274 522,02;4 600,00;1 917,35;1 390,00;13,97;527,35;5,30;;;
+751;36;As Oy Helsingin Hitaskohde;Hitaskatu 1  A  7;Hitas;RESERVED;A  7;4756-5520;76,5;2;3h+kt+s;127 769,63;319 770,00;192 000,37;4 180,00;1 377,61;972,16;12,71;405,45;5,30;;;
+752;36;As Oy Helsingin Hitaskohde;Hitaskatu 1  A  8;Hitas;RESERVED;A  8;5521-6535;101,5;2;4-5h+kt+s;190 974,95;477 050,00;286 075,05;4 700,00;1 986,44;1 448,49;14,27;537,95;5,30;;;
+753;36;As Oy Helsingin Hitaskohde;Hitaskatu 1  A  9;Hitas;SOLD;A  9;6536-7035;50;2;2h+kt;95 012,62;237 500,00;142 487,38;4 750,00;986,46;721,46;14,43;265,00;5,30;;;
+754;36;As Oy Helsingin Hitaskohde;Hitaskatu 1  A 10;Hitas;SOLD;A 10;7036-7520;48,5;2;2h+kt;92 288,77;230 375,00;138 086,23;4 750,00;956,23;699,18;14,42;257,05;5,30;;;
+755;36;As Oy Helsingin Hitaskohde;Hitaskatu 1  A 11;Hitas;SOLD;A 11;7521-8000;48;2;2h+kt;91 564,21;228 000,00;136 435,79;4 750,00;945,22;690,82;14,39;254,40;5,30;;;
+756;36;As Oy Helsingin Hitaskohde;Hitaskatu 1  A 12;Hitas;SOLD;A 12;8001-8295;29,5;2;1h+kt;65 249,16;163 725,00;98 475,84;5 550,00;654,97;498,62;16,90;156,35;5,30;;;
+757;36;As Oy Helsingin Hitaskohde;Hitaskatu 1  A 13;Hitas;RESERVED;A 13;8296-9140;84,5;2;4h+kt;160 116,93;400 530,00;240 413,07;4 740,00;1 665,14;1 217,29;14,41;447,85;5,30;;;
+758;36;As Oy Helsingin Hitaskohde;Hitaskatu 1  A 14;Hitas;RESERVED;A 14;9141-9810;67;3;3h+kt+s;114 444,97;286 090,00;171 645,03;4 270,00;1 224,20;869,10;12,97;355,10;5,30;;;
+759;36;As Oy Helsingin Hitaskohde;Hitaskatu 1  A 15;Hitas;RESERVED;A 15;9811-10680;87;3;3-4h+kt+s;149 641,11;374 100,00;224 458,89;4 300,00;1 597,61;1 136,51;13,06;461,10;5,30;;;
+760;36;As Oy Helsingin Hitaskohde;Hitaskatu 1  A 16;Hitas;RESERVED;A 16;10681-11360;68;3;3h+kt+s;116 903,96;292 400,00;175 496,04;4 300,00;1 248,99;888,59;13,07;360,40;5,30;;;
+761;36;As Oy Helsingin Hitaskohde;Hitaskatu 1  A 17;Hitas;RESERVED;A 17;11361-12350;99;3;4h+kt+s;186 376,82;465 300,00;278 923,18;4 700,00;1 936,98;1 412,28;14,27;524,70;5,30;;;
+762;36;As Oy Helsingin Hitaskohde;Hitaskatu 1  A 18;Hitas;RESERVED;A 18;12351-13115;76,5;3;3h+kt+s;131 448,18;328 950,00;197 501,82;4 300,00;1 405,47;1 000,02;13,07;405,45;5,30;;;
+763;36;As Oy Helsingin Hitaskohde;Hitaskatu 1  A 19;Hitas;FREE_FOR_RESERVATIONS;A 19;13116-14130;101,5;3;4-5h+kt+s;197 312,35;493 290,00;295 977,65;4 860,00;2 036,58;1 498,63;14,76;537,95;5,30;;;
+764;36;As Oy Helsingin Hitaskohde;Hitaskatu 1  A 20;Hitas;RESERVED;A 20;14131-14630;50;3;2h+kt;99 810,60;250 000,00;150 189,40;5 000,00;1 025,46;760,46;15,21;265,00;5,30;;;
+765;36;As Oy Helsingin Hitaskohde;Hitaskatu 1  A 21;Hitas;RESERVED;A 21;14631-15115;48,5;3;2h+kt;97 261,90;242 500,00;145 238,10;5 000,00;992,44;735,39;15,16;257,05;5,30;;;
+766;36;As Oy Helsingin Hitaskohde;Hitaskatu 1  A 22;Hitas;RESERVED;A 22;15116-15595;48;3;2h+kt;95 862,19;240 000,00;144 137,81;5 000,00;984,22;729,82;15,20;254,40;5,30;;;
+767;36;As Oy Helsingin Hitaskohde;Hitaskatu 1  A 23;Hitas;SOLD;A 23;15596-15890;29,5;3;1h+kt;67 473,59;168 150,00;100 676,41;5 700,00;666,11;509,76;17,28;156,35;5,30;;;
+768;36;As Oy Helsingin Hitaskohde;Hitaskatu 1  A 24;Hitas;RESERVED;A 24;15891-16735;84,5;3;4h+kt;161 001,49;403 065,00;242 063,51;4 770,00;1 673,50;1 225,65;14,50;447,85;5,30;;;
+284;15;HASO Testi;Hasokatu 1  A  1;Haso;RESERVED;A  1;;45;1;tk+alk+s;;;;;;;;;;552,31;500,00;19 640,00
+285;15;HASO Testi;Hasokatu 1  A  2;Haso;RESERVED;A  2;;44;1;tk+alk+s;;;;;;;;;;544,94;500,00;19 378,00
+286;15;HASO Testi;Hasokatu 1  A  3;Haso;SOLD;A  3;;92,5;2;4h+k+s;;;;;;;;;;940,50;500,00;33 444,00
+287;15;HASO Testi;Hasokatu 1  A  4;Haso;SOLD;A  4;;58,5;2;1h+tk+s;;;;;;;;;;685,74;500,00;24 385,00
+288;15;HASO Testi;Hasokatu 1  A  5;Haso;SOLD;A  5;;79,5;2;2h+tk+s;;;;;;;;;;860,20;500,00;30 589,00
+289;15;HASO Testi;Hasokatu 1  A  6;Haso;SOLD;A  6;;92,5;3;4h+k+s;;;;;;;;;;979,33;500,00;34 825,00
+290;15;HASO Testi;Hasokatu 1  A  7;Haso;RESERVED;A  7;;58;3;1h+tk+s;;;;;;;;;;693,44;500,00;24 659,00
+291;15;HASO Testi;Hasokatu 1  A  8;Haso;RESERVED;A  8;;79,5;3;2h+tk+s;;;;;;;;;;877,36;500,00;31 199,00
+292;15;HASO Testi;Hasokatu 1  A  9;Haso;SOLD;A  9;;92,5;4;4h+k+s;;;;;;;;;;989,01;500,00;35 169,00
+293;15;HASO Testi;Hasokatu 1  A 10;Haso;SOLD;A 10;;58;4;1h+tk+s;;;;;;;;;;700,26;500,00;24 901,00
+294;15;HASO Testi;Hasokatu 1  A 11;Haso;SOLD;A 11;;79,5;4;2h+tk+s;;;;;;;;;;886,05;500,00;31 508,00
+295;15;HASO Testi;Hasokatu 1  B 12;Haso;RESERVED;B 12;;65,5;1;1h+tk+s;;;;;;;;;;716,10;500,00;25 465,00
+296;15;HASO Testi;Hasokatu 1  B 13;Haso;RESERVED;B 13;;87;1;3h+kk+s;;;;;;;;;;894,08;500,00;31 793,00
+297;15;HASO Testi;Hasokatu 1  B 14;Haso;FREE_FOR_RESERVATIONS;B 14;;92,5;2;4h+k+s;;;;;;;;;;959,86;500,00;34 133,00
+298;15;HASO Testi;Hasokatu 1  B 15;Haso;RESERVED;B 15;;49,5;2;1h+tk+s;;;;;;;;;;602,58;500,00;21 428,00
+299;15;HASO Testi;Hasokatu 1  B 16;Haso;RESERVED;B 16;;49;2;1h+tk+s;;;;;;;;;;596,42;500,00;21 209,00
+300;15;HASO Testi;Hasokatu 1  B 17;Haso;RESERVED;B 17;;83,5;2;3h+k+s;;;;;;;;;;894,08;500,00;31 793,00
+301;15;HASO Testi;Hasokatu 1  B 18;Haso;RESERVED;B 18;;92;3;4h+k+s;;;;;;;;;;973,94;500,00;34 633,00
+302;15;HASO Testi;Hasokatu 1  B 19;Haso;RESERVED;B 19;;49,5;3;1h+tk+s;;;;;;;;;;614,57;500,00;21 854,00
+303;15;HASO Testi;Hasokatu 1  B 20;Haso;RESERVED;B 20;;49;3;1h+tk+s;;;;;;;;;;608,41;500,00;21 635,00
+304;15;HASO Testi;Hasokatu 1  B 21;Haso;RESERVED;B 21;;83,5;3;3h+k+s;;;;;;;;;;911,90;500,00;32 427,00
+305;15;HASO Testi;Hasokatu 1  B 22;Haso;FREE_FOR_RESERVATIONS;B 22;;92;4;4h+k+s;;;;;;;;;;983,62;500,00;34 978,00
+306;15;HASO Testi;Hasokatu 1  B 23;Haso;RESERVED;B 23;;81;4;3h+kk+s;;;;;;;;;;893,31;500,00;31 766,00
+307;15;HASO Testi;Hasokatu 1  B 24;Haso;FREE_FOR_RESERVATIONS;B 24;;100,5;4;4h+k+s;;;;;;;;;;1 062,93;500,00;37 798,00

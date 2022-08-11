@@ -32,8 +32,7 @@ from customer.models import Customer
 from invoicing.models import ApartmentInstallment, ProjectInstallmentTemplate
 from users.models import Profile
 
-THRESHOLD_DATE = datetime(2022, 6, 30)
-ADDED_TO_SAP_AT = datetime(2022, 4, 1)
+ADDED_TO_SAP_AT = datetime(2022, 1, 1)
 DEFAULT_OFFER_VALID_UNTIL = date(2022, 10, 10)
 DEFAULT_SSN_SUFFIX = "XXXXX"
 DEFAULT_AGE = 1000
@@ -72,7 +71,7 @@ def get_apartment_uuid(asko_id):
 def get_project_uuid(asko_id):
     if asko_id == "36":
         return HITAS_PROJECT_UUID
-    elif asko_id == "15":
+    elif asko_id == "38":
         return HASO_PROJECT_UUID
     else:
         raise Exception(f"Invalid project id {asko_id}")
@@ -131,14 +130,21 @@ class CustomBooleanField(serializers.BooleanField):
 
 class CustomDateField(serializers.DateField):
     def __init__(self, *args, **kwargs):
-        kwargs["input_formats"] = ["%d.%m.%Y"]
+        kwargs["input_formats"] = ["%d.%m.%Y", "%d.%m.%Y %H:%M:%S"]
         super().__init__(*args, **kwargs)
 
 
 class CustomDateTimeField(serializers.DateTimeField):
     def __init__(self, *args, **kwargs):
-        kwargs["input_formats"] = ["%d.%m.%Y"]
+        kwargs["input_formats"] = ["%d.%m.%Y %H:%M:%S"]
         super().__init__(*args, **kwargs)
+
+
+class CustomDecimalField(serializers.DecimalField):
+    def to_internal_value(self, data):
+        if type(data) is str:
+            data = data.replace(" ", "").replace(",", ".").replace("€", "")
+        return super().to_internal_value(data)
 
 
 class CustomPrimaryKeyRelatedField(serializers.PrimaryKeyRelatedField):
@@ -152,6 +158,7 @@ class CustomModelSerializer(EnumSupportSerializerMixin, serializers.ModelSeriali
         self.serializer_field_mapping[models.BooleanField] = CustomBooleanField
         self.serializer_field_mapping[models.DateField] = CustomDateField
         self.serializer_field_mapping[models.DateTimeField] = CustomDateTimeField
+        self.serializer_field_mapping[models.DecimalField] = CustomDecimalField
         self.serializer_related_field = CustomPrimaryKeyRelatedField
 
 
@@ -247,7 +254,6 @@ class ApartmentReservationSerializer(
     class Meta:
         model = ApartmentReservation
         fields = (
-            "queue_position",
             "state",
             "apartment_uuid",
             "customer",
@@ -302,34 +308,24 @@ class ProjectInstallmentTemplateSerializer(CustomModelSerializer):
         fields = "__all__"
 
     def to_internal_value(self, data):
-        if data["unit"] == "PERCENTAGE":
-            data["unit"] = "PERCENT"
-        data["value"] = Decimal(data["value"].replace(" ", "").replace(",", "."))
         data["project_uuid"] = get_project_uuid(data["project_uuid"])
 
-        # make sure there are no old names
-        if data["type"] == "RIGHT_OF_RESIDENCE_FEE":
-            data["type"] = "RIGHT_OF_OCCUPANCY_PAYMENT"
-        if data.get("percentage_specifier") == "DEBT_FREE_SALES_PRICE_FLEXIBLE":
-            data["percentage_specifier"] = "SALES_PRICE_FLEXIBLE"
+        if not data.get("percentage_specifier"):
+            data["percentage_specifier"] = "SALES_PRICE"
 
         return super().to_internal_value(data)
 
 
 class ApartmentInstallmentSerializer(CustomModelSerializer):
-    due_date = CustomDateField(required=False)
+    due_date = serializers.DateField(required=False, input_formats=["%d.%m.%Y %H:%M:%S"])
 
     class Meta:
         model = ApartmentInstallment
-        fields = "__all__"
+        exclude = ("added_to_be_sent_to_sap_at",)
 
     def to_internal_value(self, data):
         data["added_to_be_sent_to_sap_at"] = ADDED_TO_SAP_AT
-        data["value"] = Decimal(data["value"].replace(" ", "").replace(",", "."))
-
-        # make sure there are no old names
-        if data["type"] == "RIGHT_OF_RESIDENCE_FEE":
-            data["type"] = "RIGHT_OF_OCCUPANCY_PAYMENT"
+        data["sent_to_sap_at"] = ADDED_TO_SAP_AT
 
         return super().to_internal_value(data)
 
@@ -351,7 +347,7 @@ class LotteryEventResultSerializer(CustomModelSerializer):
 
 
 class OfferSerializer(CustomModelSerializer):
-    valid_until = CustomDateField(required=False)
+    valid_until = CustomDateField(required=False, default=DEFAULT_OFFER_VALID_UNTIL)
     concluded_at = CustomDateTimeField(required=False)
 
     class Meta:
@@ -365,9 +361,6 @@ class OfferSerializer(CustomModelSerializer):
         )
 
     def to_internal_value(self, data):
-        if not data.get("valid_until"):
-            data["valid_until"] = DEFAULT_OFFER_VALID_UNTIL
-
         if "state" in data:
             data["state"] = data["state"].lower()
         return super().to_internal_value(data)
@@ -406,7 +399,7 @@ def _delete_existing_data():
 
 
 def _import_data(directory=None, ignore_errors=False):
-    directory = directory or "asko_data/300622/"
+    directory = directory or "asko_data/100822/"
 
     def import_model(
         filename: str, serializer_class: type(serializers.ModelSerializer)
@@ -439,20 +432,21 @@ def _import_data(directory=None, ignore_errors=False):
         return imported, rows
 
     # TODO remove these
-    import_model("profile.csv", ProfileSerializer)
-    import_model("customer.csv", CustomerSerializer)
+    import_model("profile.txt", ProfileSerializer)
+    import_model("customer.txt", CustomerSerializer)
 
-    import_model("application.csv", ApplicationSerializer)
-    import_model("applicant.csv", ApplicantSerializer)
-    import_model("ApplicationApartment.csv", ApplicationApartmentSerializer)
-    import_model("ApartmentReservation.csv", ApartmentReservationSerializer)
+    import_model("application.txt", ApplicationSerializer)
+    import_model("applicant.txt", ApplicantSerializer)
+    import_model("ApplicationApartment.txt", ApplicationApartmentSerializer)
+    import_model("ApartmentReservation.txt", ApartmentReservationSerializer)
 
-    # import_model("Offer.csv", OfferSerializer)
+    # import_model("Offer.txt", OfferSerializer)
 
-    import_model("ProjectInstallmentTemplate.csv", ProjectInstallmentTemplateSerializer)
-    import_model("ApartmentInstallment.csv", ApartmentInstallmentSerializer)
-    import_model("LotteryEvent.csv", LotteryEventSerializer)
-    import_model("LotteryEventResult.csv", LotteryEventResultSerializer)
+    import_model("ProjectInstallmentTemplate.txt", ProjectInstallmentTemplateSerializer)
+    import_model("ApartmentInstallment.txt", ApartmentInstallmentSerializer)
+    import_model("LotteryEvent.txt", LotteryEventSerializer)
+    import_model("LotteryEventResult.txt", LotteryEventResultSerializer)
+
 
 
 def _set_hitas_reservation_positions():
@@ -519,6 +513,10 @@ def _set_reservation_positions(reservations, lottery_event=None):
             if reservation.state != ApartmentReservationState.CANCELED
             else None,
         )
+        ApartmentReservationStateChangeEvent.objects.filter(pk=reservation.state_change_events.first().pk).update(
+            state=reservation.state,
+            comment="Tuotu AsKo:sta",
+        )
         if lottery_event:
             LotteryEventResult.objects.create(
                 event=lottery_event,
@@ -539,7 +537,7 @@ def _validate_imported_data():
             print(f"RESERVATION {reservation} DOES NOT HAVE AN APPLICATION")
 
         if (
-            reservation.application_apartment.lotteryeventresult.result_position == 1
+            reservation.queue_position == 1
             and reservation.state == ApartmentReservationState.SUBMITTED
         ):
             print(
@@ -548,12 +546,12 @@ def _validate_imported_data():
             )
 
         if (
-            reservation.application_apartment.lotteryeventresult.result_position != 1
-            and reservation.state != ApartmentReservationState.SUBMITTED
+                reservation.queue_position is not None and reservation.queue_position != 1
+                and reservation.state != ApartmentReservationState.SUBMITTED
         ):
             print(
                 f"RESERVATION {reservation} customer {reservation.customer} should be "
-                f"SUBMITTED"
+                f"SUBMITTED but it is {reservation.state} on position {reservation.queue_position}"
             )
 
 

@@ -1,0 +1,30 @@
+"Taulun avainkenttä (apartment uuid)";"Vierasavain Project-tauluun (KohdeID)";"project_housing_company";"apartment_address";"project_ownership_type";"apartment_state_of_sale";"apartment_number";"housing_shares";"living_area";"floor";"apartment_structure";"sales_price";"debt_free_sales_price";"loan_share";"price_m2";"housing_company_fee";"financing_fee";"financing_fee_m2";"maintenance_fee";"maintenance_fee_m2";"right_of_occupancy_fee";"right_of_occupancy_deposit";"right_of_occupancy_payment"
+745;36;"As Oy Helsingin Hitaskohde";"Hitaskatu 1  A  1";"Hitas";"SOLD";"A  1";"1-670";67,00;"1";"3h+kt+s";109297,13 €;272690,00 €;163392,87 €;4070,00 €;1182,41 €;827,31 €;12,35 €;355,10 €;5,30 €;;;
+746;36;"As Oy Helsingin Hitaskohde";"Hitaskatu 1  A  2";"Hitas";"SOLD";"A  2";"671-1540";87,00;"1";"3-4h+kt+s";141734,29 €;354090,00 €;212355,71 €;4070,00 €;1536,33 €;1075,23 €;12,36 €;461,10 €;5,30 €;;;
+747;36;"As Oy Helsingin Hitaskohde";"Hitaskatu 1  A  3";"Hitas";"SOLD";"A  3";"1541-2210";67,00;"2";"3h+kt+s";111595,98 €;279390,00 €;167794,02 €;4170,00 €;1204,70 €;849,60 €;12,68 €;355,10 €;5,30 €;;;
+748;36;"As Oy Helsingin Hitaskohde";"Hitaskatu 1  A  4";"Hitas";"RESERVED";"A  4";"2211-3080";87,00;"2";"3-4h+kt+s";145482,99 €;362790,00 €;217307,01 €;4170,00 €;1561,40 €;1100,30 €;12,65 €;461,10 €;5,30 €;;;
+749;36;"As Oy Helsingin Hitaskohde";"Hitaskatu 1  A  5";"Hitas";"SOLD";"A  5";"3081-3760";68,00;"2";"3h+kt+s";113695,26 €;284240,00 €;170544,74 €;4180,00 €;1223,92 €;863,52 €;12,70 €;360,40 €;5,30 €;;;
+750;36;"As Oy Helsingin Hitaskohde";"Hitaskatu 1  A  6";"Hitas";"RESERVED";"A  6";"3761-4755";99,50;"2";"4h+kt+s";183177,98 €;457700,00 €;274522,02 €;4600,00 €;1917,35 €;1390,00 €;13,97 €;527,35 €;5,30 €;;;
+751;36;"As Oy Helsingin Hitaskohde";"Hitaskatu 1  A  7";"Hitas";"RESERVED";"A  7";"4756-5520";76,50;"2";"3h+kt+s";127769,63 €;319770,00 €;192000,37 €;4180,00 €;1377,61 €;972,16 €;12,71 €;405,45 €;5,30 €;;;
+752;36;"As Oy Helsingin Hitaskohde";"Hitaskatu 1  A  8";"Hitas";"RESERVED";"A  8";"5521-6535";101,50;"2";"4-5h+kt+s";190974,95 €;477050,00 €;286075,05 €;4700,00 €;1986,44 €;1448,49 €;14,27 €;537,95 €;5,30 €;;;
+753;36;"As Oy Helsingin Hitaskohde";"Hitaskatu 1  A  9";"Hitas";"SOLD";"A  9";"6536-7035";50,00;"2";"2h+kt";95012,62 €;237500,00 €;142487,38 €;4750,00 €;986,46 €;721,46 €;14,43 €;265,00 €;5,30 €;;;
+754;36;"As Oy Helsingin Hitaskohde";"Hitaskatu 1  A 10";"Hitas";"SOLD";"A 10";"7036-7520";48,50;"2";"2h+kt";92288,77 €;230375,00 €;138086,23 €;4750,00 €;956,23 €;699,18 €;14,42 €;257,05 €;5,30 €;;;
+755;36;"As Oy Helsingin Hitaskohde";"Hitaskatu 1  A 11";"Hitas";"SOLD";"A 11";"7521-8000";48,00;"2";"2h+kt";91564,21 €;228000,00 €;136435,79 €;4750,00 €;945,22 €;690,82 €;14,39 €;254,40 €;5,30 €;;;
+756;36;"As Oy Helsingin Hitaskohde";"Hitaskatu 1  A 12";"Hitas";"SOLD";"A 12";"8001-8295";29,50;"2";"1h+kt";65249,16 €;163725,00 €;98475,84 €;5550,00 €;654,97 €;498,62 €;16,90 €;156,35 €;5,30 €;;;
+757;36;"As Oy Helsingin Hitaskohde";"Hitaskatu 1  A 13";"Hitas";"RESERVED";"A 13";"8296-9140";84,50;"2";"4h+kt";160116,93 €;400530,00 €;240413,07 €;4740,00 €;1665,14 €;1217,29 €;14,41 €;447,85 €;5,30 €;;;
+758;36;"As Oy Helsingin Hitaskohde";"Hitaskatu 1  A 14";"Hitas";"RESERVED";"A 14";"9141-9810";67,00;"3";"3h+kt+s";114444,97 €;286090,00 €;171645,03 €;4270,00 €;1224,20 €;869,10 €;12,97 €;355,10 €;5,30 €;;;
+759;36;"As Oy Helsingin Hitaskohde";"Hitaskatu 1  A 15";"Hitas";"RESERVED";"A 15";"9811-10680";87,00;"3";"3-4h+kt+s";149641,11 €;374100,00 €;224458,89 €;4300,00 €;1597,61 €;1136,51 €;13,06 €;461,10 €;5,30 €;;;
+760;36;"As Oy Helsingin Hitaskohde";"Hitaskatu 1  A 16";"Hitas";"RESERVED";"A 16";"10681-11360";68,00;"3";"3h+kt+s";116903,96 €;292400,00 €;175496,04 €;4300,00 €;1248,99 €;888,59 €;13,07 €;360,40 €;5,30 €;;;
+761;36;"As Oy Helsingin Hitaskohde";"Hitaskatu 1  A 17";"Hitas";"RESERVED";"A 17";"11361-12350";99,00;"3";"4h+kt+s";186376,82 €;465300,00 €;278923,18 €;4700,00 €;1936,98 €;1412,28 €;14,27 €;524,70 €;5,30 €;;;
+762;36;"As Oy Helsingin Hitaskohde";"Hitaskatu 1  A 18";"Hitas";"RESERVED";"A 18";"12351-13115";76,50;"3";"3h+kt+s";131448,18 €;328950,00 €;197501,82 €;4300,00 €;1405,47 €;1000,02 €;13,07 €;405,45 €;5,30 €;;;
+763;36;"As Oy Helsingin Hitaskohde";"Hitaskatu 1  A 19";"Hitas";"FREE_FOR_RESERVATIONS";"A 19";"13116-14130";101,50;"3";"4-5h+kt+s";197312,35 €;493290,00 €;295977,65 €;4860,00 €;2036,58 €;1498,63 €;14,76 €;537,95 €;5,30 €;;;
+764;36;"As Oy Helsingin Hitaskohde";"Hitaskatu 1  A 20";"Hitas";"RESERVED";"A 20";"14131-14630";50,00;"3";"2h+kt";99810,60 €;250000,00 €;150189,40 €;5000,00 €;1025,46 €;760,46 €;15,21 €;265,00 €;5,30 €;;;
+765;36;"As Oy Helsingin Hitaskohde";"Hitaskatu 1  A 21";"Hitas";"RESERVED";"A 21";"14631-15115";48,50;"3";"2h+kt";97261,90 €;242500,00 €;145238,10 €;5000,00 €;992,44 €;735,39 €;15,16 €;257,05 €;5,30 €;;;
+766;36;"As Oy Helsingin Hitaskohde";"Hitaskatu 1  A 22";"Hitas";"RESERVED";"A 22";"15116-15595";48,00;"3";"2h+kt";95862,19 €;240000,00 €;144137,81 €;5000,00 €;984,22 €;729,82 €;15,20 €;254,40 €;5,30 €;;;
+767;36;"As Oy Helsingin Hitaskohde";"Hitaskatu 1  A 23";"Hitas";"SOLD";"A 23";"15596-15890";29,50;"3";"1h+kt";67473,59 €;168150,00 €;100676,41 €;5700,00 €;666,11 €;509,76 €;17,28 €;156,35 €;5,30 €;;;
+768;36;"As Oy Helsingin Hitaskohde";"Hitaskatu 1  A 24";"Hitas";"RESERVED";"A 24";"15891-16735";84,50;"3";"4h+kt";161001,49 €;403065,00 €;242063,51 €;4770,00 €;1673,50 €;1225,65 €;14,50 €;447,85 €;5,30 €;;;
+825;38;"HASO Mtesti";"Hasokatu 2  A";"Haso";"RESERVED";"A";;65,00;"1-2";"3h+kt+s";;;;;;;;;;1235,00 €;500,00 €;24000,00 €
+826;38;"HASO Mtesti";"Hasokatu 2  B";"Haso";"RESERVED";"B";;95,00;"1-2";"4-5h+avok";;;;;;;;;;1805,00 €;500,00 €;35000,00 €
+827;38;"HASO Mtesti";"Hasokatu 2  C";"Haso";"RESERVED";"C";;105,00;"1-2";"5h+k+s";;;;;;;;;;1995,00 €;500,00 €;38000,00 €
+828;38;"HASO Mtesti";"Hasokatu 2  D";"Haso";"RESERVED";"D";;65,00;"1-2";"3h+kt+s";;;;;;;;;;1235,00 €;500,00 €;24000,00 €
+829;38;"HASO Mtesti";"Hasokatu 2  E";"Haso";"RESERVED";"E";;55,00;"1-2";"2h+k+s";;;;;;;;;;1045,00 €;500,00 €;21000,00 €

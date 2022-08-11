@@ -1,0 +1,11 @@
+data migration huomiot:
+
+* Application: Type -> type
+
+* Applicant age, ssn_suffix puuttuu osalta
+
+* tuleeko peruutettuja varauksia
+
+* LotteryEvent paljon duplikaatteja
+
+* 
