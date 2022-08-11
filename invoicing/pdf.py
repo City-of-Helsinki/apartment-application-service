@@ -69,8 +69,8 @@ def create_invoice_pdf_from_installments(installments):
         project = get_cached_project(apartment.project_uuid)
         invoice_pdf_data = InvoicePDFData(
             recipient=project.project_housing_company,
-            recipient_account_number=f"{project.project_contract_rs_bank} "
-            f"{installment.account_number}",
+            recipient_account_number=f"{project.project_contract_rs_bank or ''} "
+            f"{installment.account_number}".strip(),
             payer_name_and_address=payer_name_and_address,
             reference_number=installment.reference_number,
             due_date=installment.due_date,
