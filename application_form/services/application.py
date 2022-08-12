@@ -309,9 +309,9 @@ def _cancel_lower_priority_haso_applications(
 ) -> None:
     """
     Go through the given winning applications, and cancel each application made for
-    an apartment that has a lower priority than the reserved apartment and is not in
-    the first place in the queue. The canceled application is removed from the queue of
-    the corresponding apartment.
+    an apartment that has a lower priority than the reserved apartment.
+    Only cancel RESERVED or SUBMITTED reservations.
+    The canceled application is removed from the queue of the corresponding apartment.
     """
     for app in winning_applications:
         app_apartments = app.application_apartments.all()
@@ -320,8 +320,10 @@ def _cancel_lower_priority_haso_applications(
         ).priority_number
         low_priority_app_apartments = app_apartments.filter(
             priority_number__gt=priority,
-            apartment_reservation__state=ApartmentReservationState.SUBMITTED,
-            apartment_reservation__queue_position__gt=1,
+            apartment_reservation__state__in=[
+                ApartmentReservationState.SUBMITTED,
+                ApartmentReservationState.RESERVED,
+            ],
         )
         for app_apartment in low_priority_app_apartments:
             cancel_reservation(app_apartment.apartment_reservation)
