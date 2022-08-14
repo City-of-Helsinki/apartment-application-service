@@ -11,7 +11,7 @@ from typing import Union
 from audit_log import audit_logging
 from audit_log.enums import Operation
 
-from ..enums import InstallmentPercentageSpecifier, InstallmentUnit
+from ..enums import InstallmentPercentageSpecifier, InstallmentType, InstallmentUnit
 from ..models import ApartmentInstallment, ProjectInstallmentTemplate
 from ..utils import remove_exponent
 
@@ -259,6 +259,14 @@ class ApartmentInstallmentSerializer(ApartmentInstallmentSerializerBase):
             "added_to_be_sent_to_sap_at",
         )
         read_only_fields = ("reference_number", "added_to_be_sent_to_sap_at")
+
+    def validate(self, validated_data):
+        if (
+            validated_data["type"] == InstallmentType.REFUND
+            and validated_data["value"] > 0
+        ):
+            raise exceptions.ValidationError("Refund cannot have a positive value.")
+        return validated_data
 
     def to_internal_value(self, data):
         internal_data = super().to_internal_value(data)
