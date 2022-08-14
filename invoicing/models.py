@@ -30,9 +30,16 @@ class AlreadyAddedToBeSentToSapError(Exception):
 
 
 class InstallmentBase(models.Model):
+    # we are not inheriting TimestampedModel because we want to be able to set values
+    # for these manually to get exactly the same values for installments that are
+    # created / updated on the same request
     created_at = models.DateTimeField(
         verbose_name=_("created at"), default=now, editable=False
     )
+    updated_at = models.DateTimeField(
+        verbose_name=_("updated at"), default=now, editable=False
+    )
+
     type = EnumField(InstallmentType, verbose_name=_("type"), max_length=32)
     value = models.DecimalField(
         verbose_name=_("value"), max_digits=16, decimal_places=2
