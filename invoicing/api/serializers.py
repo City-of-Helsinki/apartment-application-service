@@ -6,6 +6,7 @@ from drf_spectacular.utils import extend_schema_serializer, OpenApiExample
 from enumfields.drf.fields import EnumField
 from enumfields.drf.serializers import EnumSupportSerializerMixin
 from rest_framework import exceptions, serializers
+from typing import Union
 
 from audit_log import audit_logging
 from audit_log.enums import Operation
@@ -13,6 +14,16 @@ from audit_log.enums import Operation
 from ..enums import InstallmentPercentageSpecifier, InstallmentUnit
 from ..models import ApartmentInstallment, ProjectInstallmentTemplate
 from ..utils import remove_exponent
+
+
+def is_installment_editable(
+    installment: Union[ProjectInstallmentTemplate, ApartmentInstallment]
+) -> bool:
+    if isinstance(installment, ApartmentInstallment):
+        return not bool(
+            installment.added_to_be_sent_to_sap_at or installment.sent_to_sap_at
+        )
+    return True
 
 
 class NormalizedDecimalField(serializers.DecimalField):
@@ -61,7 +72,9 @@ class InstallmentListSerializer(serializers.ListSerializer):
         ]
 
         for old_installment in old_installments_by_type.values():
-            if old_installment not in new_installments:
+            if old_installment not in new_installments and is_installment_editable(
+                old_installment
+            ):
                 audit_logging.log(self.get_user(), Operation.DELETE, old_installment)
                 old_installment.delete()
 
@@ -252,3 +265,8 @@ class ApartmentInstallmentSerializer(ApartmentInstallmentSerializerBase):
         if user := self.get_user():
             internal_data["handler"] = user.full_name
         return internal_data
+
+    def update(self, instance, validated_data):
+        if not is_installment_editable(instance):
+            return instance
+        return super().update(instance, validated_data)
