@@ -1,9 +1,12 @@
 from decimal import Decimal
+from django.db import transaction
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import extend_schema_serializer, OpenApiExample
 from enumfields.drf.fields import EnumField
 from enumfields.drf.serializers import EnumSupportSerializerMixin
 from rest_framework import exceptions, serializers
+from typing import Union
 
 from audit_log import audit_logging
 from audit_log.enums import Operation
@@ -11,6 +14,16 @@ from audit_log.enums import Operation
 from ..enums import InstallmentPercentageSpecifier, InstallmentUnit
 from ..models import ApartmentInstallment, ProjectInstallmentTemplate
 from ..utils import remove_exponent
+
+
+def is_installment_editable(
+    installment: Union[ProjectInstallmentTemplate, ApartmentInstallment]
+) -> bool:
+    if isinstance(installment, ApartmentInstallment):
+        return not bool(
+            installment.added_to_be_sent_to_sap_at or installment.sent_to_sap_at
+        )
+    return True
 
 
 class NormalizedDecimalField(serializers.DecimalField):
@@ -34,6 +47,45 @@ class IntegerCentsField(serializers.IntegerField):
         return int(value * 100)
 
 
+class InstallmentListSerializer(serializers.ListSerializer):
+    @transaction.atomic
+    def create(self, validated_data):
+        now = timezone.now()
+        old_installments_by_type = {
+            instance.type: instance for instance in self.context["old_instances"]
+        }
+
+        new_installments = [
+            self.child.create(
+                {**new_installment_data, **{"created_at": now, "updated_at": now}}
+            )
+            if not (
+                old_instance := old_installments_by_type.get(
+                    new_installment_data["type"]
+                )
+            )
+            else self.child.update(
+                old_instance,
+                {**new_installment_data, **{"updated_at": now}},
+            )
+            for new_installment_data in validated_data
+        ]
+
+        for old_installment in old_installments_by_type.values():
+            if old_installment not in new_installments and is_installment_editable(
+                old_installment
+            ):
+                audit_logging.log(self.get_user(), Operation.DELETE, old_installment)
+                old_installment.delete()
+
+        return new_installments
+
+    def get_user(self):
+        if request := self.context.get("request"):
+            return getattr(request, "user", None)
+        return None
+
+
 class InstallmentSerializerBase(
     EnumSupportSerializerMixin, serializers.ModelSerializer
 ):
@@ -44,6 +96,22 @@ class InstallmentSerializerBase(
             "account_number",
             "due_date",
         )
+        list_serializer_class = InstallmentListSerializer
+
+    def create(self, validated_data):
+        instance = super().create(validated_data)
+        audit_logging.log(self.get_user(), Operation.CREATE, instance)
+        return instance
+
+    def update(self, instance, validated_data):
+        instance = super().update(instance, validated_data)
+        audit_logging.log(self.get_user(), Operation.UPDATE, instance)
+        return instance
+
+    def get_user(self):
+        if request := self.context.get("request"):
+            return getattr(request, "user", None)
+        return None
 
 
 @extend_schema_serializer(
@@ -95,11 +163,7 @@ class ProjectInstallmentTemplateSerializer(InstallmentSerializerBase):
             "percentage_specifier",
         )
 
-    def create(self, validated_data):
-        if request := self.context.get("request"):
-            user = getattr(request, "user", None)
-        else:
-            user = None
+    def validate(self, validated_data):
         amount = validated_data.pop("get_amount", None)
         has_amount = amount is not None
         percentage = validated_data.pop("get_percentage", None)
@@ -132,9 +196,7 @@ class ProjectInstallmentTemplateSerializer(InstallmentSerializerBase):
                 }
             )
 
-        instance = super().create(validated_data)
-        audit_logging.log(user, Operation.CREATE, instance)
-        return instance
+        return validated_data
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -198,20 +260,13 @@ class ApartmentInstallmentSerializer(ApartmentInstallmentSerializerBase):
         )
         read_only_fields = ("reference_number", "added_to_be_sent_to_sap_at")
 
-    def create(self, validated_data):
-        if request := self.context.get("request"):
-            user = getattr(request, "user", None)
-        else:
-            user = None
-        if user:
-            validated_data["handler"] = user.full_name
-        if old_instance := self.context["old_instances"].get(validated_data["type"]):
-            validated_data["reference_number"] = old_instance.reference_number
-            validated_data[
-                "added_to_be_sent_to_sap_at"
-            ] = old_instance.added_to_be_sent_to_sap_at
-            validated_data["sent_to_sap_at"] = old_instance.sent_to_sap_at
+    def to_internal_value(self, data):
+        internal_data = super().to_internal_value(data)
+        if user := self.get_user():
+            internal_data["handler"] = user.full_name
+        return internal_data
 
-        instance = super().create(validated_data)
-        audit_logging.log(user, Operation.CREATE, instance)
-        return instance
+    def update(self, instance, validated_data):
+        if not is_installment_editable(instance):
+            return instance
+        return super().update(instance, validated_data)

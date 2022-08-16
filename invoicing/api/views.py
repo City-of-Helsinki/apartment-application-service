@@ -1,8 +1,7 @@
 from django.db import transaction
 from django.http import Http404, HttpResponse
-from django.utils.timezone import now
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework import generics
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
@@ -43,43 +42,21 @@ class InstallmentAPIViewBase(generics.ListCreateAPIView):
         kwargs["many"] = True
         return super().get_serializer(*args, **kwargs)
 
-    @transaction.atomic
     def perform_create(self, serializer):
-        queryset = self.get_queryset()
-
-        # make old instances available in the serializer so that values from those can
-        # be used when creating new instances if needed
-        old_instances = {instance.type: instance for instance in queryset}
-        serializer.context.update({"old_instances": old_instances})
-
-        # we want to always create new instances instead of updating possible already
-        # existing ones, so the old ones are deleted first
-        queryset.delete()
-
-        # created_at is set here to get exactly the same timestamp on all instances
+        serializer.context.update({"old_instances": self.get_queryset()})
         serializer.save(
-            **{self.parent_field: self.kwargs[self.parent_field], "created_at": now()}
+            **{
+                self.parent_field: self.kwargs[self.parent_field],
+            }
         )
 
 
-@extend_schema_view(
-    post=extend_schema(
-        description="Recreates a project's all installment templates in a single "
-        "request."
-    )
-)
 class ProjectInstallmentTemplateAPIView(InstallmentAPIViewBase):
     queryset = ProjectInstallmentTemplate.objects.all()
     serializer_class = ProjectInstallmentTemplateSerializer
     parent_field = "project_uuid"
 
 
-@extend_schema_view(
-    post=extend_schema(
-        description="Recreates an apartment reservation's all installments in a single "
-        "request."
-    )
-)
 class ApartmentInstallmentAPIView(InstallmentAPIViewBase):
     queryset = ApartmentInstallment.objects.all()
     serializer_class = ApartmentInstallmentSerializer

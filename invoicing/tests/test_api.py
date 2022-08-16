@@ -512,6 +512,63 @@ def test_set_apartment_installments(
     assert installment_2.due_date is None
 
 
+@pytest.mark.django_db
+def test_cannot_edit_installments_already_sent_to_sap(sales_ui_salesperson_api_client):
+    reservation = ApartmentReservationFactory()
+
+    data = [
+        {
+            "type": "PAYMENT_1",
+            "amount": 100055,
+            "account_number": "123123123-123",
+            "due_date": "2022-02-19",
+        }
+    ]
+
+    old_installments = [
+        ApartmentInstallmentFactory.create(
+            apartment_reservation=reservation,
+            type=InstallmentType.PAYMENT_1,
+            value=12345,
+            account_number="007",
+            due_date=datetime.date(2022, 1, 1),
+            added_to_be_sent_to_sap_at=timezone.now(),
+        ),
+        ApartmentInstallmentFactory.create(
+            apartment_reservation=reservation,
+            type=InstallmentType.PAYMENT_2,
+            value=54321,
+            account_number="008",
+            due_date=datetime.date(2022, 2, 2),
+            added_to_be_sent_to_sap_at=timezone.now(),
+        ),
+    ]
+
+    response = sales_ui_salesperson_api_client.post(
+        reverse(
+            "application_form:apartment-installment-list",
+            kwargs={"apartment_reservation_id": reservation.id},
+        ),
+        data=data,
+        format="json",
+    )
+    assert response.status_code == 201
+
+    assert ApartmentInstallment.objects.count() == 2
+    new_installments = ApartmentInstallment.objects.order_by("id")
+
+    for new_installment, old_installment in zip(new_installments, old_installments):
+        for field in (
+            "id",
+            "type",
+            "value",
+            "account_number",
+            "invoice_number",
+            "due_date",
+        ):
+            assert getattr(new_installment, field) == getattr(old_installment, field)
+
+
 @pytest.mark.parametrize("reference_number_given", (False, True))
 @pytest.mark.django_db
 def test_apartment_installment_reference_number_populating(
