@@ -904,3 +904,31 @@ def test_set_apartment_installments_generate_metadata(
     expected_handler = f"{user.first_name} {user.last_name}".strip()
     assert installments[0].handler == expected_handler
     assert installments[1].handler == expected_handler
+
+
+@pytest.mark.django_db
+def test_apartment_installment_refund_value_cannot_be_positive(
+    sales_ui_salesperson_api_client,
+):
+    reservation = ApartmentReservationFactory()
+
+    data = [
+        {
+            "type": "REFUND",
+            "amount": 1,  # illegal positive value
+            "account_number": "123123123-123",
+            "due_date": None,
+            "reference_number": "REFERENCE-321",
+        },
+    ]
+
+    response = sales_ui_salesperson_api_client.post(
+        reverse(
+            "application_form:apartment-installment-list",
+            kwargs={"apartment_reservation_id": reservation.id},
+        ),
+        data=data,
+        format="json",
+    )
+    assert response.status_code == 400
+    assert "positive" in str(response.data)
