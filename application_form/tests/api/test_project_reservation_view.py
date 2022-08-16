@@ -86,15 +86,15 @@ def test_list_project_reservations_get_with_lottery_data(
 ):
     """
     Test that the project's reservations will be returned correctly
-    if the lottery is not yet performed.
+    if the lottery is already performed.
     """
     project_uuid, apartments = elastic_haso_project_with_5_apartments
     apartment_reservation_count = 5
     profile = ProfileFactory()
     application = ApplicationFactory(customer=CustomerFactory(primary_profile=profile))
-    for apartment in apartments:
+    for idx, apartment in enumerate(apartments):
         ApplicationApartmentFactory(
-            apartment_uuid=apartment.uuid, application=application
+            apartment_uuid=apartment.uuid, application=application, priority_number=idx
         )
     add_application_to_queues(application)
     distribute_apartments(project_uuid)
@@ -109,4 +109,6 @@ def test_list_project_reservations_get_with_lottery_data(
     assert len(response.data) == apartment_reservation_count
     for item in response.data:
         assert item["lottery_position"] == 1
-        assert item["queue_position"] == 1
+        # Auto cancel reservations which have lower priority
+        # so queue position should be None
+        assert item["queue_position"] == (1 if item["priority_number"] == 0 else None)
