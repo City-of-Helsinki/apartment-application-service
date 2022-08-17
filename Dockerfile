@@ -26,6 +26,7 @@ FROM appbase as staticbuilder
 ENV VAR_ROOT /app
 COPY --chown=1001:1001 . /app
 RUN SECRET_KEY="only-used-for-collectstatic" python manage.py collectstatic --noinput
+RUN SECRET_KEY="only-used-for-compilemessages" python manage.py compilemessages
 
 # ==============================
 FROM appbase as development
