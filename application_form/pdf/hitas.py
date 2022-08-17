@@ -79,10 +79,8 @@ class HitasContractPDFData(PDFData):
     payment_5_percentage: Union[Decimal, None]
     payment_6_amount: Union[PDFCurrencyField, None]
     payment_6_due_date: Union[date, None]
-    payment_6_percentage: Union[Decimal, None]
     payment_7_amount: Union[PDFCurrencyField, None]
     payment_7_due_date: Union[date, None]
-    payment_7_percentage: Union[Decimal, None]
     second_last_payment_basis_sales_price: Union[bool, None]
     second_last_payment_basis_debt_free_sales_price: Union[bool, None]
     last_payment_basis_sales_price: Union[bool, None]
@@ -186,8 +184,6 @@ class HitasContractPDFData(PDFData):
         "payment_3_percentage": "Text49",
         "payment_4_percentage": "Text50",
         "payment_5_percentage": "Text51",
-        "payment_6_percentage": "Text6",
-        "payment_7_percentage": "Text16",
         "second_last_payment_basis_sales_price": "Check Box17",
         "second_last_payment_basis_debt_free_sales_price": "Check Box19",
         "last_payment_basis_sales_price": "Check Box18",
@@ -357,10 +353,8 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         payment_5_percentage=get_percentage(payment_5),
         payment_6_amount=PDFCurrencyField(euros=payment_6.value),
         payment_6_due_date=payment_6.due_date,
-        payment_6_percentage=get_percentage(payment_6),
         payment_7_amount=PDFCurrencyField(euros=payment_7.value),
         payment_7_due_date=payment_7.due_date,
-        payment_7_percentage=get_percentage(payment_7),
         second_last_payment_basis_sales_price=False,
         second_last_payment_basis_debt_free_sales_price=True,
         last_payment_basis_sales_price=False,
