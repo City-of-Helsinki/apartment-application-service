@@ -40,6 +40,8 @@ COPY --chown=1001:1001 . /app/
 
 USER 1001
 
+RUN django-admin compilemessages
+
 EXPOSE 8081/tcp
 
 # ==============================
@@ -50,5 +52,7 @@ COPY --from=staticbuilder --chown=1001:1001 /app/static /app/static
 COPY --chown=1001:1001 . /app/
 
 USER 1001
+
+RUN django-admin compilemessages
 
 EXPOSE 8000/tcp
