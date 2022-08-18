@@ -26,7 +26,6 @@ FROM appbase as staticbuilder
 ENV VAR_ROOT /app
 COPY --chown=1001:1001 . /app
 RUN SECRET_KEY="only-used-for-collectstatic" python manage.py collectstatic --noinput
-RUN SECRET_KEY="only-used-for-compilemessages" python manage.py compilemessages
 
 # ==============================
 FROM appbase as development
@@ -39,6 +38,9 @@ ENV DEV_SERVER=1
 
 COPY --chown=1001:1001 . /app/
 
+# required to make compilemessages command work in OpenShift
+RUN chmod -R g+w /app/locale && chgrp -R root /app/locale
+
 USER 1001
 
 EXPOSE 8081/tcp
@@ -49,6 +51,9 @@ FROM appbase as production
 
 COPY --from=staticbuilder --chown=1001:1001 /app/static /app/static
 COPY --chown=1001:1001 . /app/
+
+# required to make compilemessages command work in OpenShift
+RUN chmod -R g+w /app/locale && chgrp -R root /app/locale
 
 USER 1001
 
