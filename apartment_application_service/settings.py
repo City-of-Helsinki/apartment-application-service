@@ -31,7 +31,7 @@ env = environ.Env(
         "@localhost/apartment-application",
     ),
     CACHE_URL=(str, "locmemcache://"),
-    DEFAULT_FROM_EMAIL=(str, ""),
+    DEFAULT_FROM_EMAIL=(str, "asuntomyynti@hel.fi"),
     MAIL_MAILGUN_KEY=(str, ""),
     MAIL_MAILGUN_DOMAIN=(str, ""),
     MAIL_MAILGUN_API=(str, ""),
@@ -84,6 +84,8 @@ env = environ.Env(
     ),
     METADATA_HITAS_PROCESS_NUMBER=(str, "10 07 05 00"),
     METADATA_HASO_PROCESS_NUMBER=(str, "10 07 04 01"),
+    TALPA_EMAIL=(str, ""),
+    TALPA_EMAIL_REPLY_TO=(str, "asuntomyynti@hel.fi"),
 )
 if os.path.exists(env_file):
     env.read_env(env_file)
@@ -361,6 +363,9 @@ PRIVATE_PGP_KEY = env.str("PRIVATE_PGP_KEY", multiline=True)
 METADATA_HANDLER_INFORMATION = env.str("METADATA_HANDLER_INFORMATION")
 METADATA_HITAS_PROCESS_NUMBER = env.str("METADATA_HITAS_PROCESS_NUMBER")
 METADATA_HASO_PROCESS_NUMBER = env.str("METADATA_HASO_PROCESS_NUMBER")
+
+TALPA_EMAIL = env.str("TALPA_EMAIL")
+TALPA_EMAIL_REPLY_TO = env.str("TALPA_EMAIL_REPLY_TO")
 
 # local_settings.py can be used to override environment-specific settings
 # like database and email that differ between development and production.
