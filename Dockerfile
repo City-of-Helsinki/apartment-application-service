@@ -33,6 +33,7 @@ FROM appbase as development
 # ==============================
 
 COPY --chown=1001:1001 requirements-dev.txt /app/requirements-dev.txt
+COPY --from=staticbuilder --chown=1001:1001 /app/locale /app/locale
 RUN pip install --no-cache-dir -r /app/requirements-dev.txt
 
 ENV DEV_SERVER=1
@@ -48,6 +49,7 @@ FROM appbase as production
 # ==============================
 
 COPY --from=staticbuilder --chown=1001:1001 /app/static /app/static
+COPY --from=staticbuilder --chown=1001:1001 /app/locale /app/locale
 COPY --chown=1001:1001 . /app/
 
 USER 1001
