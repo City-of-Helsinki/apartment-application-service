@@ -35,7 +35,6 @@ env = environ.Env(
     MAIL_MAILGUN_KEY=(str, ""),
     MAIL_MAILGUN_DOMAIN=(str, ""),
     MAIL_MAILGUN_API=(str, ""),
-    MAILER_LOCK_PATH=(str, ""),
     SENTRY_DSN=(str, ""),
     SENTRY_ENVIRONMENT=(str, ""),
     LOG_LEVEL=(str, "ERROR"),
@@ -107,9 +106,7 @@ CACHES = {"default": env.cache()}
 
 EMAIL_CONFIG = env.email_url("EMAIL_URL", default="consolemail://")
 vars().update(EMAIL_CONFIG)
-MAILER_EMAIL_BACKEND = EMAIL_CONFIG["EMAIL_BACKEND"]
-MAILER_LOCK_PATH = env.str("MAILER_LOCK_PATH")
-EMAIL_BACKEND = "mailer.backend.DbBackend"
+
 if env.str("DEFAULT_FROM_EMAIL"):
     DEFAULT_FROM_EMAIL = env.str("DEFAULT_FROM_EMAIL")
 
