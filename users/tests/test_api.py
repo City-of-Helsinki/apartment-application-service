@@ -119,6 +119,16 @@ def test_profile_post(api_client):
 
 
 @pytest.mark.django_db
+def test_profile_post_non_ascii_characters_in_email_address(api_client):
+    profile_data = PROFILE_TEST_DATA.copy()
+    profile_data["email"] = "äåö@example.com"
+    response = api_client.post(reverse("users:profile-list"), profile_data)
+    assert response.status_code == 201, response.data
+    user = User.objects.get()
+    assert user.profile.email == "äåö@example.com"
+
+
+@pytest.mark.django_db
 def test_profile_post_writes_audit_log(api_client):
     api_client.post(reverse("users:profile-list"), PROFILE_TEST_DATA)
     profile = Profile.objects.get()
