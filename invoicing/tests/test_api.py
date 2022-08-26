@@ -205,8 +205,12 @@ def test_set_project_installments_unauthorized(apartment_document, user_api_clie
 @pytest.mark.parametrize("has_old_installments", (False, True))
 @pytest.mark.django_db
 def test_set_project_installments(
-    apartment_document, sales_ui_salesperson_api_client, has_old_installments
+    sales_ui_salesperson_api_client, has_old_installments
 ):
+    apartment_document = ApartmentDocumentFactory(
+        uuid=uuid.uuid4(), project_ownership_type="Hitas"
+    )
+
     project_uuid = apartment_document.project_uuid
     data = [
         {
@@ -332,11 +336,40 @@ def test_set_project_installments_percentage_specifier_required_for_percentages(
             },
             "percentage_specifier is required when providing percentage.",
         ),
+        (
+            {
+                "type": "RIGHT_OF_OCCUPANCY_PAYMENT",
+                "percentage": "53.5",
+                "account_number": "123123123-123",
+                "due_date": "2022-02-19",
+                "percentage_specifier": "RIGHT_OF_OCCUPANCY_PAYMENT",
+            },
+            "Cannot select right of occupancy payment as unit specifier in "
+            "HITAS payment template",
+        ),
+        (
+            {
+                "type": "PAYMENT_1",
+                "percentage": "53.5",
+                "account_number": "123123123-123",
+                "due_date": "2022-02-19",
+                "percentage_specifier": "SALES_PRICE",
+            },
+            "Cannot select sales price as unit specifier in " "HASO payment template",
+        ),
     ],
 )
 def test_set_project_installments_errors(
     apartment_document, sales_ui_salesperson_api_client, input, expected_error
 ):
+    if input.get("percentage_specifier") == "RIGHT_OF_OCCUPANCY_PAYMENT":
+        apartment_document = ApartmentDocumentFactory(
+            uuid=uuid.uuid4(), project_ownership_type="Hitas"
+        )
+    if input.get("percentage_specifier") == "SALES_PRICE":
+        apartment_document = ApartmentDocumentFactory(
+            uuid=uuid.uuid4(), project_ownership_type="Haso"
+        )
     project_uuid = apartment_document.project_uuid
     data = [input]
 

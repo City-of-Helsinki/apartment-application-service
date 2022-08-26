@@ -206,6 +206,11 @@ class ProjectInstallmentTemplate(InstallmentBase):
                 )
             if self.percentage_specifier == InstallmentPercentageSpecifier.SALES_PRICE:
                 price_in_cents = apartment_data["sales_price"]
+            elif (
+                self.percentage_specifier
+                == InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT
+            ):
+                price_in_cents = apartment_data["right_of_occupancy_payment"]
             else:
                 price_in_cents = apartment_data["debt_free_sales_price"]
 

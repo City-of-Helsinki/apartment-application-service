@@ -113,7 +113,9 @@ def test_root_apartment_reservation_detail_installment_candidates(
     sales_ui_salesperson_api_client,
 ):
     apartment = ApartmentDocumentFactory(
-        sales_price=12345678, debt_free_sales_price=9876543  # 123456,78e and 98765,43e
+        sales_price=12345678,
+        debt_free_sales_price=9876543,  # 123456,78e and 98765,43e,
+        right_of_occupancy_payment=2000000,
     )
     project_uuid = apartment.project_uuid
     reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
@@ -148,6 +150,16 @@ def test_root_apartment_reservation_detail_installment_candidates(
         percentage_specifier=InstallmentPercentageSpecifier.SALES_PRICE_FLEXIBLE,
         due_date=None,
     )
+
+    installment_template_5 = ProjectInstallmentTemplateFactory(
+        project_uuid=project_uuid,
+        type=InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT,
+        value=Decimal("15.00"),
+        unit=InstallmentUnit.PERCENT,
+        percentage_specifier=InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT,  # noqa: E501
+        due_date=None,
+    )
+
     # another project
     ProjectInstallmentTemplateFactory(
         project_uuid=uuid.UUID("19867533-2a60-4b3f-b166-f13af513d2d2"),
@@ -167,7 +179,7 @@ def test_root_apartment_reservation_detail_installment_candidates(
     assert response.status_code == 200
 
     installment_candidates = response.data["installment_candidates"]
-    assert len(installment_candidates) == 4
+    assert len(installment_candidates) == 5
 
     assert installment_candidates[0] == {
         "type": installment_template_1.type.value,
@@ -194,6 +206,13 @@ def test_root_apartment_reservation_detail_installment_candidates(
         "type": installment_template_4.type.value,
         "amount": 1703704,  # 17,25% of 987654,43e in cents
         "account_number": installment_template_4.account_number,
+        "due_date": None,
+    }
+
+    assert installment_candidates[4] == {
+        "type": installment_template_5.type.value,
+        "amount": 300000,  # 15% of 20000,00e in cents
+        "account_number": installment_template_5.account_number,
         "due_date": None,
     }
 

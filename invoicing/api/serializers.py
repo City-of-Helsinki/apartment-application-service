@@ -8,6 +8,7 @@ from enumfields.drf.serializers import EnumSupportSerializerMixin
 from rest_framework import exceptions, serializers
 from typing import Union
 
+from apartment.elastic.queries import get_project
 from audit_log import audit_logging
 from audit_log.enums import Operation
 
@@ -169,6 +170,8 @@ class ProjectInstallmentTemplateSerializer(InstallmentSerializerBase):
         percentage = validated_data.pop("get_percentage", None)
         has_percentage = percentage is not None
         percentage_specifier = validated_data.pop("percentage_specifier", None)
+        project_uuid = self.context["view"].kwargs["project_uuid"]
+        project = get_project(project_uuid)
 
         if (has_amount and has_percentage) or not (has_amount or has_percentage):
             raise exceptions.ValidationError(
@@ -186,6 +189,30 @@ class ProjectInstallmentTemplateSerializer(InstallmentSerializerBase):
             if not percentage_specifier:
                 raise exceptions.ValidationError(
                     "percentage_specifier is required when providing percentage."
+                )
+
+            if (
+                project.project_ownership_type.lower() in ["hitas", "puolihitas"]
+                and percentage_specifier
+                == InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT
+            ):
+                raise exceptions.ValidationError(
+                    f"Cannot select {percentage_specifier} as unit specifier in "
+                    "HITAS payment template"
+                )
+
+            if (
+                project.project_ownership_type.lower() == "haso"
+                and percentage_specifier
+                in [
+                    InstallmentPercentageSpecifier.SALES_PRICE,
+                    InstallmentPercentageSpecifier.SALES_PRICE_FLEXIBLE,
+                    InstallmentPercentageSpecifier.DEBT_FREE_SALES_PRICE,
+                ]
+            ):
+                raise exceptions.ValidationError(
+                    f"Cannot select {percentage_specifier} as unit specifier in "
+                    "HASO payment template"
                 )
 
             validated_data.update(

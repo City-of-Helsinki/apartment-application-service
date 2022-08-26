@@ -48,8 +48,10 @@ class InstallmentPercentageSpecifier(Enum):
     SALES_PRICE = "SALES_PRICE"
     DEBT_FREE_SALES_PRICE = "DEBT_FREE_SALES_PRICE"
     SALES_PRICE_FLEXIBLE = "SALES_PRICE_FLEXIBLE"
+    RIGHT_OF_OCCUPANCY_PAYMENT = "RIGHT_OF_OCCUPANCY_PAYMENT"
 
     class Labels:
         SALES_PRICE = _("sales price")
         DEBT_FREE_SALES_PRICE = _("debt free sales price")
         SALES_PRICE_FLEXIBLE = _("sales price flexible")
+        RIGHT_OF_OCCUPANCY_PAYMENT = _("right of occupancy payment")
