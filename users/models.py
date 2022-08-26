@@ -4,11 +4,7 @@ from django.db import models
 from django.db.models import UUIDField
 from django.utils.translation import gettext_lazy as _
 from helusers.models import AbstractUser
-from pgcrypto.fields import (
-    CharPGPPublicKeyField,
-    DatePGPPublicKeyField,
-    EmailPGPPublicKeyField,
-)
+from pgcrypto.fields import CharPGPPublicKeyField, DatePGPPublicKeyField
 from uuid import uuid4
 
 from apartment_application_service.models import TimestampedModel
@@ -51,7 +47,9 @@ class Profile(TimestampedModel):
     calling_name = CharPGPPublicKeyField(
         _("calling name"), max_length=50, blank=True, null=True
     )
-    email = EmailPGPPublicKeyField(_("email address"), blank=True)
+    email = CharPGPPublicKeyField(
+        max_length=254, verbose_name=_("email address"), blank=True
+    )
     phone_number = CharPGPPublicKeyField(_("phone number"), max_length=40, null=False)
     phone_number_nightly = CharPGPPublicKeyField(
         _("phone number nightly"), max_length=50, blank=True, null=True
