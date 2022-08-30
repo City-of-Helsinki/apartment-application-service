@@ -190,7 +190,10 @@ def _cancel_lower_priority_apartments(
     for app_apartment in lower_priority_app_apartments:
         if app_apartment.apartment_reservation.queue_position == 1:
             canceled_winners.append(app_apartment)
-        cancel_reservation(app_apartment.apartment_reservation)
+        cancel_reservation(
+            app_apartment.apartment_reservation,
+            cancellation_reason=ApartmentReservationCancellationReason.LOWER_PRIORITY,
+        )
     return canceled_winners
 
 
@@ -326,7 +329,10 @@ def _cancel_lower_priority_haso_applications(
             ],
         )
         for app_apartment in low_priority_app_apartments:
-            cancel_reservation(app_apartment.apartment_reservation)
+            cancel_reservation(
+                app_apartment.apartment_reservation,
+                cancellation_reason=ApartmentReservationCancellationReason.LOWER_PRIORITY,  # noqa: E501
+            )
 
 
 def _find_winning_candidates(applications: QuerySet) -> QuerySet:

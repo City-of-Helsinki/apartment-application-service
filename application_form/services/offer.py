@@ -50,7 +50,11 @@ def update_offer(offer: Offer, offer_data: dict, user: User = None) -> Offer:
                 ApartmentReservationState.OFFER_ACCEPTED, user=user
             )
         elif offer_data["state"] == OfferState.REJECTED:
-            cancel_reservation(offer.apartment_reservation, user=user)
+            cancel_reservation(
+                offer.apartment_reservation,
+                user=user,
+                cancellation_reason=ApartmentReservationCancellationReason.OFFER_REJECTED,  # noqa: E501
+            )
         else:
             raise ValueError(f'Invalid OfferState: {offer_data["state"]}')
         offer.concluded_at = timezone.now()

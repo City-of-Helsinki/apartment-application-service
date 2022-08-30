@@ -315,6 +315,16 @@ class ApartmentReservationCancelEventSerializer(
         self.fields["cancellation_reason"].allow_null = False
         self.fields["cancellation_reason"].allow_blank = False
 
+    def validate_cancellation_reason(self, value):
+        if value not in (
+            ApartmentReservationCancellationReason.TERMINATED,
+            ApartmentReservationCancellationReason.CANCELED,
+            ApartmentReservationCancellationReason.RESERVATION_AGREEMENT_CANCELED,
+            ApartmentReservationCancellationReason.TRANSFERRED,
+        ):
+            raise ValidationError(f"Illegal value {value}")
+        return value
+
     def validate(self, attrs):
         validated_data = super().validate(attrs)
         if (
