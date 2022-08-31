@@ -11,7 +11,7 @@ from apartment_application_service.settings import (
 )
 from application_form import error_codes
 from application_form.enums import ApplicationArrivalMethod, ApplicationType
-from application_form.models import Application
+from application_form.models import ApartmentReservation, Application
 from application_form.tests.conftest import create_application_data
 from application_form.tests.factories import (
     ApplicationApartmentFactory,
@@ -35,6 +35,9 @@ def test_application_post(api_client, elastic_single_project_with_apartments):
     )
     assert response.status_code == 201
     assert response.data == {"application_uuid": data["application_uuid"]}
+
+    for reservation in ApartmentReservation.objects.all():
+        assert reservation.state_change_events.last().user is None
 
 
 @pytest.mark.parametrize("already_existing_customer", (False, True))

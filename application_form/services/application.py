@@ -80,7 +80,9 @@ def cancel_reservation(
 
 
 @transaction.atomic
-def create_application(application_data: dict) -> Application:
+def create_application(
+    application_data: dict, user: Optional[User] = None
+) -> Application:
     _logger.debug(
         "Creating a new application with external UUID %s",
         application_data["external_uuid"],
@@ -145,7 +147,7 @@ def create_application(application_data: dict) -> Application:
     _logger.debug(
         "Application created with external UUID %s", application_data["external_uuid"]
     )
-    add_application_to_queues(application)
+    add_application_to_queues(application, user=user)
     return application
 
 

@@ -161,7 +161,10 @@ def test_customer_detail_state_event_cancellation_reason(
 
 
 @pytest.mark.django_db
-def test_customer_detail_state_event_changed_by(sales_ui_salesperson_api_client):
+@pytest.mark.parametrize("has_profile", (False, True))
+def test_customer_detail_state_event_changed_by(
+    sales_ui_salesperson_api_client, has_profile
+):
     apartment = ApartmentDocumentFactory(
         sales_price=2000,
         debt_free_sales_price=1500,
@@ -174,6 +177,8 @@ def test_customer_detail_state_event_changed_by(sales_ui_salesperson_api_client)
     )
     user = UserFactory()
     Group.objects.get(name__iexact=Roles.SALESPERSON.name).user_set.add(user)
+    if has_profile:
+        ProfileFactory(user=user)
 
     reservation.set_state(
         ApartmentReservationState.CANCELED,
@@ -186,14 +191,24 @@ def test_customer_detail_state_event_changed_by(sales_ui_salesperson_api_client)
         format="json",
     )
 
-    assert response.data["apartment_reservations"][0]["state_change_events"][1][
-        "changed_by"
-    ] == {
-        "id": user.id,
-        "first_name": user.first_name,
-        "last_name": user.last_name,
-        "email": user.email,
-    }
+    assert (
+        response.data["apartment_reservations"][0]["state_change_events"][1][
+            "changed_by"
+        ]
+        == {
+            "id": user.id,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "email": user.email,
+        }
+        if not has_profile
+        else {
+            "id": user.id,
+            "first_name": user.profile.first_name,
+            "last_name": user.profile.last_name,
+            "email": user.profile.email,
+        }
+    )
 
 
 @pytest.mark.django_db

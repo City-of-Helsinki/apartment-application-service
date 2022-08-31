@@ -111,7 +111,7 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data = self.prepare_metadata(validated_data)
-        return create_application(validated_data)
+        return create_application(validated_data, user=self.context.get("salesperson"))
 
     def prepare_metadata(self, validated_data):
         if validated_data.get("type", None) == ApplicationType.HASO:
@@ -256,6 +256,10 @@ class ApartmentReservationSerializer(ApartmentReservationSerializerBase):
 
 
 class ApartmentReservationStateChangeEventUserSerializer(serializers.ModelSerializer):
+    first_name = serializers.CharField(source="profile_or_user_first_name")
+    last_name = serializers.CharField(source="profile_or_user_last_name")
+    email = serializers.EmailField(source="profile_or_user_email")
+
     class Meta:
         model = User
         fields = ("id", "first_name", "last_name", "email")

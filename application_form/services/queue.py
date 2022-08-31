@@ -2,6 +2,7 @@ import uuid
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import F
+from typing import Optional
 
 from application_form.enums import (
     ApartmentQueueChangeEventType,
@@ -19,7 +20,9 @@ from application_form.models import (
 User = get_user_model()
 
 
-def add_application_to_queues(application: Application, comment: str = "") -> None:
+def add_application_to_queues(
+    application: Application, comment: str = "", user: Optional[User] = None
+) -> None:
     """
     Adds the given application to the queues of all the apartments applied to.
     """
@@ -63,7 +66,7 @@ def add_application_to_queues(application: Application, comment: str = "") -> No
                 raise ValueError(f"unsupported application type {application.type}")
 
             application = application_apartment.application
-            apartment_reservation = ApartmentReservation.objects.create(
+            apartment_reservation = ApartmentReservation(
                 customer=application.customer,
                 queue_position=queue_position,
                 list_position=list_position,
@@ -75,6 +78,7 @@ def add_application_to_queues(application: Application, comment: str = "") -> No
                 is_age_over_55=application.customer.is_age_over_55,
                 is_right_of_occupancy_housing_changer=application.is_right_of_occupancy_housing_changer,  # noqa: E501
             )
+            apartment_reservation.save(user=user)
             apartment_reservation.queue_change_events.create(
                 type=ApartmentQueueChangeEventType.ADDED,
                 comment=comment,
