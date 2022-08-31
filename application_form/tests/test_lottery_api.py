@@ -193,8 +193,10 @@ def test_execute_lottery_generate_metadata(
         lottery_event.handler
         == METADATA_HANDLER_INFORMATION
         + " / "
-        + sales_ui_salesperson_api_client.user.full_name
+        + sales_ui_salesperson_api_client.user.profile_or_user_full_name
     )
     reservations = ApartmentReservation.objects.filter(apartment_uuid=apartment.uuid)
     for r in reservations:
-        assert r.handler == sales_ui_salesperson_api_client.user.full_name
+        assert (
+            r.handler == sales_ui_salesperson_api_client.user.profile_or_user_full_name
+        )

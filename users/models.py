@@ -37,6 +37,10 @@ class User(AbstractUser):
     def profile_or_user_email(self):
         return self._get_profile_or_user_field("email")
 
+    @property
+    def profile_or_user_full_name(self):
+        return self._get_profile_or_user_field("full_name")
+
     def _get_profile_or_user_field(self, field_name):
         try:
             return getattr(self.profile, field_name)

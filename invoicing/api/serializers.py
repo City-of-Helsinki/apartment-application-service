@@ -271,7 +271,7 @@ class ApartmentInstallmentSerializer(ApartmentInstallmentSerializerBase):
     def to_internal_value(self, data):
         internal_data = super().to_internal_value(data)
         if user := self.get_user():
-            internal_data["handler"] = user.full_name
+            internal_data["handler"] = user.profile_or_user_full_name
         return internal_data
 
     def update(self, instance, validated_data):
