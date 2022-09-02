@@ -1,7 +1,11 @@
 from pytest import fixture, mark
 from unittest.mock import patch
 
-from application_form.enums import ApartmentReservationState, ApplicationType
+from application_form.enums import (
+    ApartmentReservationCancellationReason,
+    ApartmentReservationState,
+    ApplicationType,
+)
 from application_form.models import LotteryEvent, LotteryEventResult
 from application_form.services.application import (
     cancel_reservation,
@@ -358,6 +362,10 @@ def test_winning_high_priority_apartment_cancels_lower_priority_applications(
     # The second application should have been removed from the queue
     assert list(get_ordered_applications(second_apartment_uuid)) == []
     assert app_apt2.apartment_reservation.state == ApartmentReservationState.CANCELED
+    assert (
+        app_apt2.apartment_reservation.state_change_events.last().cancellation_reason
+        == ApartmentReservationCancellationReason.LOWER_PRIORITY
+    )
 
 
 @mark.django_db

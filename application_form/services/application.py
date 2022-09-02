@@ -80,7 +80,9 @@ def cancel_reservation(
 
 
 @transaction.atomic
-def create_application(application_data: dict) -> Application:
+def create_application(
+    application_data: dict, user: Optional[User] = None
+) -> Application:
     _logger.debug(
         "Creating a new application with external UUID %s",
         application_data["external_uuid"],
@@ -145,7 +147,7 @@ def create_application(application_data: dict) -> Application:
     _logger.debug(
         "Application created with external UUID %s", application_data["external_uuid"]
     )
-    add_application_to_queues(application)
+    add_application_to_queues(application, user=user)
     return application
 
 
@@ -190,7 +192,10 @@ def _cancel_lower_priority_apartments(
     for app_apartment in lower_priority_app_apartments:
         if app_apartment.apartment_reservation.queue_position == 1:
             canceled_winners.append(app_apartment)
-        cancel_reservation(app_apartment.apartment_reservation)
+        cancel_reservation(
+            app_apartment.apartment_reservation,
+            cancellation_reason=ApartmentReservationCancellationReason.LOWER_PRIORITY,
+        )
     return canceled_winners
 
 
@@ -326,7 +331,10 @@ def _cancel_lower_priority_haso_applications(
             ],
         )
         for app_apartment in low_priority_app_apartments:
-            cancel_reservation(app_apartment.apartment_reservation)
+            cancel_reservation(
+                app_apartment.apartment_reservation,
+                cancellation_reason=ApartmentReservationCancellationReason.LOWER_PRIORITY,  # noqa: E501
+            )
 
 
 def _find_winning_candidates(applications: QuerySet) -> QuerySet:

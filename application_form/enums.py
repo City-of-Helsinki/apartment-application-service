@@ -21,7 +21,10 @@ class ApartmentReservationCancellationReason(Enum):
         "reservation_agreement_canceled"  # Varaussopimus peruttu
     )
     TRANSFERRED = "transferred"  # Siirretty
-    OTHER_APARTMENT_OFFERED = "other_apartment_offered"
+    # The following ones are set automatically and cannot be chosen by users manually
+    OTHER_APARTMENT_OFFERED = "other_apartment_offered"  # Toinen huoneisto tarjottu
+    LOWER_PRIORITY = "lower_priority"  # Alemman prioriteetin
+    OFFER_REJECTED = "offer_rejected"  # Tarjous hylätty
 
 
 class ApplicationType(Enum):

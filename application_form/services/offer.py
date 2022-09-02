@@ -27,7 +27,7 @@ def create_offer(offer_data: dict, user: User = None) -> Offer:
             f"because it already has an offer."
         )
     if user:
-        offer_data["handler"] = user.full_name
+        offer_data["handler"] = user.profile_or_user_full_name
     offer = Offer.objects.create(**offer_data)
     apartment_reservation.set_state(ApartmentReservationState.OFFERED, user=user)
     update_other_customer_reservations_states(apartment_reservation)
@@ -50,12 +50,16 @@ def update_offer(offer: Offer, offer_data: dict, user: User = None) -> Offer:
                 ApartmentReservationState.OFFER_ACCEPTED, user=user
             )
         elif offer_data["state"] == OfferState.REJECTED:
-            cancel_reservation(offer.apartment_reservation, user=user)
+            cancel_reservation(
+                offer.apartment_reservation,
+                user=user,
+                cancellation_reason=ApartmentReservationCancellationReason.OFFER_REJECTED,  # noqa: E501
+            )
         else:
             raise ValueError(f'Invalid OfferState: {offer_data["state"]}')
         offer.concluded_at = timezone.now()
     if user:
-        offer_data["handler"] = user.full_name
+        offer_data["handler"] = user.profile_or_user_full_name
     update_obj(offer, offer_data)
     update_reservation_state_based_on_offer_expiration(offer.apartment_reservation)
 

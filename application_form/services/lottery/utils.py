@@ -33,7 +33,9 @@ def _save_application_order(apartment_uuid: uuid.UUID, user: User = None) -> Non
         apartment_uuid=apartment_uuid,
     )
     if user:
-        event.handler = METADATA_HANDLER_INFORMATION + " / " + user.full_name
+        event.handler = (
+            METADATA_HANDLER_INFORMATION + " / " + user.profile_or_user_full_name
+        )
         event.save()
     reservations = ApartmentReservation.objects.filter(apartment_uuid=apartment_uuid)
     for apartment_reservation in reservations:
@@ -42,7 +44,7 @@ def _save_application_order(apartment_uuid: uuid.UUID, user: User = None) -> Non
             result_position=apartment_reservation.list_position,
         )
         if user:
-            apartment_reservation.handler = user.full_name
+            apartment_reservation.handler = user.profile_or_user_full_name
             apartment_reservation.save()
     audit_logging.log(user, Operation.CREATE, event)
 

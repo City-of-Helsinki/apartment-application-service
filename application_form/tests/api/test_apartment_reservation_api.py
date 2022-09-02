@@ -409,7 +409,7 @@ def test_cannot_cancel_already_canceled_apartment_reservation(
 
 
 @pytest.mark.django_db
-def test_apartment_reservation_cancellation_reason_validation(
+def test_apartment_reservation_cancellation_reason_missing_validation(
     sales_ui_salesperson_api_client,
 ):
     apartment = ApartmentDocumentFactory()
@@ -418,6 +418,36 @@ def test_apartment_reservation_cancellation_reason_validation(
     )
 
     data = {"comment": "Foo"}
+    response = sales_ui_salesperson_api_client.post(
+        reverse(
+            "application_form:sales-apartment-reservation-cancel",
+            kwargs={"pk": reservation.id},
+        ),
+        data=data,
+        format="json",
+    )
+    assert response.status_code == 400
+    assert "cancellation_reason" in str(response.data)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "illegal_cancellation_reason",
+    [
+        ApartmentReservationCancellationReason.OTHER_APARTMENT_OFFERED,
+        ApartmentReservationCancellationReason.LOWER_PRIORITY,
+        ApartmentReservationCancellationReason.OFFER_REJECTED,
+    ],
+)
+def test_apartment_reservation_illegal_cancellation_reason(
+    sales_ui_salesperson_api_client, illegal_cancellation_reason
+):
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid, state=ApartmentReservationState.SUBMITTED
+    )
+
+    data = {"comment": "Foo", "cancellation_reason": illegal_cancellation_reason.value}
     response = sales_ui_salesperson_api_client.post(
         reverse(
             "application_form:sales-apartment-reservation-cancel",

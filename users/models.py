@@ -25,6 +25,28 @@ class User(AbstractUser):
     def full_name(self):
         return f"{self.first_name} {self.last_name}".strip()
 
+    @property
+    def profile_or_user_first_name(self):
+        return self._get_profile_or_user_field("first_name")
+
+    @property
+    def profile_or_user_last_name(self):
+        return self._get_profile_or_user_field("last_name")
+
+    @property
+    def profile_or_user_email(self):
+        return self._get_profile_or_user_field("email")
+
+    @property
+    def profile_or_user_full_name(self):
+        return self._get_profile_or_user_field("full_name")
+
+    def _get_profile_or_user_field(self, field_name):
+        try:
+            return getattr(self.profile, field_name)
+        except Profile.DoesNotExist:
+            return getattr(self, field_name)
+
 
 class Profile(TimestampedModel):
     CONTACT_LANGUAGE_CHOICES = [

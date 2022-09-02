@@ -1,6 +1,10 @@
 from pytest import fixture, mark
 
-from application_form.enums import ApartmentReservationState, ApplicationType
+from application_form.enums import (
+    ApartmentReservationCancellationReason,
+    ApartmentReservationState,
+    ApplicationType,
+)
 from application_form.models.lottery import LotteryEvent, LotteryEventResult
 from application_form.services.application import (
     cancel_reservation,
@@ -270,6 +274,10 @@ def test_winning_cancels_lower_priority_applications_if_not_reserved(
     app_apt3.refresh_from_db()
     assert app_apt1.apartment_reservation.state == ApartmentReservationState.RESERVED
     assert app_apt2.apartment_reservation.state == ApartmentReservationState.CANCELED
+    assert (
+        app_apt2.apartment_reservation.state_change_events.last().cancellation_reason
+        == ApartmentReservationCancellationReason.LOWER_PRIORITY
+    )
     assert app_apt3.apartment_reservation.state == ApartmentReservationState.RESERVED
 
 
@@ -308,6 +316,10 @@ def test_winning_cancel_lower_priority_apartments_if_reserved(
     app_apt2.refresh_from_db()
     assert app_apt1.apartment_reservation.state == ApartmentReservationState.RESERVED
     assert app_apt2.apartment_reservation.state == ApartmentReservationState.CANCELED
+    assert (
+        app_apt2.apartment_reservation.state_change_events.last().cancellation_reason
+        == ApartmentReservationCancellationReason.LOWER_PRIORITY
+    )
     assert app_apt3.apartment_reservation.state == ApartmentReservationState.OFFERED
 
 
@@ -341,6 +353,10 @@ def test_winning_cancel_lower_priority_apartments_first_in_queue(
     app_apt2.refresh_from_db()
     assert app_apt1.apartment_reservation.state == ApartmentReservationState.RESERVED
     assert app_apt2.apartment_reservation.state == ApartmentReservationState.CANCELED
+    assert (
+        app_apt2.apartment_reservation.state_change_events.last().cancellation_reason
+        == ApartmentReservationCancellationReason.LOWER_PRIORITY
+    )
 
 
 @mark.django_db

@@ -63,6 +63,10 @@ class SalesApplicationSerializer(ApplicationSerializerBase):
         validated_data["method_of_arrival"] = ApplicationArrivalMethod.POST
         return super().prepare_metadata(validated_data)
 
+    def create(self, validated_data):
+        self.context["salesperson"] = self.context["request"].user
+        return super().create(validated_data)
+
 
 class ApplicantCompactSerializer(serializers.ModelSerializer):
     class Meta:

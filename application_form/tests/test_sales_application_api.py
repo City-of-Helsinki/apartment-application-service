@@ -8,6 +8,7 @@ from apartment_application_service.settings import (
     METADATA_HITAS_PROCESS_NUMBER,
 )
 from application_form.enums import ApplicationArrivalMethod, ApplicationType
+from application_form.models import ApartmentReservation
 from application_form.models.application import Application
 from application_form.tests.conftest import create_application_data
 from application_form.tests.utils import assert_profile_match_data
@@ -53,6 +54,9 @@ def test_sales_application_post(api_client, elastic_single_project_with_apartmen
 
     application = Application.objects.get(external_uuid=data["application_uuid"])
     assert str(application.customer.primary_profile.id) == customer_profile.id
+
+    for reservation in ApartmentReservation.objects.all():
+        assert reservation.state_change_events.last().user == salesperson_profile.user
 
 
 def post_application(client, data):
