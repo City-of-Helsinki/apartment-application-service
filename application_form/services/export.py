@@ -37,7 +37,7 @@ def _get_reservation_cell_value(column_name, apartment, reservation=None):
         else:
             return operator.attrgetter(column_name)(reservation.customer)
     if column_name == "has_children":
-        return bool(reservation.customer.has_children)
+        return bool(reservation.has_children)
     if column_name == "lottery_position":
         return reservation.application_apartment.lotteryeventresult.result_position
     if column_name == "right_of_residence":

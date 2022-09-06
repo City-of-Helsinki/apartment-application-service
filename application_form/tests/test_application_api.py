@@ -373,3 +373,30 @@ def test_application_post_generate_metadata(
         profile.full_name, secondary_profile.full_name
     )
     assert application.method_of_arrival == ApplicationArrivalMethod.ELECTRONICAL_SYSTEM
+
+
+@pytest.mark.parametrize("has_children", (False, True))
+@pytest.mark.django_db
+def test_application_post_single_profile_customer_has_children(
+    api_client, elastic_single_project_with_apartments, has_children
+):
+    profile = ProfileFactory()
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
+
+    assert Profile.objects.count() == 1
+    assert Customer.objects.count() == 0
+
+    data = create_application_data(profile, num_applicants=1)
+    data["has_children"] = has_children
+
+    response = api_client.post(
+        reverse("application_form:application-list"), data, format="json"
+    )
+    assert response.status_code == 201, response.data
+    application = Application.objects.get(external_uuid=data["application_uuid"])
+    assert str(application.customer.primary_profile.id) == profile.id
+
+    assert Profile.objects.count() == 1
+    assert Customer.objects.count() == 1
+    assert Customer.objects.first().has_children == has_children
+    assert application.customer.secondary_profile is None

@@ -90,7 +90,9 @@ def create_application(
     data = application_data.copy()
     profile = data.pop("profile")
     additional_applicant_data = data.pop("additional_applicant")
-    customer = get_or_create_customer_from_profiles(profile, additional_applicant_data)
+    customer = get_or_create_customer_from_profiles(
+        profile, additional_applicant_data, data.get("has_children")
+    )
     application = Application.objects.create(
         external_uuid=data.pop("external_uuid"),
         applicants_count=2 if additional_applicant_data else 1,
