@@ -1,5 +1,5 @@
 from datetime import datetime
-from django.db.models import Exists, Max, OuterRef
+from django.db.models import Case, Exists, Max, OuterRef, When
 from django.utils.functional import cached_property
 from rest_framework import serializers
 
@@ -7,6 +7,7 @@ from apartment.api.sales.serializers import ApartmentSerializer
 from apartment.elastic.queries import get_apartments
 from apartment.models import ProjectExtraData
 from application_form.api.sales.serializers import ProjectExtraDataSerializer
+from application_form.enums import ApartmentReservationState
 from application_form.models import ApartmentReservation, Application, LotteryEvent
 from invoicing.api.serializers import ProjectInstallmentTemplateSerializer
 from invoicing.models import ProjectInstallmentTemplate
@@ -177,12 +178,22 @@ class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
             )
         )
 
+        # If the reservation is not a winning reservation then
+        # customer_has_other_winning_apartments will be annotated as False
+        # for that reservation
         project_reservations = (
             ApartmentReservation.objects.filter(apartment_uuid__in=self.apartment_uuids)
             .related_fields()
             .annotate(
-                customer_has_other_winning_apartments=Exists(
-                    customer_other_winning_apartments
+                customer_has_other_winning_apartments=Case(
+                    When(
+                        state__in=(
+                            ApartmentReservationState.SUBMITTED,
+                            ApartmentReservationState.CANCELED,
+                        ),
+                        then=False,
+                    ),
+                    default=Exists(customer_other_winning_apartments),
                 )
             )
         )
