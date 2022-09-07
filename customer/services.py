@@ -23,11 +23,14 @@ class SecondaryProfileData(TypedDict):
 def get_or_create_customer_from_profiles(
     primary_profile: Profile,
     secondary_profile_data: SecondaryProfileData = None,
+    has_children: bool = None,
 ) -> Customer:
     if not secondary_profile_data:
         # this is a single person Customer
         customer = Customer.objects.get_or_create(
-            primary_profile=primary_profile, secondary_profile=None
+            primary_profile=primary_profile,
+            secondary_profile=None,
+            has_children=has_children,
         )[0]
         return customer
 
@@ -66,5 +69,6 @@ def get_or_create_customer_from_profiles(
     customer = Customer.objects.create(
         primary_profile=primary_profile,
         secondary_profile=secondary_profile,
+        has_children=has_children,
     )
     return customer

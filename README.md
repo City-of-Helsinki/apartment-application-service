@@ -96,3 +96,47 @@ Basic `black` commands:
 
 For Django, this project mostly follows the styleguide defined in
 [Django-Styleguide](https://github.com/HackSoftware/Django-Styleguide).
+
+
+## SAP Integration
+To be able to send installments to SAP, the following settings need to be set:
+```
+SAP_SFTP_USERNAME
+SAP_SFTP_PASSWORD
+SAP_SFTP_HOST
+SAP_SFTP_PORT
+```
+Also,
+```
+python manage.py send_installments_to_sap
+```
+needs to be run periodically.
+
+### Testing / exceptional situations
+
+There are also two other management commands, which should not be needed for normal usage, but can be useful for testing purposes and exceptional situations:
+
+* Generating an XML file of given installments
+```
+python manage.py create_sap_xml [reference numbers]
+```
+* Sending an XML file to the SAP SFTP server
+```
+python manage.py send_sap_xml <filename>
+```
+
+## Cronjobs
+
+There are few commands that are needed to be run periodically to get full functionality of some features. The easiest way to do this should be using cron. 
+
+* to get SAP invoices actually sent to the SFTP server
+   ```
+   python manage.py send_pending_installments_to_sap
+   ```
+   once a day during night at some point.
+
+* to get reservation states updated based on expired offers
+   ```
+   python manage.py update_reservations_based_on_offer_expiration
+   ```
+   once a day as close to midnight as possible, but must be after it.

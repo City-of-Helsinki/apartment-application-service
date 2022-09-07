@@ -31,11 +31,10 @@ env = environ.Env(
         "@localhost/apartment-application",
     ),
     CACHE_URL=(str, "locmemcache://"),
-    DEFAULT_FROM_EMAIL=(str, ""),
+    DEFAULT_FROM_EMAIL=(str, "asuntomyynti@hel.fi"),
     MAIL_MAILGUN_KEY=(str, ""),
     MAIL_MAILGUN_DOMAIN=(str, ""),
     MAIL_MAILGUN_API=(str, ""),
-    MAILER_LOCK_PATH=(str, ""),
     SENTRY_DSN=(str, ""),
     SENTRY_ENVIRONMENT=(str, ""),
     LOG_LEVEL=(str, "ERROR"),
@@ -72,6 +71,20 @@ env = environ.Env(
     HASHIDS_SALT=(str, ""),
     PUBLIC_PGP_KEY=(str, ""),
     PRIVATE_PGP_KEY=(str, ""),
+    SAP_SFTP_USERNAME=(str, ""),
+    SAP_SFTP_PASSWORD=(str, ""),
+    SAP_SFTP_HOST=(str, ""),
+    SAP_SFTP_PORT=(int, 22),
+    SAP_SFTP_FILENAME_PREFIX=(str, "MR_IN_ID066_2800_"),
+    SAP_DAYS_UNTIL_INSTALLMENT_DUE_DATE=(int, 30),
+    METADATA_HANDLER_INFORMATION=(
+        str,
+        "0201256-6 / Kaupunkiympäristön toimiala / Asuntotuotanto / Asuntomyynti",
+    ),
+    METADATA_HITAS_PROCESS_NUMBER=(str, "10 07 05 00"),
+    METADATA_HASO_PROCESS_NUMBER=(str, "10 07 04 01"),
+    TALPA_EMAIL=(str, ""),
+    TALPA_EMAIL_REPLY_TO=(str, "asuntomyynti@hel.fi"),
 )
 if os.path.exists(env_file):
     env.read_env(env_file)
@@ -93,9 +106,7 @@ CACHES = {"default": env.cache()}
 
 EMAIL_CONFIG = env.email_url("EMAIL_URL", default="consolemail://")
 vars().update(EMAIL_CONFIG)
-MAILER_EMAIL_BACKEND = EMAIL_CONFIG["EMAIL_BACKEND"]
-MAILER_LOCK_PATH = env.str("MAILER_LOCK_PATH")
-EMAIL_BACKEND = "mailer.backend.DbBackend"
+
 if env.str("DEFAULT_FROM_EMAIL"):
     DEFAULT_FROM_EMAIL = env.str("DEFAULT_FROM_EMAIL")
 
@@ -218,6 +229,12 @@ LOGGING = {
             # required to avoid double logging with root logger
             "propagate": False,
         },
+        "invoicing": {
+            "level": env("APPS_LOG_LEVEL"),
+            "handlers": ["console"],
+            # required to avoid double logging with root logger
+            "propagate": False,
+        },
     },
 }
 
@@ -237,10 +254,10 @@ SESSION_SERIALIZER = "django.contrib.sessions.serializers.PickleSerializer"
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
-        "helusers.oidc.ApiTokenAuthentication",
+        "apartment_application_service.oidc.TunnistamoFixedApiTokenAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ),
+    "DEFAULT_PERMISSION_CLASSES": ("users.permissions.IsSalesperson",),
     "DEFAULT_SCHEMA_CLASS": "apartment_application_service.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "apartment_application_service.exceptions.drf_exception_handler",  # noqa: E501
 }
@@ -262,9 +279,50 @@ OIDC_API_TOKEN_AUTH = {
     "ISSUER": env("OIDC_ISSUER"),
 }
 
+# drf-oidc-auth rejects tokens older this so we don't want to use the default value 600s
+# see https://github.com/ByteInternet/drf-oidc-auth/issues/28
+OIDC_AUTH = {"OIDC_LEEWAY": 61 * 60}
+
 SOCIAL_AUTH_TUNNISTAMO_KEY = env("SOCIAL_AUTH_TUNNISTAMO_KEY")
 SOCIAL_AUTH_TUNNISTAMO_SECRET = env("SOCIAL_AUTH_TUNNISTAMO_SECRET")
 SOCIAL_AUTH_TUNNISTAMO_OIDC_ENDPOINT = env("SOCIAL_AUTH_TUNNISTAMO_OIDC_ENDPOINT")
+
+# Invoicing
+INVOICE_NUMBER_PREFIX = "730"
+
+# SAP
+SAP = {
+    "SENDER_ID": "ID066",
+    "COMPANY_CODE": "2800",
+    "DOCUMENT_TYPE": "5R",
+    "CURRENCY_CODE": "EUR",
+    "TAX_CODE": "4Z",
+    "PAYMENT_TERMS": "N073",
+    "GL_ACCOUNT": "350080",
+    "WBS_ELEMENT": {
+        "PREFIX": "282500",
+        "OWNERSHIP_TYPE_CODE": {
+            "HASO": "2",
+            "HITAS": "4",
+            "PUOLIHITAS": "6",
+        },
+        "REVENUE_TYPE_CODE": {
+            "HASO": "02303",
+            "HITAS": "02302",
+            "PUOLIHITAS": "02302",
+        },
+    },
+}
+
+SAP_SFTP_USERNAME = env("SAP_SFTP_USERNAME")
+SAP_SFTP_PASSWORD = env("SAP_SFTP_PASSWORD")
+SAP_SFTP_HOST = env("SAP_SFTP_HOST")
+SAP_SFTP_PORT = env("SAP_SFTP_PORT")
+SAP_SFTP_FILENAME_PREFIX = env("SAP_SFTP_FILENAME_PREFIX")
+
+# Installments won't be sent to SAP before their due date is at least this close
+# (in days)
+SAP_DAYS_UNTIL_INSTALLMENT_DUE_DATE = env("SAP_DAYS_UNTIL_INSTALLMENT_DUE_DATE")
 
 # Elasticsearch
 ELASTICSEARCH_URL = env("ELASTICSEARCH_URL")
@@ -297,6 +355,14 @@ SIMPLE_JWT = {"ACCESS_TOKEN_LIFETIME": timedelta(minutes=30)}
 # For pgcrypto
 PUBLIC_PGP_KEY = env.str("PUBLIC_PGP_KEY", multiline=True)
 PRIVATE_PGP_KEY = env.str("PRIVATE_PGP_KEY", multiline=True)
+
+# Metadata constants =
+METADATA_HANDLER_INFORMATION = env.str("METADATA_HANDLER_INFORMATION")
+METADATA_HITAS_PROCESS_NUMBER = env.str("METADATA_HITAS_PROCESS_NUMBER")
+METADATA_HASO_PROCESS_NUMBER = env.str("METADATA_HASO_PROCESS_NUMBER")
+
+TALPA_EMAIL = env.str("TALPA_EMAIL")
+TALPA_EMAIL_REPLY_TO = env.str("TALPA_EMAIL_REPLY_TO")
 
 # local_settings.py can be used to override environment-specific settings
 # like database and email that differ between development and production.

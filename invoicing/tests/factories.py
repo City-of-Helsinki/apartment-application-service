@@ -13,6 +13,7 @@ class InstallmentBaseFactory(factory.django.DjangoModelFactory):
     )
     value = factory.Faker("random_int", min=1000, max=9999)
     account_number = factory.Faker("iban")
+    due_date = factory.Faker("future_date")
 
     class Meta:
         model = InstallmentBase
@@ -32,7 +33,11 @@ class ProjectInstallmentTemplateFactory(InstallmentBaseFactory):
 
 class ApartmentInstallmentFactory(InstallmentBaseFactory):
     apartment_reservation = factory.SubFactory(ApartmentReservationFactory)
+    invoice_number = factory.Faker(
+        "pystr_format", string_format="#########", letters="1234567890"
+    )
     reference_number = factory.Faker("uuid4")
+    handler = factory.Faker("name")
 
     class Meta:
         model = ApartmentInstallment

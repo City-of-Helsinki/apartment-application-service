@@ -3,17 +3,16 @@ from django.conf import settings
 from elasticsearch.helpers.test import get_test_client
 from elasticsearch_dsl.connections import add_connection
 from pytest import fixture
-from rest_framework.test import APIClient
 
 from apartment.tests.factories import ApartmentDocumentFactory
+from users.tests.conftest import (  # noqa: F401
+    api_client,
+    profile_api_client,
+    sales_ui_salesperson_api_client,
+    user_api_client,
+)
 
 faker.config.DEFAULT_LOCALE = "fi_FI"
-
-
-@fixture
-def api_client():
-    api_client = APIClient()
-    return api_client
 
 
 def setup_elasticsearch():

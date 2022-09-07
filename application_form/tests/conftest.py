@@ -7,34 +7,32 @@ from elasticsearch.helpers.test import get_test_client
 from elasticsearch_dsl.connections import add_connection
 from factory.faker import faker
 from pytest import fixture
-from rest_framework.test import APIClient
 from unittest.mock import Mock
 
 from apartment.tests.factories import ApartmentDocumentFactory
+from apartment_application_service.settings import (
+    METADATA_HANDLER_INFORMATION,
+    METADATA_HASO_PROCESS_NUMBER,
+    METADATA_HITAS_PROCESS_NUMBER,
+)
 from application_form.api.serializers import ApplicationSerializer
-from application_form.enums import ApplicationType
+from application_form.enums import ApplicationArrivalMethod, ApplicationType
+from application_form.models import ApartmentReservation
 from application_form.tests.factories import ApplicantFactory
 from application_form.tests.utils import (
     calculate_ssn_suffix,
     get_elastic_apartments_uuids,
 )
 from connections.tests.factories import ApartmentMinimalFactory
-from users.tests.factories import ProfileFactory
-from users.tests.utils import _create_token
+from users.tests.conftest import (  # noqa: F401
+    api_client,
+    drupal_salesperson_api_client,
+    profile_api_client,
+    sales_ui_salesperson_api_client,
+    user_api_client,
+)
 
 faker.config.DEFAULT_LOCALE = "fi_FI"
-
-
-@fixture
-def api_client():
-    return APIClient()
-
-
-@fixture
-def profile_api_client(api_client):
-    profile = ProfileFactory()
-    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
-    return api_client
 
 
 def setup_elasticsearch():
@@ -61,6 +59,16 @@ def elasticsearch():
 @fixture(scope="module")
 def elastic_apartments(elasticsearch):
     yield ApartmentMinimalFactory.create_for_sale_batch(10)
+
+
+@fixture
+def check_latest_reservation_state_change_events():
+    # makes sure the latest ApartmentReservationStateChangeEvent matches the latest
+    # ApartmentReservation state for every ApartmentReservation
+    # Note: a failure here will be reported as an error instead of a failed test
+    yield
+    for reservation in ApartmentReservation.objects.all():
+        assert reservation.state_change_events.last().state == reservation.state
 
 
 @fixture
@@ -244,6 +252,8 @@ def create_application_data(
         "additional_applicant": None,
         "project_id": str(project_uuid),
         "apartments": apartments_data,
+        "has_hitas_ownership": True,
+        "is_right_of_occupancy_housing_changer": True,
     }
     # Add a second applicant if needed
     if num_applicants == 2:
@@ -275,3 +285,20 @@ def create_validated_application_data(
     )
     serializer.is_valid(raise_exception=True)
     return {**serializer.validated_data, "profile": profile}
+
+
+def prepare_metadata(data, profile):
+    process_number = (
+        METADATA_HASO_PROCESS_NUMBER
+        if data["type"] == ApplicationType.HASO
+        else METADATA_HITAS_PROCESS_NUMBER
+    )
+    data.update(
+        {
+            "handler_information": METADATA_HANDLER_INFORMATION,
+            "process_number": process_number,
+            "method_of_arrival": ApplicationArrivalMethod.ELECTRONICAL_SYSTEM.value,
+            "sender_names": profile.full_name,
+        }
+    )
+    return data

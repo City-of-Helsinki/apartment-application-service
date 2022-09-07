@@ -2,7 +2,7 @@ import dataclasses
 from datetime import date
 from decimal import Decimal
 from io import BytesIO
-from pikepdf import Pdf, String
+from pikepdf import Name, Pdf, String
 from typing import ClassVar, Dict, Iterable, Union
 
 PDF_TEMPLATE_DIRECTORY = "pdf_templates"
@@ -22,7 +22,7 @@ class PDFData:
     FIELD_MAPPING: ClassVar[Dict[str, str]] = {}
 
     def __post_init__(self, *args, **kwargs):
-        annots = {a for a in self.__annotations__ if a != "FIELD_MAPPING"}
+        annots = [a for a in self.__annotations__ if a != "FIELD_MAPPING"]
         keys = self.FIELD_MAPPING.keys()
         assert (
             not annots - keys
@@ -41,7 +41,9 @@ class PDFData:
             if original_value is None:
                 value = ""
             else:
-                if isinstance(original_value, date):
+                if isinstance(original_value, bool):
+                    value = original_value
+                elif isinstance(original_value, date):
                     value = original_value.strftime("%-d.%-m.%Y")
                 elif isinstance(original_value, Decimal):
                     value = str(original_value).replace(".", ",")
@@ -52,17 +54,26 @@ class PDFData:
 
 
 class PDFCurrencyField:
-    def __init__(self, *, euros: Decimal = None, cents: int = None, suffix=" €"):
+    def __init__(
+        self, *, euros: Decimal = None, cents: int = None, prefix=None, suffix=None
+    ):
         if euros is None and cents is None:
             self.value = None
             return
 
         self.value = euros if euros is not None else Decimal(cents) / 100
-        self.suffix = suffix
+        self.prefix = prefix or ""
+        self.suffix = suffix or ""
 
     def __str__(self):
         return (
-            str(self.value.quantize(Decimal(".01"))).replace(".", ",") + self.suffix
+            (
+                self.prefix
+                + format(self.value.quantize(Decimal(".01")), ",")
+                .replace(",", " ")
+                .replace(".", ",")
+                + self.suffix
+            )
             if self.value is not None
             else ""
         )
@@ -75,12 +86,18 @@ def create_pdf(
         pdf_data_list = [pdf_data_list]
     pdf = Pdf.new()
 
-    for pdf_data in pdf_data_list:
+    for idx, pdf_data in enumerate(pdf_data_list):
         single_pdf = _create_pdf(
-            f"{PDF_TEMPLATE_DIRECTORY}/{template_file_name}", pdf_data.to_data_dict()
+            f"{PDF_TEMPLATE_DIRECTORY}/{template_file_name}",
+            pdf_data.to_data_dict(),
+            idx,
         )
+        if not hasattr(pdf.Root, "AcroForm") and hasattr(single_pdf.Root, "AcroForm"):
+            acroform = pdf.copy_foreign(single_pdf.Root.AcroForm)
+            pdf.Root.AcroForm = acroform
+            del pdf.Root.AcroForm.Fields
+            pdf.Root.AcroForm.NeedAppearances = True
         pdf.pages.extend(single_pdf.pages)
-
     pdf_bytes = BytesIO()
     pdf.save(pdf_bytes)
     pdf_bytes.seek(0)
@@ -88,7 +105,7 @@ def create_pdf(
     return pdf_bytes
 
 
-def _set_pdf_fields(pdf: Pdf, data_dict: DataDict) -> None:
+def _set_pdf_fields(pdf: Pdf, data_dict: DataDict, idx: None) -> None:
     for page in pdf.pages:
         for annot in page.Annots:
             if not hasattr(annot, "FT") and str(annot.Parent.T) in data_dict:
@@ -98,16 +115,28 @@ def _set_pdf_fields(pdf: Pdf, data_dict: DataDict) -> None:
                 continue
             if not hasattr(annot, "T") or (field_name := str(annot.T)) not in data_dict:
                 continue
+            if idx is not None:
+                # In case of merging multiple PDFs, need to rename the field, otherwise
+                # every field with the same name will display same values (latest value)
+                annot.T = String(str(annot.T) + "_" + str(idx))
             if annot.FT == "/Tx":  # text field
                 pdf_value = String(data_dict[field_name])
                 annot.V = pdf_value
                 annot.DV = pdf_value
+                # Required to show the filled fields in almost every MacOS PDF viewer
+                # Source: https://stackoverflow.com/a/63025285
+                annot.AP = ""
+            elif annot.FT == "/Btn":  # checkbox
+                if not data_dict[field_name]:
+                    continue
+                pdf_value = Name("/Kyllä")
+                annot.AS = pdf_value
+                annot.V = pdf_value
             else:
                 raise PDFError(f"Field {field_name} has an unsupported type {annot.FT}")
 
 
-def _create_pdf(template_file_name: str, data_dict: DataDict) -> Pdf:
+def _create_pdf(template_file_name: str, data_dict: DataDict, idx=None) -> Pdf:
     pdf = Pdf.open(template_file_name)
-    _set_pdf_fields(pdf, data_dict)
-    pdf.Root.AcroForm.NeedAppearances = 1
+    _set_pdf_fields(pdf, data_dict, idx=idx)
     return pdf

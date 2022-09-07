@@ -34,6 +34,7 @@ class HasoContractPDFData(PDFData):
     occupant_2_phone_number: Union[str, None]
     occupant_2_ssn: Union[str, None]
     occupant_2_street_address: Union[str, None]
+    aso_number: Union[int, None]
     payment_due_date: Union[date, None]
     project_acc_salesperson: Union[str, None]
     project_contract_apartment_completion: Union[str, None]
@@ -70,6 +71,7 @@ class HasoContractPDFData(PDFData):
         "occupant_2_phone_number": "Haltija 2 puhelinnumero",
         "occupant_2_ssn": "Haltija 2 henkilötunnus",
         "occupant_2_street_address": "Haltija 2 osoite",
+        "aso_number": "järjestysnumero",
         "payment_due_date": "Eräpäivä maksulle",
         "project_acc_salesperson": "rakennuttaja-asimies",
         "project_contract_apartment_completion": "Valmistumisaika",
@@ -90,9 +92,7 @@ class HasoContractPDFData(PDFData):
 
 
 def create_haso_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
-    customer = SafeAttributeObject(
-        reservation.application_apartment.application.customer
-    )
+    customer = SafeAttributeObject(reservation.customer)
     primary_profile = SafeAttributeObject(customer.primary_profile)
     secondary_profile = SafeAttributeObject(customer.secondary_profile)
     apartment = get_apartment(reservation.apartment_uuid, include_project_fields=True)
@@ -118,15 +118,28 @@ def create_haso_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
 
     pdf_data = HasoContractPDFData(
         occupant_1=primary_profile.full_name,
-        occupant_1_street_address=primary_profile.street_address,
+        occupant_1_street_address=(
+            (primary_profile.street_address or "")
+            + ", "
+            + (primary_profile.postal_code or "")
+            + " "
+            + (primary_profile.city or "")
+        ).strip(),
         occupant_1_phone_number=primary_profile.phone_number,
         occupant_1_email=primary_profile.email,
         occupant_1_ssn=primary_profile.national_identification_number,
         occupant_2=secondary_profile.full_name,
-        occupant_2_street_address=secondary_profile.street_address,
+        occupant_2_street_address=(
+            (secondary_profile.street_address or "")
+            + ", "
+            + (secondary_profile.postal_code or "")
+            + " "
+            + (secondary_profile.city or "")
+        ).strip(),
         occupant_2_phone_number=secondary_profile.phone_number,
         occupant_2_email=secondary_profile.email,
         occupant_2_ssn=secondary_profile.national_identification_number,
+        aso_number=reservation.right_of_residence,
         right_of_residence_number=customer.right_of_residence,
         project_housing_company=apartment.project_housing_company,
         project_street_address=apartment.project_street_address,
@@ -135,11 +148,13 @@ def create_haso_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         living_area=apartment.living_area,
         floor=apartment.floor,
         right_of_occupancy_payment=PDFCurrencyField(
-            cents=apartment.right_of_occupancy_payment
+            cents=apartment.right_of_occupancy_payment, suffix=" €"
         ),
         right_of_occupancy_payment_text=num2words(
             Decimal(apartment.right_of_occupancy_payment) / 100, lang="fi"
-        ),
+        )
+        if apartment.right_of_occupancy_payment is not None
+        else None,
         payment_due_date=first_payment.due_date,
         installment_amount=PDFCurrencyField(euros=first_payment.value),
         right_of_occupancy_fee=PDFCurrencyField(

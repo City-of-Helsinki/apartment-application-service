@@ -38,6 +38,10 @@ if [[ "$CREATE_DATA_TRANSFER_PATH" = "1" ]]; then
     echo "Apartment data transfer folder created"
 fi
 
+# Compile messages to make translations work
+echo "Compile messages to make translations work"
+./manage.py compilemessages
+
 # Start server
 if [[ ! -z "$@" ]]; then
     "$@"

@@ -1,11 +1,14 @@
 import uuid
+from django.contrib.auth import get_user_model
 
 from apartment.elastic.queries import get_apartment_uuids
 from application_form.services.application import _reserve_haso_apartment
 from application_form.services.lottery.utils import _save_application_order
 
+User = get_user_model()
 
-def _distribute_haso_apartments(project_uuid: uuid.UUID) -> None:
+
+def _distribute_haso_apartments(project_uuid: uuid.UUID, user: User = None) -> None:
     """
     Declares a winner for each apartment in the project.
 
@@ -17,7 +20,7 @@ def _distribute_haso_apartments(project_uuid: uuid.UUID) -> None:
 
     # Persist the initial order of applications
     for apartment_uuid in apartment_uuids:
-        _save_application_order(apartment_uuid)
+        _save_application_order(apartment_uuid, user)
 
     # Reserve each apartment. This will modify the queue of each apartment, since
     # apartment applications with lower priority may get canceled.

@@ -4,8 +4,14 @@ from django.urls import reverse
 from rest_framework import status
 
 from apartment.tests.factories import ApartmentDocumentFactory
+from apartment_application_service.settings import (
+    METADATA_HANDLER_INFORMATION,
+    METADATA_HASO_PROCESS_NUMBER,
+    METADATA_HITAS_PROCESS_NUMBER,
+)
 from application_form import error_codes
-from application_form.models import Application
+from application_form.enums import ApplicationArrivalMethod, ApplicationType
+from application_form.models import ApartmentReservation, Application
 from application_form.tests.conftest import create_application_data
 from application_form.tests.factories import (
     ApplicationApartmentFactory,
@@ -29,6 +35,9 @@ def test_application_post(api_client, elastic_single_project_with_apartments):
     )
     assert response.status_code == 201
     assert response.data == {"application_uuid": data["application_uuid"]}
+
+    for reservation in ApartmentReservation.objects.all():
+        assert reservation.state_change_events.last().user is None
 
 
 @pytest.mark.parametrize("already_existing_customer", (False, True))
@@ -317,3 +326,77 @@ def test_application_post_fails_if_partner_profile_have_already_applied_to_proje
     assert response.status_code == status.HTTP_403_FORBIDDEN
     assert response.data["code"] == error_codes.E1001_APPLICANT_HAS_ALREADY_APPLIED
     assert len(response.data["message"]) > 0
+
+
+@pytest.mark.parametrize(
+    "application_type", (ApplicationType.HITAS, ApplicationType.HASO)
+)
+@pytest.mark.django_db
+def test_application_post_generate_metadata(
+    api_client, elastic_single_project_with_apartments, application_type
+):
+    profile = ProfileFactory()
+    secondary_profile = ProfileFactory()
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
+    apartment = ApartmentDocumentFactory()
+    application = ApplicationFactory(
+        customer=CustomerFactory(
+            primary_profile=profile, secondary_profile=secondary_profile
+        ),
+        type=application_type,
+    )
+    ApplicationApartmentFactory.create_application_with_apartments(
+        [apartment.uuid], application
+    )
+
+    data = create_application_data(profile, application_type=application_type)
+    data["additional_applicant"][
+        "date_of_birth"
+    ] = f"{secondary_profile.date_of_birth:%Y-%m-%d}"
+    data["additional_applicant"]["ssn_suffix"] = secondary_profile.ssn_suffix
+    data["additional_applicant"]["first_name"] = secondary_profile.first_name
+    data["additional_applicant"]["last_name"] = secondary_profile.last_name
+
+    response = api_client.post(
+        reverse("application_form:application-list"), data, format="json"
+    )
+    assert response.status_code == 201, response.data
+    application = Application.objects.get(external_uuid=data["application_uuid"])
+    assert application.handler_information == METADATA_HANDLER_INFORMATION
+    assert application.type == application_type
+    assert (
+        application.process_number == METADATA_HASO_PROCESS_NUMBER
+        if application_type == ApplicationType.HASO
+        else METADATA_HITAS_PROCESS_NUMBER
+    )
+    assert application.sender_names == "{}/ {}".format(
+        profile.full_name, secondary_profile.full_name
+    )
+    assert application.method_of_arrival == ApplicationArrivalMethod.ELECTRONICAL_SYSTEM
+
+
+@pytest.mark.parametrize("has_children", (False, True))
+@pytest.mark.django_db
+def test_application_post_single_profile_customer_has_children(
+    api_client, elastic_single_project_with_apartments, has_children
+):
+    profile = ProfileFactory()
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
+
+    assert Profile.objects.count() == 1
+    assert Customer.objects.count() == 0
+
+    data = create_application_data(profile, num_applicants=1)
+    data["has_children"] = has_children
+
+    response = api_client.post(
+        reverse("application_form:application-list"), data, format="json"
+    )
+    assert response.status_code == 201, response.data
+    application = Application.objects.get(external_uuid=data["application_uuid"])
+    assert str(application.customer.primary_profile.id) == profile.id
+
+    assert Profile.objects.count() == 1
+    assert Customer.objects.count() == 1
+    assert Customer.objects.first().has_children == has_children
+    assert application.customer.secondary_profile is None

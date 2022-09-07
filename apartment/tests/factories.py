@@ -112,9 +112,6 @@ class ApartmentDocumentFactory(ElasticFactory):
     project_coordinate_lat = fuzzy.FuzzyFloat(-90, 90)
     project_coordinate_lon = fuzzy.FuzzyFloat(-180, 180)
 
-    project_state_of_sale = fuzzy.FuzzyChoice(
-        ["PRE_MARKETING", "FOR_SALE", "PROCESSING", "READY"]
-    )
     apartment_state_of_sale = fuzzy.FuzzyChoice(
         [
             "FOR_SALE",
@@ -177,13 +174,15 @@ class ApartmentDocumentFactory(ElasticFactory):
     right_of_occupancy_payment = fuzzy.FuzzyInteger(0, 999)
     right_of_occupancy_fee = fuzzy.FuzzyInteger(0, 999)
     project_contract_apartment_completion_selection_2_start = fuzzy.FuzzyDate(
-        start_date=timezone.now().date() - timedelta(days=7),
-        end_date=timezone.now().date() - timedelta(days=1),
+        start_date=timezone.localdate() - timedelta(days=7),
+        end_date=timezone.localdate() - timedelta(days=1),
     )
     project_contract_apartment_completion_selection_2_end = fuzzy.FuzzyDate(
-        start_date=timezone.now().date() + timedelta(days=1),
-        end_date=timezone.now().date() + timedelta(days=7),
+        start_date=timezone.localdate() + timedelta(days=1),
+        end_date=timezone.localdate() + timedelta(days=7),
     )
     project_contract_other_terms = fuzzy.FuzzyText()
     project_contract_usage_fees = fuzzy.FuzzyText()
     project_contract_right_of_occupancy_payment_verification = fuzzy.FuzzyText()
+    project_property_number = fuzzy.FuzzyText(length=3)
+    project_contract_rs_bank = fuzzy.FuzzyText()

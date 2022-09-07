@@ -4,8 +4,6 @@ from django.urls import reverse
 from rest_framework import status
 
 from audit_log.models import AuditLog
-from users.tests.factories import ProfileFactory
-from users.tests.utils import _create_token
 
 _common_fields = {
     "audit_event": {
@@ -34,11 +32,13 @@ def test_audit_log_post_writes_audit_log_without_authorized_user(api_client):
 
 
 @pytest.mark.django_db
-def test_audit_log_post_writes_audit_log_with_authorized_user(api_client):
-    profile = ProfileFactory()
-    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
+def test_audit_log_post_writes_audit_log_with_authorized_user(
+    drupal_salesperson_api_client,
+):
     data = _common_fields
-    api_client.post(reverse("audit_log:auditlog-list"), data, format="json")
+    drupal_salesperson_api_client.post(
+        reverse("audit_log:auditlog-list"), data, format="json"
+    )
     audit_event = AuditLog.objects.get().message["audit_event"]
 
     assert audit_event["origin"] == data["audit_event"]["origin"]
@@ -59,32 +59,24 @@ def test_audit_log_post_writes_audit_log_with_authorized_user(api_client):
 
 
 @pytest.mark.django_db
-def test_audit_log_get_not_allowed(api_client):
-    profile = ProfileFactory()
-    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
-    response = api_client.get(reverse("audit_log:auditlog-list"))
+def test_audit_log_get_not_allowed(drupal_salesperson_api_client):
+    response = drupal_salesperson_api_client.get(reverse("audit_log:auditlog-list"))
     assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
 
 
 @pytest.mark.django_db
-def test_audit_log_put_not_allowed(api_client):
-    profile = ProfileFactory()
-    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
-    response = api_client.put(reverse("audit_log:auditlog-list"))
+def test_audit_log_put_not_allowed(drupal_salesperson_api_client):
+    response = drupal_salesperson_api_client.put(reverse("audit_log:auditlog-list"))
     assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
 
 
 @pytest.mark.django_db
-def test_audit_log_patch_not_allowed(api_client):
-    profile = ProfileFactory()
-    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
-    response = api_client.patch(reverse("audit_log:auditlog-list"))
+def test_audit_log_patch_not_allowed(drupal_salesperson_api_client):
+    response = drupal_salesperson_api_client.patch(reverse("audit_log:auditlog-list"))
     assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED
 
 
 @pytest.mark.django_db
-def test_audit_log_delete_not_allowed(api_client):
-    profile = ProfileFactory()
-    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
-    response = api_client.delete(reverse("audit_log:auditlog-list"))
+def test_audit_log_delete_not_allowed(drupal_salesperson_api_client):
+    response = drupal_salesperson_api_client.delete(reverse("audit_log:auditlog-list"))
     assert response.status_code == status.HTTP_405_METHOD_NOT_ALLOWED

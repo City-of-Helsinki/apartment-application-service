@@ -1,7 +1,5 @@
 from rest_framework.permissions import BasePermission
 
-from users.enums import Roles
-
 
 class IsSalesperson(BasePermission):
     """
@@ -9,9 +7,6 @@ class IsSalesperson(BasePermission):
     """
 
     def has_permission(self, request, view):
-        if (
-            request.user
-            and request.user.groups.filter(name__iexact=Roles.SALESPERSON.name).exists()
-        ):
+        if request.user and request.user.is_salesperson():
             return True
         return False

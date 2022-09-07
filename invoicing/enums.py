@@ -3,20 +3,20 @@ from enumfields import Enum
 
 
 class InstallmentType(Enum):
-    PAYMENT_1 = "PAYMENT_1"
-    PAYMENT_2 = "PAYMENT_2"
-    PAYMENT_3 = "PAYMENT_3"
-    PAYMENT_4 = "PAYMENT_4"
-    PAYMENT_5 = "PAYMENT_5"
-    PAYMENT_6 = "PAYMENT_6"
-    PAYMENT_7 = "PAYMENT_7"
-    REFUND = "REFUND"
-    DOWN_PAYMENT = "DOWN_PAYMENT"
-    LATE_PAYMENT_INTEREST = "LATE_PAYMENT_INTEREST"
-    RIGHT_OF_RESIDENCE_FEE = "RIGHT_OF_RESIDENCE_FEE"
-    FOR_INVOICING = "FOR_INVOICING"
-    DEPOSIT = "DEPOSIT"
-    RESERVATION_FEE = "RESERVATION_FEE"
+    PAYMENT_1 = "PAYMENT_1"  # Erä 1.
+    PAYMENT_2 = "PAYMENT_2"  # Erä 2.
+    PAYMENT_3 = "PAYMENT_3"  # Erä 3.
+    PAYMENT_4 = "PAYMENT_4"  # Erä 4.
+    PAYMENT_5 = "PAYMENT_5"  # Erä 5.
+    PAYMENT_6 = "PAYMENT_6"  # Erä 6.
+    PAYMENT_7 = "PAYMENT_7"  # Erä 7.
+    REFUND = "REFUND"  # Hyvitys
+    DOWN_PAYMENT = "DOWN_PAYMENT"  # Käsiraha
+    LATE_PAYMENT_INTEREST = "LATE_PAYMENT_INTEREST"  # Viivästyskorko
+    RIGHT_OF_OCCUPANCY_PAYMENT = "RIGHT_OF_OCCUPANCY_PAYMENT"  # AO-maksu
+    FOR_INVOICING = "FOR_INVOICING"  # Laskutettava
+    DEPOSIT = "DEPOSIT"  # Vakuusmaksu
+    RESERVATION_FEE = "RESERVATION_FEE"  # Varausmaksu
 
     class Labels:
         PAYMENT_1 = _("1st payment")
@@ -29,7 +29,7 @@ class InstallmentType(Enum):
         REFUND = _("refund")
         DOWN_PAYMENT = _("down payment")
         LATE_PAYMENT_INTEREST = _("late payment interest")
-        RIGHT_OF_RESIDENCE_FEE = _("right of residence fee")
+        RIGHT_OF_OCCUPANCY_PAYMENT = _("right of occupancy payment")
         FOR_INVOICING = _("for invoicing")
         DEPOSIT = _("deposit")
         RESERVATION_FEE = _("reservation fee")
@@ -47,9 +47,11 @@ class InstallmentUnit(Enum):
 class InstallmentPercentageSpecifier(Enum):
     SALES_PRICE = "SALES_PRICE"
     DEBT_FREE_SALES_PRICE = "DEBT_FREE_SALES_PRICE"
-    DEBT_FREE_SALES_PRICE_FLEXIBLE = "DEBT_FREE_SALES_PRICE_FLEXIBLE"
+    SALES_PRICE_FLEXIBLE = "SALES_PRICE_FLEXIBLE"
+    RIGHT_OF_OCCUPANCY_PAYMENT = "RIGHT_OF_OCCUPANCY_PAYMENT"
 
     class Labels:
         SALES_PRICE = _("sales price")
         DEBT_FREE_SALES_PRICE = _("debt free sales price")
-        DEBT_FREE_SALES_PRICE_FLEXIBLE = _("debt free sales price flexible")
+        SALES_PRICE_FLEXIBLE = _("sales price flexible")
+        RIGHT_OF_OCCUPANCY_PAYMENT = _("right of occupancy payment")

@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
-from application_form.api.sales.serializers import ApartmentReservationSerializer
-from application_form.models import ApartmentReservation
+from apartment.utils import get_apartment_state
+from application_form.api.sales.serializers import SalesApartmentReservationSerializer
 
 
 class ApartmentSerializer(serializers.Serializer):
@@ -10,12 +10,26 @@ class ApartmentSerializer(serializers.Serializer):
     apartment_structure = serializers.CharField()
     living_area = serializers.FloatField()
     reservations = serializers.SerializerMethodField()
+    url = serializers.CharField()
+    state = serializers.SerializerMethodField()
 
     def get_reservations(self, obj):
-        reservations = ApartmentReservation.objects.filter(
-            apartment_uuid=obj["uuid"]
-        ).order_by(
-            "application_apartment__lotteryeventresult__result_position",
-            "queue_position",
-        )
-        return ApartmentReservationSerializer(reservations, many=True).data
+        reservations = []
+        if self.context.get("reservations"):
+            reservations = sorted(
+                [
+                    r
+                    for r in self.context.get("reservations")
+                    if str(r.apartment_uuid) == obj.uuid
+                ],
+                key=lambda x: x.list_position,
+            )
+
+        return SalesApartmentReservationSerializer(
+            reservations,
+            many=True,
+            context={"project_uuid": self.context["project_uuid"]},
+        ).data
+
+    def get_state(self, obj):
+        return get_apartment_state(obj.uuid)

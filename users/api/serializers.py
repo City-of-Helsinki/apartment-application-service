@@ -12,6 +12,8 @@ from rest_framework_simplejwt.serializers import (
 from typing import Optional
 from uuid import UUID
 
+from audit_log import audit_logging
+from audit_log.enums import Operation
 from users.enums import Roles
 from users.masking import unmask_string, unmask_uuid
 from users.models import Profile
@@ -103,7 +105,10 @@ class MaskedTokenObtainPairSerializer(TokenObtainPairSerializer):
         profile_id = unmask_uuid(attrs.get(self.profile_id_field, ""))
         attrs[self.username_field] = self._get_username_by_profile_id(profile_id)
         attrs[self.password_field] = unmask_string(attrs.get(self.password_field, ""))
-        return super().validate(attrs)
+        data = super().validate(attrs)
+        # Audit log when refreshing token
+        audit_logging.log(self.user, Operation.UPDATE, self.user)
+        return data
 
     def _get_username_by_profile_id(self, profile_id: UUID) -> Optional[str]:
         """

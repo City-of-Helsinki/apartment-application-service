@@ -1,8 +1,14 @@
+from datetime import datetime
+from django.db.models import Case, Exists, Max, OuterRef, When
+from django.utils.functional import cached_property
 from rest_framework import serializers
 
 from apartment.api.sales.serializers import ApartmentSerializer
-from apartment.elastic.queries import get_apartment_uuids, get_apartments
-from application_form.models import LotteryEvent
+from apartment.elastic.queries import get_apartments
+from apartment.models import ProjectExtraData
+from application_form.api.sales.serializers import ProjectExtraDataSerializer
+from application_form.enums import ApartmentReservationState
+from application_form.models import ApartmentReservation, Application, LotteryEvent
 from invoicing.api.serializers import ProjectInstallmentTemplateSerializer
 from invoicing.models import ProjectInstallmentTemplate
 
@@ -142,15 +148,6 @@ class ProjectDocumentSerializerBase(serializers.Serializer):
     published = serializers.BooleanField(source="project_published")
     archived = serializers.BooleanField(source="project_archived")
 
-    lottery_completed = serializers.SerializerMethodField()
-
-    def get_lottery_completed(self, obj):
-        apartment_uuids = get_apartment_uuids(obj["project_uuid"])
-        lottery_completed = LotteryEvent.objects.filter(
-            apartment_uuid__in=apartment_uuids
-        ).exists()
-        return lottery_completed
-
 
 class ProjectDocumentListSerializer(ProjectDocumentSerializerBase):
     pass
@@ -159,6 +156,9 @@ class ProjectDocumentListSerializer(ProjectDocumentSerializerBase):
 class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
     installment_templates = serializers.SerializerMethodField()
     apartments = serializers.SerializerMethodField()
+    extra_data = serializers.SerializerMethodField()
+    lottery_completed_at = serializers.SerializerMethodField()
+    application_count = serializers.SerializerMethodField()
 
     def get_installment_templates(self, obj):
         installment_templates = ProjectInstallmentTemplate.objects.filter(
@@ -169,5 +169,70 @@ class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
         ).data
 
     def get_apartments(self, obj):
-        apartments = get_apartments(obj.project_uuid)
-        return ApartmentSerializer(apartments, many=True).data
+        customer_other_winning_apartments = (
+            ApartmentReservation.objects.reserved()
+            .exclude(pk=OuterRef("pk"))
+            .filter(
+                apartment_uuid__in=self.apartment_uuids,
+                customer=OuterRef("customer__pk"),
+            )
+        )
+
+        # If the reservation is not a winning reservation then
+        # customer_has_other_winning_apartments will be annotated as False
+        # for that reservation
+        project_reservations = (
+            ApartmentReservation.objects.filter(apartment_uuid__in=self.apartment_uuids)
+            .related_fields()
+            .annotate(
+                customer_has_other_winning_apartments=Case(
+                    When(
+                        state__in=(
+                            ApartmentReservationState.SUBMITTED,
+                            ApartmentReservationState.CANCELED,
+                        ),
+                        then=False,
+                    ),
+                    default=Exists(customer_other_winning_apartments),
+                )
+            )
+        )
+
+        return ApartmentSerializer(
+            self.apartment_objs,
+            many=True,
+            context={
+                "project_uuid": obj.project_uuid,
+                "reservations": project_reservations,
+            },
+        ).data
+
+    def get_extra_data(self, obj):
+        try:
+            extra_data = ProjectExtraData.objects.get(project_uuid=obj.project_uuid)
+        except ProjectExtraData.DoesNotExist:
+            extra_data = ProjectExtraData()
+        return ProjectExtraDataSerializer(extra_data).data
+
+    def get_lottery_completed_at(self, obj) -> datetime:
+        lottery_completed_at = LotteryEvent.objects.filter(
+            apartment_uuid__in=self.apartment_uuids
+        ).aggregate(Max("timestamp"))["timestamp__max"]
+        return lottery_completed_at
+
+    def get_application_count(self, obj) -> int:
+        return (
+            Application.objects.filter(
+                application_apartments__apartment_uuid__in=self.apartment_uuids
+            )
+            .distinct()
+            .count()
+        )
+
+    @cached_property
+    def apartment_objs(self):
+        return get_apartments(self.instance.project_uuid)
+
+    @cached_property
+    def apartment_uuids(self):
+        return [a.uuid for a in self.apartment_objs]

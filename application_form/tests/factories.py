@@ -1,21 +1,31 @@
 import factory
 import random
 import uuid
+from datetime import timedelta
+from django.utils import timezone
 from factory import Faker, fuzzy, LazyAttribute
 from typing import List
 
+from apartment_application_service.settings import (
+    METADATA_HANDLER_INFORMATION,
+    METADATA_HASO_PROCESS_NUMBER,
+    METADATA_HITAS_PROCESS_NUMBER,
+)
 from application_form.enums import ApartmentReservationState, ApplicationType
 from application_form.models import (
     ApartmentReservation,
+    ApartmentReservationStateChangeEvent,
     Applicant,
     Application,
     ApplicationApartment,
     LotteryEvent,
     LotteryEventResult,
+    Offer,
 )
 from application_form.services.application import _calculate_age
 from application_form.tests.utils import calculate_ssn_suffix
 from customer.tests.factories import CustomerFactory
+from users.tests.factories import UserFactory
 
 
 class ApplicationFactory(factory.django.DjangoModelFactory):
@@ -28,6 +38,11 @@ class ApplicationFactory(factory.django.DjangoModelFactory):
     right_of_residence = fuzzy.FuzzyInteger(1, 1000000000)
     has_children = Faker("boolean")
     customer = factory.SubFactory(CustomerFactory)
+    handler_information = METADATA_HANDLER_INFORMATION
+    process_number = fuzzy.FuzzyChoice(
+        [METADATA_HITAS_PROCESS_NUMBER, METADATA_HASO_PROCESS_NUMBER]
+    )
+    sender_names = Faker("name")
 
 
 class ApplicantFactory(factory.django.DjangoModelFactory):
@@ -97,8 +112,15 @@ class ApartmentReservationFactory(factory.django.DjangoModelFactory):
     apartment_uuid = factory.Faker("uuid4")
     customer = factory.SubFactory(CustomerFactory)
     queue_position = fuzzy.FuzzyInteger(1)
+    list_position = fuzzy.FuzzyInteger(1)
     application_apartment = factory.SubFactory(ApplicationApartmentFactory)
     state = fuzzy.FuzzyChoice(list(ApartmentReservationState))
+    right_of_residence = LazyAttribute(
+        lambda o: o.application_apartment.application.right_of_residence
+        if o.application_apartment
+        else o.customer.right_of_residence
+    )
+    handler = factory.Faker("name")
 
 
 class LotteryEventFactory(factory.django.DjangoModelFactory):
@@ -106,6 +128,7 @@ class LotteryEventFactory(factory.django.DjangoModelFactory):
         model = LotteryEvent
 
     apartment_uuid = factory.Faker("uuid4")
+    handler = factory.Faker("name")
 
 
 class LotteryEventResultFactory(factory.django.DjangoModelFactory):
@@ -115,3 +138,25 @@ class LotteryEventResultFactory(factory.django.DjangoModelFactory):
     event = factory.SubFactory(LotteryEventFactory)
     application_apartment = factory.SubFactory(ApplicationApartmentFactory)
     result_position = fuzzy.FuzzyInteger(1)
+
+
+class ApartmentReservationStateChangeEventFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = ApartmentReservationStateChangeEvent
+
+    reservation = factory.SubFactory(ApartmentReservationFactory)
+    state = fuzzy.FuzzyChoice(list(ApartmentReservationState))
+    user = factory.SubFactory(UserFactory)
+
+
+class OfferFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = Offer
+
+    apartment_reservation = factory.SubFactory(ApartmentReservationFactory)
+    comment = fuzzy.FuzzyText()
+    valid_until = fuzzy.FuzzyDate(
+        start_date=timezone.localdate() + timedelta(days=7),
+        end_date=timezone.localdate() + timedelta(days=14),
+    )
+    handler = factory.Faker("name")

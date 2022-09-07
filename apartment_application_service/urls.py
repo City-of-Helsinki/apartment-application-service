@@ -1,4 +1,6 @@
+from django.http import HttpResponse
 from django.urls import include, path
+from django.views.decorators.http import require_http_methods
 from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularRedocView,
@@ -49,3 +51,19 @@ urlpatterns = [
         name="swagger-ui",
     ),
 ]
+
+
+#
+# Kubernetes liveness & readiness probes
+#
+@require_http_methods(["GET"])
+def healthz(*args, **kwargs):
+    return HttpResponse(status=200)
+
+
+@require_http_methods(["GET"])
+def readiness(*args, **kwargs):
+    return HttpResponse(status=200)
+
+
+urlpatterns += [path("healthz", healthz), path("readiness", readiness)]

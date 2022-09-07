@@ -1,15 +1,28 @@
-from pytest import mark
+from pytest import fixture, mark
 from unittest.mock import patch
 
-from application_form.enums import ApartmentReservationState, ApplicationType
+from application_form.enums import (
+    ApartmentReservationCancellationReason,
+    ApartmentReservationState,
+    ApplicationType,
+)
 from application_form.models import LotteryEvent, LotteryEventResult
 from application_form.services.application import (
-    cancel_hitas_application,
+    cancel_reservation,
     get_ordered_applications,
 )
 from application_form.services.lottery.hitas import _distribute_hitas_apartments
 from application_form.services.queue import add_application_to_queues
+from application_form.services.reservation import create_reservation_without_application
 from application_form.tests.factories import ApplicationFactory
+from customer.tests.factories import CustomerFactory
+
+
+@fixture(autouse=True)
+def check_latest_reservation_state_change_events_after_every_test(
+    check_latest_reservation_state_change_events,
+):
+    pass
 
 
 @mark.django_db
@@ -160,7 +173,7 @@ def test_lottery_result_is_not_persisted_twice(elastic_hitas_project_with_5_apar
 
 
 @mark.django_db
-def test_canceling_application_sets_state_to_canceled(
+def test_canceling_application_sets_state_to_canceled_and_queue_position_to_null(
     elastic_hitas_project_with_5_apartments,
 ):
     project_uuid, apartments = elastic_hitas_project_with_5_apartments
@@ -175,11 +188,12 @@ def test_canceling_application_sets_state_to_canceled(
     _distribute_hitas_apartments(project_uuid)
 
     # Cancel the application for the apartment
-    cancel_hitas_application(app_apt)
+    cancel_reservation(app_apt.apartment_reservation)
 
-    # The state should now be "CANCELED"
+    # The state should now be "CANCELED" and queue position null
     app_apt.refresh_from_db()
     assert app_apt.apartment_reservation.state == ApartmentReservationState.CANCELED
+    assert app_apt.apartment_reservation.queue_position is None
 
 
 @mark.django_db
@@ -213,6 +227,14 @@ def test_canceling_winning_application_marks_next_application_in_queue_as_reserv
     # Decide the result
     _distribute_hitas_apartments(project_uuid)
 
+    # Add third reservation that does not have an application
+    reservation_without_application = create_reservation_without_application(
+        {
+            "apartment_uuid": apartment.uuid,
+            "customer": CustomerFactory(),
+        }
+    )
+
     family_app.refresh_from_db()
     single_app.refresh_from_db()
 
@@ -221,16 +243,25 @@ def test_canceling_winning_application_marks_next_application_in_queue_as_reserv
     assert family_app.apartment_reservation.state == ApartmentReservationState.RESERVED
 
     # The family rejects the apartment
-    cancel_hitas_application(family_app)
+    cancel_reservation(family_app.apartment_reservation)
 
     family_app.refresh_from_db()
     single_app.refresh_from_db()
+    reservation_without_application.refresh_from_db()
 
     # The family should have been removed from the queue, and the other application
     # should have become the new winner.
     assert list(get_ordered_applications(apartment.uuid)) == [single]
     assert family_app.apartment_reservation.state == ApartmentReservationState.CANCELED
     assert single_app.apartment_reservation.state == ApartmentReservationState.RESERVED
+    assert reservation_without_application.state == ApartmentReservationState.SUBMITTED
+
+    # Cancel the second reservation that has an application
+    cancel_reservation(single_app.apartment_reservation)
+
+    # The reservation without an application should be the winner now
+    reservation_without_application.refresh_from_db()
+    assert reservation_without_application.state == ApartmentReservationState.RESERVED
 
 
 @mark.django_db
@@ -278,7 +309,7 @@ def test_becoming_first_after_lottery_does_not_cancel_low_priority_reservation(
     assert single_tiny.apartment_reservation.state == ApartmentReservationState.RESERVED
 
     # The family later rejects the big apartment
-    cancel_hitas_application(family_big)
+    cancel_reservation(family_big.apartment_reservation)
 
     # The queue for the tiny apartment should have stayed the same, and
     # the reserved application should not have been canceled.
@@ -331,6 +362,10 @@ def test_winning_high_priority_apartment_cancels_lower_priority_applications(
     # The second application should have been removed from the queue
     assert list(get_ordered_applications(second_apartment_uuid)) == []
     assert app_apt2.apartment_reservation.state == ApartmentReservationState.CANCELED
+    assert (
+        app_apt2.apartment_reservation.state_change_events.last().cancellation_reason
+        == ApartmentReservationCancellationReason.LOWER_PRIORITY
+    )
 
 
 @mark.django_db

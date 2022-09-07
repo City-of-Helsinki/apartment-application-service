@@ -5,8 +5,13 @@ from uuid import UUID
 
 from apartment.elastic.queries import get_apartment
 from apartment_application_service.utils import update_obj
-from application_form.api.serializers import ApartmentReservationSerializerBase
-from application_form.models import ApartmentReservation
+from application_form.api.serializers import (
+    ApartmentReservationSerializerBase,
+    ApartmentReservationStateChangeEventSerializer,
+)
+from application_form.enums import ApartmentReservationState
+from application_form.models import ApartmentReservation, LotteryEvent
+from application_form.utils import get_apartment_number_sort_tuple
 from customer.models import Customer
 from invoicing.api.serializers import ApartmentInstallmentSerializer
 from users.api.sales.serializers import ProfileSerializer
@@ -26,6 +31,8 @@ class CustomerApartmentReservationSerializer(ApartmentReservationSerializerBase)
     apartment_debt_free_sales_price = serializers.SerializerMethodField()
     apartment_right_of_occupancy_payment = serializers.SerializerMethodField()
     apartment_installments = ApartmentInstallmentSerializer(many=True)
+    state_change_events = ApartmentReservationStateChangeEventSerializer(many=True)
+    project_lottery_completed = serializers.SerializerMethodField()
 
     class Meta(ApartmentReservationSerializerBase.Meta):
         model = ApartmentReservation
@@ -44,6 +51,8 @@ class CustomerApartmentReservationSerializer(ApartmentReservationSerializerBase)
             "apartment_debt_free_sales_price",
             "apartment_right_of_occupancy_payment",
             "apartment_installments",
+            "state_change_events",
+            "project_lottery_completed",
         ) + ApartmentReservationSerializerBase.Meta.fields
 
     def to_representation(self, instance):
@@ -85,6 +94,12 @@ class CustomerApartmentReservationSerializer(ApartmentReservationSerializerBase)
     def get_apartment_right_of_occupancy_payment(self, obj) -> int:
         return self.context["apartment"].right_of_occupancy_payment
 
+    def get_project_lottery_completed(self, obj) -> bool:
+        lottery_completed = LotteryEvent.objects.filter(
+            apartment_uuid=obj.apartment_uuid
+        ).exists()
+        return lottery_completed
+
 
 class CustomerSerializer(serializers.ModelSerializer):
     primary_profile = ProfileSerializer()
@@ -110,10 +125,26 @@ class CustomerSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(CustomerApartmentReservationSerializer(many=True))
     def get_apartment_reservations(self, obj):
-        reservations = ApartmentReservation.objects.filter(
-            application_apartment__application__customer=obj
+        reservations = ApartmentReservation.objects.filter(customer=obj)
+        serialized_reservations = CustomerApartmentReservationSerializer(
+            reservations, many=True
+        ).data
+
+        # sort reservations by
+        #   1. canceled as last ones
+        #   2. queue_position
+        #   3. apartment number
+        #   4. id
+        sorted_serialized_reservations = sorted(
+            serialized_reservations,
+            key=lambda x: (
+                x["state"] == ApartmentReservationState.CANCELED.value,
+                x["queue_position"] if (x["queue_position"] is not None) else 999999,
+                *get_apartment_number_sort_tuple(x["apartment_number"]),
+                x["id"],
+            ),
         )
-        return CustomerApartmentReservationSerializer(reservations, many=True).data
+        return sorted_serialized_reservations
 
     @transaction.atomic
     def create(self, validated_data):

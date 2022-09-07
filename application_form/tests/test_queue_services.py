@@ -10,7 +10,7 @@ from application_form.models.reservation import (
 from application_form.services.application import get_ordered_applications
 from application_form.services.queue import (
     add_application_to_queues,
-    remove_application_from_queue,
+    remove_reservation_from_queue,
 )
 from application_form.tests.factories import ApplicationFactory
 
@@ -46,6 +46,7 @@ def test_get_ordered_applications_returns_applications_sorted_by_position(
         ApartmentReservation.objects.create(
             customer=application_apartment.application.customer,
             queue_position=position,
+            list_position=position,
             application_apartment=application_apartment,
             apartment_uuid=first_apartment_uuid,
         )
@@ -231,13 +232,14 @@ def test_remove_application_from_queue(elastic_project_with_5_apartments):
         ApartmentReservation.objects.create(
             customer=application_apartment.application.customer,
             queue_position=position,
+            list_position=position,
             application_apartment=application_apartment,
             apartment_uuid=first_apartment_uuid,
         )
     apartment_application = applications[0].application_apartments.get(
         apartment_uuid=first_apartment_uuid
     )
-    remove_application_from_queue(apartment_application)
+    remove_reservation_from_queue(apartment_application.apartment_reservation)
     # The application should have been removed from the first place in the queue
     assert list(get_ordered_applications(first_apartment_uuid)) == applications[1:]
 
@@ -259,10 +261,33 @@ def test_removing_application_from_queue_creates_change_event(
     apartment_application = application.application_apartments.get(
         apartment_uuid=first_apartment_uuid
     )
-    remove_application_from_queue(apartment_application, comment=change_comment)
+    remove_reservation_from_queue(
+        apartment_application.apartment_reservation, comment=change_comment
+    )
     # A "REMOVED" change event with comment should have been created
     assert ApartmentQueueChangeEvent.objects.filter(
         queue_application__apartment_uuid=first_apartment_uuid,
         type=ApartmentQueueChangeEventType.REMOVED,
         comment=change_comment,
     ).exists()
+
+
+@mark.django_db
+def test_removing_application_from_queue_nullifies_queue_number(
+    elastic_project_with_5_apartments,
+):
+    project_uuid, apartments = elastic_project_with_5_apartments
+    first_apartment_uuid = apartments[0].uuid
+    application = ApplicationFactory(right_of_residence=1)
+    application.application_apartments.create(
+        apartment_uuid=first_apartment_uuid, priority_number=1
+    )
+    add_application_to_queues(application)
+    apartment_application = application.application_apartments.get(
+        apartment_uuid=first_apartment_uuid
+    )
+    remove_reservation_from_queue(apartment_application.apartment_reservation)
+
+    apartment_application.apartment_reservation.refresh_from_db()
+
+    assert apartment_application.apartment_reservation.queue_position is None

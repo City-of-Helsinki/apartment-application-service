@@ -1,4 +1,4 @@
-black
+black==22.3.0
 django-test-migrations
 factory-boy
 flake8
@@ -12,3 +12,4 @@ pytest
 pytest-cov
 pytest-django
 python-dateutil==2.8.2
+pytest-freezegun

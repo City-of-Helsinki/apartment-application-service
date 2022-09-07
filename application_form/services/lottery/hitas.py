@@ -1,5 +1,6 @@
 import secrets
 import uuid
+from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import QuerySet
 
@@ -8,12 +9,13 @@ from application_form.models import ApplicationApartment
 from application_form.services.application import _reserve_apartments
 from application_form.services.lottery.utils import _save_application_order
 
+User = get_user_model()
 # If the number of rooms in an apartment is greater or equal to this threshold,
 # then applications with children are prioritized in the lottery process.
 _PRIORITIZE_CHILDREN_ROOM_THRESHOLD = 3
 
 
-def _distribute_hitas_apartments(project_uuid: uuid.UUID) -> None:
+def _distribute_hitas_apartments(project_uuid: uuid.UUID, user: User = None) -> None:
     """
     Declares a winner for each apartment in the project.
 
@@ -27,7 +29,7 @@ def _distribute_hitas_apartments(project_uuid: uuid.UUID) -> None:
     # Perform lottery and persist the initial order of applications
     for apartment_uuid in apartment_uuids:
         _shuffle_applications(apartment_uuid)
-        _save_application_order(apartment_uuid)
+        _save_application_order(apartment_uuid, user)
 
     _reserve_apartments(apartment_uuids)
 
@@ -88,5 +90,6 @@ def _shuffle_queue_segment(
         random_index = secrets.randbelow(len(possible_positions))
         position = possible_positions.pop(random_index)
         apartment_reservation = app_apartment.apartment_reservation
+        apartment_reservation.list_position = position
         apartment_reservation.queue_position = position
-        apartment_reservation.save(update_fields=["queue_position"])
+        apartment_reservation.save(update_fields=["list_position", "queue_position"])

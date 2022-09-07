@@ -1,12 +1,30 @@
 from decimal import Decimal
+from django.db import transaction
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import extend_schema_serializer, OpenApiExample
 from enumfields.drf.fields import EnumField
 from enumfields.drf.serializers import EnumSupportSerializerMixin
 from rest_framework import exceptions, serializers
+from typing import Union
 
-from ..enums import InstallmentPercentageSpecifier, InstallmentUnit
+from apartment.elastic.queries import get_project
+from audit_log import audit_logging
+from audit_log.enums import Operation
+
+from ..enums import InstallmentPercentageSpecifier, InstallmentType, InstallmentUnit
 from ..models import ApartmentInstallment, ProjectInstallmentTemplate
+from ..utils import remove_exponent
+
+
+def is_installment_editable(
+    installment: Union[ProjectInstallmentTemplate, ApartmentInstallment]
+) -> bool:
+    if isinstance(installment, ApartmentInstallment):
+        return not bool(
+            installment.added_to_be_sent_to_sap_at or installment.sent_to_sap_at
+        )
+    return True
 
 
 class NormalizedDecimalField(serializers.DecimalField):
@@ -17,12 +35,7 @@ class NormalizedDecimalField(serializers.DecimalField):
         # drf-spectacular's inspection
         self.coerce_to_string = False
 
-        return f"{self.remove_exponent(super().to_representation(value)):f}"
-
-    # from https://docs.python.org/3/library/decimal.html#decimal-faq
-    @staticmethod
-    def remove_exponent(d: Decimal) -> Decimal:
-        return d.quantize(Decimal(1)) if d == d.to_integral() else d.normalize()
+        return f"{remove_exponent(super().to_representation(value)):f}"
 
 
 class IntegerCentsField(serializers.IntegerField):
@@ -35,6 +48,45 @@ class IntegerCentsField(serializers.IntegerField):
         return int(value * 100)
 
 
+class InstallmentListSerializer(serializers.ListSerializer):
+    @transaction.atomic
+    def create(self, validated_data):
+        now = timezone.now()
+        old_installments_by_type = {
+            instance.type: instance for instance in self.context["old_instances"]
+        }
+
+        new_installments = [
+            self.child.create(
+                {**new_installment_data, **{"created_at": now, "updated_at": now}}
+            )
+            if not (
+                old_instance := old_installments_by_type.get(
+                    new_installment_data["type"]
+                )
+            )
+            else self.child.update(
+                old_instance,
+                {**new_installment_data, **{"updated_at": now}},
+            )
+            for new_installment_data in validated_data
+        ]
+
+        for old_installment in old_installments_by_type.values():
+            if old_installment not in new_installments and is_installment_editable(
+                old_installment
+            ):
+                audit_logging.log(self.get_user(), Operation.DELETE, old_installment)
+                old_installment.delete()
+
+        return new_installments
+
+    def get_user(self):
+        if request := self.context.get("request"):
+            return getattr(request, "user", None)
+        return None
+
+
 class InstallmentSerializerBase(
     EnumSupportSerializerMixin, serializers.ModelSerializer
 ):
@@ -45,6 +97,22 @@ class InstallmentSerializerBase(
             "account_number",
             "due_date",
         )
+        list_serializer_class = InstallmentListSerializer
+
+    def create(self, validated_data):
+        instance = super().create(validated_data)
+        audit_logging.log(self.get_user(), Operation.CREATE, instance)
+        return instance
+
+    def update(self, instance, validated_data):
+        instance = super().update(instance, validated_data)
+        audit_logging.log(self.get_user(), Operation.UPDATE, instance)
+        return instance
+
+    def get_user(self):
+        if request := self.context.get("request"):
+            return getattr(request, "user", None)
+        return None
 
 
 @extend_schema_serializer(
@@ -96,17 +164,21 @@ class ProjectInstallmentTemplateSerializer(InstallmentSerializerBase):
             "percentage_specifier",
         )
 
-    def create(self, validated_data):
+    def validate(self, validated_data):
         amount = validated_data.pop("get_amount", None)
+        has_amount = amount is not None
         percentage = validated_data.pop("get_percentage", None)
+        has_percentage = percentage is not None
         percentage_specifier = validated_data.pop("percentage_specifier", None)
+        project_uuid = self.context["view"].kwargs["project_uuid"]
+        project = get_project(project_uuid)
 
-        if (amount and percentage) or not (amount or percentage):
+        if (has_amount and has_percentage) or not (has_amount or has_percentage):
             raise exceptions.ValidationError(
                 "Either amount or percentage is required but not both."
             )
 
-        if amount:
+        if has_amount:
             validated_data.update(
                 {
                     "value": amount,
@@ -119,6 +191,30 @@ class ProjectInstallmentTemplateSerializer(InstallmentSerializerBase):
                     "percentage_specifier is required when providing percentage."
                 )
 
+            if (
+                project.project_ownership_type.lower() in ["hitas", "puolihitas"]
+                and percentage_specifier
+                == InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT
+            ):
+                raise exceptions.ValidationError(
+                    f"Cannot select {percentage_specifier} as unit specifier in "
+                    "HITAS payment template"
+                )
+
+            if (
+                project.project_ownership_type.lower() == "haso"
+                and percentage_specifier
+                in [
+                    InstallmentPercentageSpecifier.SALES_PRICE,
+                    InstallmentPercentageSpecifier.SALES_PRICE_FLEXIBLE,
+                    InstallmentPercentageSpecifier.DEBT_FREE_SALES_PRICE,
+                ]
+            ):
+                raise exceptions.ValidationError(
+                    f"Cannot select {percentage_specifier} as unit specifier in "
+                    "HASO payment template"
+                )
+
             validated_data.update(
                 {
                     "value": percentage,
@@ -127,7 +223,7 @@ class ProjectInstallmentTemplateSerializer(InstallmentSerializerBase):
                 }
             )
 
-        return super().create(validated_data)
+        return validated_data
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -185,11 +281,27 @@ class ApartmentInstallmentCandidateSerializer(ApartmentInstallmentSerializerBase
 )
 class ApartmentInstallmentSerializer(ApartmentInstallmentSerializerBase):
     class Meta(ApartmentInstallmentSerializerBase.Meta):
-        fields = ApartmentInstallmentSerializerBase.Meta.fields + ("reference_number",)
-        read_only_fields = ("reference_number",)
+        fields = ApartmentInstallmentSerializerBase.Meta.fields + (
+            "reference_number",
+            "added_to_be_sent_to_sap_at",
+        )
+        read_only_fields = ("reference_number", "added_to_be_sent_to_sap_at")
 
-    def create(self, validated_data):
-        if old_instance := self.context["old_instances"].get(validated_data["type"]):
-            validated_data["reference_number"] = old_instance.reference_number
+    def validate(self, validated_data):
+        if (
+            validated_data["type"] == InstallmentType.REFUND
+            and validated_data["value"] > 0
+        ):
+            raise exceptions.ValidationError("Refund cannot have a positive value.")
+        return validated_data
 
-        return super().create(validated_data)
+    def to_internal_value(self, data):
+        internal_data = super().to_internal_value(data)
+        if user := self.get_user():
+            internal_data["handler"] = user.profile_or_user_full_name
+        return internal_data
+
+    def update(self, instance, validated_data):
+        if not is_installment_editable(instance):
+            return instance
+        return super().update(instance, validated_data)
