@@ -281,22 +281,38 @@ def test_project_detail_apartment_reservations_multiple_winning(
 ):
     project_uuid, apartments = elastic_project_with_5_apartments
     customer = CustomerFactory()
-    app1 = ApplicationFactory(type=ApplicationType.HITAS, customer=customer)
+    app1 = ApplicationFactory(
+        type=ApplicationType.HITAS, customer=customer, has_children=False
+    )
     app2 = ApplicationFactory(type=ApplicationType.HITAS)
 
-    # Customer of app1 win 2 apartments
+    high_priority_app = ApplicationFactory(
+        type=ApplicationType.HITAS, has_children=True
+    )
+
+    # Customer of app1 win 2 apartments but not the third app
     app1.application_apartments.create(
         apartment_uuid=apartments[0].uuid, priority_number=1
     )
     app1.application_apartments.create(
         apartment_uuid=apartments[1].uuid, priority_number=1
     )
-    # Customer of app2 win only 1 apartments
-    app2.application_apartments.create(
+    app1.application_apartments.create(
         apartment_uuid=apartments[2].uuid, priority_number=1
     )
+    # Higher priority wins the apartments[2]
+    high_priority_app.application_apartments.create(
+        apartment_uuid=apartments[2].uuid, priority_number=1
+    )
+
+    # Customer of app2 win only 1 apartments
+    app2.application_apartments.create(
+        apartment_uuid=apartments[3].uuid, priority_number=1
+    )
+
     add_application_to_queues(app1)
     add_application_to_queues(app2)
+    add_application_to_queues(high_priority_app)
     distribute_apartments(project_uuid)
     response = sales_ui_salesperson_api_client.get(
         reverse("apartment:project-detail", kwargs={"project_uuid": project_uuid}),
@@ -308,6 +324,11 @@ def test_project_detail_apartment_reservations_multiple_winning(
         for reservation in apartment_data["reservations"]:
             assert reservation["has_multiple_winning_apartments"] == (
                 reservation["customer"]["id"] == customer.id
+                and reservation["state"]
+                not in [
+                    ApartmentReservationState.SUBMITTED.value,
+                    ApartmentReservationState.CANCELED.value,
+                ]
             )
 
 
