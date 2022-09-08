@@ -10,7 +10,11 @@ from audit_log.models import AuditLog
 def test_audit_log_admin_message_prettified(superuser):
     request = Mock(user=superuser)
     model_admin = AuditLogAdmin(AuditLog, AdminSite())
-    assert list(model_admin.get_fields(request)) == ["message_prettified"]
+    assert list(model_admin.get_fields(request)) == [
+        "message_prettified",
+        "sent_at",
+        "created_at",
+    ]
 
 
 @mark.django_db

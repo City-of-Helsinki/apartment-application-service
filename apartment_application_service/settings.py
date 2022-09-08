@@ -85,6 +85,13 @@ env = environ.Env(
     METADATA_HASO_PROCESS_NUMBER=(str, "10 07 04 01"),
     TALPA_EMAIL=(str, ""),
     TALPA_EMAIL_REPLY_TO=(str, "asuntomyynti@hel.fi"),
+    ELASTICSEARCH_APP_AUDIT_LOG_INDEX=(str, "apartment_application_audit_log"),
+    AUDIT_LOG_ELASTICSEARCH_HOST=(str, ""),
+    AUDIT_LOG_ELASTICSEARCH_PORT=(str, ""),
+    AUDIT_LOG_ELASTICSEARCH_USERNAME=(str, ""),
+    AUDIT_LOG_ELASTICSEARCH_PASSWORD=(str, ""),
+    ENABLE_SEND_AUDIT_LOG=(bool, False),
+    CLEAR_AUDIT_LOG_ENTRIES=(bool, False),
 )
 if os.path.exists(env_file):
     env.read_env(env_file)
@@ -363,6 +370,16 @@ METADATA_HASO_PROCESS_NUMBER = env.str("METADATA_HASO_PROCESS_NUMBER")
 
 TALPA_EMAIL = env.str("TALPA_EMAIL")
 TALPA_EMAIL_REPLY_TO = env.str("TALPA_EMAIL_REPLY_TO")
+
+# Audit logging
+CLEAR_AUDIT_LOG_ENTRIES = env.bool("CLEAR_AUDIT_LOG_ENTRIES")
+ELASTICSEARCH_APP_AUDIT_LOG_INDEX = env("ELASTICSEARCH_APP_AUDIT_LOG_INDEX")
+AUDIT_LOG_ELASTICSEARCH_HOST = env("AUDIT_LOG_ELASTICSEARCH_HOST")
+AUDIT_LOG_ELASTICSEARCH_PORT = env("AUDIT_LOG_ELASTICSEARCH_PORT")
+AUDIT_LOG_ELASTICSEARCH_USERNAME = env("AUDIT_LOG_ELASTICSEARCH_USERNAME")
+AUDIT_LOG_ELASTICSEARCH_PASSWORD = env("AUDIT_LOG_ELASTICSEARCH_PASSWORD")
+ENABLE_SEND_AUDIT_LOG = env("ENABLE_SEND_AUDIT_LOG")
+
 
 # local_settings.py can be used to override environment-specific settings
 # like database and email that differ between development and production.
