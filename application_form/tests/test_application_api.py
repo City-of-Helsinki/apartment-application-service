@@ -52,7 +52,7 @@ def test_application_post_single_profile_customer(
     if already_existing_customer:
         apartment = ApartmentDocumentFactory()
         application = ApplicationFactory(
-            customer=CustomerFactory(primary_profile=profile),
+            customer=CustomerFactory(primary_profile=profile, has_children=True),
         )
         ApplicationApartmentFactory.create_application_with_apartments(
             [apartment.uuid], application
@@ -89,13 +89,17 @@ def test_application_post_multi_profile_customer(
         if already_existing_customer is True:
             application = ApplicationFactory(
                 customer=CustomerFactory(
-                    primary_profile=profile, secondary_profile=secondary_profile
+                    primary_profile=profile,
+                    secondary_profile=secondary_profile,
+                    has_children=True,
                 ),
             )
         else:
             application = ApplicationFactory(
                 customer=CustomerFactory(
-                    primary_profile=profile, secondary_profile=ProfileFactory()
+                    primary_profile=profile,
+                    secondary_profile=ProfileFactory(),
+                    has_children=True,
                 ),
             )
         ApplicationApartmentFactory.create_application_with_apartments(
