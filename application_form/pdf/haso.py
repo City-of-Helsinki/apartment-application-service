@@ -34,7 +34,6 @@ class HasoContractPDFData(PDFData):
     occupant_2_phone_number: Union[str, None]
     occupant_2_ssn: Union[str, None]
     occupant_2_street_address: Union[str, None]
-    aso_number: Union[int, None]
     payment_due_date: Union[date, None]
     project_acc_salesperson: Union[str, None]
     project_contract_apartment_completion: Union[str, None]
@@ -71,7 +70,6 @@ class HasoContractPDFData(PDFData):
         "occupant_2_phone_number": "Haltija 2 puhelinnumero",
         "occupant_2_ssn": "Haltija 2 henkilötunnus",
         "occupant_2_street_address": "Haltija 2 osoite",
-        "aso_number": "järjestysnumero",
         "payment_due_date": "Eräpäivä maksulle",
         "project_acc_salesperson": "rakennuttaja-asimies",
         "project_contract_apartment_completion": "Valmistumisaika",
@@ -139,8 +137,7 @@ def create_haso_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         occupant_2_phone_number=secondary_profile.phone_number,
         occupant_2_email=secondary_profile.email,
         occupant_2_ssn=secondary_profile.national_identification_number,
-        aso_number=reservation.right_of_residence,
-        right_of_residence_number=customer.right_of_residence,
+        right_of_residence_number=reservation.right_of_residence,
         project_housing_company=apartment.project_housing_company,
         project_street_address=apartment.project_street_address,
         apartment_number=apartment.apartment_number,
