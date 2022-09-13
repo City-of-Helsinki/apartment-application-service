@@ -6,6 +6,7 @@ from application_form.api.sales.views import (
     execute_lottery_for_project,
     OfferViewSet,
     SalesApplicationViewSet,
+    sold_apartments,
 )
 from application_form.api.views import ApplicationViewSet, ListProjectReservations
 from invoicing.api.views import (
@@ -63,6 +64,11 @@ urlpatterns = [
         r"sales/apartment_reservations/<int:apartment_reservation_id>/installments/",
         ApartmentInstallmentAPIView.as_view(),
         name="apartment-installment-list",
+    ),
+    path(
+        r"sales/sold_apartments/",
+        sold_apartments,
+        name="sold_apartments",
     ),
     path("", include(router.urls)),
 ]
