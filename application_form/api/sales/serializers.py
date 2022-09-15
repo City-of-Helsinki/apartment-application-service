@@ -99,16 +99,12 @@ class CustomerCompactSerializer(serializers.ModelSerializer):
 
 class SalesApartmentReservationSerializer(ApartmentReservationSerializerBase):
     customer = CustomerCompactSerializer()
-    has_multiple_winning_apartments = serializers.BooleanField(
-        source="customer_has_other_winning_apartments"
-    )
     cancellation_reason = serializers.SerializerMethodField()
     cancellation_timestamp = serializers.SerializerMethodField()
 
     class Meta(ApartmentReservationSerializerBase.Meta):
         fields = ApartmentReservationSerializerBase.Meta.fields + (
             "customer",
-            "has_multiple_winning_apartments",
             "cancellation_reason",
             "cancellation_timestamp",
         )
@@ -142,6 +138,17 @@ class SalesApartmentReservationSerializer(ApartmentReservationSerializerBase):
             except ObjectDoesNotExist:
                 return None
         return None
+
+
+class SalesWinningApartmentReservationSerializer(SalesApartmentReservationSerializer):
+    has_multiple_winning_apartments = serializers.BooleanField(
+        source="customer_has_other_winning_apartments"
+    )
+
+    class Meta(SalesApartmentReservationSerializer.Meta):
+        fields = SalesApartmentReservationSerializer.Meta.fields + (
+            "has_multiple_winning_apartments",
+        )
 
 
 class RootApartmentReservationSerializer(ApartmentReservationSerializerBase):

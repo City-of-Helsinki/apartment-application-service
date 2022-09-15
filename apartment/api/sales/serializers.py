@@ -2,7 +2,9 @@ from rest_framework import serializers
 from uuid import UUID
 
 from apartment.utils import get_apartment_state
-from application_form.api.sales.serializers import SalesApartmentReservationSerializer
+from application_form.api.sales.serializers import (
+    SalesWinningApartmentReservationSerializer,
+)
 
 
 class ApartmentSerializer(serializers.Serializer):
@@ -39,7 +41,7 @@ class ApartmentSerializer(serializers.Serializer):
         )
 
         return (
-            SalesApartmentReservationSerializer(
+            SalesWinningApartmentReservationSerializer(
                 winning_reservation,
                 context={"project_uuid": self.context["project_uuid"]},
             ).data

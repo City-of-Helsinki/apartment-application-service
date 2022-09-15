@@ -7,10 +7,12 @@ from apartment.elastic.queries import get_project
 from apartment.models import ProjectExtraData
 from apartment.tests.factories import ApartmentDocumentFactory
 from application_form.enums import (
+    ApartmentReservationCancellationReason,
     ApartmentReservationState,
     ApplicationType,
 )
 from application_form.models import ApartmentReservation
+from application_form.services.application import cancel_reservation
 from application_form.services.lottery.machine import distribute_apartments
 from application_form.services.queue import add_application_to_queues
 from application_form.tests.factories import (
@@ -334,6 +336,67 @@ def test_project_detail_apartment_reservations_multiple_winning(
             ] == (
                 apartment_data["winning_reservation"]["customer"]["id"] == customer.id
             )
+
+
+@pytest.mark.django_db
+def test_apartment_detail_reservations(
+    sales_ui_salesperson_api_client, elastic_project_with_5_apartments
+):
+    project_uuid, apartments = elastic_project_with_5_apartments
+    apartment = apartments[0]
+
+    cancelled_reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        list_position=1,
+        application_apartment=None,
+        state=ApartmentReservationState.SUBMITTED,
+    )
+    cancel_reservation(
+        cancelled_reservation,
+        cancellation_reason=ApartmentReservationCancellationReason.CANCELED.value,
+    )
+
+    ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        list_position=2,
+        queue_position=1,
+        state=ApartmentReservationState.RESERVED,
+    )
+    for i in range(2, 5):
+        ApartmentReservationFactory(
+            apartment_uuid=apartment.uuid,
+            list_position=i + 1,
+            queue_position=i,
+            state=ApartmentReservationState.SUBMITTED,
+        )
+
+    # another apartment, should not be returned
+    ApartmentReservationFactory(
+        apartment_uuid=apartments[1].uuid,
+        list_position=1,
+        queue_position=1,
+        state=ApartmentReservationState.RESERVED,
+    )
+    # another apartment, should not be returned
+    ApartmentReservationFactory(
+        apartment_uuid=apartments[1].uuid,
+        list_position=2,
+        queue_position=2,
+        state=ApartmentReservationState.SUBMITTED,
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse(
+            "apartment:apartment-detail-reservations-list",
+            kwargs={"apartment_uuid": apartment.uuid},
+        ),
+        format="json",
+    )
+    assert response.status_code == 200
+    reservation_data = response.data
+    assert len(reservation_data) == 5
+
+    _assert_apartment_reservations_data(reservation_data)
 
 
 @pytest.mark.django_db
