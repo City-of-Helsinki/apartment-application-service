@@ -7,12 +7,10 @@ from apartment.elastic.queries import get_project
 from apartment.models import ProjectExtraData
 from apartment.tests.factories import ApartmentDocumentFactory
 from application_form.enums import (
-    ApartmentReservationCancellationReason,
     ApartmentReservationState,
     ApplicationType,
 )
 from application_form.models import ApartmentReservation
-from application_form.services.application import cancel_reservation
 from application_form.services.lottery.machine import distribute_apartments
 from application_form.services.queue import add_application_to_queues
 from application_form.tests.factories import (
@@ -190,14 +188,26 @@ def test_project_detail_apartment_reservations(
     sales_ui_salesperson_api_client, elastic_project_with_5_apartments
 ):
     expect_apartments_count = 5
-    expect_reservations_per_apartment_count = 5
 
     project_uuid, apartments = elastic_project_with_5_apartments
     for apartment in apartments:
-        for i in range(0, expect_reservations_per_apartment_count):
+        ApartmentReservationFactory(
+            apartment_uuid=apartment.uuid,
+            list_position=1,
+            queue_position=None,
+            state=ApartmentReservationState.CANCELED,
+        )
+        ApartmentReservationFactory(
+            apartment_uuid=apartment.uuid,
+            list_position=2,
+            queue_position=1,
+            state=ApartmentReservationState.RESERVED,
+        )
+        for i in range(2, 5):
             ApartmentReservationFactory(
                 apartment_uuid=apartment.uuid,
                 list_position=i + 1,
+                queue_position=i,
                 state=ApartmentReservationState.SUBMITTED,
             )
 
@@ -223,20 +233,17 @@ def test_project_detail_apartment_reservations(
             == expect_apartment_data.apartment_structure
         )
         assert apartment_data["living_area"] == expect_apartment_data.living_area
+        assert apartment_data["reservation_count"] == 4
 
-        assert apartment_data["reservations"]
-        assert (
-            len(apartment_data["reservations"])
-            == expect_reservations_per_apartment_count
+        _assert_apartment_reservations_data([apartment_data["winning_reservation"]])
+        assert_customer_match_data(
+            ApartmentReservation.objects.get(
+                id=apartment_data["winning_reservation"]["id"]
+            ).customer,
+            apartment_data["winning_reservation"]["customer"],
+            compact=True,
         )
-
-        _assert_apartment_reservations_data(apartment_data["reservations"])
-        for reservation_data in apartment_data["reservations"]:
-            assert_customer_match_data(
-                ApartmentReservation.objects.get(id=reservation_data["id"]).customer,
-                reservation_data["customer"],
-                compact=True,
-            )
+        assert apartment_data["winning_reservation"]["state"] == "reserved"
 
 
 @pytest.mark.django_db
@@ -250,11 +257,13 @@ def test_project_detail_apartment_reservations_has_children(
         ApartmentReservationFactory(
             apartment_uuid=apartment.uuid,
             list_position=1,
+            queue_position=1,
             state=ApartmentReservationState.SUBMITTED,
         )
         ApartmentReservationFactory(
             apartment_uuid=apartment.uuid,
             list_position=2,
+            queue_position=2,
             application_apartment=None,
             state=ApartmentReservationState.SUBMITTED,
         )
@@ -270,9 +279,7 @@ def test_project_detail_apartment_reservations_has_children(
     assert len(apartments_data) == expect_apartments_count
 
     for apartment_data in apartments_data:
-        assert apartment_data["reservations"]
-        assert len(apartment_data["reservations"]) == 2
-        _assert_apartment_reservations_data(apartment_data["reservations"])
+        _assert_apartment_reservations_data([apartment_data["winning_reservation"]])
 
 
 @pytest.mark.django_db
@@ -321,14 +328,11 @@ def test_project_detail_apartment_reservations_multiple_winning(
     assert response.status_code == 200
     apartments_data = response.data["apartments"]
     for apartment_data in apartments_data:
-        for reservation in apartment_data["reservations"]:
-            assert reservation["has_multiple_winning_apartments"] == (
-                reservation["customer"]["id"] == customer.id
-                and reservation["state"]
-                not in [
-                    ApartmentReservationState.SUBMITTED.value,
-                    ApartmentReservationState.CANCELED.value,
-                ]
+        if apartment_data["winning_reservation"]:
+            assert apartment_data["winning_reservation"][
+                "has_multiple_winning_apartments"
+            ] == (
+                apartment_data["winning_reservation"]["customer"]["id"] == customer.id
             )
 
 
@@ -521,46 +525,6 @@ def test_project_detail_apartment_states(
         "offered",
         "offer_accepted",
     ]
-
-
-@pytest.mark.django_db
-def test_project_detail_apartment_reservations_has_cancellation_info(
-    sales_ui_salesperson_api_client, elastic_project_with_5_apartments
-):
-    expect_apartments_count = 5
-
-    project_uuid, apartments = elastic_project_with_5_apartments
-    for apartment in apartments:
-        ApartmentReservationFactory(
-            apartment_uuid=apartment.uuid,
-            list_position=1,
-            state=ApartmentReservationState.SUBMITTED,
-        )
-        cancelled_reservation = ApartmentReservationFactory(
-            apartment_uuid=apartment.uuid,
-            list_position=2,
-            application_apartment=None,
-        )
-        cancel_reservation(
-            cancelled_reservation,
-            cancellation_reason=ApartmentReservationCancellationReason.CANCELED.value,
-        )
-
-    response = sales_ui_salesperson_api_client.get(
-        reverse("apartment:project-detail", kwargs={"project_uuid": project_uuid}),
-        format="json",
-    )
-    assert response.status_code == 200
-    assert response.data
-
-    assert response.data["apartments"]
-    apartments_data = response.data["apartments"]
-    assert len(apartments_data) == expect_apartments_count
-
-    for apartment_data in apartments_data:
-        assert apartment_data["reservations"]
-        assert len(apartment_data["reservations"]) == 2
-        _assert_apartment_reservations_data(apartment_data["reservations"])
 
 
 @pytest.mark.django_db
