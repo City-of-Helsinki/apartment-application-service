@@ -10,7 +10,7 @@ from audit_log.paginators import LargeTablePaginator
 @admin.register(AuditLog)
 class AuditLogAdmin(admin.ModelAdmin):
     exclude = ("message",)
-    readonly_fields = ("message_prettified",)
+    readonly_fields = ("message_prettified", "sent_at", "created_at")
 
     # For increasing listing performance
     show_full_result_count = False

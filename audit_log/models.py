@@ -1,9 +1,12 @@
 from django.db import models
 from django.db.models import JSONField
+from django.utils.translation import gettext_lazy as _
 
 
 class AuditLog(models.Model):
     message = JSONField()
+    sent_at = models.DateTimeField(null=True, blank=True, verbose_name=_("sent at"))
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("created at"))
 
     def __str__(self):
         return " ".join(
