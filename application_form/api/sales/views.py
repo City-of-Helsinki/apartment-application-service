@@ -1,10 +1,19 @@
+from datetime import timedelta
+from dateutil import parser
+from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse
+from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiParameter
 from rest_framework import mixins, permissions, status, viewsets
-from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.decorators import (
+    action,
+    api_view,
+    authentication_classes,
+    permission_classes,
+)
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
 
@@ -29,8 +38,13 @@ from application_form.enums import (
     ApartmentReservationState,
 )
 from application_form.exceptions import ProjectDoesNotHaveApplicationsException
-from application_form.models import ApartmentReservation, Offer
+from application_form.models import (
+    ApartmentReservation,
+    ApartmentReservationStateChangeEvent,
+    Offer,
+)
 from application_form.pdf import create_haso_contract_pdf, create_hitas_contract_pdf
+from application_form.permissions import DrupalAuthentication, IsDrupalServer
 from application_form.services.application import cancel_reservation
 from application_form.services.lottery.exceptions import (
     ApplicationTimeNotFinishedException,
@@ -68,6 +82,50 @@ def execute_lottery_for_project(request):
         raise ValidationError(detail=str(ex)) from ex
 
     return Response({"status": "success"}, status=status.HTTP_200_OK)
+
+
+@api_view(http_method_names=["GET"])
+@require_http_methods(["GET"])  # For SonarCloud
+@permission_classes([IsDrupalServer])
+@authentication_classes([DrupalAuthentication])
+def sold_apartments(request):
+    """
+    Returns ids of apartments sold during start_time and end_time
+    By default
+        start_time: timezone.now() - timedelta(hours=1)
+        end_time = timezone.now()
+    """
+    end_time_obj = timezone.now()
+    start_time_obj = end_time_obj - timedelta(
+        hours=settings.DEFAULT_SOLD_APARMENT_TIME_RANGE
+    )
+    try:
+        if start_time := request.query_params.get("start_time"):
+            start_time_obj = parser.isoparse(start_time)
+        if end_time := request.query_params.get("end_time"):
+            end_time_obj = parser.isoparse(end_time)
+    except ValueError:
+        raise ValidationError(
+            "Invalid datetime format, "
+            "the correct format is - `YYYY-MM-DD'T'hh:mm:ss` or "
+            "`YYYYMMDD'T'hhmmss`"
+        )
+
+    if start_time_obj > end_time_obj:
+        raise ValidationError(
+            f"Start date {start_time_obj} cannot be greater than "
+            f"end date {end_time_obj}"
+        )
+    state_events = (
+        ApartmentReservationStateChangeEvent.objects.filter(
+            timestamp__range=[start_time_obj, end_time_obj],
+            state=ApartmentReservationState.SOLD,
+        )
+        .select_related("reservation")
+        .only("reservation__apartment_uuid")
+    )
+    apartment_ids = set([str(e.reservation.apartment_uuid) for e in state_events])
+    return Response(list(apartment_ids), status=status.HTTP_200_OK)
 
 
 class SalesApplicationViewSet(ApplicationViewSet):

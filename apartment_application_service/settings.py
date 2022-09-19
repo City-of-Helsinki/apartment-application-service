@@ -92,6 +92,8 @@ env = environ.Env(
     AUDIT_LOG_ELASTICSEARCH_PASSWORD=(str, ""),
     ENABLE_SEND_AUDIT_LOG=(bool, False),
     CLEAR_AUDIT_LOG_ENTRIES=(bool, False),
+    DRUPAL_SERVER_AUTH_TOKEN=(str, "example-token"),
+    DEFAULT_SOLD_APARMENT_TIME_RANGE=(int, 1),
 )
 if os.path.exists(env_file):
     env.read_env(env_file)
@@ -380,6 +382,9 @@ AUDIT_LOG_ELASTICSEARCH_USERNAME = env("AUDIT_LOG_ELASTICSEARCH_USERNAME")
 AUDIT_LOG_ELASTICSEARCH_PASSWORD = env("AUDIT_LOG_ELASTICSEARCH_PASSWORD")
 ENABLE_SEND_AUDIT_LOG = env("ENABLE_SEND_AUDIT_LOG")
 
+# Drupal auth
+DRUPAL_SERVER_AUTH_TOKEN = env.str("DRUPAL_SERVER_AUTH_TOKEN")
+DEFAULT_SOLD_APARMENT_TIME_RANGE = env.int("DEFAULT_SOLD_APARMENT_TIME_RANGE")  # hours
 
 # local_settings.py can be used to override environment-specific settings
 # like database and email that differ between development and production.

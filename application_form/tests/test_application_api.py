@@ -1,6 +1,7 @@
 import pytest
 from datetime import datetime
 from django.urls import reverse
+from freezegun import freeze_time
 from rest_framework import status
 
 from apartment.tests.factories import ApartmentDocumentFactory
@@ -10,10 +11,15 @@ from apartment_application_service.settings import (
     METADATA_HITAS_PROCESS_NUMBER,
 )
 from application_form import error_codes
-from application_form.enums import ApplicationArrivalMethod, ApplicationType
+from application_form.enums import (
+    ApartmentReservationState,
+    ApplicationArrivalMethod,
+    ApplicationType,
+)
 from application_form.models import ApartmentReservation, Application
 from application_form.tests.conftest import create_application_data
 from application_form.tests.factories import (
+    ApartmentReservationFactory,
     ApplicationApartmentFactory,
     ApplicationFactory,
 )
@@ -404,3 +410,98 @@ def test_application_post_single_profile_customer_has_children(
     assert Customer.objects.count() == 1
     assert Customer.objects.first().has_children == has_children
     assert application.customer.secondary_profile is None
+
+
+@pytest.mark.django_db
+def test_get_sold_apartment_list_unauthorized(
+    api_client, user_api_client, profile_api_client, drupal_salesperson_api_client
+):
+    response = api_client.get(reverse("application_form:sold_apartments"))
+    assert response.status_code == 403
+
+    response = user_api_client.get(reverse("application_form:sold_apartments"))
+    assert response.status_code == 403
+
+    response = profile_api_client.get(reverse("application_form:sold_apartments"))
+    assert response.status_code == 403
+
+    response = drupal_salesperson_api_client.get(
+        reverse("application_form:sold_apartments")
+    )
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_get_sold_apartment_list(
+    drupal_server_api_client, elastic_single_project_with_apartments
+):
+    response = drupal_server_api_client.get(reverse("application_form:sold_apartments"))
+    assert response.status_code == 200
+    assert response.data == []
+    apartments = elastic_single_project_with_apartments
+    for apartment in apartments:
+        ApartmentReservationFactory(
+            apartment_uuid=apartment.uuid, state=ApartmentReservationState.RESERVED
+        )
+    # Sold some apartments
+    sold_apartment_uuids = [apt.uuid for apt in apartments[:5]]
+    sold_reservations = ApartmentReservation.objects.filter(
+        apartment_uuid__in=sold_apartment_uuids
+    )
+    assert sold_reservations.count() == 5
+    for sold_reservation in sold_reservations:
+        sold_reservation.set_state(ApartmentReservationState.SOLD)
+        sold_reservation.save()
+
+    response = drupal_server_api_client.get(
+        reverse("application_form:sold_apartments"),
+        {"start_time": "2020-02-02", "end_time": "2020-01-02"},
+    )
+    assert response.status_code == 400
+    assert "greater than end date" in response.data[0]["message"]
+
+    response = drupal_server_api_client.get(reverse("application_form:sold_apartments"))
+    assert response.status_code == 200
+    assert len(response.data) == 5
+    assert sorted(response.data) == sorted(sold_apartment_uuids)
+
+
+@pytest.mark.django_db
+def test_get_sold_apartment_list_filter(
+    drupal_server_api_client, elastic_single_project_with_apartments
+):
+    response = drupal_server_api_client.get(reverse("application_form:sold_apartments"))
+    assert response.status_code == 200
+    assert response.data == []
+    apartments = elastic_single_project_with_apartments  # 11 apartments
+    for apartment in apartments:
+        ApartmentReservationFactory(
+            apartment_uuid=apartment.uuid, state=ApartmentReservationState.RESERVED
+        )
+    # Sold some apartment
+    assert len(apartments) == 11
+    sold_apartment_uuids_1 = [apt.uuid for apt in apartments[:5]]
+    sold_apartment_uuids_2 = [apt.uuid for apt in apartments[:-5]]
+    sold_reservations_1 = ApartmentReservation.objects.filter(
+        apartment_uuid__in=sold_apartment_uuids_1
+    )
+    sold_reservations_2 = ApartmentReservation.objects.filter(
+        apartment_uuid__in=sold_apartment_uuids_2
+    )
+    with freeze_time("2020-02-02"):
+        for sold_reservation in sold_reservations_1:
+            sold_reservation.set_state(ApartmentReservationState.SOLD)
+            sold_reservation.save()
+    with freeze_time("2020-02-04"):
+        for sold_reservation in sold_reservations_2:
+            sold_reservation.set_state(ApartmentReservationState.SOLD)
+            sold_reservation.save()
+        response = drupal_server_api_client.get(
+            reverse("application_form:sold_apartments")
+        )
+        assert response.status_code == 200
+        assert len(response.data) == 6
+        assert sorted(response.data) == sorted(sold_apartment_uuids_2)
+    response = drupal_server_api_client.get(reverse("application_form:sold_apartments"))
+    assert response.status_code == 200
+    assert response.data == []
