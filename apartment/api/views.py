@@ -20,7 +20,10 @@ from apartment.elastic.queries import (
     get_projects,
 )
 from apartment.models import ProjectExtraData
-from application_form.api.sales.serializers import ProjectExtraDataSerializer
+from application_form.api.sales.serializers import (
+    ProjectExtraDataSerializer,
+    SalesApartmentReservationSerializer,
+)
 from application_form.enums import ApartmentReservationState
 from application_form.models import (
     ApartmentReservation,
@@ -41,6 +44,19 @@ class ApartmentAPIView(APIView):
         project_uuid = request.GET.get("project_uuid", None)
         apartments = get_apartments(project_uuid)
         serializer = ApartmentDocumentSerializer(apartments, many=True)
+        return Response(serializer.data)
+
+
+class ApartmentReservationsAPIView(APIView):
+    http_method_names = ["get"]
+
+    def get(self, request, apartment_uuid):
+        serializer = SalesApartmentReservationSerializer(
+            ApartmentReservation.objects.related_fields()
+            .filter(apartment_uuid=apartment_uuid)
+            .order_by("list_position"),
+            many=True,
+        )
         return Response(serializer.data)
 
 

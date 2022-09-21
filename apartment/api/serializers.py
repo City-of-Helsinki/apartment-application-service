@@ -1,5 +1,5 @@
 from datetime import datetime
-from django.db.models import Case, Exists, Max, OuterRef, When
+from django.db.models import Count, Exists, Max, OuterRef
 from django.utils.functional import cached_property
 from rest_framework import serializers
 
@@ -7,7 +7,6 @@ from apartment.api.sales.serializers import ApartmentSerializer
 from apartment.elastic.queries import get_apartments
 from apartment.models import ProjectExtraData
 from application_form.api.sales.serializers import ProjectExtraDataSerializer
-from application_form.enums import ApartmentReservationState
 from application_form.models import ApartmentReservation, Application, LotteryEvent
 from invoicing.api.serializers import ProjectInstallmentTemplateSerializer
 from invoicing.models import ProjectInstallmentTemplate
@@ -169,6 +168,12 @@ class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
         ).data
 
     def get_apartments(self, obj):
+        reservation_counts = (
+            ApartmentReservation.objects.active()
+            .values("apartment_uuid")
+            .annotate(reservation_count=Count("apartment_uuid"))
+        )
+
         customer_other_winning_apartments = (
             ApartmentReservation.objects.reserved()
             .exclude(pk=OuterRef("pk"))
@@ -177,25 +182,19 @@ class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
                 customer=OuterRef("customer__pk"),
             )
         )
-
-        # If the reservation is not a winning reservation then
-        # customer_has_other_winning_apartments will be annotated as False
-        # for that reservation
-        project_reservations = (
+        winning_reservations = (
             ApartmentReservation.objects.filter(apartment_uuid__in=self.apartment_uuids)
-            .related_fields()
+            .active()
+            .filter(queue_position=1)
             .annotate(
-                customer_has_other_winning_apartments=Case(
-                    When(
-                        state__in=(
-                            ApartmentReservationState.SUBMITTED,
-                            ApartmentReservationState.CANCELED,
-                        ),
-                        then=False,
-                    ),
-                    default=Exists(customer_other_winning_apartments),
+                customer_has_other_winning_apartments=Exists(
+                    customer_other_winning_apartments
                 )
             )
+            # Winning reservations are sorted by list_position so that the results will
+            # be consistent even if there are multiple winning reservations for the same
+            # apartment. That should not normally happen.
+            .order_by("list_position")
         )
 
         return ApartmentSerializer(
@@ -203,7 +202,8 @@ class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
             many=True,
             context={
                 "project_uuid": obj.project_uuid,
-                "reservations": project_reservations,
+                "reservation_counts": reservation_counts,
+                "winning_reservations": winning_reservations,
             },
         ).data
 
