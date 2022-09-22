@@ -10,7 +10,7 @@ from apartment.elastic.queries import (
     get_project,
 )
 from apartment.enums import ApartmentState
-from apartment.utils import get_apartment_state
+from apartment.utils import get_apartment_state_from_apartment_uuid
 from application_form.models import ApartmentReservation
 from application_form.utils import get_apartment_number_sort_tuple
 
@@ -228,7 +228,8 @@ class SaleReportExportService(CSVExportService):
             [
                 apartment_uuid
                 for apartment_uuid in apartment_uuids
-                if get_apartment_state(apartment_uuid) == ApartmentState.SOLD.value
+                if get_apartment_state_from_apartment_uuid(apartment_uuid)
+                == ApartmentState.SOLD.value
             ]
         )
         reported_sold = len(

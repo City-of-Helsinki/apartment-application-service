@@ -10,16 +10,9 @@ from apartment.tests.factories import ApartmentDocumentFactory
 from application_form.enums import (
     ApartmentReservationCancellationReason,
     ApartmentReservationState,
-    ApplicationType,
 )
 from application_form.models import ApartmentReservation, LotteryEvent
-from application_form.services.lottery.machine import distribute_apartments
-from application_form.services.queue import add_application_to_queues
-from application_form.tests.factories import (
-    ApartmentReservationFactory,
-    ApplicationFactory,
-    OfferFactory,
-)
+from application_form.tests.factories import ApartmentReservationFactory, OfferFactory
 from customer.tests.factories import CustomerFactory
 from invoicing.enums import (
     InstallmentPercentageSpecifier,
@@ -58,7 +51,7 @@ def test_root_apartment_reservation_detail(
 ):
     _, apartments = elastic_project_with_5_apartments
     reservation = ApartmentReservationFactory(
-        apartment_uuid=apartments[0].uuid, list_position=1
+        apartment_uuid=apartments[0].uuid, list_position=1, queue_position=1
     )
     installment = ApartmentInstallmentFactory(apartment_reservation=reservation)
     offer = OfferFactory(apartment_reservation=reservation)
@@ -86,7 +79,7 @@ def test_root_apartment_reservation_detail(
         ],
         "installment_candidates": [],
         "apartment_uuid": reservation.apartment_uuid,
-        "queue_position": None,
+        "queue_position": 1,
         "state": reservation.state.value,
         "lottery_position": None,
         "priority_number": reservation.application_apartment.priority_number,
@@ -458,43 +451,6 @@ def test_apartment_reservation_illegal_cancellation_reason(
     )
     assert response.status_code == 400
     assert "cancellation_reason" in str(response.data)
-
-
-@pytest.mark.django_db
-def test_apartment_reservation_hide_queue_position(
-    sales_ui_salesperson_api_client, elastic_hitas_project_with_5_apartments
-):
-    project_uuid, apartments = elastic_hitas_project_with_5_apartments
-    first_apartment_uuid = apartments[0].uuid
-    app = ApplicationFactory(type=ApplicationType.HITAS)
-    app_apartment = app.application_apartments.create(
-        apartment_uuid=first_apartment_uuid, priority_number=0
-    )
-    add_application_to_queues(app)
-
-    response = sales_ui_salesperson_api_client.get(
-        reverse(
-            "application_form:sales-apartment-reservation-detail",
-            kwargs={"pk": app_apartment.apartment_reservation.id},
-        ),
-        format="json",
-    )
-    assert response.status_code == 200
-
-    assert response.data["queue_position"] is None
-
-    distribute_apartments(project_uuid)
-
-    response = sales_ui_salesperson_api_client.get(
-        reverse(
-            "application_form:sales-apartment-reservation-detail",
-            kwargs={"pk": app_apartment.apartment_reservation.id},
-        ),
-        format="json",
-    )
-    assert response.status_code == 200
-
-    assert response.data["queue_position"] == 1
 
 
 @pytest.mark.django_db

@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from uuid import UUID
 
-from apartment.utils import get_apartment_state
+from apartment.utils import get_apartment_state_from_reserved_reservations
 from application_form.api.sales.serializers import (
     SalesWinningApartmentReservationSerializer,
 )
@@ -18,7 +18,12 @@ class ApartmentSerializer(serializers.Serializer):
     winning_reservation = serializers.SerializerMethodField()
 
     def get_state(self, obj):
-        return get_apartment_state(obj.uuid)
+        reserved_reservations = [
+            reservation
+            for reservation in self.context["reserved_reservations"]
+            if reservation.apartment_uuid == UUID(obj.uuid)
+        ]
+        return get_apartment_state_from_reserved_reservations(reserved_reservations)
 
     def get_reservation_count(self, obj):
         return next(
