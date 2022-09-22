@@ -154,7 +154,7 @@ def test_salesperson_profile_post(api_client):
     assert user.profile.pk == UUID(profile_data["id"])
     assert user.check_password(unmask_string(response.data["password"]))
     # User should have a salesperson role
-    assert user.groups.filter(name__iexact=Roles.SALESPERSON.name).exists()
+    assert user.groups.filter(name__iexact=Roles.DRUPAL_SALESPERSON.name).exists()
     # We should be able to look up a profile based on the unmasked username
     profile = Profile.objects.get(pk=unmask_uuid(response.data["profile_id"]))
     profile_data = profile_data.copy()
@@ -218,7 +218,9 @@ def test_salesperson_profile_put(profile, api_client):
     assert response.data == put_data
     profile.refresh_from_db()
     # User should have a salesperson role
-    assert profile.user.groups.filter(name__iexact=Roles.SALESPERSON.name).exists()
+    assert profile.user.groups.filter(
+        name__iexact=Roles.DRUPAL_SALESPERSON.name
+    ).exists()
     for attr, value in put_data.items():
         if hasattr(profile, attr):
             profile_value = getattr(profile, attr)

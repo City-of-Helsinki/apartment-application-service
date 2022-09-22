@@ -54,11 +54,11 @@ from application_form.services.reservation import (
     transfer_reservation_to_another_customer,
 )
 from audit_log.viewsets import AuditLoggingModelViewSet
-from users.permissions import IsSalesperson
+from users.permissions import IsDjangoSalesperson, IsDrupalSalesperson
 
 
 @api_view(http_method_names=["POST"])
-@permission_classes([IsSalesperson])
+@permission_classes([IsDjangoSalesperson])
 @require_http_methods(["POST"])  # For SonarCloud
 def execute_lottery_for_project(request):
     """
@@ -130,7 +130,7 @@ def sold_apartments(request):
 
 class SalesApplicationViewSet(ApplicationViewSet):
     serializer_class = SalesApplicationSerializer
-    permission_classes = [permissions.IsAuthenticated, IsSalesperson]
+    permission_classes = [permissions.IsAuthenticated, IsDrupalSalesperson]
 
 
 class ApartmentReservationViewSet(
