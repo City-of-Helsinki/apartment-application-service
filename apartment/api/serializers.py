@@ -184,6 +184,7 @@ class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
         )
         winning_reservations = (
             ApartmentReservation.objects.filter(apartment_uuid__in=self.apartment_uuids)
+            .related_fields()
             .active()
             .filter(queue_position=1)
             .annotate(
@@ -204,6 +205,9 @@ class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
                 "project_uuid": obj.project_uuid,
                 "reservation_counts": reservation_counts,
                 "winning_reservations": winning_reservations,
+                "reserved_reservations": ApartmentReservation.objects.filter(
+                    apartment_uuid__in=self.apartment_uuids
+                ).reserved(),
             },
         ).data
 
@@ -225,6 +229,9 @@ class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
             Application.objects.filter(
                 application_apartments__apartment_uuid__in=self.apartment_uuids
             )
+            # this is needed so that decryption won't be used, which would slow this
+            # query down substantially
+            .only("id")
             .distinct()
             .count()
         )

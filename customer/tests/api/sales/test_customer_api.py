@@ -52,6 +52,7 @@ def test_get_customer_api_detail(sales_ui_salesperson_api_client):
         apartment_uuid=apartment.uuid,
         has_hitas_ownership=True,
         has_children=False,
+        queue_position=1,
     )
     installment = ApartmentInstallmentFactory(
         apartment_reservation=reservation, value=100
@@ -115,7 +116,7 @@ def test_get_customer_api_detail(sales_ui_salesperson_api_client):
             ],
             "lottery_position": None,
             "project_lottery_completed": False,
-            "queue_position": None,
+            "queue_position": 1,
             "priority_number": reservation.application_apartment.priority_number,
             "state": reservation.state.value,
             "offer": None,

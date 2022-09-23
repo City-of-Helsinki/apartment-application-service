@@ -77,7 +77,7 @@ def test_list_project_reservations_get_without_lottery_data(
     assert len(response.data) == apartment_reservation_count
     for item in response.data:
         assert item["lottery_position"] is None
-        assert item["queue_position"] is None
+        assert item["queue_position"] is not None
 
 
 @pytest.mark.django_db
