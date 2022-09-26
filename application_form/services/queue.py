@@ -16,6 +16,7 @@ from application_form.models import (
     Application,
     ApplicationApartment,
 )
+from application_form.utils import lock_table
 
 User = get_user_model()
 
@@ -28,7 +29,7 @@ def add_application_to_queues(
     """
     for application_apartment in application.application_apartments.all():
         apartment_uuid = application_apartment.apartment_uuid
-        with transaction.atomic():
+        with lock_table(ApartmentReservation):
             if application.type == ApplicationType.HASO:
                 # For HASO applications, the queue position is determined by the
                 # right of residence number.
