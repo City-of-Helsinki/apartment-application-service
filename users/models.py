@@ -1,5 +1,6 @@
 import logging
 from django.conf import settings
+from django.contrib import admin
 from django.db import models
 from django.db.models import UUIDField
 from django.utils.translation import gettext_lazy as _
@@ -18,8 +19,17 @@ class User(AbstractUser):
         verbose_name = _("user")
         verbose_name_plural = _("users")
 
-    def is_salesperson(self):
-        return self.groups.filter(name__iexact=Roles.SALESPERSON.name).exists()
+    @admin.display(boolean=True)
+    def is_django_salesperson(self):
+        return self.groups.filter(name__iexact=Roles.DJANGO_SALESPERSON.name).exists()
+
+    @admin.display(boolean=True)
+    def is_drupal_salesperson(self):
+        return self.groups.filter(name__iexact=Roles.DRUPAL_SALESPERSON.name).exists()
+
+    @admin.display(boolean=True)
+    def is_staff_user(self):
+        return self.groups.filter(name__iexact=Roles.STAFF.name).exists()
 
     @property
     def full_name(self):
@@ -110,8 +120,8 @@ class Profile(TimestampedModel):
     def save(self, *args, **kwargs):
         super(Profile, self).save(*args, **kwargs)
 
-    def is_salesperson(self) -> bool:
-        return self.user.is_salesperson()
+    def is_salesperson(self):
+        return self.user.is_drupal_salesperson()
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
@@ -123,3 +133,18 @@ class Profile(TimestampedModel):
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
+
+
+"""
+Proxy models to be used in Django-admin
+"""
+
+
+class DrupalUser(User):
+    class Meta:
+        proxy = True
+
+
+class DjangoUser(User):
+    class Meta:
+        proxy = True

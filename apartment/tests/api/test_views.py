@@ -27,8 +27,15 @@ from users.tests.utils import assert_customer_match_data
 
 @pytest.mark.django_db
 @pytest.mark.usefixtures("elastic_apartments")
-def test_apartment_list_get_unauthorized(user_api_client):
+def test_apartment_list_get_unauthorized(
+    user_api_client, drupal_salesperson_api_client
+):
     response = user_api_client.get(reverse("apartment:apartment-list"), format="json")
+    assert response.status_code == 403
+
+    response = drupal_salesperson_api_client.get(
+        reverse("apartment:apartment-list"), format="json"
+    )
     assert response.status_code == 403
 
 

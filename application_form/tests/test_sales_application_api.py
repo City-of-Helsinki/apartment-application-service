@@ -21,9 +21,15 @@ from users.tests.utils import _create_token
 
 @pytest.mark.django_db
 def test_sales_application_post_without_permission(
-    api_client, elastic_single_project_with_apartments
+    sales_ui_salesperson_api_client, api_client, elastic_single_project_with_apartments
 ):
     profile = ProfileFactory()
+    data = create_application_data(profile)
+    response = sales_ui_salesperson_api_client.post(
+        reverse("application_form:sales-application-list"), data, format="json"
+    )
+    assert response.status_code == 403
+
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
     data = create_application_data(profile)
     response = api_client.post(
@@ -33,20 +39,18 @@ def test_sales_application_post_without_permission(
 
 
 @pytest.mark.django_db
-def test_sales_application_post(api_client, elastic_single_project_with_apartments):
-    salesperson_profile = ProfileFactory()
-    salesperson_group = Group.objects.get(name__iexact=Roles.SALESPERSON.name)
-    salesperson_group.user_set.add(salesperson_profile.user)
-
+def test_sales_application_post(
+    drupal_salesperson_api_client, elastic_single_project_with_apartments
+):
     customer_profile = ProfileFactory()
-    api_client.credentials(
-        HTTP_AUTHORIZATION=f"Bearer {_create_token(salesperson_profile)}"
+    drupal_salesperson_api_client.credentials(
+        HTTP_AUTHORIZATION=f"Bearer {_create_token(drupal_salesperson_api_client.user.profile)}"  # noqa: E501
     )
     data = create_application_data(customer_profile)
     data["profile"] = customer_profile.id
     data["ssn_suffix"] = "XXXXX"  # ssn suffix should not be validated
     data["additional_applicant"]["ssn_suffix"] = "XXXXX"
-    response = api_client.post(
+    response = drupal_salesperson_api_client.post(
         reverse("application_form:sales-application-list"), data, format="json"
     )
     assert response.status_code == 201
@@ -56,7 +60,10 @@ def test_sales_application_post(api_client, elastic_single_project_with_apartmen
     assert str(application.customer.primary_profile.id) == customer_profile.id
 
     for reservation in ApartmentReservation.objects.all():
-        assert reservation.state_change_events.last().user == salesperson_profile.user
+        assert (
+            reservation.state_change_events.last().user
+            == drupal_salesperson_api_client.user
+        )
 
 
 def post_application(client, data):
@@ -74,7 +81,7 @@ def test_sales_application_post_check_customer(
     api_client, elastic_single_project_with_apartments
 ):
     salesperson_profile = ProfileFactory()
-    salesperson_group = Group.objects.get(name__iexact=Roles.SALESPERSON.name)
+    salesperson_group = Group.objects.get(name__iexact=Roles.DRUPAL_SALESPERSON.name)
     salesperson_group.user_set.add(salesperson_profile.user)
 
     customer_profile = ProfileFactory()
@@ -153,7 +160,7 @@ def test_sale_application_post_generate_metadata(
     api_client, elastic_single_project_with_apartments, application_type
 ):
     salesperson_profile = ProfileFactory()
-    salesperson_group = Group.objects.get(name__iexact=Roles.SALESPERSON.name)
+    salesperson_group = Group.objects.get(name__iexact=Roles.DRUPAL_SALESPERSON.name)
     salesperson_group.user_set.add(salesperson_profile.user)
 
     customer_profile = ProfileFactory()

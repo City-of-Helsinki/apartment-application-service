@@ -177,7 +177,7 @@ def test_customer_detail_state_event_changed_by(
         customer=customer,
     )
     user = UserFactory()
-    Group.objects.get(name__iexact=Roles.SALESPERSON.name).user_set.add(user)
+    Group.objects.get(name__iexact=Roles.DJANGO_SALESPERSON.name).user_set.add(user)
     if has_profile:
         ProfileFactory(user=user)
 
