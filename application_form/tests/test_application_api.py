@@ -24,6 +24,7 @@ from application_form.tests.factories import (
     ApplicationFactory,
 )
 from audit_log.models import AuditLog
+from connections.enums import ApartmentStateOfSale
 from customer.models import Customer
 from customer.tests.factories import CustomerFactory
 from users.models import Profile
@@ -413,81 +414,131 @@ def test_application_post_single_profile_customer_has_children(
 
 
 @pytest.mark.django_db
-def test_get_sold_apartment_list_unauthorized(
+def test_get_apartment_states_unauthorized(
     api_client, user_api_client, profile_api_client, drupal_salesperson_api_client
 ):
-    response = api_client.get(reverse("application_form:sold_apartments"))
+    response = api_client.get(reverse("application_form:apartment_states"))
     assert response.status_code == 403
 
-    response = user_api_client.get(reverse("application_form:sold_apartments"))
+    response = user_api_client.get(reverse("application_form:apartment_states"))
     assert response.status_code == 403
 
-    response = profile_api_client.get(reverse("application_form:sold_apartments"))
+    response = profile_api_client.get(reverse("application_form:apartment_states"))
     assert response.status_code == 403
 
     response = drupal_salesperson_api_client.get(
-        reverse("application_form:sold_apartments")
+        reverse("application_form:apartment_states")
     )
     assert response.status_code == 403
 
 
 @pytest.mark.django_db
-def test_get_sold_apartment_list(
-    drupal_server_api_client, elastic_single_project_with_apartments
+def test_get_apartment_states(
+    drupal_server_api_client,
+    elastic_haso_project_with_5_apartments,
+    elastic_hitas_project_with_5_apartments,
 ):
-    response = drupal_server_api_client.get(reverse("application_form:sold_apartments"))
-    assert response.status_code == 200
-    assert response.data == []
-    apartments = elastic_single_project_with_apartments
-    for apartment in apartments:
-        ApartmentReservationFactory(
-            apartment_uuid=apartment.uuid, state=ApartmentReservationState.RESERVED
-        )
-    # Sold some apartments
-    sold_apartment_uuids = [apt.uuid for apt in apartments[:5]]
-    sold_reservations = ApartmentReservation.objects.filter(
-        apartment_uuid__in=sold_apartment_uuids
+    response = drupal_server_api_client.get(
+        reverse("application_form:apartment_states")
     )
-    assert sold_reservations.count() == 5
-    for sold_reservation in sold_reservations:
-        sold_reservation.set_state(ApartmentReservationState.SOLD)
-        sold_reservation.save()
+    assert response.status_code == 200
+    assert response.data == {}
+    _, haso_apartments = elastic_haso_project_with_5_apartments
+    _, hitas_apartments = elastic_hitas_project_with_5_apartments
+    for apartment in haso_apartments[:4]:
+        ApartmentReservationFactory(
+            apartment_uuid=apartment.uuid,
+            state=ApartmentReservationState.RESERVED,
+            list_position=1,
+        )
+
+    # Sold apartments
+    sold_reservations = ApartmentReservation.objects.filter(
+        apartment_uuid=haso_apartments[1].uuid
+    )
+    assert sold_reservations.count() == 1
+    sold_reservations[0].set_state(ApartmentReservationState.SOLD)
+
+    # Sold apartment but ends with a cancellation event
+    sold_reservations = ApartmentReservation.objects.filter(
+        apartment_uuid=haso_apartments[2].uuid
+    )
+    sold_reservations[0].set_state(ApartmentReservationState.SOLD)
+    cancelled_reservation = ApartmentReservationFactory(
+        apartment_uuid=haso_apartments[2].uuid,
+        state=ApartmentReservationState.RESERVED,
+        list_position=2,
+    )
+    cancelled_reservation.set_state(ApartmentReservationState.CANCELED)
+    assert (
+        ApartmentReservation.objects.filter(
+            apartment_uuid=haso_apartments[2].uuid
+        ).count()
+        == 2
+    )
+
+    # Reserved hitas apartment
+    ApartmentReservationFactory(
+        apartment_uuid=hitas_apartments[0].uuid,
+        state=ApartmentReservationState.RESERVED,
+    )
+
+    # Free apartment
+    reserved_reservations = ApartmentReservation.objects.filter(
+        apartment_uuid=haso_apartments[3].uuid
+    )
+    assert reserved_reservations.count() == 1
+    reserved_reservations[0].set_state(ApartmentReservationState.CANCELED)
 
     response = drupal_server_api_client.get(
-        reverse("application_form:sold_apartments"),
+        reverse("application_form:apartment_states"),
         {"start_time": "2020-02-02", "end_time": "2020-01-02"},
     )
     assert response.status_code == 400
     assert "greater than end date" in response.data[0]["message"]
 
-    response = drupal_server_api_client.get(reverse("application_form:sold_apartments"))
+    response = drupal_server_api_client.get(
+        reverse("application_form:apartment_states")
+    )
     assert response.status_code == 200
-    assert len(response.data) == 5
-    assert sorted(response.data) == sorted(sold_apartment_uuids)
+    assert len(response.data.keys()) == 5
+    assert response.data[haso_apartments[0].uuid] == ApartmentStateOfSale.RESERVED_HASO
+    assert response.data[haso_apartments[1].uuid] == ApartmentStateOfSale.SOLD
+    assert response.data[haso_apartments[2].uuid] == ApartmentStateOfSale.SOLD
+    assert (
+        response.data[haso_apartments[3].uuid]
+        == ApartmentStateOfSale.FREE_FOR_RESERVATIONS
+    )
+    assert response.data[hitas_apartments[0].uuid] == ApartmentStateOfSale.RESERVED
 
 
 @pytest.mark.django_db
-def test_get_sold_apartment_list_filter(
+def test_get_apartment_states_filter(
     drupal_server_api_client, elastic_single_project_with_apartments
 ):
-    response = drupal_server_api_client.get(reverse("application_form:sold_apartments"))
+    response = drupal_server_api_client.get(
+        reverse("application_form:apartment_states")
+    )
     assert response.status_code == 200
-    assert response.data == []
+    assert response.data == {}
     apartments = elastic_single_project_with_apartments  # 11 apartments
-    for apartment in apartments:
-        ApartmentReservationFactory(
-            apartment_uuid=apartment.uuid, state=ApartmentReservationState.RESERVED
-        )
-    # Sold some apartment
+    with freeze_time("2020-02-01"):
+        for apartment in apartments:
+            ApartmentReservationFactory(
+                apartment_uuid=apartment.uuid, state=ApartmentReservationState.RESERVED
+            )
+
     assert len(apartments) == 11
     sold_apartment_uuids_1 = [apt.uuid for apt in apartments[:5]]
-    sold_apartment_uuids_2 = [apt.uuid for apt in apartments[:-5]]
+    sold_apartment_uuids_2 = [apt.uuid for apt in apartments[5:]]
     sold_reservations_1 = ApartmentReservation.objects.filter(
         apartment_uuid__in=sold_apartment_uuids_1
     )
     sold_reservations_2 = ApartmentReservation.objects.filter(
         apartment_uuid__in=sold_apartment_uuids_2
     )
+
+    # Sold some apartment in different date time
     with freeze_time("2020-02-02"):
         for sold_reservation in sold_reservations_1:
             sold_reservation.set_state(ApartmentReservationState.SOLD)
@@ -497,11 +548,14 @@ def test_get_sold_apartment_list_filter(
             sold_reservation.set_state(ApartmentReservationState.SOLD)
             sold_reservation.save()
         response = drupal_server_api_client.get(
-            reverse("application_form:sold_apartments")
+            reverse("application_form:apartment_states")
         )
         assert response.status_code == 200
-        assert len(response.data) == 6
-        assert sorted(response.data) == sorted(sold_apartment_uuids_2)
-    response = drupal_server_api_client.get(reverse("application_form:sold_apartments"))
+        assert len(response.data.keys()) == 6
+        assert sorted(response.data.keys()) == sorted(sold_apartment_uuids_2)
+
+    response = drupal_server_api_client.get(
+        reverse("application_form:apartment_states")
+    )
     assert response.status_code == 200
-    assert response.data == []
+    assert response.data == {}
