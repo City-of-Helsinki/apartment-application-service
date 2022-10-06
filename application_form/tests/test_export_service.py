@@ -137,15 +137,16 @@ def test_export_project_lottery_result(
         add_application_to_queues(apt_app[0].application)
         add_application_to_queues(apt_app[1].application)
     distribute_apartments(project_uuid)
-
     # reservations added after the lottery shouldn't be included
     ApartmentReservationFactory(apartment_uuid=apartment_uuids[0], list_position=777)
 
-    export_service = ProjectLotteryResultExportService(get_project(project_uuid))
+    project = get_project(project_uuid)
+    export_service = ProjectLotteryResultExportService(project)
     csv_lines = export_service.get_rows()
-
-    assert len(csv_lines) == 11
-    for idx, header in enumerate(csv_lines[0]):
+    csv_headers = csv_lines[3]
+    csv_content = csv_lines[4:]
+    assert len(csv_lines) == 14
+    for idx, header in enumerate(csv_headers):
         assert header == export_service.COLUMNS[idx][0]
 
     first_reservation = export_service.get_reservations_by_apartment_uuid(
@@ -155,11 +156,11 @@ def test_export_project_lottery_result(
         apartment_uuids[-1]
     ).last()
 
-    primary_applicant_column = 5 if ownership_type == "HITAS" else 6
+    primary_applicant_column = 4 if ownership_type == "HITAS" else 5
     assert next(
         (
             line
-            for line in csv_lines
+            for line in csv_content
             if line[primary_applicant_column]
             == first_reservation.customer.primary_profile.full_name
         ),
@@ -168,7 +169,7 @@ def test_export_project_lottery_result(
     assert next(
         (
             line
-            for line in csv_lines
+            for line in csv_content
             if line[primary_applicant_column]
             == last_reservation.customer.primary_profile.full_name
         ),
