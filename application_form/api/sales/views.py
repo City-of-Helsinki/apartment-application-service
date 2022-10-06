@@ -19,6 +19,7 @@ from rest_framework.response import Response
 
 from apartment.elastic.queries import get_apartment, get_project
 from apartment.models import ProjectExtraData
+from apartment.utils import get_apartment_state_of_sale_from_event
 from application_form.api.sales.serializers import (
     OfferMessageSerializer,
     OfferSerializer,
@@ -88,7 +89,7 @@ def execute_lottery_for_project(request):
 @require_http_methods(["GET"])  # For SonarCloud
 @permission_classes([IsDrupalServer])
 @authentication_classes([DrupalAuthentication])
-def sold_apartments(request):
+def apartment_states(request):
     """
     Returns ids of apartments sold during start_time and end_time
     By default
@@ -116,16 +117,23 @@ def sold_apartments(request):
             f"Start date {start_time_obj} cannot be greater than "
             f"end date {end_time_obj}"
         )
+
+    # Select the latest state event of every apartment uuid
     state_events = (
         ApartmentReservationStateChangeEvent.objects.filter(
             timestamp__range=[start_time_obj, end_time_obj],
-            state=ApartmentReservationState.SOLD,
         )
         .select_related("reservation")
-        .only("reservation__apartment_uuid")
+        .order_by("reservation__apartment_uuid", "-timestamp")
+        .distinct("reservation__apartment_uuid")
     )
-    apartment_ids = set([str(e.reservation.apartment_uuid) for e in state_events])
-    return Response(list(apartment_ids), status=status.HTTP_200_OK)
+
+    results = {
+        str(e.reservation.apartment_uuid): get_apartment_state_of_sale_from_event(e)
+        for e in state_events
+    }
+
+    return Response(results, status=status.HTTP_200_OK)
 
 
 class SalesApplicationViewSet(ApplicationViewSet):
