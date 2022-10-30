@@ -38,7 +38,7 @@ defusedxml==0.7.1
     #   social-auth-core
 deprecation==2.1.0
     # via django-helusers
-django==3.2.15
+django==3.2.16
     # via
     #   -r requirements.in
     #   django-cors-headers
@@ -95,14 +95,14 @@ inflection==0.5.1
     # via drf-spectacular
 jsonschema==3.2.0
     # via drf-spectacular
-lxml==4.6.5
+lxml==4.9.1
     # via
     #   django-etuovi
     #   django-oikotie
     #   pikepdf
 num2words==0.5.10
     # via -r requirements.in
-oauthlib==3.1.1
+oauthlib==3.2.1
     # via
     #   requests-oauthlib
     #   social-auth-core
