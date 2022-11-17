@@ -105,9 +105,10 @@ def test_root_apartment_reservation_detail(
 def test_root_apartment_reservation_detail_installment_candidates(
     sales_ui_salesperson_api_client,
 ):
+    sales_price = 12345679
     apartment = ApartmentDocumentFactory(
-        sales_price=12345678,
-        debt_free_sales_price=9876543,  # 123456,78e and 98765,43e,
+        sales_price=sales_price,
+        debt_free_sales_price=9876543,  # 123456,79e and 98765,43e,
         right_of_occupancy_payment=2000000,
     )
     project_uuid = apartment.project_uuid
@@ -197,7 +198,8 @@ def test_root_apartment_reservation_detail_installment_candidates(
 
     assert installment_candidates[3] == {
         "type": installment_template_4.type.value,
-        "amount": 1703704,  # 17,25% of 987654,43e in cents
+        "amount": sales_price
+        - (installment_candidates[1]["amount"] + installment_candidates[2]["amount"]),
         "account_number": installment_template_4.account_number,
         "due_date": None,
     }
@@ -206,6 +208,36 @@ def test_root_apartment_reservation_detail_installment_candidates(
         "type": installment_template_5.type.value,
         "amount": 300000,  # 15% of 20000,00e in cents
         "account_number": installment_template_5.account_number,
+        "due_date": None,
+    }
+
+    # Test two flexible payments, the first one being rounded down and the second one
+    # rounded up to the nearest cent.
+    installment_template_3.percentage_specifier = (
+        InstallmentPercentageSpecifier.SALES_PRICE_FLEXIBLE
+    )
+    installment_template_3.save()
+    response = sales_ui_salesperson_api_client.get(
+        reverse(
+            "application_form:sales-apartment-reservation-detail",
+            kwargs={"pk": reservation.id},
+        ),
+        format="json",
+    )
+    assert response.status_code == 200
+
+    installment_candidates = response.data["installment_candidates"]
+    assert len(installment_candidates) == 5
+    assert installment_candidates[2] == {
+        "type": installment_template_3.type.value,
+        "amount": 5555555,
+        "account_number": installment_template_3.account_number,
+        "due_date": None,
+    }
+    assert installment_candidates[3] == {
+        "type": installment_template_4.type.value,
+        "amount": 5555556,
+        "account_number": installment_template_4.account_number,
         "due_date": None,
     }
 
@@ -230,7 +262,9 @@ def test_contract_pdf_creation_unauthorized(user_api_client):
 @pytest.mark.parametrize("ownership_type", ("HASO", "Hitas"))
 @pytest.mark.django_db
 def test_contract_pdf_creation(
-    sales_ui_salesperson_api_client, ownership_type, reservation_has_application
+    sales_ui_salesperson_api_client,
+    ownership_type,
+    reservation_has_application,
 ):
     apartment = ApartmentDocumentFactory(project_ownership_type=ownership_type)
 
