@@ -29,7 +29,7 @@ class ElasticFactory(factory.Factory):
     def save_to_elastic(obj, create, extracted, **kwargs):
         if not create:
             return
-        obj.save(refresh="wait_for")
+        obj.save(refresh="true")
 
 
 class ApartmentDocumentFactory(ElasticFactory):
