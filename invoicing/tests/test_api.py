@@ -221,6 +221,12 @@ def test_set_project_installments(
             "due_date": "2022-02-19",
         },
         {
+            "type": "PAYMENT_2",
+            "percentage_specifier": "SALES_PRICE_FLEXIBLE",
+            "account_number": "123123123-123",
+            "due_date": "2022-02-19",
+        },
+        {
             "type": "REFUND",
             "amount": 10000,
             "account_number": "123123123-123",
@@ -247,18 +253,17 @@ def test_set_project_installments(
         format="json",
     )
     assert response.status_code == 201
-    assert response.data == data
 
-    assert ProjectInstallmentTemplate.objects.count() == 3
+    assert ProjectInstallmentTemplate.objects.count() == 4
     assert (
         ProjectInstallmentTemplate.objects.exclude(
             project_uuid=other_project_installment_template.project_uuid
         ).count()
-        == 2
+        == 3
     )
 
     installment_templates = ProjectInstallmentTemplate.objects.order_by("id")
-    installment_1, installment_2 = installment_templates[1:]
+    installment_1, installment_2, installment_3 = installment_templates[1:]
 
     assert installment_1.type == InstallmentType.PAYMENT_1
     assert installment_1.value == Decimal("53.50")
@@ -269,12 +274,21 @@ def test_set_project_installments(
     assert installment_1.account_number == "123123123-123"
     assert installment_1.due_date == datetime.date(2022, 2, 19)
 
-    assert installment_2.type == InstallmentType.REFUND
-    assert installment_2.value == Decimal("100.00")
-    assert installment_2.unit == InstallmentUnit.EURO
-    assert installment_2.percentage_specifier is None
+    assert installment_2.type == InstallmentType.PAYMENT_2
+    assert installment_2.value == Decimal("0.00")
+    assert (
+        installment_2.percentage_specifier
+        == InstallmentPercentageSpecifier.SALES_PRICE_FLEXIBLE
+    )
     assert installment_2.account_number == "123123123-123"
-    assert installment_2.due_date is None
+    assert installment_2.due_date == datetime.date(2022, 2, 19)
+
+    assert installment_3.type == InstallmentType.REFUND
+    assert installment_3.value == Decimal("100.00")
+    assert installment_3.unit == InstallmentUnit.EURO
+    assert installment_3.percentage_specifier is None
+    assert installment_3.account_number == "123123123-123"
+    assert installment_3.due_date is None
 
 
 @pytest.mark.django_db

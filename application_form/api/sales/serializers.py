@@ -1,4 +1,6 @@
 import logging
+import math
+from decimal import Decimal
 from django.core.exceptions import ObjectDoesNotExist
 from drf_spectacular.utils import extend_schema_field
 from enumfields.drf import EnumSupportSerializerMixin
@@ -23,7 +25,13 @@ from invoicing.api.serializers import (
     ApartmentInstallmentCandidateSerializer,
     ApartmentInstallmentSerializer,
 )
+from invoicing.enums import (
+    InstallmentPercentageSpecifier,
+    InstallmentType,
+    InstallmentUnit,
+)
 from invoicing.models import ProjectInstallmentTemplate
+from invoicing.utils import get_euros_from_cents
 from users.models import Profile
 
 _logger = logging.getLogger(__name__)
@@ -173,11 +181,65 @@ class RootApartmentReservationSerializer(ApartmentReservationSerializerBase):
         installment_templates = ProjectInstallmentTemplate.objects.filter(
             project_uuid=apartment_data["project_uuid"]
         ).order_by("id")
+        apartment_installments = [
+            template.get_corresponding_apartment_installment(apartment_data)
+            for template in installment_templates
+        ]
+
+        flexible_installments = []
+        fixed_installments = []
+        for installment, template in zip(apartment_installments, installment_templates):
+            if (
+                template.unit == InstallmentUnit.PERCENT
+                and template.percentage_specifier
+                == InstallmentPercentageSpecifier.SALES_PRICE_FLEXIBLE
+            ):
+                flexible_installments.append(installment)
+            elif installment.type in [
+                InstallmentType.PAYMENT_1,
+                InstallmentType.PAYMENT_2,
+                InstallmentType.PAYMENT_3,
+                InstallmentType.PAYMENT_4,
+                InstallmentType.PAYMENT_5,
+                InstallmentType.PAYMENT_6,
+                InstallmentType.PAYMENT_7,
+            ]:
+                fixed_installments.append(installment)
+
+        if flexible_installments:
+            sales_price = get_euros_from_cents(apartment_data["sales_price"])
+            fixed_installments_price = sum(
+                installment.value for installment in fixed_installments
+            )
+            flexible_price = sales_price - fixed_installments_price
+
+            # A bit wonky, but need to be careful not to lose any cents to
+            # rounding e.g. if flexible_price was 1.01€ and the number of
+            # flexible payments is 3 the quotient is 0.3366 we should get
+            # flexible payments of [0.33, 0.33, 0.35]
+            if len(flexible_installments) > 1:
+                flexible_floor_price = (
+                    Decimal(
+                        math.floor(flexible_price / len(flexible_installments) * 100)
+                    )
+                    / 100
+                )
+                flexible_final_price = (
+                    flexible_price
+                    - (len(flexible_installments) - 1) * flexible_floor_price
+                )
+                for flexible_installment in flexible_installments[:-1]:
+                    flexible_installment.value = flexible_floor_price
+                flexible_installments[-1].value = flexible_final_price
+                assert (
+                    sum(installment.value for installment in flexible_installments)
+                    == flexible_price
+                )
+            else:
+                flexible_installments[0].value = flexible_price
+
         serializer = ApartmentInstallmentCandidateSerializer(
-            [
-                template.get_corresponding_apartment_installment(apartment_data)
-                for template in installment_templates
-            ],
+            apartment_installments,
             many=True,
         )
         return serializer.data

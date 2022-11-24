@@ -47,7 +47,7 @@ def test_root_apartment_reservation_detail_unauthorized(
 
 @pytest.mark.django_db
 def test_root_apartment_reservation_detail(
-    sales_ui_salesperson_api_client, elastic_project_with_5_apartments
+    elasticsearch, sales_ui_salesperson_api_client, elastic_project_with_5_apartments
 ):
     _, apartments = elastic_project_with_5_apartments
     reservation = ApartmentReservationFactory(
@@ -103,11 +103,13 @@ def test_root_apartment_reservation_detail(
 
 @pytest.mark.django_db
 def test_root_apartment_reservation_detail_installment_candidates(
+    elasticsearch,
     sales_ui_salesperson_api_client,
 ):
+    sales_price = 12345679
     apartment = ApartmentDocumentFactory(
-        sales_price=12345678,
-        debt_free_sales_price=9876543,  # 123456,78e and 98765,43e,
+        sales_price=sales_price,
+        debt_free_sales_price=9876543,  # 123456,79e and 98765,43e,
         right_of_occupancy_payment=2000000,
     )
     project_uuid = apartment.project_uuid
@@ -197,7 +199,8 @@ def test_root_apartment_reservation_detail_installment_candidates(
 
     assert installment_candidates[3] == {
         "type": installment_template_4.type.value,
-        "amount": 1703704,  # 17,25% of 987654,43e in cents
+        "amount": sales_price
+        - (installment_candidates[1]["amount"] + installment_candidates[2]["amount"]),
         "account_number": installment_template_4.account_number,
         "due_date": None,
     }
@@ -209,9 +212,39 @@ def test_root_apartment_reservation_detail_installment_candidates(
         "due_date": None,
     }
 
+    # Test two flexible payments, the first one being rounded down and the second one
+    # rounded up to the nearest cent.
+    installment_template_3.percentage_specifier = (
+        InstallmentPercentageSpecifier.SALES_PRICE_FLEXIBLE
+    )
+    installment_template_3.save()
+    response = sales_ui_salesperson_api_client.get(
+        reverse(
+            "application_form:sales-apartment-reservation-detail",
+            kwargs={"pk": reservation.id},
+        ),
+        format="json",
+    )
+    assert response.status_code == 200
+
+    installment_candidates = response.data["installment_candidates"]
+    assert len(installment_candidates) == 5
+    assert installment_candidates[2] == {
+        "type": installment_template_3.type.value,
+        "amount": 5555555,
+        "account_number": installment_template_3.account_number,
+        "due_date": None,
+    }
+    assert installment_candidates[3] == {
+        "type": installment_template_4.type.value,
+        "amount": 5555556,
+        "account_number": installment_template_4.account_number,
+        "due_date": None,
+    }
+
 
 @pytest.mark.django_db
-def test_contract_pdf_creation_unauthorized(user_api_client):
+def test_contract_pdf_creation_unauthorized(elasticsearch, user_api_client):
     apartment = ApartmentDocumentFactory()
     reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
 
@@ -230,7 +263,10 @@ def test_contract_pdf_creation_unauthorized(user_api_client):
 @pytest.mark.parametrize("ownership_type", ("HASO", "Hitas"))
 @pytest.mark.django_db
 def test_contract_pdf_creation(
-    sales_ui_salesperson_api_client, ownership_type, reservation_has_application
+    elasticsearch,
+    sales_ui_salesperson_api_client,
+    ownership_type,
+    reservation_has_application,
 ):
     apartment = ApartmentDocumentFactory(project_ownership_type=ownership_type)
 
@@ -261,7 +297,7 @@ def test_contract_pdf_creation(
 
 
 @pytest.mark.django_db
-def test_apartment_reservation_set_state_unauthorized(user_api_client):
+def test_apartment_reservation_set_state_unauthorized(elasticsearch, user_api_client):
     apartment = ApartmentDocumentFactory()
     reservation = ApartmentReservationFactory(
         apartment_uuid=apartment.uuid, state=ApartmentReservationState.SUBMITTED
@@ -281,7 +317,9 @@ def test_apartment_reservation_set_state_unauthorized(user_api_client):
 
 @pytest.mark.parametrize("comment", ("Foo", ""))
 @pytest.mark.django_db
-def test_apartment_reservation_set_state(sales_ui_salesperson_api_client, comment):
+def test_apartment_reservation_set_state(
+    elasticsearch, sales_ui_salesperson_api_client, comment
+):
     apartment = ApartmentDocumentFactory()
     reservation = ApartmentReservationFactory(
         apartment_uuid=apartment.uuid, state=ApartmentReservationState.SUBMITTED
@@ -322,7 +360,7 @@ def test_apartment_reservation_set_state(sales_ui_salesperson_api_client, commen
 
 
 @pytest.mark.django_db
-def test_apartment_reservation_canceling_unauthorized(user_api_client):
+def test_apartment_reservation_canceling_unauthorized(elasticsearch, user_api_client):
     apartment = ApartmentDocumentFactory()
     reservation = ApartmentReservationFactory(
         apartment_uuid=apartment.uuid, state=ApartmentReservationState.SUBMITTED
@@ -343,7 +381,7 @@ def test_apartment_reservation_canceling_unauthorized(user_api_client):
 @pytest.mark.parametrize("ownership_type", ("Haso", "Puolihitas", "Hitas"))
 @pytest.mark.django_db
 def test_apartment_reservation_canceling(
-    sales_ui_salesperson_api_client, ownership_type
+    elasticsearch, sales_ui_salesperson_api_client, ownership_type
 ):
     apartment = ApartmentDocumentFactory(project_ownership_type=ownership_type)
     reservation = ApartmentReservationFactory(
@@ -379,6 +417,7 @@ def test_apartment_reservation_canceling(
 
 @pytest.mark.django_db
 def test_cannot_cancel_already_canceled_apartment_reservation(
+    elasticsearch,
     sales_ui_salesperson_api_client,
 ):
     apartment = ApartmentDocumentFactory()
@@ -403,6 +442,7 @@ def test_cannot_cancel_already_canceled_apartment_reservation(
 
 @pytest.mark.django_db
 def test_apartment_reservation_cancellation_reason_missing_validation(
+    elasticsearch,
     sales_ui_salesperson_api_client,
 ):
     apartment = ApartmentDocumentFactory()
@@ -433,7 +473,7 @@ def test_apartment_reservation_cancellation_reason_missing_validation(
     ],
 )
 def test_apartment_reservation_illegal_cancellation_reason(
-    sales_ui_salesperson_api_client, illegal_cancellation_reason
+    elasticsearch, sales_ui_salesperson_api_client, illegal_cancellation_reason
 ):
     apartment = ApartmentDocumentFactory()
     reservation = ApartmentReservationFactory(
@@ -454,7 +494,9 @@ def test_apartment_reservation_illegal_cancellation_reason(
 
 
 @pytest.mark.django_db
-def test_transfer_reservation_to_another_customer(sales_ui_salesperson_api_client):
+def test_transfer_reservation_to_another_customer(
+    elasticsearch, sales_ui_salesperson_api_client
+):
     apartment = ApartmentDocumentFactory()
     customer = CustomerFactory()
     another_customer = CustomerFactory()
@@ -546,6 +588,7 @@ def test_transfer_reservation_to_another_customer(sales_ui_salesperson_api_clien
 
 @pytest.mark.django_db
 def test_transferring_apartment_reservation_requires_customer(
+    elasticsearch,
     sales_ui_salesperson_api_client,
 ):
     apartment = ApartmentDocumentFactory()
@@ -568,7 +611,7 @@ def test_transferring_apartment_reservation_requires_customer(
 
 
 @pytest.mark.django_db
-def test_create_reservation_unauthorized(user_api_client):
+def test_create_reservation_unauthorized(elasticsearch, user_api_client):
     apartment = ApartmentDocumentFactory()
     customer = CustomerFactory()
     LotteryEvent.objects.create(apartment_uuid=apartment.uuid)
@@ -591,7 +634,9 @@ def test_create_reservation_unauthorized(user_api_client):
 
 @pytest.mark.parametrize("include_read_only_fields", (False, True))
 @pytest.mark.django_db
-def test_create_reservation(sales_ui_salesperson_api_client, include_read_only_fields):
+def test_create_reservation(
+    elasticsearch, sales_ui_salesperson_api_client, include_read_only_fields
+):
     apartment = ApartmentDocumentFactory()
     customer = CustomerFactory(
         right_of_residence=777,
@@ -668,7 +713,9 @@ def test_create_reservation(sales_ui_salesperson_api_client, include_read_only_f
 
 
 @pytest.mark.django_db
-def test_create_reservation_lottery_not_executed(sales_ui_salesperson_api_client):
+def test_create_reservation_lottery_not_executed(
+    elasticsearch, sales_ui_salesperson_api_client
+):
     apartment = ApartmentDocumentFactory()
     customer = CustomerFactory()
 
@@ -691,6 +738,7 @@ def test_create_reservation_lottery_not_executed(sales_ui_salesperson_api_client
 
 @pytest.mark.django_db
 def test_create_reservation_lottery_non_existing_apartment(
+    elasticsearch,
     sales_ui_salesperson_api_client,
 ):
     apartment = ApartmentDocumentFactory()
@@ -716,6 +764,7 @@ def test_create_reservation_lottery_non_existing_apartment(
 
 @pytest.mark.django_db
 def test_create_reservation_queue_already_has_canceled_reservation(
+    elasticsearch,
     sales_ui_salesperson_api_client,
 ):
     apartment = ApartmentDocumentFactory()
@@ -748,6 +797,7 @@ def test_create_reservation_queue_already_has_canceled_reservation(
 
 @pytest.mark.django_db
 def test_create_reservation_queue_already_has_reserved_reservation(
+    elasticsearch,
     sales_ui_salesperson_api_client,
 ):
     apartment = ApartmentDocumentFactory()
@@ -779,7 +829,7 @@ def test_create_reservation_queue_already_has_reserved_reservation(
 
 
 @pytest.mark.django_db
-def test_get_offer_message_unauthorized(user_api_client):
+def test_get_offer_message_unauthorized(elasticsearch, user_api_client):
     apartment = ApartmentDocumentFactory()
 
     reservation = ApartmentReservationFactory(
@@ -797,7 +847,9 @@ def test_get_offer_message_unauthorized(user_api_client):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("ownership_type", ["puolihitas", "hitas", "haso"])
-def test_get_offer_message(sales_ui_salesperson_api_client, ownership_type):
+def test_get_offer_message(
+    elasticsearch, sales_ui_salesperson_api_client, ownership_type
+):
     apartment = ApartmentDocumentFactory(
         apartment_number="A1",
         apartment_structure="5h+k",
@@ -917,6 +969,7 @@ content
 
 @pytest.mark.django_db
 def test_salesperson_create_reservation_generate_metadata(
+    elasticsearch,
     sales_ui_salesperson_api_client,
 ):
     apartment = ApartmentDocumentFactory()

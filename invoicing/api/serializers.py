@@ -170,15 +170,26 @@ class ProjectInstallmentTemplateSerializer(InstallmentSerializerBase):
         percentage = validated_data.pop("get_percentage", None)
         has_percentage = percentage is not None
         percentage_specifier = validated_data.pop("percentage_specifier", None)
+        flexible = (
+            percentage_specifier == InstallmentPercentageSpecifier.SALES_PRICE_FLEXIBLE
+        )
         project_uuid = self.context["view"].kwargs["project_uuid"]
         project = get_project(project_uuid)
+
+        # Store flexible installment templates as 0% as their actual value
+        # will be calculated dynamically when apartment installments are
+        # generated.
+        if flexible:
+            percentage = Decimal("0.00")
+            has_percentage = True
+            has_amount = False
 
         if (has_amount and has_percentage) or not (has_amount or has_percentage):
             raise exceptions.ValidationError(
                 "Either amount or percentage is required but not both."
             )
 
-        if has_amount:
+        elif has_amount:
             validated_data.update(
                 {
                     "value": amount,
