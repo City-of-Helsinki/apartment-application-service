@@ -124,12 +124,15 @@ try:
 except Exception:
     version = "n/a"
 
-sentry_sdk.init(
-    dsn=env.str("SENTRY_DSN"),
-    release=version,
-    environment=env("SENTRY_ENVIRONMENT"),
-    integrations=[DjangoIntegration()],
-)
+SENTRY_DSN = env.str("SENTRY_DSN")
+SENTRY_ENVIRONMENT = env("SENTRY_ENVIRONMENT")
+if SENTRY_DSN and SENTRY_ENVIRONMENT:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        release=version,
+        environment=SENTRY_ENVIRONMENT,
+        integrations=[DjangoIntegration()],
+    )
 
 var_root = env.path("VAR_ROOT")
 MEDIA_ROOT = var_root("media")
