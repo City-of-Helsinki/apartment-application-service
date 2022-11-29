@@ -176,6 +176,7 @@ INSTALLED_APPS = [
     "audit_log",
     "invoicing",
     "utils",
+    "cost_index",
 ]
 
 MIDDLEWARE = [

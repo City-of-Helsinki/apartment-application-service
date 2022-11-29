@@ -12,6 +12,7 @@ from apartment import urls as apartment_urls
 from application_form import urls as applications_urls
 from audit_log import urls as auditlogs_api_urls
 from connections import urls as connections_api_urls
+from cost_index import urls as cost_index_urls
 from customer import urls as customer_urls
 from users import urls as users_urls
 from users.api.views import MaskedTokenObtainPairView, MaskedTokenRefreshView
@@ -29,6 +30,10 @@ urlpatterns = [
     path(
         "v1/",
         include((connections_api_urls, "connections"), namespace="v1/connections"),
+    ),
+    path(
+        "v1/",
+        include((cost_index_urls, "cost_index"), namespace="v1/cost_indexes"),
     ),
     path(
         "v1/",
