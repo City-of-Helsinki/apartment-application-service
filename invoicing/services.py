@@ -21,7 +21,7 @@ TALPA_EMAIL_CONTENT_TEMPLATE = (
 )
 
 
-def send_needed_installments_to_sap() -> int:
+def send_needed_installments_to_sap() -> (int, datetime):
     installments = ApartmentInstallment.objects.sending_to_sap_needed()
     logger.debug(f"Installment IDs: {[i.pk for i in installments]}")
     num_of_installments = installments.count()
@@ -29,7 +29,7 @@ def send_needed_installments_to_sap() -> int:
     if num_of_installments:
         xml = generate_installments_xml(installments)
         logger.debug(f"Generated XML:\n{xml.decode('utf-8')}")
-        send_xml_to_sap(xml, timestamp)
+        send_xml_to_sap(xml, timestamp=timestamp)
         installments.set_sent_to_sap_at()
         for installment in installments:
             audit_logging.log(None, Operation.UPDATE, installment)
@@ -64,6 +64,8 @@ def send_xml_to_sap(
     xml: bytes, filename: str = None, timestamp: datetime = None
 ) -> None:
     if filename is None:
+        if timestamp is None:
+            timestamp = datetime.now()
         filename = generate_sap_xml_filename(timestamp)
     logger.debug(
         f"Sending XML file {filename} "

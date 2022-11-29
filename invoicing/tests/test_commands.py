@@ -49,12 +49,11 @@ def test_pending_installments_to_sap(send_xml_to_sap):
         sent_to_sap_at=timezone.now(),
     )  # already sent to SAP
 
-    send_xml_to_sap.side_effect = (
-        # check generated xml and make sure only should_get_sent is included
-        lambda xml, ts: assert_apartment_installment_match_xml_data(
-            should_get_sent, xml
-        )
-    )
+    def send_xml_to_sap_side_effect(xml, filename=None, timestamp=None):
+        return assert_apartment_installment_match_xml_data(should_get_sent, xml)
+
+    # check generated xml and make sure only should_get_sent is included
+    send_xml_to_sap.side_effect = send_xml_to_sap_side_effect
 
     call_command(
         "send_installments_to_sap",

@@ -17,4 +17,4 @@ class Command(BaseCommand):
             f"Sending XML file {options['filename']} " f"to the SAP SFTP server"
         )
         with open(options["filename"], "rb") as xml_file:
-            send_xml_to_sap(bytes(xml_file.read()), options["filename"])
+            send_xml_to_sap(bytes(xml_file.read()), filename=options["filename"])
