@@ -36,14 +36,6 @@ def test_cost_index_utils_correct():
         Decimal("100.01"), date(2022, 11, 23), date(2022, 11, 24)
     ) == Decimal("50.00")
 
-    # Arithmetic
-    assert calculate_end_value(
-        Decimal("100.00"), date(2022, 11, 23), date(2022, 11, 24), Decimal("10.01")
-    ) == Decimal("60.01")
-    assert calculate_end_value(
-        Decimal("100.00"), date(2022, 11, 23), date(2022, 11, 24), Decimal("-10.01")
-    ) == Decimal("39.99")
-
     with pytest.raises(ValueError):
         calculate_end_value(Decimal("100.00"), date(1988, 11, 22), date(2022, 11, 23))
 
