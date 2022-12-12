@@ -145,12 +145,12 @@ def create_haso_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         living_area=apartment.living_area,
         floor=apartment.floor,
         right_of_occupancy_payment=PDFCurrencyField(
-            cents=apartment.right_of_occupancy_payment, suffix=" €"
+            cents=apartment.current_right_of_occupancy_payment, suffix=" €"
         ),
         right_of_occupancy_payment_text=num2words(
-            Decimal(apartment.right_of_occupancy_payment) / 100, lang="fi"
+            Decimal(apartment.current_right_of_occupancy_payment) / 100, lang="fi"
         )
-        if apartment.right_of_occupancy_payment is not None
+        if apartment.current_right_of_occupancy_payment is not None
         else None,
         payment_due_date=first_payment.due_date,
         installment_amount=PDFCurrencyField(euros=first_payment.value),

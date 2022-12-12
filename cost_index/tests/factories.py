@@ -10,15 +10,15 @@ class ApartmentRevaluationFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = ApartmentRevaluation
 
-    start_date = fuzzy.FuzzyDate(date(1990, 1, 1), date(2020, 9, 15))
+    start_date = fuzzy.FuzzyDate(date(1991, 1, 1), date(2020, 9, 15))
     end_date = LazyAttribute(lambda o: o.start_date + timedelta(days=365))
 
-    start_right_of_occupancy_cost = fuzzy.FuzzyDecimal(99.00, 9999999.99)
+    start_right_of_occupancy_payment = fuzzy.FuzzyDecimal(99.00, 9999999.99)
     start_cost_index_value = LazyAttribute(lambda o: determine_date_index(o.start_date))
     end_cost_index_value = LazyAttribute(lambda o: determine_date_index(o.end_date))
-    end_right_of_occupancy_cost = LazyAttribute(
+    end_right_of_occupancy_payment = LazyAttribute(
         lambda o: calculate_end_value(
-            o.start_right_of_occupancy_cost, o.start_date, o.end_date
+            o.start_right_of_occupancy_payment, o.start_date, o.end_date
         )
     )
     alteration_work = fuzzy.FuzzyDecimal(99.00, 59999.99)
