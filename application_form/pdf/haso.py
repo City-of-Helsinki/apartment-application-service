@@ -1,17 +1,20 @@
 import dataclasses
 from datetime import date
 from decimal import Decimal
+from django.utils import timezone
 from io import BytesIO
 from num2words import num2words
-from typing import ClassVar, Dict, Union
+from typing import ClassVar, Dict, Optional, Union
 
 from apartment.elastic.queries import get_apartment
 from apartment_application_service.pdf import create_pdf, PDFCurrencyField, PDFData
 from apartment_application_service.utils import SafeAttributeObject
 from application_form.models import ApartmentReservation
+from cost_index.utils import total_alteration_work
 from invoicing.enums import InstallmentType
 
 HASO_CONTRACT_PDF_TEMPLATE_FILE_NAME = "haso_contract_template.pdf"
+HASO_RELEASE_PDF_TEMPLATE_FILE_NAME = "haso_release_template.pdf"
 
 
 @dataclasses.dataclass
@@ -86,6 +89,49 @@ class HasoContractPDFData(PDFData):
         "signing_place": "Paikka",
         "signing_text": "Sopimus oikeaksi todistetaan",
         "signing_time": "Aika",
+    }
+
+
+@dataclasses.dataclass
+class HasoReleasePDFData(PDFData):
+    project_housing_company: Optional[str]
+    project_street_address: Optional[str]
+    project_completion_date: Optional[date]
+    apartment_number: Optional[str]
+    occupant_names: Optional[str]
+    occupant_phone_numbers: Optional[str]
+    right_of_residence_number: Optional[str]
+    release_date: date
+    original_right_of_occupancy_payment: PDFCurrencyField
+    payment_1_date: date
+    payment_1_cost_index: Decimal
+    release_date_cost_index: Decimal
+    adjusted_right_of_occupancy_payment: PDFCurrencyField
+    alteration_work: PDFCurrencyField
+    refund: Optional[PDFCurrencyField]
+    release_payment: PDFCurrencyField
+    document_date: date
+    sales_person_name: str
+
+    FIELD_MAPPING: ClassVar[Dict[str, str]] = {
+        "project_housing_company": "Kohde",
+        "project_street_address": "Kohteen osoite",
+        "project_completion_date": "Kohteen valmistumisaika",
+        "apartment_number": "Huoneisto",
+        "occupant_names": "Asumisoikeuden haltijat",
+        "occupant_phone_numbers": "Puhelinnumerot",
+        "right_of_residence_number": "Järjestysnumero",
+        "release_date": "Luopumispäivä",
+        "original_right_of_occupancy_payment": "Alkuperäinen asumisoikeusmaksu",
+        "payment_1_date": "Ensimmäinen maksupäivä",
+        "payment_1_cost_index": "Maksupäivän indeksi",
+        "release_date_cost_index": "Luopumispäivän indeksi",
+        "adjusted_right_of_occupancy_payment": "Indeksikorotettu asumisoikeusmaksu",
+        "alteration_work": "Muutostyöt",
+        "refund": "Hyvitettävä",
+        "release_payment": "Luovutushinta asomaksuindmuutostyöt",
+        "document_date": "Päivämäärä",
+        "sales_person_name": "Myyjä",
     }
 
 
@@ -179,3 +225,48 @@ def create_haso_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
     )
 
     return create_pdf(HASO_CONTRACT_PDF_TEMPLATE_FILE_NAME, pdf_data)
+
+
+def create_haso_release_pdf(
+    sales_person_name: str, reservation: ApartmentReservation
+) -> BytesIO:
+    customer = SafeAttributeObject(reservation.customer)
+    primary_profile = SafeAttributeObject(customer.primary_profile)
+    secondary_profile = SafeAttributeObject(customer.secondary_profile)
+    apartment = get_apartment(reservation.apartment_uuid, include_project_fields=True)
+
+    revaluation = reservation.revaluation
+    total_alteration_work_value = total_alteration_work(reservation.apartment_uuid)
+
+    pdf_data = HasoReleasePDFData(
+        project_housing_company=apartment.project_housing_company,
+        project_street_address=apartment.project_street_address,
+        apartment_number=apartment.apartment_number,
+        project_completion_date=apartment.project_completion_date,
+        occupant_names=", ".join(
+            filter(None, (primary_profile.full_name, secondary_profile.full_name))
+        ),
+        occupant_phone_numbers=", ".join(
+            filter(None, (primary_profile.phone_number, secondary_profile.phone_number))
+        ),
+        right_of_residence_number=reservation.right_of_residence,
+        release_date=revaluation.end_date,
+        original_right_of_occupancy_payment=PDFCurrencyField(
+            euros=revaluation.start_right_of_occupancy_payment
+        ),
+        payment_1_date=revaluation.start_date,
+        payment_1_cost_index=revaluation.start_cost_index_value,
+        release_date_cost_index=revaluation.end_cost_index_value,
+        adjusted_right_of_occupancy_payment=PDFCurrencyField(
+            euros=revaluation.end_right_of_occupancy_payment
+        ),
+        alteration_work=PDFCurrencyField(euros=total_alteration_work_value),
+        refund=PDFCurrencyField(euros=total_alteration_work_value),
+        release_payment=PDFCurrencyField(
+            euros=revaluation.end_right_of_occupancy_payment
+            + total_alteration_work_value
+        ),
+        document_date=timezone.now().date(),
+        sales_person_name=sales_person_name,
+    )
+    return create_pdf(HASO_RELEASE_PDF_TEMPLATE_FILE_NAME, pdf_data)

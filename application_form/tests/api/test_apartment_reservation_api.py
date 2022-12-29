@@ -13,6 +13,7 @@ from application_form.enums import (
 )
 from application_form.models import ApartmentReservation, LotteryEvent
 from application_form.tests.factories import ApartmentReservationFactory, OfferFactory
+from cost_index.tests.factories import ApartmentRevaluationFactory
 from customer.tests.factories import CustomerFactory
 from invoicing.enums import (
     InstallmentPercentageSpecifier,
@@ -1000,3 +1001,60 @@ def test_salesperson_create_reservation_generate_metadata(
     reservation = ApartmentReservation.objects.get(id=reservation_id)
     user = sales_ui_salesperson_api_client.user
     assert reservation.handler == f"{user.first_name} {user.last_name}"
+
+
+@pytest.mark.django_db
+def test_release_pdf_creation_unauthorized(elasticsearch, user_api_client):
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
+
+    response = user_api_client.get(
+        reverse(
+            "application_form:sales-apartment-reservation-release-pdf",
+            kwargs={"pk": reservation.id},
+        ),
+        format="json",
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.parametrize("reservation_has_revaluation", (True, False))
+@pytest.mark.parametrize("ownership_type", ("HASO", "Hitas"))
+@pytest.mark.django_db
+def test_release_pdf_creation(
+    elasticsearch,
+    sales_ui_salesperson_api_client,
+    ownership_type,
+    reservation_has_revaluation,
+):
+    apartment = ApartmentDocumentFactory(project_ownership_type=ownership_type)
+
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid, state=ApartmentReservationState.CANCELED
+    )
+    revaluation = (
+        ApartmentRevaluationFactory(apartment_reservation=reservation)
+        if reservation_has_revaluation
+        else None
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse(
+            "application_form:sales-apartment-reservation-release-pdf",
+            kwargs={"pk": reservation.id},
+        ),
+        format="json",
+    )
+    if ownership_type == "HASO":
+        if revaluation:
+            assert response.status_code == 200
+            assert response["Content-Type"] == "application/pdf"
+            test_value = apartment.project_housing_company
+            assert bytes(test_value, encoding="utf-8") in response.content
+        else:
+            assert response.status_code == 400
+            assert "Reservation has no revaluation" in str(response.data)
+    else:
+        assert response.status_code == 400
+        assert "Apartment ownership type is not HASO" in str(response.data)
