@@ -20,6 +20,7 @@ from application_form.enums import ApartmentReservationState, ApplicationArrival
 from application_form.models import ApartmentReservation, Applicant, LotteryEvent, Offer
 from application_form.services.offer import create_offer, update_offer
 from application_form.services.reservation import create_reservation_without_application
+from cost_index.api.serializers import ApartmentRevaluationSerializer
 from customer.models import Customer
 from invoicing.api.serializers import (
     ApartmentInstallmentCandidateSerializer,
@@ -109,12 +110,14 @@ class SalesApartmentReservationSerializer(ApartmentReservationSerializerBase):
     customer = CustomerCompactSerializer()
     cancellation_reason = serializers.SerializerMethodField()
     cancellation_timestamp = serializers.SerializerMethodField()
+    revaluation = ApartmentRevaluationSerializer()
 
     class Meta(ApartmentReservationSerializerBase.Meta):
         fields = ApartmentReservationSerializerBase.Meta.fields + (
             "customer",
             "cancellation_reason",
             "cancellation_timestamp",
+            "revaluation",
         )
         read_only_fields = fields
 

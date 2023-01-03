@@ -59,6 +59,7 @@ class CustomerApartmentReservationSerializer(ApartmentReservationSerializerBase)
         self.context["apartment"] = get_apartment(
             instance.apartment_uuid, include_project_fields=True
         )
+        self.context["reservation_id"] = instance.id
         return super().to_representation(instance)
 
     def get_project_uuid(self, obj) -> UUID:
@@ -92,7 +93,9 @@ class CustomerApartmentReservationSerializer(ApartmentReservationSerializerBase)
         return self.context["apartment"].debt_free_sales_price
 
     def get_apartment_right_of_occupancy_payment(self, obj) -> int:
-        return self.context["apartment"].right_of_occupancy_payment
+        return self.context["apartment"].reservation_right_of_occupancy_payment(
+            self.context["reservation_id"]
+        )
 
     def get_project_lottery_completed(self, obj) -> bool:
         lottery_completed = LotteryEvent.objects.filter(

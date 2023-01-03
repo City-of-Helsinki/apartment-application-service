@@ -1,11 +1,6 @@
-from django.db.models import (
-    CASCADE,
-    DateField,
-    DateTimeField,
-    DecimalField,
-    Model,
-    OneToOneField,
-)
+from django.db.models import DateField, DecimalField, Model, OneToOneField, PROTECT
+
+from apartment_application_service.models import TimestampedModel
 
 
 class CostIndex(Model):
@@ -16,7 +11,7 @@ class CostIndex(Model):
         ordering = ["-valid_from"]
 
 
-class ApartmentRevaluation(Model):
+class ApartmentRevaluation(TimestampedModel):
     """
     A model to keep all information related to termination of a HASO
     reservation and recalculation of right of occupancy value of the apartment.
@@ -28,21 +23,19 @@ class ApartmentRevaluation(Model):
 
     apartment_reservation = OneToOneField(
         "application_form.ApartmentReservation",
-        on_delete=CASCADE,
+        on_delete=PROTECT,
         related_name="revaluation",
     )
 
-    created_at = DateTimeField(auto_now_add=True)
-
     start_date = DateField()
     start_cost_index_value = DecimalField(max_digits=16, decimal_places=2)
-    start_right_of_occupancy_cost = DecimalField(max_digits=16, decimal_places=2)
+    start_right_of_occupancy_payment = DecimalField(max_digits=16, decimal_places=2)
 
     alteration_work = DecimalField(max_digits=16, decimal_places=2)
 
     end_date = DateField()
     end_cost_index_value = DecimalField(max_digits=16, decimal_places=2)
-    end_right_of_occupancy_cost = DecimalField(max_digits=16, decimal_places=2)
+    end_right_of_occupancy_payment = DecimalField(max_digits=16, decimal_places=2)
 
     class Meta:
         ordering = ["created_at"]

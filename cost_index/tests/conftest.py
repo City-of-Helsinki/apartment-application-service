@@ -1,5 +1,6 @@
 from application_form.tests.conftest import (  # noqa: F401
     elastic_haso_project_with_5_apartments,
+    elastic_hitas_project_with_5_apartments,
     elasticsearch,
 )
 from users.tests.conftest import (  # noqa: F401
