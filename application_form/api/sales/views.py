@@ -44,7 +44,11 @@ from application_form.models import (
     ApartmentReservationStateChangeEvent,
     Offer,
 )
-from application_form.pdf import create_haso_contract_pdf, create_hitas_contract_pdf
+from application_form.pdf import (
+    create_haso_contract_pdf,
+    create_haso_release_pdf,
+    create_hitas_contract_pdf,
+)
 from application_form.permissions import DrupalAuthentication, IsDrupalServer
 from application_form.services.application import cancel_reservation
 from application_form.services.lottery.exceptions import (
@@ -171,6 +175,35 @@ class ApartmentReservationViewSet(
             raise ValueError(
                 f"Unknown ownership_type: {apartment.project_ownership_type}"
             )
+
+        response = HttpResponse(pdf_data, content_type="application/pdf")
+        response["Content-Disposition"] = f"attachment; filename={filename}.pdf"
+
+        return response
+
+    @extend_schema(
+        description="Create HASO apartment release PDF",
+        responses={(200, "application/pdf"): OpenApiTypes.BINARY},
+    )
+    @action(methods=["GET"], detail=True)
+    def release_pdf(self, request, **kwargs):
+        reservation = self.get_object()
+        apartment = get_apartment(
+            reservation.apartment_uuid, include_project_fields=True
+        )
+
+        if apartment.project_ownership_type.lower() != "haso":
+            raise ValidationError("Apartment ownership type is not HASO")
+
+        if not hasattr(reservation, "revaluation"):
+            raise ValidationError("Reservation has no revaluation")
+
+        title = (apartment.title or "").strip().lower().replace(" ", "_")
+        filename = f"haso_luovutuslaskelma{title}" if title else "haso_luovutuslaskelma"
+
+        pdf_data = create_haso_release_pdf(
+            request.user.profile_or_user_full_name, reservation
+        )
 
         response = HttpResponse(pdf_data, content_type="application/pdf")
         response["Content-Disposition"] = f"attachment; filename={filename}.pdf"

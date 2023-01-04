@@ -96,7 +96,7 @@ def reservation_right_of_occupancy_payment(
         )
 
 
-def total_alteration_work(apartment_uuid):
+def total_alteration_work(apartment_uuid) -> Decimal:
     return sum(
         ApartmentRevaluation.objects.filter(
             apartment_reservation__apartment_uuid=apartment_uuid
