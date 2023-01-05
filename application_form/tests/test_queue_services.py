@@ -12,7 +12,10 @@ from application_form.services.queue import (
     add_application_to_queues,
     remove_reservation_from_queue,
 )
-from application_form.tests.factories import ApplicationFactory
+from application_form.tests.factories import (
+    ApartmentReservationFactory,
+    ApplicationFactory,
+)
 
 
 @mark.django_db
@@ -291,3 +294,17 @@ def test_removing_application_from_queue_nullifies_queue_number(
     apartment_application.apartment_reservation.refresh_from_db()
 
     assert apartment_application.apartment_reservation.queue_position is None
+
+
+@mark.django_db
+def test_remove_reservation_without_queue_positio_bug_ASU_1672(
+    elastic_project_with_5_apartments, caplog
+):
+    project_uuid, apartments = elastic_project_with_5_apartments
+    first_apartment_uuid = apartments[0].uuid
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=first_apartment_uuid, queue_position=None
+    )
+    remove_reservation_from_queue(reservation)
+    assert caplog.records[0].levelname == "WARNING"
+    assert first_apartment_uuid in caplog.text
