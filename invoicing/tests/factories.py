@@ -3,7 +3,12 @@ import factory
 from application_form.tests.factories import ApartmentReservationFactory
 
 from ..enums import InstallmentPercentageSpecifier, InstallmentType, InstallmentUnit
-from ..models import ApartmentInstallment, InstallmentBase, ProjectInstallmentTemplate
+from ..models import (
+    ApartmentInstallment,
+    InstallmentBase,
+    Payment,
+    ProjectInstallmentTemplate,
+)
 
 
 class InstallmentBaseFactory(factory.django.DjangoModelFactory):
@@ -41,3 +46,12 @@ class ApartmentInstallmentFactory(InstallmentBaseFactory):
 
     class Meta:
         model = ApartmentInstallment
+
+
+class PaymentFactory(factory.django.DjangoModelFactory):
+    apartment_installment = factory.SubFactory(ApartmentInstallmentFactory)
+    amount = factory.Faker("random_int", min=100, max=999)
+    date_of_payment = factory.Faker("past_date")
+
+    class Meta:
+        model = Payment

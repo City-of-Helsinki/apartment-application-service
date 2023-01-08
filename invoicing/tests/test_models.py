@@ -2,10 +2,10 @@ import pytest
 from datetime import date
 from unittest.mock import patch
 
-from invoicing.models import ApartmentInstallment, ProjectInstallmentTemplate
+from invoicing.models import ApartmentInstallment, Payment, ProjectInstallmentTemplate
 from invoicing.tests.factories import (
     ApartmentInstallmentFactory,
-    ProjectInstallmentTemplateFactory,
+    PaymentFactory, ProjectInstallmentTemplateFactory,
 )
 
 
@@ -75,3 +75,9 @@ def test_apartment_installment_change_year_and_restart_invoice_numbers(
             apartment_installment.save()
 
             assert apartment_installment.invoice_number == expected_invoice_number
+
+
+@pytest.mark.django_db
+def test_payment_creation():
+    PaymentFactory()
+    assert Payment.objects.count() == 1

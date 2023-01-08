@@ -10,6 +10,7 @@ from enumfields import EnumField
 from pgcrypto.fields import CharPGPPublicKeyField
 from uuid import uuid4
 
+from apartment_application_service.models import TimestampedModel
 from application_form.models import ApartmentReservation
 from invoicing.enums import (
     InstallmentPercentageSpecifier,
@@ -223,3 +224,22 @@ class ProjectInstallmentTemplate(InstallmentBase):
             apartment_installment.value = self.value
 
         return apartment_installment
+
+
+class Payment(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("created at"))
+    apartment_installment = models.ForeignKey(
+        ApartmentInstallment,
+        verbose_name=_("apartment installment"),
+        related_name="payments",
+        on_delete=models.PROTECT,
+    )
+    amount = models.DecimalField(
+        verbose_name=_("amount"), max_digits=16, decimal_places=2
+    )
+    payment_date = models.DateField(verbose_name=_("payment date"))
+
+    class Meta:
+        verbose_name = _("payment")
+        verbose_name_plural = _("payments")
+        ordering = ("id",)
