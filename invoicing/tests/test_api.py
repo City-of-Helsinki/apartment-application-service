@@ -10,7 +10,11 @@ from application_form.tests.factories import ApartmentReservationFactory
 
 from ..enums import InstallmentPercentageSpecifier, InstallmentType, InstallmentUnit
 from ..models import ApartmentInstallment, ProjectInstallmentTemplate
-from .factories import ApartmentInstallmentFactory, ProjectInstallmentTemplateFactory
+from .factories import (
+    ApartmentInstallmentFactory,
+    PaymentFactory,
+    ProjectInstallmentTemplateFactory,
+)
 
 
 @pytest.fixture
@@ -439,7 +443,7 @@ def test_apartment_installments_endpoint_data(
     apartment_document, sales_ui_salesperson_api_client
 ):
     reservation = ApartmentReservationFactory()
-    ApartmentInstallmentFactory(
+    installment_1 = ApartmentInstallmentFactory(
         apartment_reservation=reservation,
         **{
             "type": InstallmentType.PAYMENT_1,
@@ -448,6 +452,11 @@ def test_apartment_installments_endpoint_data(
             "due_date": "2022-02-19",
             "reference_number": "REFERENCE-123",
         },
+    )
+    PaymentFactory(
+        apartment_installment=installment_1,
+        amount=1,
+        payment_date=installment_1.due_date,
     )
     ApartmentInstallmentFactory(
         apartment_reservation=reservation,
@@ -475,6 +484,16 @@ def test_apartment_installments_endpoint_data(
             "due_date": "2022-02-19",
             "reference_number": "REFERENCE-123",
             "added_to_be_sent_to_sap_at": None,
+            "payment_state": {
+                "status": "UNDERPAID",
+                "is_overdue": True,
+            },
+            "payments": [
+                {
+                    "amount": 100,
+                    "payment_date": "2022-02-19",
+                }
+            ],
         },
         {
             "type": "REFUND",
@@ -483,6 +502,11 @@ def test_apartment_installments_endpoint_data(
             "due_date": None,
             "reference_number": "REFERENCE-321",
             "added_to_be_sent_to_sap_at": None,
+            "payment_state": {
+                "status": "UNPAID",
+                "is_overdue": False,
+            },
+            "payments": [],
         },
     ]
 
@@ -538,7 +562,12 @@ def test_set_apartment_installments(
     data[1]["reference_number"] = installment_2.reference_number
     data[0]["added_to_be_sent_to_sap_at"] = None
     data[1]["added_to_be_sent_to_sap_at"] = None
-    assert response.data == data
+    response_data = response.data.copy()
+    response_data[0].pop("payment_state")
+    response_data[0].pop("payments")
+    response_data[1].pop("payment_state")
+    response_data[1].pop("payments")
+    assert response_data == data
 
     assert ApartmentInstallment.objects.count() == 3
     assert (
@@ -874,6 +903,8 @@ def test_add_installments_to_be_sent_to_sap_at(
         "type",
         "amount",
         "added_to_be_sent_to_sap_at",
+        "payment_state",
+        "payments",
     }
 
     assert response.data[0]["added_to_be_sent_to_sap_at"]

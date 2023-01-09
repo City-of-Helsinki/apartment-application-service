@@ -112,6 +112,11 @@ def test_get_customer_api_detail(sales_ui_salesperson_api_client):
                     else None,
                     "reference_number": installment.reference_number,
                     "added_to_be_sent_to_sap_at": installment.added_to_be_sent_to_sap_at,  # noqa: E501
+                    "payment_state": {
+                        "status": "UNPAID",
+                        "is_overdue": False,
+                    },
+                    "payments": [],
                 }
             ],
             "lottery_position": None,

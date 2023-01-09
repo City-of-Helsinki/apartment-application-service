@@ -4,18 +4,18 @@ from django.contrib.auth import get_user_model
 from django.db import models, transaction
 from django.db.models import UniqueConstraint
 from django.utils import timezone
-from django.utils.timezone import now
+from django.utils.timezone import localdate, now
 from django.utils.translation import gettext_lazy as _
 from enumfields import EnumField
 from pgcrypto.fields import CharPGPPublicKeyField
 from uuid import uuid4
 
-from apartment_application_service.models import TimestampedModel
 from application_form.models import ApartmentReservation
 from invoicing.enums import (
     InstallmentPercentageSpecifier,
     InstallmentType,
     InstallmentUnit,
+    PaymentStatus,
 )
 from invoicing.utils import (
     generate_reference_number,
@@ -99,6 +99,31 @@ class ApartmentInstallment(InstallmentBase):
                 fields=["apartment_reservation", "type"], name="unique_reservation_type"
             )
         ]
+
+    @property
+    def is_overdue(self) -> bool:
+        if not self.due_date or localdate() <= self.due_date:
+            return False
+
+        return (
+            sum(
+                payment.amount
+                for payment in self.payments.filter(payment_date__lte=self.due_date)
+            )
+            < self.value
+        )
+
+    @property
+    def payment_status(self) -> PaymentStatus:
+        paid_amount = sum(payment.amount for payment in self.payments.all())
+        if not paid_amount:
+            return PaymentStatus.UNPAID
+        elif paid_amount == self.value:
+            return PaymentStatus.PAID
+        elif paid_amount < self.value:
+            return PaymentStatus.UNDERPAID
+        else:
+            return PaymentStatus.OVERPAID
 
     def _get_next_invoice_number(self):
         if self.invoice_number:

@@ -22,6 +22,7 @@ from invoicing.enums import (
 )
 from invoicing.tests.factories import (
     ApartmentInstallmentFactory,
+    PaymentFactory,
     ProjectInstallmentTemplateFactory,
 )
 from users.tests.factories import ProfileFactory
@@ -54,7 +55,12 @@ def test_root_apartment_reservation_detail(
     reservation = ApartmentReservationFactory(
         apartment_uuid=apartments[0].uuid, list_position=1, queue_position=1
     )
-    installment = ApartmentInstallmentFactory(apartment_reservation=reservation)
+    installment = ApartmentInstallmentFactory(
+        apartment_reservation=reservation, value=100
+    )
+    payment = PaymentFactory(
+        apartment_installment=installment, amount=100, payment_date=installment.due_date
+    )
     offer = OfferFactory(apartment_reservation=reservation)
 
     response = sales_ui_salesperson_api_client.get(
@@ -76,6 +82,16 @@ def test_root_apartment_reservation_detail(
                 "reference_number": installment.reference_number,
                 "due_date": str(installment.due_date),
                 "added_to_be_sent_to_sap_at": None,
+                "payment_state": {
+                    "status": "PAID",
+                    "is_overdue": False,
+                },
+                "payments": [
+                    {
+                        "amount": int(payment.amount * 100),
+                        "payment_date": str(payment.payment_date),
+                    }
+                ],
             }
         ],
         "installment_candidates": [],

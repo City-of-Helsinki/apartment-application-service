@@ -51,7 +51,7 @@ class ApartmentInstallmentFactory(InstallmentBaseFactory):
 class PaymentFactory(factory.django.DjangoModelFactory):
     apartment_installment = factory.SubFactory(ApartmentInstallmentFactory)
     amount = factory.Faker("random_int", min=100, max=999)
-    date_of_payment = factory.Faker("past_date")
+    payment_date = factory.Faker("past_date")
 
     class Meta:
         model = Payment

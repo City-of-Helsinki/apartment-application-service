@@ -148,7 +148,9 @@ class SalesApplicationViewSet(ApplicationViewSet):
 class ApartmentReservationViewSet(
     mixins.RetrieveModelMixin, mixins.CreateModelMixin, viewsets.GenericViewSet
 ):
-    queryset = ApartmentReservation.objects.select_related("offer")
+    queryset = ApartmentReservation.objects.select_related("offer").prefetch_related(
+        "apartment_installments", "apartment_installments__payments"
+    )
     serializer_class = RootApartmentReservationSerializer
 
     @extend_schema(
