@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from django.db import models, transaction
 from django.db.models import UniqueConstraint
 from django.utils import timezone
-from django.utils.timezone import now
+from django.utils.timezone import localdate, now
 from django.utils.translation import gettext_lazy as _
 from enumfields import EnumField
 from pgcrypto.fields import CharPGPPublicKeyField
@@ -15,6 +15,7 @@ from invoicing.enums import (
     InstallmentPercentageSpecifier,
     InstallmentType,
     InstallmentUnit,
+    PaymentStatus,
 )
 from invoicing.utils import (
     generate_reference_number,
@@ -98,6 +99,31 @@ class ApartmentInstallment(InstallmentBase):
                 fields=["apartment_reservation", "type"], name="unique_reservation_type"
             )
         ]
+
+    @property
+    def is_overdue(self) -> bool:
+        if not self.due_date or localdate() <= self.due_date:
+            return False
+
+        return (
+            sum(
+                payment.amount
+                for payment in self.payments.filter(payment_date__lte=self.due_date)
+            )
+            < self.value
+        )
+
+    @property
+    def payment_status(self) -> PaymentStatus:
+        paid_amount = sum(payment.amount for payment in self.payments.all())
+        if not paid_amount:
+            return PaymentStatus.UNPAID
+        elif paid_amount == self.value:
+            return PaymentStatus.PAID
+        elif paid_amount < self.value:
+            return PaymentStatus.UNDERPAID
+        else:
+            return PaymentStatus.OVERPAID
 
     def _get_next_invoice_number(self):
         if self.invoice_number:
@@ -223,3 +249,22 @@ class ProjectInstallmentTemplate(InstallmentBase):
             apartment_installment.value = self.value
 
         return apartment_installment
+
+
+class Payment(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("created at"))
+    apartment_installment = models.ForeignKey(
+        ApartmentInstallment,
+        verbose_name=_("apartment installment"),
+        related_name="payments",
+        on_delete=models.PROTECT,
+    )
+    amount = models.DecimalField(
+        verbose_name=_("amount"), max_digits=16, decimal_places=2
+    )
+    payment_date = models.DateField(verbose_name=_("payment date"))
+
+    class Meta:
+        verbose_name = _("payment")
+        verbose_name_plural = _("payments")
+        ordering = ("id",)

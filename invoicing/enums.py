@@ -55,3 +55,16 @@ class InstallmentPercentageSpecifier(Enum):
         DEBT_FREE_SALES_PRICE = _("debt free sales price")
         SALES_PRICE_FLEXIBLE = _("sales price flexible")
         RIGHT_OF_OCCUPANCY_PAYMENT = _("right of occupancy payment")
+
+
+class PaymentStatus(Enum):
+    PAID = "PAID"
+    UNPAID = "UNPAID"
+    OVERPAID = "OVERPAID"
+    UNDERPAID = "UNDERPAID"
+
+    class Labels:
+        PAID = _("paid")
+        UNPAID = _("unpaid")
+        OVERPAID = _("overpaid")
+        UNDERPAID = _("underpaid")
