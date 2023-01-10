@@ -2,6 +2,7 @@ import uuid
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import F
+from logging import getLogger
 from typing import Optional
 
 from application_form.enums import (
@@ -17,6 +18,8 @@ from application_form.models import (
     ApplicationApartment,
 )
 from application_form.utils import lock_table
+
+logger = getLogger(__name__)
 
 User = get_user_model()
 
@@ -158,6 +161,13 @@ def _shift_positions(
     executed, because then there can be cancelled reservations, and for those the
     shifting won't work correctly.
     """
+    if from_position is None:
+        logger.warning(
+            "from_position is None, bad reservation data in apartment uuid"
+            f"{apartment_uuid}?"
+        )
+        return
+
     reservations = ApartmentReservation.objects.filter(apartment_uuid=apartment_uuid)
     if not deleted and reservations.filter(queue_position=None).exists():
         raise RuntimeError(
