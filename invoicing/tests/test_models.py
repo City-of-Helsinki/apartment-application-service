@@ -4,7 +4,12 @@ from freezegun import freeze_time
 from unittest.mock import patch
 
 from invoicing.enums import PaymentStatus
-from invoicing.models import ApartmentInstallment, Payment, ProjectInstallmentTemplate
+from invoicing.models import (
+    ApartmentInstallment,
+    Payment,
+    PaymentBatch,
+    ProjectInstallmentTemplate,
+)
 from invoicing.tests.factories import (
     ApartmentInstallmentFactory,
     PaymentFactory,
@@ -84,6 +89,7 @@ def test_apartment_installment_change_year_and_restart_invoice_numbers(
 def test_payment_creation():
     PaymentFactory()
     assert Payment.objects.count() == 1
+    assert PaymentBatch.objects.count() == 1
 
 
 @pytest.mark.django_db

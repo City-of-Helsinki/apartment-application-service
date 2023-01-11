@@ -7,6 +7,7 @@ from ..models import (
     ApartmentInstallment,
     InstallmentBase,
     Payment,
+    PaymentBatch,
     ProjectInstallmentTemplate,
 )
 
@@ -48,7 +49,15 @@ class ApartmentInstallmentFactory(InstallmentBaseFactory):
         model = ApartmentInstallment
 
 
+class PaymentBatchFactory(factory.django.DjangoModelFactory):
+    filename = factory.Sequence(lambda n: f"TEST_PAYMENTS_{n}.txt")
+
+    class Meta:
+        model = PaymentBatch
+
+
 class PaymentFactory(factory.django.DjangoModelFactory):
+    batch = factory.SubFactory(PaymentBatchFactory)
     apartment_installment = factory.SubFactory(ApartmentInstallmentFactory)
     amount = factory.Faker("random_int", min=100, max=999)
     payment_date = factory.Faker("past_date")
