@@ -1,5 +1,5 @@
 import pytest
-from datetime import timedelta
+from datetime import date, timedelta
 from decimal import Decimal
 from django.utils import timezone
 from freezegun import freeze_time
@@ -108,6 +108,11 @@ def test_apartment_revaluation_summary_api(
         state=ApartmentReservationState.CANCELED,
         list_position=2,
     )
+    haso_0_reservation_2 = ApartmentReservationFactory(
+        apartment_uuid=haso_0.uuid,
+        state=ApartmentReservationState.CANCELED,
+        list_position=3,
+    )
 
     haso_1 = haso_apartments[1]
     haso_1_reservation_0 = ApartmentReservationFactory(
@@ -125,12 +130,24 @@ def test_apartment_revaluation_summary_api(
 
     now = timezone.now()
     with freeze_time(now - timedelta(hours=2000)):
-        haso_0_revaluation_0 = ApartmentRevaluationFactory(
+        # Noise outside requested time range
+        ApartmentRevaluationFactory(
             apartment_reservation=haso_0_reservation_0,
+            start_date=date(1999, 12, 31),
+            end_date=date(2002, 9, 11),
+        )
+    with freeze_time(now - timedelta(minutes=30)):
+        # Noise inside requested time range
+        ApartmentRevaluationFactory(
+            apartment_reservation=haso_0_reservation_1,
+            start_date=date(2002, 10, 1),
+            end_date=date(2014, 7, 20),
         )
     with freeze_time(now - timedelta(minutes=20)):
-        haso_0_revaluation_1 = ApartmentRevaluationFactory(
-            apartment_reservation=haso_0_reservation_1,
+        haso_0_revaluation_2 = ApartmentRevaluationFactory(
+            apartment_reservation=haso_0_reservation_2,
+            start_date=date(2014, 8, 1),
+            end_date=date(2021, 9, 11),
         )
     with freeze_time(now - timedelta(minutes=5)):
         haso_1_revaluation_0 = ApartmentRevaluationFactory(
@@ -154,17 +171,31 @@ def test_apartment_revaluation_summary_api(
         row for row in response.data if str(row["apartment_uuid"]) == haso_1.uuid
     ][0]
 
-    haso_0_expected_roop = haso_0_revaluation_1.end_right_of_occupancy_payment
-    haso_0_expected_alteration_work = (
-        haso_0_revaluation_0.alteration_work + haso_0_revaluation_1.alteration_work
+    haso_0_expected_roop = (
+        haso_0_revaluation_2.end_right_of_occupancy_payment
+        - haso_0_revaluation_2.start_right_of_occupancy_payment
     )
-    haso_1_expected_roop = haso_1_revaluation_0.end_right_of_occupancy_payment
+    haso_0_expected_alteration_work = haso_0_revaluation_2.alteration_work
+    haso_0_expected_release_payment = (
+        haso_0_revaluation_2.end_right_of_occupancy_payment
+        + haso_0_expected_alteration_work
+    )
+    haso_1_expected_roop = (
+        haso_1_revaluation_0.end_right_of_occupancy_payment
+        - haso_1_revaluation_0.start_right_of_occupancy_payment
+    )
     haso_1_expected_alteration_work = haso_1_revaluation_0.alteration_work
+    haso_1_expected_release_payment = (
+        haso_1_revaluation_0.end_right_of_occupancy_payment
+        + haso_1_expected_alteration_work
+    )
 
-    assert haso_0_expected_roop == haso_0_data["adjusted_right_of_occupancy_payment"]
+    assert haso_0_expected_roop == haso_0_data["right_of_occupancy_payment_adjustment"]
     assert haso_0_expected_alteration_work == haso_0_data["alteration_work_total"]
-    assert haso_1_expected_roop == haso_1_data["adjusted_right_of_occupancy_payment"]
+    assert haso_0_expected_release_payment == haso_0_data["release_payment"]
+    assert haso_1_expected_roop == haso_1_data["right_of_occupancy_payment_adjustment"]
     assert haso_1_expected_alteration_work == haso_1_data["alteration_work_total"]
+    assert haso_1_expected_release_payment == haso_1_data["release_payment"]
 
     # Test start after end
     response = drupal_server_api_client.get(
