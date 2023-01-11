@@ -1,4 +1,3 @@
-from collections import defaultdict
 from django.db.models import F
 from django.views.decorators.http import require_http_methods
 from rest_framework import status
@@ -92,34 +91,35 @@ def apartment_revaluation_summary(request):
     start = data.validated_data["start_time"]
     end = data.validated_data["end_time"]
 
-    # Collect apartment uuids that fit the requested time span
-    apartment_uuids = (
+    latest_revaluations = (
         ApartmentRevaluation.objects.filter(updated_at__gte=start, updated_at__lte=end)
-        .order_by("apartment_reservation__apartment_uuid")
-        .distinct("apartment_reservation__apartment_uuid")
-        .values_list("apartment_reservation__apartment_uuid", flat=True)
+        .annotate(apartment_uuid=F("apartment_reservation__apartment_uuid"))
+        .order_by("apartment_uuid", "-end_date")
+        .distinct("apartment_uuid")
     )
 
-    # Collect all revaluations related to the apartment uuids
-    all_revaluations = (
-        ApartmentRevaluation.objects.filter(
-            apartment_reservation__apartment_uuid__in=apartment_uuids
-        )
-        .order_by("-created_at")
-        .annotate(apartment_uuid=F("apartment_reservation__apartment_uuid"))
-    )
-    apartments = defaultdict(lambda: {})
-    for revaluation in all_revaluations:
+    apartments = {}
+
+    for revaluation in latest_revaluations:
         apartment_uuid = revaluation.apartment_uuid
-        apartment = apartments[apartment_uuid]
-        if not apartment:
-            apartment["apartment_uuid"] = apartment_uuid
-            apartment["created_at"] = revaluation.created_at
-            apartment[
-                "adjusted_right_of_occupancy_payment"
-            ] = revaluation.end_right_of_occupancy_payment
-            apartment["alteration_work_total"] = revaluation.alteration_work
-        else:
-            apartment["alteration_work_total"] += revaluation.alteration_work
+        right_of_occupancy_payment_adjustment = (
+            revaluation.end_right_of_occupancy_payment
+            - revaluation.start_right_of_occupancy_payment
+        )
+        release_payment = (
+            revaluation.end_right_of_occupancy_payment + revaluation.alteration_work
+        )
+
+        # fmt: off
+        apartments[apartment_uuid] = {
+            "apartment_uuid": apartment_uuid,
+            "created_at": revaluation.created_at,
+            "updated_at": revaluation.updated_at,
+            "alteration_work_total": revaluation.alteration_work,
+            "right_of_occupancy_payment_adjustment":
+                right_of_occupancy_payment_adjustment,
+            "release_payment": release_payment,
+        }
+        # fmt: on
 
     return Response(list(apartments.values()), status=status.HTTP_200_OK)
