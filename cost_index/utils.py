@@ -49,10 +49,7 @@ def current_right_of_occupancy_payment(
     revaluation = revaluation_qs.first()
     if revaluation:
         return int(
-            (
-                revaluation.end_right_of_occupancy_payment
-                + total_alteration_work(apartment_uuid)
-            )
+            (revaluation.end_right_of_occupancy_payment + revaluation.alteration_work)
             * 100
         )
     return original_right_of_occupancy_payment
@@ -94,11 +91,3 @@ def reservation_right_of_occupancy_payment(
         return current_right_of_occupancy_payment(
             apartment_uuid, original_right_of_occupancy_payment
         )
-
-
-def total_alteration_work(apartment_uuid) -> Decimal:
-    return sum(
-        ApartmentRevaluation.objects.filter(
-            apartment_reservation__apartment_uuid=apartment_uuid
-        ).values_list("alteration_work", flat=True)
-    )
