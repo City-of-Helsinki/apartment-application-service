@@ -10,7 +10,6 @@ from apartment.elastic.queries import get_apartment
 from apartment_application_service.pdf import create_pdf, PDFCurrencyField, PDFData
 from apartment_application_service.utils import SafeAttributeObject
 from application_form.models import ApartmentReservation
-from cost_index.utils import total_alteration_work
 from invoicing.enums import InstallmentType
 
 HASO_CONTRACT_PDF_TEMPLATE_FILE_NAME = "haso_contract_template.pdf"
@@ -236,7 +235,6 @@ def create_haso_release_pdf(
     apartment = get_apartment(reservation.apartment_uuid, include_project_fields=True)
 
     revaluation = reservation.revaluation
-    total_alteration_work_value = total_alteration_work(reservation.apartment_uuid)
 
     pdf_data = HasoReleasePDFData(
         project_housing_company=apartment.project_housing_company,
@@ -260,11 +258,11 @@ def create_haso_release_pdf(
         adjusted_right_of_occupancy_payment=PDFCurrencyField(
             euros=revaluation.end_right_of_occupancy_payment
         ),
-        alteration_work=PDFCurrencyField(euros=total_alteration_work_value),
-        refund=PDFCurrencyField(euros=total_alteration_work_value),
+        alteration_work=PDFCurrencyField(euros=revaluation.alteration_work),
+        refund=PDFCurrencyField(euros=revaluation.alteration_work),
         release_payment=PDFCurrencyField(
             euros=revaluation.end_right_of_occupancy_payment
-            + total_alteration_work_value
+            + revaluation.alteration_work
         ),
         document_date=timezone.now().date(),
         sales_person_name=sales_person_name,
