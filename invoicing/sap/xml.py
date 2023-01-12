@@ -125,7 +125,7 @@ def _append_account_receivable_container_xml(
 
     # FI: Viite
     reference = SubElement(sbo_account_receivable, "Reference")
-    reference.text = apartment_installment.invoice_number
+    reference.text = str(apartment_installment.invoice_number)
 
     # FI: Tositteen otsikkoteksti
     header_text = SubElement(sbo_account_receivable, "HeaderText")

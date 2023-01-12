@@ -1,4 +1,5 @@
 import factory
+import faker
 
 from application_form.tests.factories import ApartmentReservationFactory
 
@@ -10,6 +11,8 @@ from ..models import (
     PaymentBatch,
     ProjectInstallmentTemplate,
 )
+
+unique_number_faker = faker.Faker()
 
 
 class InstallmentBaseFactory(factory.django.DjangoModelFactory):
@@ -39,8 +42,13 @@ class ProjectInstallmentTemplateFactory(InstallmentBaseFactory):
 
 class ApartmentInstallmentFactory(InstallmentBaseFactory):
     apartment_reservation = factory.SubFactory(ApartmentReservationFactory)
-    invoice_number = factory.Faker(
-        "pystr_format", string_format="#########", letters="1234567890"
+
+    # Use MAX_INVOICE_NUMBER - 100 to leave some leeway for tests
+    invoice_number = factory.Sequence(
+        lambda _: unique_number_faker.unique.random_int(
+            min=ApartmentInstallment.MIN_INVOICE_NUMBER,
+            max=ApartmentInstallment.MAX_INVOICE_NUMBER - 100,
+        )
     )
     reference_number = factory.Faker("uuid4")
     handler = factory.Faker("name")
