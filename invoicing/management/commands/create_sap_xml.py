@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 
 from invoicing.models import ApartmentInstallment
-from invoicing.sap.xml import generate_installments_xml
+from invoicing.sap.send.xml import generate_installments_xml
 from invoicing.services import generate_sap_xml_filename
 
 
