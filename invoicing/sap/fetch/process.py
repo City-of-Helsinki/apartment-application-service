@@ -42,7 +42,7 @@ class LineParser:
 @transaction.atomic
 def process_payment_data(  # noqa: C901
     payment_data: str, filename: Optional[str] = None
-):
+) -> int:
     logger.debug(
         f"Processing payment data. Filename: {filename} Data: \n{payment_data}\n"
     )
@@ -58,6 +58,7 @@ def process_payment_data(  # noqa: C901
         payment_batch = None
 
     errors = []
+    num_of_payments = 0
     for line_number, line in enumerate(payment_data.splitlines(), 1):
         # Other than event records are ignored at least for now
         if line[0] != EVENT_RECORD_ID:
@@ -89,6 +90,9 @@ def process_payment_data(  # noqa: C901
             payment_date=payment_date,
             amount=amount,
         )
+        num_of_payments += 1
 
     if errors:
         raise SapPaymentDataParsingError("Parsing errors:\n" + "\n".join(errors))
+
+    return num_of_payments
