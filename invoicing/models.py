@@ -1,6 +1,7 @@
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, transaction
 from django.db.models import UniqueConstraint
 from django.utils import timezone
@@ -69,7 +70,8 @@ class ApartmentInstallmentQuerySet(models.QuerySet):
 
 
 class ApartmentInstallment(InstallmentBase):
-    INVOICE_NUMBER_PREFIX_LENGTH: int = 3
+    MIN_INVOICE_NUMBER = 730000001
+    MAX_INVOICE_NUMBER = 999999999
 
     apartment_reservation = models.ForeignKey(
         ApartmentReservation,
@@ -77,7 +79,15 @@ class ApartmentInstallment(InstallmentBase):
         related_name="apartment_installments",
         on_delete=models.PROTECT,
     )
-    invoice_number = models.CharField(max_length=9, verbose_name=_("invoice number"))
+
+    invoice_number = models.IntegerField(
+        verbose_name=_("invoice number"),
+        validators=[
+            MinValueValidator(MIN_INVOICE_NUMBER),
+            MaxValueValidator(MAX_INVOICE_NUMBER),
+        ],
+        unique=True,
+    )
     reference_number = models.CharField(
         max_length=64, verbose_name=_("reference number"), unique=True
     )
@@ -130,32 +140,14 @@ class ApartmentInstallment(InstallmentBase):
         if self.invoice_number:
             return self.invoice_number
 
-        invoice_number_prefix = settings.INVOICE_NUMBER_PREFIX or ""
-
-        if len(invoice_number_prefix) != self.INVOICE_NUMBER_PREFIX_LENGTH:
-            raise ValueError(
-                f"INVOICE_NUMBER_PREFIX setting has invalid length "
-                f"({self.INVOICE_NUMBER_PREFIX_LENGTH}): {len(invoice_number_prefix)} "
-            )
-
         apartment_installment = (
-            ApartmentInstallment.objects.filter(
-                invoice_number__istartswith=invoice_number_prefix,
-                created_at__year=date.today().year,
-            )
-            .order_by("-invoice_number")
-            .first()
+            ApartmentInstallment.objects.all().order_by("-invoice_number").first()
         )
 
-        last_invoice_number = 1
         if apartment_installment:
-            last_invoice_number = apartment_installment.invoice_number
-            removeable_prefix_length = self.INVOICE_NUMBER_PREFIX_LENGTH
-            last_invoice_number = int(last_invoice_number[removeable_prefix_length:])
-            last_invoice_number += 1
+            return apartment_installment.invoice_number + 1
 
-        next_invoice_number = invoice_number_prefix + str(last_invoice_number).zfill(6)
-        return next_invoice_number
+        return self.MIN_INVOICE_NUMBER
 
     def set_reference_number(self, force=False):
         if self.reference_number and not force:
