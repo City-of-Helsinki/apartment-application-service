@@ -2,7 +2,7 @@ from django.conf import settings
 from xml.etree import ElementTree
 
 from invoicing.models import ApartmentInstallment
-from invoicing.sap.utils import get_installment_type_text
+from invoicing.sap.send.xml_utils import get_installment_type_text
 
 
 def assert_apartment_installment_match_xml_data(

@@ -9,8 +9,8 @@ from logging import getLogger
 from audit_log import audit_logging
 from audit_log.enums import Operation
 from invoicing.models import ApartmentInstallment
-from invoicing.sap.sftp import sftp_put_file_object
-from invoicing.sap.xml import generate_installments_xml
+from invoicing.sap.send.sftp import sftp_put_file_object
+from invoicing.sap.send.xml import generate_installments_xml
 
 logger = getLogger(__name__)
 

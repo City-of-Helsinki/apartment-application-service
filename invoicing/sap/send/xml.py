@@ -79,7 +79,7 @@ from typing import List, Union
 from xml.etree.ElementTree import Element, SubElement, tostring
 
 from invoicing.models import ApartmentInstallment
-from invoicing.sap.utils import (
+from invoicing.sap.send.xml_utils import (
     get_base_line_date_string,
     get_installment_type_text,
     get_wbs_element,
