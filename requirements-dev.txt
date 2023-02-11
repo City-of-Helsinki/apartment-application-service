@@ -6,10 +6,10 @@
 #
 appdirs==1.4.4
     # via virtualenv
-appnope==0.1.3
-    # via ipython
 astroid==2.5.6
     # via pylint
+asttokens==2.2.1
+    # via stack-data
 attrs==21.2.0
     # via pytest
 backcall==0.2.0
@@ -30,6 +30,8 @@ distlib==0.3.2
     # via virtualenv
 django-test-migrations==1.2.0
     # via -r requirements-dev.in
+executing==1.2.0
+    # via stack-data
 factory-boy==3.2.0
     # via -r requirements-dev.in
 faker==8.6.0
@@ -44,7 +46,7 @@ identify==2.2.10
     # via pre-commit
 iniconfig==1.1.1
     # via pytest
-ipython==7.31.1
+ipython==8.10.0
     # via -r requirements-dev.in
 ipython-genutils==0.2.0
     # via traitlets
@@ -88,10 +90,12 @@ pluggy==0.13.1
     # via pytest
 pre-commit==2.13.0
     # via -r requirements-dev.in
-prompt-toolkit==3.0.18
+prompt-toolkit==3.0.36
     # via ipython
 ptyprocess==0.7.0
     # via pexpect
+pure-eval==0.2.2
+    # via stack-data
 py==1.10.0
     # via pytest
 pycodestyle==2.7.0
@@ -131,8 +135,11 @@ pyyaml==5.4.1
     # via pre-commit
 six==1.16.0
     # via
+    #   asttokens
     #   python-dateutil
     #   virtualenv
+stack-data==0.6.2
+    # via ipython
 text-unidecode==1.3
     # via faker
 toml==0.10.2
@@ -142,16 +149,12 @@ toml==0.10.2
     #   pre-commit
     #   pylint
     #   pytest
-tomli==2.0.1
-    # via black
 traitlets==5.0.5
     # via
     #   ipython
     #   matplotlib-inline
 typing-extensions==4.1.1
-    # via
-    #   black
-    #   django-test-migrations
+    # via django-test-migrations
 virtualenv==20.4.7
     # via pre-commit
 wcwidth==0.2.5
