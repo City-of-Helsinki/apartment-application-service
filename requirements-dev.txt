@@ -44,7 +44,7 @@ identify==2.2.10
     # via pre-commit
 iniconfig==1.1.1
     # via pytest
-ipython==7.31.1
+ipython==8.10.0
     # via -r requirements-dev.in
 ipython-genutils==0.2.0
     # via traitlets
