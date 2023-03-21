@@ -35,9 +35,11 @@ def test_read_payments_data(has_filename):
     another_installment = ApartmentInstallmentFactory()
 
     if has_filename:
-        process_payment_data(VALID_TEST_PAYMENT_DATA, filename="test_payments_123.txt")
+        num_of_payments = process_payment_data(
+            VALID_TEST_PAYMENT_DATA, filename="test_payments_123.txt"
+        )
     else:
-        process_payment_data(VALID_TEST_PAYMENT_DATA)
+        num_of_payments = process_payment_data(VALID_TEST_PAYMENT_DATA)
 
     assert installment.payments.count() == 2
     payment_1, payment_2 = installment.payments.all()
@@ -46,6 +48,7 @@ def test_read_payments_data(has_filename):
     assert payment_2.payment_date == date(2018, 12, 22)
     assert payment_2.amount == Decimal("66581.01")
     assert another_installment.payments.count() == 0
+    assert num_of_payments == 2
 
     if has_filename:
         assert PaymentBatch.objects.count() == 1

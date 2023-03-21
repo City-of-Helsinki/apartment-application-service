@@ -9,6 +9,11 @@ from logging import getLogger
 from audit_log import audit_logging
 from audit_log.enums import Operation
 from invoicing.models import ApartmentInstallment
+from invoicing.sap.fetch import (
+    process_payment_data,
+    SapPaymentDataAlreadyProcessedError,
+)
+from invoicing.sap.fetch.sftp import SFTPConnection
 from invoicing.sap.send.sftp import sftp_put_file_object
 from invoicing.sap.send.xml import generate_installments_xml
 
@@ -34,6 +39,33 @@ def send_needed_installments_to_sap() -> (int, datetime):
         for installment in installments:
             audit_logging.log(None, Operation.UPDATE, installment)
     return num_of_installments, timestamp
+
+
+def fetch_payments_from_sap() -> (int, int):
+    with SFTPConnection() as sftp_connection:
+        filenames = [f for f in sftp_connection.get_filenames() if f.endswith(".txt")]
+        logger.debug(f"Filenames: {filenames}")
+
+        num_of_payments = 0
+        num_of_files = 0
+        for filename in filenames:
+            try:
+                payment_data_file = sftp_connection.get_file(filename)
+                num_of_payments += process_payment_data(payment_data_file, filename)
+            except SapPaymentDataAlreadyProcessedError:
+                logger.warning(f'Payment data file "{filename}" already processed')
+            except Exception as e:  # noqa
+                logger.exception(f'Error handling payment data file "{filename}": {e}')
+                continue
+            else:
+                num_of_files += 1
+
+            try:
+                sftp_connection.rename_file(filename, f"arch/{filename}")
+            except Exception as e:  # noqa
+                logger.exception(f'Error renaming payment data file "{filename}": {e}')
+
+    return num_of_payments, num_of_files
 
 
 def send_email_notification_to_talpa(count: int, timestamp: datetime):
