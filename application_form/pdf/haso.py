@@ -136,6 +136,13 @@ class HasoReleasePDFData(PDFData):
 
 
 def create_haso_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
+    pdf_data = get_haso_contract_pdf_data(reservation)
+    return create_haso_contract_pdf_from_data(pdf_data)
+
+
+def get_haso_contract_pdf_data(
+    reservation: ApartmentReservation,
+) -> HasoContractPDFData:
     customer = SafeAttributeObject(reservation.customer)
     primary_profile = SafeAttributeObject(customer.primary_profile)
     secondary_profile = SafeAttributeObject(customer.secondary_profile)
@@ -223,13 +230,23 @@ def create_haso_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         alterations=None,
         index_increment=None,
     )
+    return pdf_data
 
+
+def create_haso_contract_pdf_from_data(pdf_data: HasoContractPDFData) -> BytesIO:
     return create_pdf(HASO_CONTRACT_PDF_TEMPLATE_FILE_NAME, pdf_data)
 
 
 def create_haso_release_pdf(
     sales_person_name: str, reservation: ApartmentReservation
 ) -> BytesIO:
+    pdf_data = get_haso_release_pdf_data(sales_person_name, reservation)
+    return create_haso_release_pdf_from_data(pdf_data)
+
+
+def get_haso_release_pdf_data(
+    sales_person_name: str, reservation: ApartmentReservation
+) -> HasoReleasePDFData:
     customer = SafeAttributeObject(reservation.customer)
     primary_profile = SafeAttributeObject(customer.primary_profile)
     secondary_profile = SafeAttributeObject(customer.secondary_profile)
@@ -268,4 +285,8 @@ def create_haso_release_pdf(
         document_date=timezone.now().date(),
         sales_person_name=sales_person_name,
     )
+    return pdf_data
+
+
+def create_haso_release_pdf_from_data(pdf_data: HasoReleasePDFData) -> BytesIO:
     return create_pdf(HASO_RELEASE_PDF_TEMPLATE_FILE_NAME, pdf_data)
