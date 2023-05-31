@@ -110,6 +110,9 @@ jobs:
       - name: psycopg2 prerequisites
         run: sudo apt-get install libpq-dev
 
+      - name: Install poppler-utils for pdftotext  # used in tests
+        run: sudo apt-get install poppler-utils
+
       - name: Install dependencies
         run: |
           pip install -U pip
