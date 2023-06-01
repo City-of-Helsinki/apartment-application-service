@@ -26,7 +26,7 @@ class HasoContractPDFData(PDFData):
     floor: Union[int, None]
     index_increment: Union[Decimal, None]
     installment_amount: Union[PDFCurrencyField, None]
-    living_area: Union[str, None]
+    living_area: Union[float, None]
     occupant_1: str
     occupant_1_email: str
     occupant_1_phone_number: str
@@ -211,7 +211,7 @@ def get_haso_contract_pdf_data(
             cents=apartment.right_of_occupancy_fee, suffix=" € / kk"
         ),
         right_of_occupancy_fee_m2=PDFCurrencyField(
-            euros=right_of_occupancy_fee_m2_euros, suffix=" € /m\u00b2/kk"
+            euros=right_of_occupancy_fee_m2_euros, suffix=" € /m²/kk"
         ),
         project_contract_apartment_completion=(
             f"{completion_start_str} — {completion_end_str}"
