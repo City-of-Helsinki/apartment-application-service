@@ -1,3 +1,4 @@
+-c requirements.txt
 black==22.3.0
 django-test-migrations
 factory-boy
