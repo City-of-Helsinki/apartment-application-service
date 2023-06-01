@@ -1,7 +1,8 @@
+from uuid import UUID
+
 from django.db import transaction
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
-from uuid import UUID
 
 from apartment.elastic.queries import get_apartment
 from apartment_application_service.utils import update_obj

@@ -1,8 +1,9 @@
 import re
 from contextlib import contextmanager
+from typing import Tuple
+
 from django.db import transaction
 from django.db.transaction import get_connection
-from typing import Tuple
 
 
 # from https://stackoverflow.com/a/54403001

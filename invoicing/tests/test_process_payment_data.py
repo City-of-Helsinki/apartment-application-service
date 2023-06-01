@@ -1,6 +1,7 @@
-import pytest
 from datetime import date
 from decimal import Decimal
+
+import pytest
 
 from invoicing.models import PaymentBatch
 from invoicing.sap.fetch import (

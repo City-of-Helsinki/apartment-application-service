@@ -1,4 +1,6 @@
 from datetime import datetime, timedelta
+from uuid import uuid4
+
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.validators import MaxValueValidator, MinValueValidator
@@ -9,7 +11,6 @@ from django.utils.timezone import localdate, now
 from django.utils.translation import gettext_lazy as _
 from enumfields import EnumField
 from pgcrypto.fields import CharPGPPublicKeyField
-from uuid import uuid4
 
 from apartment_application_service.models import TimestampedModel
 from application_form.models import ApartmentReservation

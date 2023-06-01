@@ -1,5 +1,6 @@
-from drf_spectacular import openapi
 from typing import List, Optional
+
+from drf_spectacular import openapi
 
 
 class AutoSchema(openapi.AutoSchema):

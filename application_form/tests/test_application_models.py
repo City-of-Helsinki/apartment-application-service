@@ -1,5 +1,6 @@
-import pytest
 import uuid
+
+import pytest
 
 from application_form.models.application import Applicant, Application
 from application_form.tests.factories import (

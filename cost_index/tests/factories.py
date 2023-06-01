@@ -1,5 +1,6 @@
-import factory
 from datetime import date, timedelta
+
+import factory
 from factory import fuzzy, LazyAttribute
 
 from cost_index.models import ApartmentRevaluation

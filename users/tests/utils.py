@@ -1,8 +1,9 @@
 from datetime import date
-from django.contrib.auth import get_user_model
-from rest_framework_simplejwt.tokens import RefreshToken
 from typing import Optional
 from uuid import UUID
+
+from django.contrib.auth import get_user_model
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from customer.models import Customer
 from users.models import Profile

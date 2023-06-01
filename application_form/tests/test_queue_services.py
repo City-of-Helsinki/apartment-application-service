@@ -1,6 +1,7 @@
+from unittest.mock import Mock
+
 from django.db.models import QuerySet
 from pytest import mark, raises
-from unittest.mock import Mock
 
 from application_form.enums import ApartmentQueueChangeEventType, ApplicationType
 from application_form.models.reservation import (

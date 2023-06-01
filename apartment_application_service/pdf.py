@@ -2,8 +2,9 @@ import dataclasses
 from datetime import date
 from decimal import Decimal
 from io import BytesIO
-from pikepdf import Name, Pdf, String
 from typing import ClassVar, Dict, Iterable, Union
+
+from pikepdf import Name, Pdf, String
 
 PDF_TEMPLATE_DIRECTORY = "pdf_templates"
 

@@ -1,9 +1,10 @@
 import uuid
+from logging import getLogger
+from typing import Optional
+
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import F
-from logging import getLogger
-from typing import Optional
 
 from application_form.enums import (
     ApartmentQueueChangeEventType,

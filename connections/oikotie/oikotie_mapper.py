@@ -1,4 +1,6 @@
 from datetime import date, timedelta
+from typing import List, Optional
+
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from django_oikotie.enums import ApartmentType, NewDevelopmentStatusChoices
@@ -35,7 +37,6 @@ from django_oikotie.xml_models.housing_company import (
 from django_oikotie.xml_models.housing_company import Coordinates, HousingCompany
 from django_oikotie.xml_models.housing_company import Picture as HousingCompanyPicture
 from django_oikotie.xml_models.housing_company import RealEstateAgent
-from typing import List, Optional
 
 from apartment.elastic.documents import ApartmentDocument as ElasticApartment
 from connections.enums import Currency, Unit

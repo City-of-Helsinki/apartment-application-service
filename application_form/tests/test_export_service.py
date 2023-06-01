@@ -1,6 +1,7 @@
+from datetime import timedelta
+
 import pytest
 from _pytest.fixtures import fixture
-from datetime import timedelta
 from django.utils import timezone
 
 from apartment.elastic.queries import get_apartment_uuids, get_project
