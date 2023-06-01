@@ -12,5 +12,6 @@ pylint-django
 pytest
 pytest-cov
 pytest-django
+pytest-sugar
 python-dateutil==2.8.2
 pytest-freezegun
