@@ -4,7 +4,6 @@ from typing import Union
 
 from django.db import migrations, models
 
-
 REFERENCE_NUMBER_PREFIX = "2825"
 
 

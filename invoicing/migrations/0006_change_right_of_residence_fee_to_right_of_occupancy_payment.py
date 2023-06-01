@@ -2,7 +2,6 @@
 
 from django.db import migrations
 
-
 forwards_sql = """
 UPDATE invoicing_apartmentinstallment
 SET type = 'RIGHT_OF_OCCUPANCY_PAYMENT'
