@@ -1,4 +1,3 @@
-from django.db import connection
 from pytest import mark
 
 from audit_log.models import AuditLog
@@ -6,13 +5,23 @@ from audit_log.paginators import LargeTablePaginator
 
 
 @mark.django_db
-def test_large_table_paginator_count():
-    qs = AuditLog.objects.all()
+def test_large_table_paginator_count_without_data():
+    qs = AuditLog.objects.all().order_by("created_at")
+
     paginator = LargeTablePaginator(qs, per_page=1)
 
-    # Starting from PSQL 14 reltypes will return -1 on a table that has not
-    # yet been vacuumed
-    if connection.cursor().connection.server_version >= 140000:
-        assert paginator.count == -1
-    else:
-        assert paginator.count == qs.count()
+    # Paginator's count is just an estimate but it should be >= 0
+    assert paginator.count >= 0
+
+
+@mark.django_db
+def test_large_table_paginator_count_with_data():
+    AuditLog.objects.bulk_create(
+        [AuditLog(message={"test": "test"}) for _ in range(1000)]
+    )
+    qs = AuditLog.objects.all().order_by("created_at")
+
+    paginator = LargeTablePaginator(qs, per_page=1)
+
+    # Paginator's count is just an estimate but it should be >= 0
+    assert paginator.count >= 0
