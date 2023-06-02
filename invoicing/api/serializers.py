@@ -219,8 +219,8 @@ class ProjectInstallmentTemplateSerializer(InstallmentSerializerBase):
                 == InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT
             ):
                 raise exceptions.ValidationError(
-                    f"Cannot select {percentage_specifier} as unit specifier in "
-                    "HITAS payment template"
+                    f"Cannot select {percentage_specifier.name} as "
+                    "unit specifier in HITAS payment template"
                 )
 
             if (
@@ -233,8 +233,8 @@ class ProjectInstallmentTemplateSerializer(InstallmentSerializerBase):
                 ]
             ):
                 raise exceptions.ValidationError(
-                    f"Cannot select {percentage_specifier} as unit specifier in "
-                    "HASO payment template"
+                    f"Cannot select {percentage_specifier.name} as "
+                    "unit specifier in HASO payment template"
                 )
 
             validated_data.update(

@@ -363,7 +363,7 @@ def test_set_project_installments_percentage_specifier_required_for_percentages(
                 "due_date": "2022-02-19",
                 "percentage_specifier": "RIGHT_OF_OCCUPANCY_PAYMENT",
             },
-            "Cannot select right of occupancy payment as unit specifier in "
+            "Cannot select RIGHT_OF_OCCUPANCY_PAYMENT as unit specifier in "
             "HITAS payment template",
         ),
         (
@@ -374,7 +374,7 @@ def test_set_project_installments_percentage_specifier_required_for_percentages(
                 "due_date": "2022-02-19",
                 "percentage_specifier": "SALES_PRICE",
             },
-            "Cannot select sales price as unit specifier in " "HASO payment template",
+            "Cannot select SALES_PRICE as unit specifier in HASO payment template",
         ),
     ],
 )
