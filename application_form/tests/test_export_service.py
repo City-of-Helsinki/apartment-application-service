@@ -210,10 +210,10 @@ def test_export_sale_report(
         )
         reservation.set_state(ApartmentReservationState.SOLD)
 
-    start_date = timezone.localdate() - timedelta(days=7)
-    end_date = timezone.localdate() + timedelta(days=7)
+    start = timezone.now() - timedelta(days=7)
+    end = timezone.now() + timedelta(days=7)
     state_events = ApartmentReservationStateChangeEvent.objects.filter(
-        state=ApartmentReservationState.SOLD, timestamp__range=[start_date, end_date]
+        state=ApartmentReservationState.SOLD, timestamp__range=[start, end]
     )
     assert state_events.count() == 2
     export_service = SaleReportExportService(state_events)
