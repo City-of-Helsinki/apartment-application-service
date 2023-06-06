@@ -77,7 +77,7 @@ docopt==0.6.2
     # via num2words
 drf-oidc-auth==2.0.0
     # via -r requirements.in
-drf-spectacular==0.18.2
+drf-spectacular==0.26.2
     # via -r requirements.in
 ecdsa==0.17.0
     # via python-jose
