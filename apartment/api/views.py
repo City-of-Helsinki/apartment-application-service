@@ -1,6 +1,7 @@
 from dateutil import parser
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import Http404, HttpResponse
+from django.utils import timezone
 from django.utils.text import format_lazy
 from django.utils.translation import gettext_lazy as _
 from rest_framework.exceptions import NotFound, ValidationError
@@ -146,6 +147,11 @@ class SaleReportAPIView(APIView):
             )
         if start_date_obj > end_date_obj:
             raise ValidationError("Start date cannot be greater than end date")
+        tz = timezone.get_default_timezone()
+        if not start_date_obj.tzinfo:
+            start_date_obj = tz.localize(start_date_obj)
+        if not end_date_obj.tzinfo:
+            end_date_obj = tz.localize(end_date_obj)
         state_events = ApartmentReservationStateChangeEvent.objects.filter(
             timestamp__range=[start_date_obj, end_date_obj],
             state=ApartmentReservationState.SOLD,
