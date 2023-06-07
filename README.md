@@ -59,11 +59,33 @@ For local development, you can use the example keys in `.env.example`.
 
 The project is now running at [localhost:8081](http://localhost:8081)
 
+
+## Makefile targets
+
+If you have the `make` command available, you can use the following commands to run certain common tasks:
+
+* `make check` - Run all checks (linting, Django checks, tests)
+* `make lint` - Run linters (flake8, black, isort)
+* `make test` - Run tests
+* `make fix` - Run code formmitng fixes (isort, black)
+* `make requirements` - Update all requirements `*.txt` files from their
+  corresponding `*.in` files
+* `make deploy` - Run the deployment tasks (migrate, compilemessages,
+  collectstatic)
+
+
 ## Keeping Python requirements up to date
 
-1. Install `pip-tools`:
+This project uses [`pip-tools`](https://github.com/jazzband/pip-tools)
+to manage the Python requirements.  It works with two kind of files:
+`*.in` and `*.txt`.  The `*.in` files are the source files, which list
+the directly required packages and their version constraints.  The
+`*.txt` files are generated from the `*.in` files and they list the
+exact versions of the packages that are installed.
 
-    * `pip install pip-tools`
+1. `pip-tools` is installed from `requirements-dev.txt`:
+
+    * `pip install -r requirements-dev.txt`
 
 2. Add new packages to `requirements.in` or `requirements-dev.in`
 
@@ -71,6 +93,8 @@ The project is now running at [localhost:8081](http://localhost:8081)
 
     * `pip-compile requirements.in`
     * `pip-compile requirements-dev.in`
+    * There is also a Makefile target for updating all requirement
+      files: `make requirements`
 
 4. If you want to update dependencies to their newest versions, run:
 
@@ -78,9 +102,10 @@ The project is now running at [localhost:8081](http://localhost:8081)
 
 5. To install Python requirements run:
 
-    * `pip-sync requirements.txt`
+    * `pip-sync requirements*.txt`
 
-## Code format
+
+## Code Formatting and Linting
 
 This project uses
 [`black`](https://github.com/psf/black),
@@ -93,6 +118,9 @@ Basic `black` commands:
 
 * To let `black` do its magic: `black .`
 * To see which files `black` would change: `black --check .`
+
+There is also `make lint` and `make fix` commands for code style
+checking and fixing.
 
 For Django, this project mostly follows the styleguide defined in
 [Django-Styleguide](https://github.com/HackSoftware/Django-Styleguide).

@@ -1,11 +1,12 @@
 from contextlib import contextmanager
 from copy import copy
+from typing import Optional, Union
+
 from django.contrib.auth.models import AnonymousUser
 from django.db import transaction
 from django.db.models import Model
 from rest_framework.exceptions import NotAuthenticated, PermissionDenied
 from rest_framework.viewsets import ModelViewSet
-from typing import Optional, Union
 
 from audit_log import audit_logging
 from audit_log.enums import Operation, Status

@@ -1,9 +1,10 @@
 import os
+from uuid import UUID
+
 import pytest
 from django.conf import settings
 from django.core.management import call_command
 from django_etuovi.utils.testing import check_dataclass_typing
-from uuid import UUID
 
 from apartment.tests.factories import ApartmentDocumentFactory
 from connections.models import MappedApartment

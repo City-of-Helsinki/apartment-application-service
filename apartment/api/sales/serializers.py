@@ -1,5 +1,6 @@
-from rest_framework import serializers
 from uuid import UUID
+
+from rest_framework import serializers
 
 from apartment.utils import get_apartment_state_from_reserved_reservations
 from application_form.api.sales.serializers import (

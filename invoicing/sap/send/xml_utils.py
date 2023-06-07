@@ -1,6 +1,7 @@
 from datetime import date, datetime, timedelta
-from django.conf import settings
 from typing import Union
+
+from django.conf import settings
 
 from apartment.elastic.queries import get_apartment
 from invoicing.enums import InstallmentType

@@ -1,10 +1,11 @@
 import dataclasses
 from datetime import date
 from decimal import Decimal
-from django.utils.translation import gettext_lazy as _
 from functools import lru_cache
 from typing import ClassVar, Dict
 from uuid import UUID
+
+from django.utils.translation import gettext_lazy as _
 
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import get_apartment, get_project

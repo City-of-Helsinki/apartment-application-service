@@ -1,4 +1,6 @@
 import uuid
+from typing import Optional
+
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
@@ -10,7 +12,6 @@ from pgcrypto.fields import (
     CharPGPPublicKeyField,
     IntegerPGPPublicKeyField,
 )
-from typing import Optional
 
 from application_form.enums import (
     ApartmentQueueChangeEventType,

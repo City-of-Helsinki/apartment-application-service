@@ -1,6 +1,7 @@
+from logging import getLogger
+
 from django.conf import settings
 from django.core.management import BaseCommand
-from logging import getLogger
 
 from audit_log.tasks import send_audit_log_to_elastic_search
 

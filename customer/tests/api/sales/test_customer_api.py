@@ -1,8 +1,9 @@
 """
 Test cases for customer api of sales.
 """
-import pytest
 import uuid
+
+import pytest
 from django.contrib.auth.models import Group
 from django.urls import reverse
 from rest_framework import status

@@ -1,7 +1,8 @@
-import factory
 import string
-from factory import Faker, fuzzy
 from typing import List
+
+import factory
+from factory import Faker, fuzzy
 
 from apartment.tests.factories import ApartmentDocumentTest, ElasticFactory
 from connections.enums import ApartmentStateOfSale, ProjectStateOfSale

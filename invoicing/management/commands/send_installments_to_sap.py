@@ -1,6 +1,7 @@
+from logging import getLogger
+
 from django.conf import settings
 from django.core.management.base import BaseCommand
-from logging import getLogger
 
 from invoicing.services import (
     send_email_notification_to_talpa,

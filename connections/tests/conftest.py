@@ -1,5 +1,6 @@
 import os
 import shutil
+
 from django.conf import settings
 from elasticsearch.helpers.test import get_test_client
 from elasticsearch_dsl.connections import add_connection

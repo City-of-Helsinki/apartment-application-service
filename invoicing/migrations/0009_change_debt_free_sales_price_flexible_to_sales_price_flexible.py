@@ -2,7 +2,6 @@
 
 from django.db import migrations
 
-
 forwards_sql = """
 UPDATE invoicing_projectinstallmenttemplate
 SET percentage_specifier = 'SALES_PRICE_FLEXIBLE'

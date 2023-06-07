@@ -1,10 +1,11 @@
 import logging
 import uuid
 from datetime import date
+from typing import Iterable, List, Optional
+
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import QuerySet
-from typing import Iterable, List, Optional
 
 from apartment.elastic.queries import get_apartment
 from application_form.enums import (

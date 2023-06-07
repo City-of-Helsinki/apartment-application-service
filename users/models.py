@@ -1,4 +1,6 @@
 import logging
+from uuid import uuid4
+
 from django.conf import settings
 from django.contrib import admin
 from django.db import models
@@ -6,7 +8,6 @@ from django.db.models import UUIDField
 from django.utils.translation import gettext_lazy as _
 from helusers.models import AbstractUser
 from pgcrypto.fields import CharPGPPublicKeyField, DatePGPPublicKeyField
-from uuid import uuid4
 
 from apartment_application_service.models import TimestampedModel
 from users.enums import Roles

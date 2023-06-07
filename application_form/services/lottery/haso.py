@@ -1,4 +1,5 @@
 import uuid
+
 from django.contrib.auth import get_user_model
 
 from apartment.elastic.queries import get_apartment_uuids

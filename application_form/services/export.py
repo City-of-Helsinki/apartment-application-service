@@ -1,8 +1,9 @@
 import csv
 import operator
 from abc import abstractmethod
-from django.db.models import Max
 from io import StringIO
+
+from django.db.models import Max
 
 from apartment.elastic.queries import (
     get_apartment,

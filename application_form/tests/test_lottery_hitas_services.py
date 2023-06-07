@@ -1,5 +1,6 @@
-from pytest import fixture, mark
 from unittest.mock import patch
+
+from pytest import fixture, mark
 
 from application_form.enums import (
     ApartmentReservationCancellationReason,

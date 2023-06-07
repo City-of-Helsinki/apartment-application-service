@@ -1,5 +1,6 @@
-import pytest
 from datetime import date
+
+import pytest
 
 from apartment.tests.factories import ApartmentDocumentFactory, ApartmentDocumentTest
 

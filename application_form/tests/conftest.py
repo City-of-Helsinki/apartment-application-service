@@ -1,13 +1,14 @@
-import faker.config
 import uuid
 from datetime import timedelta
+from unittest.mock import Mock
+
+import faker.config
 from django.conf import settings
 from django.utils import timezone
 from elasticsearch.helpers.test import get_test_client
 from elasticsearch_dsl.connections import add_connection
 from factory.faker import faker
 from pytest import fixture
-from unittest.mock import Mock
 
 from apartment.tests.factories import ApartmentDocumentFactory
 from apartment_application_service.settings import (

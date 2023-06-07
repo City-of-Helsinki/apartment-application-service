@@ -1,6 +1,7 @@
-import factory
 import random
 from datetime import datetime
+
+import factory
 from django.contrib.auth.models import Group
 from factory import Faker, fuzzy, LazyAttribute, post_generation
 

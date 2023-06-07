@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 from django.core.validators import MinLengthValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -8,7 +10,6 @@ from pgcrypto.fields import (
     EmailPGPPublicKeyField,
     IntegerPGPPublicKeyField,
 )
-from uuid import uuid4
 
 from apartment_application_service.fields import (
     BooleanPGPPublicKeyField,

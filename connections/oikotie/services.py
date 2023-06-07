@@ -1,8 +1,9 @@
 import logging
 import os
+from typing import Optional, Tuple
+
 from django.conf import settings
 from django_oikotie.oikotie import create_apartments, create_housing_companies
-from typing import Optional, Tuple
 
 from apartment.elastic.documents import ApartmentDocument
 from connections.enums import ApartmentStateOfSale

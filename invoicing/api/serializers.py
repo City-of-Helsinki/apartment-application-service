@@ -1,4 +1,6 @@
 from decimal import Decimal
+from typing import Union
+
 from django.db import transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -6,7 +8,6 @@ from drf_spectacular.utils import extend_schema_serializer, OpenApiExample
 from enumfields.drf.fields import EnumField
 from enumfields.drf.serializers import EnumSupportSerializerMixin
 from rest_framework import exceptions, serializers
-from typing import Union
 
 from apartment.elastic.queries import get_project
 from audit_log import audit_logging
@@ -218,8 +219,8 @@ class ProjectInstallmentTemplateSerializer(InstallmentSerializerBase):
                 == InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT
             ):
                 raise exceptions.ValidationError(
-                    f"Cannot select {percentage_specifier} as unit specifier in "
-                    "HITAS payment template"
+                    f"Cannot select {percentage_specifier.name} as "
+                    "unit specifier in HITAS payment template"
                 )
 
             if (
@@ -232,8 +233,8 @@ class ProjectInstallmentTemplateSerializer(InstallmentSerializerBase):
                 ]
             ):
                 raise exceptions.ValidationError(
-                    f"Cannot select {percentage_specifier} as unit specifier in "
-                    "HASO payment template"
+                    f"Cannot select {percentage_specifier.name} as "
+                    "unit specifier in HASO payment template"
                 )
 
             validated_data.update(

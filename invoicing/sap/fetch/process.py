@@ -1,8 +1,9 @@
 from datetime import datetime
 from decimal import Decimal
-from django.db import IntegrityError, transaction
 from logging import getLogger
 from typing import Optional
+
+from django.db import IntegrityError, transaction
 
 from invoicing.models import ApartmentInstallment, Payment, PaymentBatch
 

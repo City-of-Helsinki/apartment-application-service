@@ -1,7 +1,8 @@
-import pytest
 import uuid
 from datetime import date
 from decimal import Decimal
+
+import pytest
 from django.urls import reverse
 from django.utils.timezone import localtime
 

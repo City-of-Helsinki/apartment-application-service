@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta
 from decimal import Decimal
+from typing import List, Optional, Tuple, Union
+
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from django_etuovi.enums import (
@@ -17,7 +19,6 @@ from django_etuovi.enums import (
 )
 from django_etuovi.items import Coordinate, ExtraLink, Image, Item, Scontact, Text
 from elasticsearch_dsl.utils import AttrList
-from typing import List, Optional, Tuple, Union
 
 from apartment.elastic.documents import ApartmentDocument
 from connections.enums import Currency, Unit
