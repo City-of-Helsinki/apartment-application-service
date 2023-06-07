@@ -2,6 +2,7 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from application_form.api.sales.views import (
+    apartment_states,
     ApartmentReservationViewSet,
     execute_lottery_for_project,
     OfferViewSet,
@@ -63,6 +64,11 @@ urlpatterns = [
         r"sales/apartment_reservations/<int:apartment_reservation_id>/installments/",
         ApartmentInstallmentAPIView.as_view(),
         name="apartment-installment-list",
+    ),
+    path(
+        r"sales/apartment_states/",
+        apartment_states,
+        name="apartment_states",
     ),
     path("", include(router.urls)),
 ]

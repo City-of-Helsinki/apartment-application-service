@@ -1,5 +1,6 @@
 import faker.config
 import pytest
+from django.conf import settings
 from django.contrib.auth.models import Group
 from rest_framework.test import APIClient
 
@@ -70,7 +71,7 @@ def drupal_salesperson_api_client():
     # Drupal salespersons have a profile contrary to sales UI salespersons
     ProfileFactory(user=user)
     api_client.user = user
-    Group.objects.get(name__iexact=Roles.SALESPERSON.name).user_set.add(user)
+    Group.objects.get(name__iexact=Roles.DRUPAL_SALESPERSON.name).user_set.add(user)
     return api_client
 
 
@@ -80,5 +81,14 @@ def sales_ui_salesperson_api_client():
     api_client = APIClient()
     api_client.force_authenticate(user)
     api_client.user = user
-    Group.objects.get(name__iexact=Roles.SALESPERSON.name).user_set.add(user)
+    Group.objects.get(name__iexact=Roles.DJANGO_SALESPERSON.name).user_set.add(user)
+    return api_client
+
+
+@pytest.fixture
+def drupal_server_api_client():
+    api_client = APIClient()
+    api_client.credentials(
+        HTTP_AUTHORIZATION=f"Bearer {settings.DRUPAL_SERVER_AUTH_TOKEN}"
+    )
     return api_client

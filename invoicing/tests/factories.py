@@ -1,9 +1,18 @@
 import factory
+import faker
 
 from application_form.tests.factories import ApartmentReservationFactory
 
 from ..enums import InstallmentPercentageSpecifier, InstallmentType, InstallmentUnit
-from ..models import ApartmentInstallment, InstallmentBase, ProjectInstallmentTemplate
+from ..models import (
+    ApartmentInstallment,
+    InstallmentBase,
+    Payment,
+    PaymentBatch,
+    ProjectInstallmentTemplate,
+)
+
+unique_number_faker = faker.Faker()
 
 
 class InstallmentBaseFactory(factory.django.DjangoModelFactory):
@@ -33,11 +42,33 @@ class ProjectInstallmentTemplateFactory(InstallmentBaseFactory):
 
 class ApartmentInstallmentFactory(InstallmentBaseFactory):
     apartment_reservation = factory.SubFactory(ApartmentReservationFactory)
-    invoice_number = factory.Faker(
-        "pystr_format", string_format="#########", letters="1234567890"
+
+    # Use MAX_INVOICE_NUMBER - 100 to leave some leeway for tests
+    invoice_number = factory.Sequence(
+        lambda _: unique_number_faker.unique.random_int(
+            min=ApartmentInstallment.MIN_INVOICE_NUMBER,
+            max=ApartmentInstallment.MAX_INVOICE_NUMBER - 100,
+        )
     )
     reference_number = factory.Faker("uuid4")
     handler = factory.Faker("name")
 
     class Meta:
         model = ApartmentInstallment
+
+
+class PaymentBatchFactory(factory.django.DjangoModelFactory):
+    filename = factory.Sequence(lambda n: f"TEST_PAYMENTS_{n}.txt")
+
+    class Meta:
+        model = PaymentBatch
+
+
+class PaymentFactory(factory.django.DjangoModelFactory):
+    batch = factory.SubFactory(PaymentBatchFactory)
+    apartment_installment = factory.SubFactory(ApartmentInstallmentFactory)
+    amount = factory.Faker("random_int", min=100, max=999)
+    payment_date = factory.Faker("past_date")
+
+    class Meta:
+        model = Payment

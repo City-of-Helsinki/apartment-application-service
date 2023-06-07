@@ -2,7 +2,7 @@ from django.conf import settings
 from xml.etree import ElementTree
 
 from invoicing.models import ApartmentInstallment
-from invoicing.sap.utils import get_installment_type_text
+from invoicing.sap.send.xml_utils import get_installment_type_text
 
 
 def assert_apartment_installment_match_xml_data(
@@ -38,7 +38,7 @@ def assert_apartment_installment_match_xml_data(
 
     reference = accounts_receivable.find("Reference")
     assert reference is not None
-    assert reference.text == apartment_installment.invoice_number
+    assert reference.text == str(apartment_installment.invoice_number)
 
     header_text = accounts_receivable.find("HeaderText")
     assert header_text is not None

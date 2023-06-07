@@ -2,6 +2,7 @@ import uuid
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import F
+from logging import getLogger
 from typing import Optional
 
 from application_form.enums import (
@@ -16,6 +17,9 @@ from application_form.models import (
     Application,
     ApplicationApartment,
 )
+from application_form.utils import lock_table
+
+logger = getLogger(__name__)
 
 User = get_user_model()
 
@@ -28,7 +32,7 @@ def add_application_to_queues(
     """
     for application_apartment in application.application_apartments.all():
         apartment_uuid = application_apartment.apartment_uuid
-        with transaction.atomic():
+        with lock_table(ApartmentReservation):
             if application.type == ApplicationType.HASO:
                 # For HASO applications, the queue position is determined by the
                 # right of residence number.
@@ -157,6 +161,13 @@ def _shift_positions(
     executed, because then there can be cancelled reservations, and for those the
     shifting won't work correctly.
     """
+    if from_position is None:
+        logger.warning(
+            "from_position is None, bad reservation data in apartment uuid"
+            f"{apartment_uuid}?"
+        )
+        return
+
     reservations = ApartmentReservation.objects.filter(apartment_uuid=apartment_uuid)
     if not deleted and reservations.filter(queue_position=None).exists():
         raise RuntimeError(

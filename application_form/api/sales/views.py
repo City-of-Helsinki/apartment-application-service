@@ -1,15 +1,25 @@
+from datetime import timedelta
+from dateutil import parser
+from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse
+from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiParameter
 from rest_framework import mixins, permissions, status, viewsets
-from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.decorators import (
+    action,
+    api_view,
+    authentication_classes,
+    permission_classes,
+)
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
 
 from apartment.elastic.queries import get_apartment, get_project
 from apartment.models import ProjectExtraData
+from apartment.utils import get_apartment_state_of_sale_from_event
 from application_form.api.sales.serializers import (
     OfferMessageSerializer,
     OfferSerializer,
@@ -29,8 +39,17 @@ from application_form.enums import (
     ApartmentReservationState,
 )
 from application_form.exceptions import ProjectDoesNotHaveApplicationsException
-from application_form.models import ApartmentReservation, Offer
-from application_form.pdf import create_haso_contract_pdf, create_hitas_contract_pdf
+from application_form.models import (
+    ApartmentReservation,
+    ApartmentReservationStateChangeEvent,
+    Offer,
+)
+from application_form.pdf import (
+    create_haso_contract_pdf,
+    create_haso_release_pdf,
+    create_hitas_contract_pdf,
+)
+from application_form.permissions import DrupalAuthentication, IsDrupalServer
 from application_form.services.application import cancel_reservation
 from application_form.services.lottery.exceptions import (
     ApplicationTimeNotFinishedException,
@@ -40,11 +59,11 @@ from application_form.services.reservation import (
     transfer_reservation_to_another_customer,
 )
 from audit_log.viewsets import AuditLoggingModelViewSet
-from users.permissions import IsSalesperson
+from users.permissions import IsDjangoSalesperson, IsDrupalSalesperson
 
 
 @api_view(http_method_names=["POST"])
-@permission_classes([IsSalesperson])
+@permission_classes([IsDjangoSalesperson])
 @require_http_methods(["POST"])  # For SonarCloud
 def execute_lottery_for_project(request):
     """
@@ -70,15 +89,68 @@ def execute_lottery_for_project(request):
     return Response({"status": "success"}, status=status.HTTP_200_OK)
 
 
+@api_view(http_method_names=["GET"])
+@require_http_methods(["GET"])  # For SonarCloud
+@permission_classes([IsDrupalServer])
+@authentication_classes([DrupalAuthentication])
+def apartment_states(request):
+    """
+    Returns ids of apartments sold during start_time and end_time
+    By default
+        start_time: timezone.now() - timedelta(hours=1)
+        end_time = timezone.now()
+    """
+    end_time_obj = timezone.now()
+    start_time_obj = end_time_obj - timedelta(
+        hours=settings.DEFAULT_SOLD_APARMENT_TIME_RANGE
+    )
+    try:
+        if start_time := request.query_params.get("start_time"):
+            start_time_obj = parser.isoparse(start_time)
+        if end_time := request.query_params.get("end_time"):
+            end_time_obj = parser.isoparse(end_time)
+    except ValueError:
+        raise ValidationError(
+            "Invalid datetime format, "
+            "the correct format is - `YYYY-MM-DD'T'hh:mm:ss` or "
+            "`YYYYMMDD'T'hhmmss`"
+        )
+
+    if start_time_obj > end_time_obj:
+        raise ValidationError(
+            f"Start date {start_time_obj} cannot be greater than "
+            f"end date {end_time_obj}"
+        )
+
+    # Select the latest state event of every apartment uuid
+    state_events = (
+        ApartmentReservationStateChangeEvent.objects.filter(
+            timestamp__range=[start_time_obj, end_time_obj],
+        )
+        .select_related("reservation")
+        .order_by("reservation__apartment_uuid", "-timestamp")
+        .distinct("reservation__apartment_uuid")
+    )
+
+    results = {
+        str(e.reservation.apartment_uuid): get_apartment_state_of_sale_from_event(e)
+        for e in state_events
+    }
+
+    return Response(results, status=status.HTTP_200_OK)
+
+
 class SalesApplicationViewSet(ApplicationViewSet):
     serializer_class = SalesApplicationSerializer
-    permission_classes = [permissions.IsAuthenticated, IsSalesperson]
+    permission_classes = [permissions.IsAuthenticated, IsDrupalSalesperson]
 
 
 class ApartmentReservationViewSet(
     mixins.RetrieveModelMixin, mixins.CreateModelMixin, viewsets.GenericViewSet
 ):
-    queryset = ApartmentReservation.objects.select_related("offer")
+    queryset = ApartmentReservation.objects.select_related("offer").prefetch_related(
+        "apartment_installments", "apartment_installments__payments"
+    )
     serializer_class = RootApartmentReservationSerializer
 
     @extend_schema(
@@ -105,6 +177,35 @@ class ApartmentReservationViewSet(
             raise ValueError(
                 f"Unknown ownership_type: {apartment.project_ownership_type}"
             )
+
+        response = HttpResponse(pdf_data, content_type="application/pdf")
+        response["Content-Disposition"] = f"attachment; filename={filename}.pdf"
+
+        return response
+
+    @extend_schema(
+        description="Create HASO apartment release PDF",
+        responses={(200, "application/pdf"): OpenApiTypes.BINARY},
+    )
+    @action(methods=["GET"], detail=True)
+    def release_pdf(self, request, **kwargs):
+        reservation = self.get_object()
+        apartment = get_apartment(
+            reservation.apartment_uuid, include_project_fields=True
+        )
+
+        if apartment.project_ownership_type.lower() != "haso":
+            raise ValidationError("Apartment ownership type is not HASO")
+
+        if not hasattr(reservation, "revaluation"):
+            raise ValidationError("Reservation has no revaluation")
+
+        title = (apartment.title or "").strip().lower().replace(" ", "_")
+        filename = f"haso_luovutuslaskelma{title}" if title else "haso_luovutuslaskelma"
+
+        pdf_data = create_haso_release_pdf(
+            request.user.profile_or_user_full_name, reservation
+        )
 
         response = HttpResponse(pdf_data, content_type="application/pdf")
         response["Content-Disposition"] = f"attachment; filename={filename}.pdf"

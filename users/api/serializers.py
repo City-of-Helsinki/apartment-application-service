@@ -55,7 +55,7 @@ class ProfileSerializer(ProfileSerializerBase):
         user = get_user_model().objects.create()
 
         if validated_data.pop("is_salesperson", False):
-            group = Group.objects.get(name__iexact=Roles.SALESPERSON.name)
+            group = Group.objects.get(name__iexact=Roles.DRUPAL_SALESPERSON.name)
             group.user_set.add(user)
 
         profile = Profile.objects.create(user=user, **validated_data)
@@ -71,7 +71,7 @@ class ProfileSerializer(ProfileSerializerBase):
 
         if "is_salesperson" in validated_data:
             is_salesperson = validated_data.pop("is_salesperson")
-            group = Group.objects.get(name__iexact=Roles.SALESPERSON.name)
+            group = Group.objects.get(name__iexact=Roles.DRUPAL_SALESPERSON.name)
             if is_salesperson:
                 group.user_set.add(instance.user)
             else:

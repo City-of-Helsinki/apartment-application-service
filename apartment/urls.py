@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 
 from apartment.api.views import (
     ApartmentAPIView,
+    ApartmentReservationsAPIView,
     ProjectAPIView,
     ProjectExportApplicantsAPIView,
     ProjectExportLotteryResultsAPIView,
@@ -15,6 +16,11 @@ router = DefaultRouter()
 
 urlpatterns = [
     path("sales/apartments/", ApartmentAPIView.as_view(), name="apartment-list"),
+    path(
+        "sales/apartments/<uuid:apartment_uuid>/reservations/",
+        ApartmentReservationsAPIView.as_view(),
+        name="apartment-detail-reservations-list",
+    ),
     path("sales/report/", SaleReportAPIView.as_view(), name="sale-report"),
     path(
         "sales/projects/",

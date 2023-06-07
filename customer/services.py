@@ -30,8 +30,9 @@ def get_or_create_customer_from_profiles(
         customer = Customer.objects.get_or_create(
             primary_profile=primary_profile,
             secondary_profile=None,
-            has_children=has_children,
         )[0]
+        customer.has_children = has_children
+        customer.save()
         return customer
 
     secondary_profile_ssn = (
@@ -46,6 +47,8 @@ def get_or_create_customer_from_profiles(
             primary_profile=primary_profile,
             secondary_profile__national_identification_number=secondary_profile_ssn,
         )
+        customer.has_children = has_children
+        customer.save()
         return customer
     except Customer.DoesNotExist:
         pass

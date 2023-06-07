@@ -1,20 +1,23 @@
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, transaction
 from django.db.models import UniqueConstraint
 from django.utils import timezone
-from django.utils.timezone import now
+from django.utils.timezone import localdate, now
 from django.utils.translation import gettext_lazy as _
 from enumfields import EnumField
 from pgcrypto.fields import CharPGPPublicKeyField
 from uuid import uuid4
 
+from apartment_application_service.models import TimestampedModel
 from application_form.models import ApartmentReservation
 from invoicing.enums import (
     InstallmentPercentageSpecifier,
     InstallmentType,
     InstallmentUnit,
+    PaymentStatus,
 )
 from invoicing.utils import (
     generate_reference_number,
@@ -67,7 +70,8 @@ class ApartmentInstallmentQuerySet(models.QuerySet):
 
 
 class ApartmentInstallment(InstallmentBase):
-    INVOICE_NUMBER_PREFIX_LENGTH: int = 3
+    MIN_INVOICE_NUMBER = 730000001
+    MAX_INVOICE_NUMBER = 999999999
 
     apartment_reservation = models.ForeignKey(
         ApartmentReservation,
@@ -75,7 +79,15 @@ class ApartmentInstallment(InstallmentBase):
         related_name="apartment_installments",
         on_delete=models.PROTECT,
     )
-    invoice_number = models.CharField(max_length=9, verbose_name=_("invoice number"))
+
+    invoice_number = models.IntegerField(
+        verbose_name=_("invoice number"),
+        validators=[
+            MinValueValidator(MIN_INVOICE_NUMBER),
+            MaxValueValidator(MAX_INVOICE_NUMBER),
+        ],
+        unique=True,
+    )
     reference_number = models.CharField(
         max_length=64, verbose_name=_("reference number"), unique=True
     )
@@ -99,36 +111,43 @@ class ApartmentInstallment(InstallmentBase):
             )
         ]
 
+    @property
+    def is_overdue(self) -> bool:
+        if not self.due_date or localdate() <= self.due_date:
+            return False
+
+        return (
+            sum(
+                payment.amount
+                for payment in self.payments.filter(payment_date__lte=self.due_date)
+            )
+            < self.value
+        )
+
+    @property
+    def payment_status(self) -> PaymentStatus:
+        paid_amount = sum(payment.amount for payment in self.payments.all())
+        if not paid_amount:
+            return PaymentStatus.UNPAID
+        elif paid_amount == self.value:
+            return PaymentStatus.PAID
+        elif paid_amount < self.value:
+            return PaymentStatus.UNDERPAID
+        else:
+            return PaymentStatus.OVERPAID
+
     def _get_next_invoice_number(self):
         if self.invoice_number:
             return self.invoice_number
 
-        invoice_number_prefix = settings.INVOICE_NUMBER_PREFIX or ""
-
-        if len(invoice_number_prefix) != self.INVOICE_NUMBER_PREFIX_LENGTH:
-            raise ValueError(
-                f"INVOICE_NUMBER_PREFIX setting has invalid length "
-                f"({self.INVOICE_NUMBER_PREFIX_LENGTH}): {len(invoice_number_prefix)} "
-            )
-
         apartment_installment = (
-            ApartmentInstallment.objects.filter(
-                invoice_number__istartswith=invoice_number_prefix,
-                created_at__year=date.today().year,
-            )
-            .order_by("-invoice_number")
-            .first()
+            ApartmentInstallment.objects.all().order_by("-invoice_number").first()
         )
 
-        last_invoice_number = 1
         if apartment_installment:
-            last_invoice_number = apartment_installment.invoice_number
-            removeable_prefix_length = self.INVOICE_NUMBER_PREFIX_LENGTH
-            last_invoice_number = int(last_invoice_number[removeable_prefix_length:])
-            last_invoice_number += 1
+            return apartment_installment.invoice_number + 1
 
-        next_invoice_number = invoice_number_prefix + str(last_invoice_number).zfill(6)
-        return next_invoice_number
+        return self.MIN_INVOICE_NUMBER
 
     def set_reference_number(self, force=False):
         if self.reference_number and not force:
@@ -223,3 +242,43 @@ class ProjectInstallmentTemplate(InstallmentBase):
             apartment_installment.value = self.value
 
         return apartment_installment
+
+
+class PaymentBatch(TimestampedModel):
+    filename = models.CharField(
+        verbose_name=_("Payment batch"), max_length=255, unique=True
+    )
+
+    class Meta:
+        verbose_name = _("payment batch")
+        verbose_name_plural = _("payment batches")
+        ordering = ("id",)
+
+    def __str__(self):
+        return self.filename
+
+
+class Payment(TimestampedModel):
+    batch = models.ForeignKey(
+        PaymentBatch,
+        verbose_name=_("batch"),
+        related_name="payments",
+        blank=True,
+        null=True,
+        on_delete=models.SET_NULL,
+    )
+    apartment_installment = models.ForeignKey(
+        ApartmentInstallment,
+        verbose_name=_("apartment installment"),
+        related_name="payments",
+        on_delete=models.PROTECT,
+    )
+    amount = models.DecimalField(
+        verbose_name=_("amount"), max_digits=16, decimal_places=2
+    )
+    payment_date = models.DateField(verbose_name=_("payment date"))
+
+    class Meta:
+        verbose_name = _("payment")
+        verbose_name_plural = _("payments")
+        ordering = ("id",)

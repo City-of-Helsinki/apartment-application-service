@@ -7,6 +7,7 @@ from django.test import override_settings
 from django.utils import timezone
 from django.utils.timezone import localtime
 from unittest import mock
+from unittest.mock import MagicMock, Mock
 
 from apartment.tests.factories import ApartmentDocumentFactory
 from invoicing.services import (
@@ -49,12 +50,11 @@ def test_pending_installments_to_sap(send_xml_to_sap):
         sent_to_sap_at=timezone.now(),
     )  # already sent to SAP
 
-    send_xml_to_sap.side_effect = (
-        # check generated xml and make sure only should_get_sent is included
-        lambda xml, ts: assert_apartment_installment_match_xml_data(
-            should_get_sent, xml
-        )
-    )
+    def send_xml_to_sap_side_effect(xml, filename=None, timestamp=None):
+        return assert_apartment_installment_match_xml_data(should_get_sent, xml)
+
+    # check generated xml and make sure only should_get_sent is included
+    send_xml_to_sap.side_effect = send_xml_to_sap_side_effect
 
     call_command(
         "send_installments_to_sap",
@@ -111,3 +111,33 @@ def test_email_notification_after_sending_installments_to_sap(_, freezer):
         count=1,
         date_time=localtime(timezone.now()).strftime("%d.%m.%Y %H:%M:%S"),
     )
+
+
+VALID_TEST_PAYMENT_DATA = """022121917199          12800     0000000000000000000000000000000000000000000000000000000000
+300000010700152221218221218730000077                           SAP ATestaaj1 00006658100  
+300000010700152221218221218730000077                           SAP BTestaaj1 00006658101  
+900000200001331620000000000000000000000000000000000000000000000000000000000000000000000000
+"""  # noqa: E501, W291
+
+
+@mock.patch("paramiko.SFTPClient.from_transport")
+@mock.patch("paramiko.Transport")
+@pytest.mark.django_db
+def test_fetch_payments_from_sap(_, paramiko_sftp):
+    installment = ApartmentInstallmentFactory(invoice_number=730000077)
+
+    mock_sftp = MagicMock()
+    mock_sftp.listdir = Mock(return_value=["MR_testing_123.txt"])
+
+    def mock_getfo(_, local_file):
+        local_file.write(VALID_TEST_PAYMENT_DATA.encode("utf-8"))
+
+    mock_sftp.getfo = Mock(side_effect=mock_getfo)
+    paramiko_sftp.return_value = mock_sftp
+
+    call_command(
+        "fetch_payments_from_sap",
+    )
+
+    mock_sftp.rename.assert_called_with("MR_testing_123.txt", "arch/MR_testing_123.txt")
+    assert installment.payments.count() == 2

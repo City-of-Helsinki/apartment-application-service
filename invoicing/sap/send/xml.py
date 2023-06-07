@@ -79,7 +79,7 @@ from typing import List, Union
 from xml.etree.ElementTree import Element, SubElement, tostring
 
 from invoicing.models import ApartmentInstallment
-from invoicing.sap.utils import (
+from invoicing.sap.send.xml_utils import (
     get_base_line_date_string,
     get_installment_type_text,
     get_wbs_element,
@@ -125,7 +125,7 @@ def _append_account_receivable_container_xml(
 
     # FI: Viite
     reference = SubElement(sbo_account_receivable, "Reference")
-    reference.text = apartment_installment.invoice_number
+    reference.text = str(apartment_installment.invoice_number)
 
     # FI: Tositteen otsikkoteksti
     header_text = SubElement(sbo_account_receivable, "HeaderText")

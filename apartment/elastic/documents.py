@@ -1,6 +1,11 @@
 from django.conf import settings
 from elasticsearch_dsl import Boolean, Date, Document, Float, Keyword, Long
 
+from cost_index.utils import (
+    current_right_of_occupancy_payment,
+    reservation_right_of_occupancy_payment,
+)
+
 
 class ReadOnlyDocument(Document):
     @classmethod
@@ -137,6 +142,13 @@ class ApartmentDocument(ReadOnlyDocument):
 
     right_of_occupancy_payment = Long()
     right_of_occupancy_fee = Long()
+    right_of_occupancy_deposit = Long()
+
+    # These two fields are synchronized by drupal
+    # from ApartmentRevaluation model
+    field_index_adjusted_right_of_oc = Long()
+    field_alteration_work = Long()
+
     project_contract_apartment_completion_selection_2_start = Date()
     project_contract_apartment_completion_selection_2_end = Date()
     project_contract_other_terms = Keyword()
@@ -146,3 +158,18 @@ class ApartmentDocument(ReadOnlyDocument):
 
     class Index:
         name = settings.APARTMENT_INDEX_NAME
+
+    @property
+    def current_right_of_occupancy_payment(self):
+        """
+        Determine the effective current right of occupancy payment
+        by searching for updated values in local database.
+        """
+        return current_right_of_occupancy_payment(
+            self.uuid, self.right_of_occupancy_payment
+        )
+
+    def reservation_right_of_occupancy_payment(self, reservation_id: int):
+        return reservation_right_of_occupancy_payment(
+            reservation_id, self.uuid, self.right_of_occupancy_payment
+        )

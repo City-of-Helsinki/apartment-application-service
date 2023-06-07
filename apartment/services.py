@@ -77,7 +77,7 @@ Lapsiperhe: {_get_bool_str(reservation.has_children)}
 
 
 def _get_haso_dynamic_part(reservation: ApartmentReservation, apartment) -> str:
-    return f"""Alustava asumisoikeusmaksu: {_get_price_str(apartment.right_of_occupancy_payment)}
+    return f"""Alustava asumisoikeusmaksu: {_get_price_str(apartment.current_right_of_occupancy_payment)}
 Alustava käyttövastike: {_get_price_str(apartment.right_of_occupancy_fee)}
 Käyttövakuus: {_get_price_str(apartment.right_of_occupancy_deposit)}
 

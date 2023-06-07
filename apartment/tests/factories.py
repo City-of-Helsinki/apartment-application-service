@@ -1,6 +1,7 @@
 import factory
 import string
 from datetime import date, timedelta
+from django.conf import settings
 from django.utils import timezone
 from elasticsearch_dsl import Document
 from factory import Faker, fuzzy
@@ -21,7 +22,7 @@ class ApartmentDocumentTest(ApartmentDocument):
         return Document.delete(self, **kwargs)
 
     class Index:
-        name = "test-apartment"
+        name = settings.TEST_APARTMENT_INDEX_NAME
 
 
 class ElasticFactory(factory.Factory):
@@ -29,7 +30,7 @@ class ElasticFactory(factory.Factory):
     def save_to_elastic(obj, create, extracted, **kwargs):
         if not create:
             return
-        obj.save(refresh="wait_for")
+        obj.save(refresh="true")
 
 
 class ApartmentDocumentFactory(ElasticFactory):

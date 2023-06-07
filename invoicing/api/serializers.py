@@ -12,8 +12,13 @@ from apartment.elastic.queries import get_project
 from audit_log import audit_logging
 from audit_log.enums import Operation
 
-from ..enums import InstallmentPercentageSpecifier, InstallmentType, InstallmentUnit
-from ..models import ApartmentInstallment, ProjectInstallmentTemplate
+from ..enums import (
+    InstallmentPercentageSpecifier,
+    InstallmentType,
+    InstallmentUnit,
+    PaymentStatus,
+)
+from ..models import ApartmentInstallment, Payment, ProjectInstallmentTemplate
 from ..utils import remove_exponent
 
 
@@ -40,6 +45,11 @@ class NormalizedDecimalField(serializers.DecimalField):
 
 class IntegerCentsField(serializers.IntegerField):
     """Converts an inner decimal euro value to an int of cents."""
+
+    def __init__(self, *args, **kwargs):
+        if "help_text" not in kwargs:
+            kwargs["help_text"] = _("Value in cents.")
+        super().__init__(*args, **kwargs)
 
     def to_internal_value(self, value: int) -> Decimal:
         return Decimal(value) / 100
@@ -170,15 +180,26 @@ class ProjectInstallmentTemplateSerializer(InstallmentSerializerBase):
         percentage = validated_data.pop("get_percentage", None)
         has_percentage = percentage is not None
         percentage_specifier = validated_data.pop("percentage_specifier", None)
+        flexible = (
+            percentage_specifier == InstallmentPercentageSpecifier.SALES_PRICE_FLEXIBLE
+        )
         project_uuid = self.context["view"].kwargs["project_uuid"]
         project = get_project(project_uuid)
+
+        # Store flexible installment templates as 0% as their actual value
+        # will be calculated dynamically when apartment installments are
+        # generated.
+        if flexible:
+            percentage = Decimal("0.00")
+            has_percentage = True
+            has_amount = False
 
         if (has_amount and has_percentage) or not (has_amount or has_percentage):
             raise exceptions.ValidationError(
                 "Either amount or percentage is required but not both."
             )
 
-        if has_amount:
+        elif has_amount:
             validated_data.update(
                 {
                     "value": amount,
@@ -245,7 +266,6 @@ class ApartmentInstallmentSerializerBase(InstallmentSerializerBase):
     amount = IntegerCentsField(
         source="value",
         required=False,
-        help_text=_("Value in cents."),
     )
 
     class Meta(InstallmentSerializerBase.Meta):
@@ -254,6 +274,19 @@ class ApartmentInstallmentSerializerBase(InstallmentSerializerBase):
 
 class ApartmentInstallmentCandidateSerializer(ApartmentInstallmentSerializerBase):
     pass
+
+
+class PaymentStateSerializer(EnumSupportSerializerMixin, serializers.Serializer):
+    is_overdue = serializers.BooleanField()
+    status = EnumField(PaymentStatus, source="payment_status")
+
+
+class PaymentSerializer(serializers.ModelSerializer):
+    amount = IntegerCentsField()
+
+    class Meta:
+        model = Payment
+        fields = ("amount", "payment_date")
 
 
 @extend_schema_serializer(
@@ -280,12 +313,22 @@ class ApartmentInstallmentCandidateSerializer(ApartmentInstallmentSerializerBase
     ]
 )
 class ApartmentInstallmentSerializer(ApartmentInstallmentSerializerBase):
+    payment_state = PaymentStateSerializer(source="*", read_only=True)
+    payments = PaymentSerializer(many=True, read_only=True)
+
     class Meta(ApartmentInstallmentSerializerBase.Meta):
         fields = ApartmentInstallmentSerializerBase.Meta.fields + (
             "reference_number",
             "added_to_be_sent_to_sap_at",
+            "payment_state",
+            "payments",
         )
-        read_only_fields = ("reference_number", "added_to_be_sent_to_sap_at")
+        read_only_fields = (
+            "reference_number",
+            "added_to_be_sent_to_sap_at",
+            "payment_state",
+            "payments",
+        )
 
     def validate(self, validated_data):
         if (

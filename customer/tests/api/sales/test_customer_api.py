@@ -52,6 +52,7 @@ def test_get_customer_api_detail(sales_ui_salesperson_api_client):
         apartment_uuid=apartment.uuid,
         has_hitas_ownership=True,
         has_children=False,
+        queue_position=1,
     )
     installment = ApartmentInstallmentFactory(
         apartment_reservation=reservation, value=100
@@ -111,11 +112,16 @@ def test_get_customer_api_detail(sales_ui_salesperson_api_client):
                     else None,
                     "reference_number": installment.reference_number,
                     "added_to_be_sent_to_sap_at": installment.added_to_be_sent_to_sap_at,  # noqa: E501
+                    "payment_state": {
+                        "status": "UNPAID",
+                        "is_overdue": False,
+                    },
+                    "payments": [],
                 }
             ],
             "lottery_position": None,
             "project_lottery_completed": False,
-            "queue_position": None,
+            "queue_position": 1,
             "priority_number": reservation.application_apartment.priority_number,
             "state": reservation.state.value,
             "offer": None,
@@ -176,7 +182,7 @@ def test_customer_detail_state_event_changed_by(
         customer=customer,
     )
     user = UserFactory()
-    Group.objects.get(name__iexact=Roles.SALESPERSON.name).user_set.add(user)
+    Group.objects.get(name__iexact=Roles.DJANGO_SALESPERSON.name).user_set.add(user)
     if has_profile:
         ProfileFactory(user=user)
 

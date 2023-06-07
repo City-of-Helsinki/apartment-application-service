@@ -1,6 +1,7 @@
 import csv
 import operator
 from abc import abstractmethod
+from django.db.models import Max
 from io import StringIO
 
 from apartment.elastic.queries import (
@@ -10,23 +11,27 @@ from apartment.elastic.queries import (
     get_project,
 )
 from apartment.enums import ApartmentState
-from apartment.utils import get_apartment_state
-from application_form.models import ApartmentReservation
+from apartment.utils import get_apartment_state_from_apartment_uuid
+from application_form.models import ApartmentReservation, LotteryEvent
 from application_form.utils import get_apartment_number_sort_tuple
 
 
-def _get_reservation_cell_value(column_name, apartment, reservation=None):
-    # Apartment fields
-    if column_name in [
-        "project_street_address",
-        "apartment_number",
-        "apartment_structure",
-        "living_area",
-        "floor",
-    ]:
-        return getattr(apartment, column_name)
+def _get_reservation_cell_value(column_name, apartment=None, reservation=None):
     if not reservation:
         return ""
+    # Apartment fields
+    if (
+        column_name
+        in [
+            "project_street_address",
+            "apartment_number",
+            "apartment_structure",
+            "living_area",
+            "floor",
+        ]
+        and apartment is not None
+    ):
+        return getattr(apartment, column_name)
     # Profile fields
     if column_name.startswith("primary") or column_name.startswith("secondary"):
         if (
@@ -40,6 +45,8 @@ def _get_reservation_cell_value(column_name, apartment, reservation=None):
         return bool(reservation.has_children)
     if column_name == "lottery_position":
         return reservation.application_apartment.lotteryeventresult.result_position
+    if column_name == "queue_position":
+        return reservation.queue_position
     if column_name == "right_of_residence":
         return reservation.right_of_residence
     return ""
@@ -72,8 +79,6 @@ class CSVExportService:
     def _make_csv(self, lines):
         if len(lines) == 0:
             return ""
-        first_length = len(lines[0])
-        assert all([len(line) == first_length for line in lines])
 
         io = StringIO()
         csv_writer = csv.writer(
@@ -126,6 +131,8 @@ class ApplicantExportService(CSVExportService):
 
 
 class ProjectLotteryResultExportService(CSVExportService):
+    CSV_TITLE = "ARVONTATULOKSET"
+
     def __init__(self, project):
         self.project = project
         if project.project_ownership_type.lower() == "haso":
@@ -133,7 +140,6 @@ class ProjectLotteryResultExportService(CSVExportService):
                 ("Apartment number", "apartment_number"),
                 ("Apartment structure", "apartment_structure"),
                 ("Apartment area", "living_area"),
-                ("Apartment floor", "floor"),
                 ("Position", "lottery_position"),
                 ("Right of residence", "right_of_residence"),
                 ("Primary applicant", "primary_profile.full_name"),
@@ -144,7 +150,6 @@ class ProjectLotteryResultExportService(CSVExportService):
                 ("Apartment number", "apartment_number"),
                 ("Apartment structure", "apartment_structure"),
                 ("Apartment area", "living_area"),
-                ("Apartment floor", "floor"),
                 ("Position", "lottery_position"),
                 ("Primary applicant", "primary_profile.full_name"),
                 ("Secondary applicant", "secondary_profile.full_name"),
@@ -158,9 +163,23 @@ class ProjectLotteryResultExportService(CSVExportService):
             .order_by("application_apartment__lotteryeventresult__result_position")
         )
 
+    def _get_document_title(self, apartment_uuids):
+        lottery_completed_at = LotteryEvent.objects.filter(
+            apartment_uuid__in=apartment_uuids
+        ).aggregate(Max("timestamp"))["timestamp__max"]
+        return [
+            [
+                self.CSV_TITLE,
+                "Arvonta suoritettu",
+                lottery_completed_at.strftime("%d.%m.%Y kello %H:%M"),
+            ],
+            [""],
+            [self.project.project_housing_company],
+        ]
+
     def get_rows(self):
-        rows = [self._get_header_row()]
         apartment_uuids = get_apartment_uuids(self.project.project_uuid)
+        rows = [*self._get_document_title(apartment_uuids), self._get_header_row()]
 
         # collect rows first to this dict grouped by apartment number so that they can
         # be sorted by apartment number for the final result
@@ -170,7 +189,8 @@ class ProjectLotteryResultExportService(CSVExportService):
             reservations = self.get_reservations_by_apartment_uuid(apartment_uuid)
             apartment = get_apartment(apartment_uuid, include_project_fields=True)
             apartment_dict[apartment.apartment_number] = [
-                self.get_row(apartment, r) for r in reservations
+                self.get_row(apartment=apartment if idx == 0 else None, reservation=r)
+                for idx, r in enumerate(reservations)
             ] or [
                 # no reservations, just apartment fields
                 self.get_row(apartment)
@@ -186,7 +206,7 @@ class ProjectLotteryResultExportService(CSVExportService):
 
         return rows
 
-    def get_row(self, apartment, reservation=None):
+    def get_row(self, apartment=None, reservation=None):
         line = []
         for column in self.COLUMNS:
             cell_value = _get_reservation_cell_value(column[1], apartment, reservation)
@@ -228,7 +248,8 @@ class SaleReportExportService(CSVExportService):
             [
                 apartment_uuid
                 for apartment_uuid in apartment_uuids
-                if get_apartment_state(apartment_uuid) == ApartmentState.SOLD.value
+                if get_apartment_state_from_apartment_uuid(apartment_uuid)
+                == ApartmentState.SOLD.value
             ]
         )
         reported_sold = len(

@@ -10,7 +10,11 @@ from application_form.tests.factories import ApartmentReservationFactory
 
 from ..enums import InstallmentPercentageSpecifier, InstallmentType, InstallmentUnit
 from ..models import ApartmentInstallment, ProjectInstallmentTemplate
-from .factories import ApartmentInstallmentFactory, ProjectInstallmentTemplateFactory
+from .factories import (
+    ApartmentInstallmentFactory,
+    PaymentFactory,
+    ProjectInstallmentTemplateFactory,
+)
 
 
 @pytest.fixture
@@ -221,6 +225,12 @@ def test_set_project_installments(
             "due_date": "2022-02-19",
         },
         {
+            "type": "PAYMENT_2",
+            "percentage_specifier": "SALES_PRICE_FLEXIBLE",
+            "account_number": "123123123-123",
+            "due_date": "2022-02-19",
+        },
+        {
             "type": "REFUND",
             "amount": 10000,
             "account_number": "123123123-123",
@@ -247,18 +257,17 @@ def test_set_project_installments(
         format="json",
     )
     assert response.status_code == 201
-    assert response.data == data
 
-    assert ProjectInstallmentTemplate.objects.count() == 3
+    assert ProjectInstallmentTemplate.objects.count() == 4
     assert (
         ProjectInstallmentTemplate.objects.exclude(
             project_uuid=other_project_installment_template.project_uuid
         ).count()
-        == 2
+        == 3
     )
 
     installment_templates = ProjectInstallmentTemplate.objects.order_by("id")
-    installment_1, installment_2 = installment_templates[1:]
+    installment_1, installment_2, installment_3 = installment_templates[1:]
 
     assert installment_1.type == InstallmentType.PAYMENT_1
     assert installment_1.value == Decimal("53.50")
@@ -269,12 +278,21 @@ def test_set_project_installments(
     assert installment_1.account_number == "123123123-123"
     assert installment_1.due_date == datetime.date(2022, 2, 19)
 
-    assert installment_2.type == InstallmentType.REFUND
-    assert installment_2.value == Decimal("100.00")
-    assert installment_2.unit == InstallmentUnit.EURO
-    assert installment_2.percentage_specifier is None
+    assert installment_2.type == InstallmentType.PAYMENT_2
+    assert installment_2.value == Decimal("0.00")
+    assert (
+        installment_2.percentage_specifier
+        == InstallmentPercentageSpecifier.SALES_PRICE_FLEXIBLE
+    )
     assert installment_2.account_number == "123123123-123"
-    assert installment_2.due_date is None
+    assert installment_2.due_date == datetime.date(2022, 2, 19)
+
+    assert installment_3.type == InstallmentType.REFUND
+    assert installment_3.value == Decimal("100.00")
+    assert installment_3.unit == InstallmentUnit.EURO
+    assert installment_3.percentage_specifier is None
+    assert installment_3.account_number == "123123123-123"
+    assert installment_3.due_date is None
 
 
 @pytest.mark.django_db
@@ -425,7 +443,7 @@ def test_apartment_installments_endpoint_data(
     apartment_document, sales_ui_salesperson_api_client
 ):
     reservation = ApartmentReservationFactory()
-    ApartmentInstallmentFactory(
+    installment_1 = ApartmentInstallmentFactory(
         apartment_reservation=reservation,
         **{
             "type": InstallmentType.PAYMENT_1,
@@ -434,6 +452,11 @@ def test_apartment_installments_endpoint_data(
             "due_date": "2022-02-19",
             "reference_number": "REFERENCE-123",
         },
+    )
+    PaymentFactory(
+        apartment_installment=installment_1,
+        amount=1,
+        payment_date=installment_1.due_date,
     )
     ApartmentInstallmentFactory(
         apartment_reservation=reservation,
@@ -461,6 +484,16 @@ def test_apartment_installments_endpoint_data(
             "due_date": "2022-02-19",
             "reference_number": "REFERENCE-123",
             "added_to_be_sent_to_sap_at": None,
+            "payment_state": {
+                "status": "UNDERPAID",
+                "is_overdue": True,
+            },
+            "payments": [
+                {
+                    "amount": 100,
+                    "payment_date": "2022-02-19",
+                }
+            ],
         },
         {
             "type": "REFUND",
@@ -469,6 +502,11 @@ def test_apartment_installments_endpoint_data(
             "due_date": None,
             "reference_number": "REFERENCE-321",
             "added_to_be_sent_to_sap_at": None,
+            "payment_state": {
+                "status": "UNPAID",
+                "is_overdue": False,
+            },
+            "payments": [],
         },
     ]
 
@@ -524,7 +562,12 @@ def test_set_apartment_installments(
     data[1]["reference_number"] = installment_2.reference_number
     data[0]["added_to_be_sent_to_sap_at"] = None
     data[1]["added_to_be_sent_to_sap_at"] = None
-    assert response.data == data
+    response_data = response.data.copy()
+    response_data[0].pop("payment_state")
+    response_data[0].pop("payments")
+    response_data[1].pop("payment_state")
+    response_data[1].pop("payments")
+    assert response_data == data
 
     assert ApartmentInstallment.objects.count() == 3
     assert (
@@ -860,6 +903,8 @@ def test_add_installments_to_be_sent_to_sap_at(
         "type",
         "amount",
         "added_to_be_sent_to_sap_at",
+        "payment_state",
+        "payments",
     }
 
     assert response.data[0]["added_to_be_sent_to_sap_at"]

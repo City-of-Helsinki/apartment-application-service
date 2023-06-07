@@ -22,7 +22,6 @@ from application_form.models import (
     ApartmentReservationStateChangeEvent,
     Applicant,
     Application,
-    LotteryEvent,
     Offer,
 )
 from application_form.services.application import create_application
@@ -204,7 +203,6 @@ class ReservationOfferSerializer(
 
 class ApartmentReservationSerializerBase(serializers.ModelSerializer):
     state = EnumField(ApartmentReservationState, read_only=True)
-    queue_position = serializers.SerializerMethodField()
     lottery_position = IntegerField(
         source="application_apartment.lotteryeventresult.result_position",
         allow_null=True,
@@ -243,12 +241,6 @@ class ApartmentReservationSerializerBase(serializers.ModelSerializer):
             "is_age_over_55",
             "is_right_of_occupancy_housing_changer",
         )
-
-    def get_queue_position(self, obj):
-        if LotteryEvent.objects.filter(apartment_uuid=obj.apartment_uuid).exists():
-            return obj.queue_position
-        else:
-            return None
 
 
 class ApartmentReservationSerializer(ApartmentReservationSerializerBase):

@@ -85,6 +85,16 @@ env = environ.Env(
     METADATA_HASO_PROCESS_NUMBER=(str, "10 07 04 01"),
     TALPA_EMAIL=(str, ""),
     TALPA_EMAIL_REPLY_TO=(str, "asuntomyynti@hel.fi"),
+    ELASTICSEARCH_APP_AUDIT_LOG_INDEX=(str, "apartment_application_audit_log"),
+    AUDIT_LOG_ELASTICSEARCH_HOST=(str, ""),
+    AUDIT_LOG_ELASTICSEARCH_PORT=(str, ""),
+    AUDIT_LOG_ELASTICSEARCH_USERNAME=(str, ""),
+    AUDIT_LOG_ELASTICSEARCH_PASSWORD=(str, ""),
+    ENABLE_SEND_AUDIT_LOG=(bool, False),
+    CLEAR_AUDIT_LOG_ENTRIES=(bool, False),
+    DRUPAL_SERVER_AUTH_TOKEN=(str, "example-token"),
+    DEFAULT_SOLD_APARMENT_TIME_RANGE=(int, 1),
+    DEFAULT_APARTMENT_REVALUATION_TIME_RANGE=(int, 1),
 )
 if os.path.exists(env_file):
     env.read_env(env_file)
@@ -115,12 +125,15 @@ try:
 except Exception:
     version = "n/a"
 
-sentry_sdk.init(
-    dsn=env.str("SENTRY_DSN"),
-    release=version,
-    environment=env("SENTRY_ENVIRONMENT"),
-    integrations=[DjangoIntegration()],
-)
+SENTRY_DSN = env.str("SENTRY_DSN")
+SENTRY_ENVIRONMENT = env("SENTRY_ENVIRONMENT")
+if SENTRY_DSN and SENTRY_ENVIRONMENT:
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        release=version,
+        environment=SENTRY_ENVIRONMENT,
+        integrations=[DjangoIntegration()],
+    )
 
 var_root = env.path("VAR_ROOT")
 MEDIA_ROOT = var_root("media")
@@ -164,6 +177,7 @@ INSTALLED_APPS = [
     "audit_log",
     "invoicing",
     "utils",
+    "cost_index",
 ]
 
 MIDDLEWARE = [
@@ -257,7 +271,7 @@ REST_FRAMEWORK = {
         "apartment_application_service.oidc.TunnistamoFixedApiTokenAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ),
-    "DEFAULT_PERMISSION_CLASSES": ("users.permissions.IsSalesperson",),
+    "DEFAULT_PERMISSION_CLASSES": ("users.permissions.IsDjangoSalesperson",),
     "DEFAULT_SCHEMA_CLASS": "apartment_application_service.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "apartment_application_service.exceptions.drf_exception_handler",  # noqa: E501
 }
@@ -363,6 +377,22 @@ METADATA_HASO_PROCESS_NUMBER = env.str("METADATA_HASO_PROCESS_NUMBER")
 
 TALPA_EMAIL = env.str("TALPA_EMAIL")
 TALPA_EMAIL_REPLY_TO = env.str("TALPA_EMAIL_REPLY_TO")
+
+# Audit logging
+CLEAR_AUDIT_LOG_ENTRIES = env.bool("CLEAR_AUDIT_LOG_ENTRIES")
+ELASTICSEARCH_APP_AUDIT_LOG_INDEX = env("ELASTICSEARCH_APP_AUDIT_LOG_INDEX")
+AUDIT_LOG_ELASTICSEARCH_HOST = env("AUDIT_LOG_ELASTICSEARCH_HOST")
+AUDIT_LOG_ELASTICSEARCH_PORT = env("AUDIT_LOG_ELASTICSEARCH_PORT")
+AUDIT_LOG_ELASTICSEARCH_USERNAME = env("AUDIT_LOG_ELASTICSEARCH_USERNAME")
+AUDIT_LOG_ELASTICSEARCH_PASSWORD = env("AUDIT_LOG_ELASTICSEARCH_PASSWORD")
+ENABLE_SEND_AUDIT_LOG = env("ENABLE_SEND_AUDIT_LOG")
+
+# Drupal auth
+DRUPAL_SERVER_AUTH_TOKEN = env.str("DRUPAL_SERVER_AUTH_TOKEN")
+DEFAULT_SOLD_APARMENT_TIME_RANGE = env.int("DEFAULT_SOLD_APARMENT_TIME_RANGE")  # hours
+DEFAULT_APARTMENT_REVALUATION_TIME_RANGE = env.int(
+    "DEFAULT_APARTMENT_REVALUATION_TIME_RANGE"
+)  # hours
 
 # local_settings.py can be used to override environment-specific settings
 # like database and email that differ between development and production.

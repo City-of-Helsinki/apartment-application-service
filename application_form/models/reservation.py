@@ -41,6 +41,8 @@ class ApartmentReservationQuerySet(models.QuerySet):
             .select_related("customer__primary_profile")
             .select_related("customer__secondary_profile")
             .select_related("application_apartment")
+            .select_related("application_apartment__lotteryeventresult")
+            .select_related("revaluation")
         )
 
     def active(self):
