@@ -44,7 +44,11 @@ def send_needed_installments_to_sap() -> (int, datetime):
 
 def fetch_payments_from_sap() -> (int, int):
     with SFTPConnection() as sftp_connection:
-        filenames = [f for f in sftp_connection.get_filenames() if f.endswith(".txt")]
+        filenames = [
+            filename
+            for filename in sftp_connection.get_filenames()
+            if filename.upper().endswith(".TXT")
+        ]
         logger.debug(f"Filenames: {filenames}")
 
         num_of_payments = 0
