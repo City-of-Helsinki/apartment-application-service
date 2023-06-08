@@ -108,7 +108,7 @@ def create_pdf(
 
 def _set_pdf_fields(pdf: Pdf, data_dict: DataDict, idx: None) -> None:
     for page in pdf.pages:
-        for annot in page.Annots:
+        for annot in getattr(page, "Annots", []):
             if not hasattr(annot, "FT") and str(annot.Parent.T) in data_dict:
                 pdf_value = String(data_dict[str(annot.Parent.T)])
                 annot.Parent.V = pdf_value
