@@ -129,16 +129,33 @@ For Django, this project mostly follows the styleguide defined in
 ## SAP Integration
 To be able to send installments to SAP, the following settings need to be set:
 ```
-SAP_SFTP_USERNAME
-SAP_SFTP_PASSWORD
-SAP_SFTP_HOST
-SAP_SFTP_PORT
+SAP_SFTP_SEND_USERNAME
+SAP_SFTP_SEND_PASSWORD
+SAP_SFTP_SEND_HOST
+SAP_SFTP_SEND_PORT
 ```
 Also,
 ```
 python manage.py send_installments_to_sap
 ```
 needs to be run periodically.
+
+For fetching payments from SAP, the following settings need to be set:
+```
+SAP_SFTP_FETCH_USERNAME
+SAP_SFTP_FETCH_PASSWORD
+SAP_SFTP_FETCH_HOST
+SAP_SFTP_FETCH_PORT
+```
+Also,
+```
+python manage.py fetch_payments_from_sap
+```
+needs to be run periodically.
+
+You may also use variables named `SAP_SFTP_USERNAME`,
+`SAP_SFTP_PASSWORD`, `SAP_SFTP_HOST` and `SAP_SFTP_PORT` to set default
+values for the corresponding send/fetch settings.
 
 ### Testing / exceptional situations
 

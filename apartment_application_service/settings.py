@@ -77,7 +77,16 @@ env = environ.Env(
     SAP_SFTP_HOST=(str, ""),
     SAP_SFTP_PORT=(int, 22),
     SAP_SFTP_FILENAME_PREFIX=(str, "MR_IN_ID066_2800_"),
+    SAP_SFTP_SEND_USERNAME=(str, ""),
+    SAP_SFTP_SEND_PASSWORD=(str, ""),
+    SAP_SFTP_SEND_HOST=(str, ""),
+    SAP_SFTP_SEND_PORT=(int, 22),
+    SAP_SFTP_SEND_FILENAME_PREFIX=(str, "MR_IN_ID066_2800_"),
     SAP_DAYS_UNTIL_INSTALLMENT_DUE_DATE=(int, 30),
+    SAP_SFTP_FETCH_USERNAME=(str, ""),
+    SAP_SFTP_FETCH_PASSWORD=(str, ""),
+    SAP_SFTP_FETCH_HOST=(str, ""),
+    SAP_SFTP_FETCH_PORT=(int, 22),
     METADATA_HANDLER_INFORMATION=(
         str,
         "0201256-6 / Kaupunkiympäristön toimiala / Asuntotuotanto / Asuntomyynti",
@@ -329,15 +338,33 @@ SAP = {
     },
 }
 
+# Common SAP SFTP settings for both Send and Fetch.
+#
+# These will be used as defaults for both sending and fetching
 SAP_SFTP_USERNAME = env("SAP_SFTP_USERNAME")
 SAP_SFTP_PASSWORD = env("SAP_SFTP_PASSWORD")
 SAP_SFTP_HOST = env("SAP_SFTP_HOST")
 SAP_SFTP_PORT = env("SAP_SFTP_PORT")
 SAP_SFTP_FILENAME_PREFIX = env("SAP_SFTP_FILENAME_PREFIX")
 
+# SAP SFTP settings for sending (invoices/installments)
+SAP_SFTP_SEND_USERNAME = env("SAP_SFTP_SEND_USERNAME", default=SAP_SFTP_USERNAME)
+SAP_SFTP_SEND_PASSWORD = env("SAP_SFTP_SEND_PASSWORD", default=SAP_SFTP_PASSWORD)
+SAP_SFTP_SEND_HOST = env("SAP_SFTP_SEND_HOST", default=SAP_SFTP_HOST)
+SAP_SFTP_SEND_PORT = env("SAP_SFTP_SEND_PORT", default=SAP_SFTP_PORT)
+SAP_SFTP_SEND_FILENAME_PREFIX = env(
+    "SAP_SFTP_SEND_FILENAME_PREFIX", default=SAP_SFTP_FILENAME_PREFIX
+)
+
 # Installments won't be sent to SAP before their due date is at least this close
 # (in days)
 SAP_DAYS_UNTIL_INSTALLMENT_DUE_DATE = env("SAP_DAYS_UNTIL_INSTALLMENT_DUE_DATE")
+
+# SAP SFTP settings for fetching (payment statuses)
+SAP_SFTP_FETCH_USERNAME = env("SAP_SFTP_FETCH_USERNAME", default=SAP_SFTP_USERNAME)
+SAP_SFTP_FETCH_PASSWORD = env("SAP_SFTP_FETCH_PASSWORD", default=SAP_SFTP_PASSWORD)
+SAP_SFTP_FETCH_HOST = env("SAP_SFTP_FETCH_HOST", default=SAP_SFTP_HOST)
+SAP_SFTP_FETCH_PORT = env("SAP_SFTP_FETCH_PORT", default=SAP_SFTP_PORT)
 
 # Elasticsearch
 ELASTICSEARCH_URL = env("ELASTICSEARCH_URL")

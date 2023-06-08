@@ -87,7 +87,7 @@ def send_email_notification_to_talpa(count: int, timestamp: datetime):
 
 def generate_sap_xml_filename(timestamp: datetime) -> str:
     return (
-        settings.SAP_SFTP_FILENAME_PREFIX
+        settings.SAP_SFTP_SEND_FILENAME_PREFIX
         + f"{timestamp.strftime('%Y%m%d%H%M%S')}"
         + ".xml"
     )
@@ -102,13 +102,13 @@ def send_xml_to_sap(
         filename = generate_sap_xml_filename(timestamp)
     logger.debug(
         f"Sending XML file {filename} "
-        f"to {settings.SAP_SFTP_HOST}:{settings.SAP_SFTP_PORT}"
+        f"to {settings.SAP_SFTP_SEND_HOST}:{settings.SAP_SFTP_SEND_PORT}"
     )
     sftp_put_file_object(
-        settings.SAP_SFTP_HOST,
-        settings.SAP_SFTP_USERNAME,
-        settings.SAP_SFTP_PASSWORD,
+        settings.SAP_SFTP_SEND_HOST,
+        settings.SAP_SFTP_SEND_USERNAME,
+        settings.SAP_SFTP_SEND_PASSWORD,
         BytesIO(xml),
         filename,
-        settings.SAP_SFTP_PORT,
+        settings.SAP_SFTP_SEND_PORT,
     )

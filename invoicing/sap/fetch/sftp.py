@@ -14,10 +14,10 @@ class SFTPConnection:
         password: Optional[str] = None,
         port: Optional[int] = 22,
     ):
-        self.host = host or settings.SAP_SFTP_HOST
-        self.username = username or settings.SAP_SFTP_USERNAME
-        self.password = password or settings.SAP_SFTP_PASSWORD
-        self.port = port or settings.SAP_SFTP_PORT
+        self.host = host or settings.SAP_SFTP_FETCH_HOST
+        self.username = username or settings.SAP_SFTP_FETCH_USERNAME
+        self.password = password or settings.SAP_SFTP_FETCH_PASSWORD
+        self.port = port or settings.SAP_SFTP_FETCH_PORT
 
     def __enter__(self):
         self.transport = paramiko.Transport((self.host, self.port))
