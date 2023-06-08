@@ -58,17 +58,17 @@ def fetch_payments_from_sap() -> (int, int):
                 payment_data_file = sftp_connection.get_file(filename)
                 num_of_payments += process_payment_data(payment_data_file, filename)
             except SapPaymentDataAlreadyProcessedError:
-                logger.warning(f'Payment data file "{filename}" already processed')
-            except Exception as e:  # noqa
-                logger.exception(f'Error handling payment data file "{filename}": {e}')
+                logger.warning("Payment data file %s already processed", filename)
+            except Exception:
+                logger.exception("Error handling payment data file: %s", filename)
                 continue
             else:
                 num_of_files += 1
 
             try:
                 sftp_connection.rename_file(filename, f"arch/{filename}")
-            except Exception as e:  # noqa
-                logger.exception(f'Error renaming payment data file "{filename}": {e}')
+            except Exception:
+                logger.exception("Error renaming payment data file: %s", filename)
 
     return num_of_payments, num_of_files
 
