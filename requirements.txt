@@ -14,7 +14,7 @@ bcrypt==3.2.0
     # via paramiko
 cachetools==4.2.2
     # via django-helusers
-certifi==2021.5.30
+certifi==2023.7.22
     # via
     #   elasticsearch
     #   requests
