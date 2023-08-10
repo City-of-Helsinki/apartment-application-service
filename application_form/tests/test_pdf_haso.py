@@ -10,7 +10,11 @@ import pytest
 
 from apartment_application_service.pdf import PDFCurrencyField as CF
 
-from ..pdf.haso import create_haso_contract_pdf_from_data, HasoContractPDFData
+from ..pdf.haso import (
+    create_haso_contract_pdf_from_data,
+    create_haso_contract_pdf_from_dict,
+    HasoContractPDFData,
+)
 
 # This variable should be normally False, but can be set temporarily to
 # True to override the expected test result PDF file.  This is useful
@@ -18,9 +22,97 @@ from ..pdf.haso import create_haso_contract_pdf_from_data, HasoContractPDFData
 # a new expected result PDF file needs to be generated.  Remember to
 # revert this variable back to False to ensure that the test is
 # actually testing the expected result.
-OVERRIDE_EXPECTED_TEST_RESULT_PDF_FILE = False
+OVERRIDE_EXPECTED_TEST_RESULT_PDF_FILE = True
 
 my_dir = pathlib.Path(__file__).parent
+
+
+def test_haso_contract_pdf_from_dict():
+    data = {
+        "Asumisoikeuden haltijan 1 nimi": "X:Asumisoikeuden haltijan 1 nimi",
+        "Asumisoikeuden haltijan 2 nimi": "X:Asumisoikeuden haltijan 2 nimi",
+        "Osoite 1": "X:Osoite 1",
+        "Osoite 2": "X:Osoite 2",
+        "Puhelin 1": "X:Puhelin 1",
+        "Puhelin 2": "X:Puhelin 2",
+        "Sähköposti 1": "X:Sähköposti 1",
+        "Sähköposti 2": "X:Sähköposti 2",
+        "Henkilötunnus 1": "X:Henkilötunnus 1",
+        "Henkilötunnus 2": "X:Henkilötunnus 2",
+        "Asumisoikeuden hyväksyjä": "X:Asumisoikeuden hyväksyjä",
+        "Hyväksymispäivämäärä": "X:Hyväksymispäivämäärä",
+        "Järjestysnumero": "X:Järjestysnumero",
+        "Asumisoikeuskohteen nimi": "X:Asumisoikeuskohteen nimi",
+        "Asumisoikeuskohteen osoite": "X:Asumisoikeuskohteen osoite",
+        "Huoneiston numero": "X:Huoneiston numero",
+        "Huoneiston osoite jos poikkeaa asumisoikeuskohteen osoitteesta": "X:Huoneiston osoite jos poikkeaa asumisoikeuskohteen osoitteesta",
+        "Huoneistotyyppi huoneluku": "X:Huoneistotyyppi huoneluku",
+        "Huoneiston pintaala m2 1": "X:Huoneiston pintaala m2 1",
+        "Sijaintikerros": "X:Sijaintikerros",
+        "Asumisoikeustalon rakentamisvaiheesta perittävä asumisoikeusmaksu": "X:Asumisoikeustalon rakentamisvaiheesta perittävä asumisoikeusmaksu",
+        "Indeksikorotus": "X:Indeksikorotus",
+        "Lisä ja muutostyöt": "X:Lisä ja muutostyöt",
+        "Kunnan vahvistama asumisoikeuden enimmäishinta": "X:Kunnan vahvistama asumisoikeuden enimmäishinta",
+        "Kunnan päätös": "X:Kunnan päätös",
+        "erääntynyt": "X:erääntynyt",
+        "ei erääntynyt": "X:ei erääntynyt",
+        "Luovuttajan tai häntä edeltäneiden asumisoikeuden haltijoiden huoneistoon tekemien tai hallintaaikanaan rahoittamien kohtuullisten parannusten arvo luovutushetkellä": "X:Luovuttajan tai häntä edeltäneiden asumisoikeuden haltijoiden huoneistoon tekemien tai hallintaaikanaan rahoittamien kohtuullisten parannusten arvo luovutushetkellä",
+        "talonomistajalle": "X:talonomistajalle",
+        "luovuttajalle": "X:luovuttajalle",
+        "Luovutushinta": "X:Luovutushinta",
+        "kokonaan vastikkeellinen": "X:kokonaan vastikkeellinen",
+        "osittain vastikkeellinen": "X:osittain vastikkeellinen",
+        "Asumisoikeudesta suoritettavat maksut kuitataan kokonaisuudessaan suoritetuksi": "X:Asumisoikeudesta suoritettavat maksut kuitataan kokonaisuudessaan suoritetuksi",
+        "Asumisoikeudesta suoritettavasta maksusta kuitataan tämän sopimuksen": "X:Asumisoikeudesta suoritettavasta maksusta kuitataan tämän sopimuksen",
+        "Asumisoikeusmaksu erääntyy maksettavaksi seuraavan maksuaikataulun mukaan": "X:Asumisoikeusmaksu erääntyy maksettavaksi seuraavan maksuaikataulun mukaan",
+        "osittain lahjana": "X:osittain lahjana",
+        "perintönä": "X:perintönä",
+        "testamenttina": "X:testamenttina",
+        "puolisoiden omaisuuden osituksessa tai erottelussa": "X:puolisoiden omaisuuden osituksessa tai erottelussa",
+        "yhteisomistussuhteen purkamisessa": "X:yhteisomistussuhteen purkamisessa",
+        "lahjana": "X:lahjana",
+        "perintönä_2": "X:perintönä_2",
+        "testamenttina_2": "X:testamenttina_2",
+        "puolisoiden omaisuuden osituksessa tai erottelussa_2": "X:puolisoiden omaisuuden osituksessa tai erottelussa_2",
+        "yhteisomistussuhteen purkamisessa_2": "X:yhteisomistussuhteen purkamisessa_2",
+        "Asumisoikeuden haltijat ovat velvollisia suorittamaan lisäksi seuraavia käyttökorvauksia": "X:Asumisoikeuden haltijat ovat velvollisia suorittamaan lisäksi seuraavia käyttökorvauksia",
+        "Huoneisto ja muut tilat luovutetaan siinä kunnossa missä ne luovutushetkellä ovat": "X:Huoneisto ja muut tilat luovutetaan siinä kunnossa missä ne luovutushetkellä ovat",
+        "Talonomistaja sitoutuu suorittamaan ilman eri korvausta huoneistossa tai muissa": "X:Talonomistaja sitoutuu suorittamaan ilman eri korvausta huoneistossa tai muissa",
+        "Mihin mennessä": "X:Mihin mennessä",
+        "Mitkä korjaukset": "X:Mitkä korjaukset",
+        "Asumisoikeuden haltija saa hallintaansa asumisoikeuden kohteena olevan huoneiston ja muut tilat arviolta pvm": "X:Asumisoikeuden haltija saa hallintaansa asumisoikeuden kohteena olevan huoneiston ja muut tilat arviolta pvm",
+        "Asumisoikeuden haltijalla on lisäksi oikeus Asumisoikeuden haltijalla ja hänen kanssaan asuvalla on lisäksi oikeus": "X:Asumisoikeuden haltijalla on lisäksi oikeus Asumisoikeuden haltijalla ja hänen kanssaan asuvalla on lisäksi oikeus",
+        "Asumisoikeuden haltijalla on lisäksi oikeus": "X:Asumisoikeuden haltijalla on lisäksi oikeus",
+        "Asumisoikeuden haltijalla ja hänen kanssaan asuvalla on lisäksi oikeus": "X:Asumisoikeuden haltijalla ja hänen kanssaan asuvalla on lisäksi oikeus",
+        "Paikka ja aika": "X:Paikka ja aika",
+        "Valtakirjalla": "X:Valtakirjalla",
+        "Asumisoikeuden haltija 1": "X:Asumisoikeuden haltija 1",
+        "Asumisoikeuden haltija 2": "X:Asumisoikeuden haltija 2",
+        "Rakentamisvaiheesta perittävän asumisoikeusmaksun tarkistus": "X:Rakentamisvaiheesta perittävän asumisoikeusmaksun tarkistus",
+        "Muut ehdot ja sopimuksenteon yhteydessä asiakkaalle luovutetut asiakirjat": "X:Muut ehdot ja sopimuksenteon yhteydessä asiakkaalle luovutetut asiakirjat",
+        "€ kk": "X:€ kk",
+        "m2 kk": "X:m2 kk",
+        "Rakentamisvaihe tai muu maksuajankohdan peruste erä1": "X:Rakentamisvaihe tai muu maksuajankohdan peruste erä1",
+        "Rakentamisvaihe tai muu maksuajankohdan peruste erä 2": "X:Rakentamisvaihe tai muu maksuajankohdan peruste erä 2",
+        "Rakentamisvaihe tai muu maksuajankohdan peruste erä 3": "X:Rakentamisvaihe tai muu maksuajankohdan peruste erä 3",
+        "Asumisoikeusmaksulle sen erääntymisestä tähän päivään saakka rakennuskustannusindeksin muutoksen mukaan laskettu indeksikorotus 4 lisäkohta": "X:Asumisoikeusmaksulle sen erääntymisestä tähän päivään saakka rakennuskustannusindeksin muutoksen mukaan laskettu indeksikorotus 4 lisäkohta",
+        "Eräpäivämäärä erä 1": "X:Eräpäivämäärä erä 1",
+        "Maksuajankohdan peruste erä 1": "X:Maksuajankohdan peruste erä 1",
+        "Maksuerän suuruus erä 1": "X:Maksuerän suuruus erä 1",
+        "Eräpäivämäärä erä 2": "X:Eräpäivämäärä erä 2",
+        "Maksuajankohdan peruste erä 2": "X:Maksuajankohdan peruste erä 2",
+        "Maksuerän suuruus erä 2": "X:Maksuerän suuruus erä 2",
+        "Eräpäivämäärä erä 3": "X:Eräpäivämäärä erä 3",
+        "Maksuajankohdan peruste erä 3": "X:Maksuajankohdan peruste erä 3",
+        "Maksuerän suuruus erä 3": "X:Maksuerän suuruus erä 3",
+        "Luovuttaja": "X:Luovuttaja",
+        "Luovutus": "X:Luovutus",
+        "Luovutusajankohta": "X:Luovutusajankohta",
+        "Asumisoikeusmaksu": "X:Asumisoikeusmaksu",
+    }
+    result = create_haso_contract_pdf_from_dict(data)
+    write_file("haso_contract_test_result_2.pdf", result.getvalue())
+    assert False
 
 
 CONTRACT_PDF_DATA = HasoContractPDFData(

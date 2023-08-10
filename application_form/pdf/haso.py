@@ -247,6 +247,19 @@ def create_haso_contract_pdf_from_data(pdf_data: HasoContractPDFData) -> BytesIO
     return create_pdf(HASO_CONTRACT_PDF_TEMPLATE_FILE_NAME, pdf_data)
 
 
+class DictPDFData(PDFData):
+    def __init__(self, data: Dict[str, str]):
+        self.data = data
+
+    def to_data_dict(self) -> Dict[str, str]:
+        return self.data
+
+
+def create_haso_contract_pdf_from_dict(data: Dict[str, str]) -> BytesIO:
+    pdf_data = DictPDFData(data)
+    return create_pdf(HASO_CONTRACT_PDF_TEMPLATE_FILE_NAME, pdf_data)
+
+
 def create_haso_release_pdf(
     sales_person_name: str, reservation: ApartmentReservation
 ) -> BytesIO:
