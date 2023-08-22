@@ -25,6 +25,8 @@ from customer.models import Customer
 from invoicing.models import ApartmentInstallment, ProjectInstallmentTemplate
 from users.models import Profile
 
+from .logger import LOG
+
 ADDED_TO_SAP_AT = datetime(2022, 1, 1)
 DEFAULT_OFFER_VALID_UNTIL = date(2022, 10, 10)
 DEFAULT_SSN_SUFFIX = "XXXXX"
@@ -526,6 +528,7 @@ def run_asko_import(
     flush=False,
     flush_all=False,
 ):
+    LOG.info("Starting AsKo import")
     with transaction.atomic():
         if flush_all:
             _flush()

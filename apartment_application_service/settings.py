@@ -251,6 +251,7 @@ LOGGING = {
             # required to avoid double logging with root logger
             "propagate": False,
         },
+        "asko_import": {"level": env("APPS_LOG_LEVEL")},
     },
 }
 
