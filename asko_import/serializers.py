@@ -24,6 +24,7 @@ from .fields import (
     CustomDateTimeField,
     CustomDecimalField,
     CustomPrimaryKeyRelatedField,
+    TruncatingCharField,
 )
 from .object_store import get_object_store
 
@@ -58,6 +59,7 @@ class CustomModelSerializer(EnumSupportSerializerMixin, serializers.ModelSeriali
 
 
 class ProfileSerializer(CustomModelSerializer):
+    first_name = TruncatingCharField(max_length=30, required=False)
     email = serializers.CharField(required=False)
     phone_number = serializers.CharField(required=False)
     street_address = serializers.CharField(required=False)
@@ -84,6 +86,7 @@ class CustomerSerializer(CustomModelSerializer):
 
 class ApplicantSerializer(CustomModelSerializer):
     application = CustomPrimaryKeyRelatedField(queryset=Application.objects.all())
+    first_name = TruncatingCharField(max_length=30, required=False)
     email = serializers.CharField(required=False)
     phone_number = serializers.CharField(required=False)
     street_address = serializers.CharField(required=False)

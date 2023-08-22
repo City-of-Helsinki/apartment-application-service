@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from .log_utils import log_debug_data
+from .logger import LOG
 from .object_store import get_object_store
 
 _object_store = get_object_store()
@@ -38,3 +40,23 @@ class CustomPrimaryKeyRelatedField(serializers.PrimaryKeyRelatedField):
         return super().to_internal_value(
             _object_store.get(self.queryset.model, data).pk
         )
+
+
+class TruncatingCharField(serializers.CharField):
+    def __init__(self, *, max_length: int, **kwargs):
+        assert isinstance(max_length, int) and max_length > 0
+        super().__init__(max_length=max_length, **kwargs)
+        self.max_length = max_length
+
+    def to_internal_value(self, data):
+        if isinstance(data, str) and len(data) > self.max_length:
+            LOG.warning(
+                "Truncating %d characters to %d characters in field %s",
+                len(data),
+                self.max_length,
+                self.field_name,
+            )
+            truncated = data[: self.max_length]
+            log_debug_data("Truncation: %s -> %s", data, truncated)
+            data = truncated
+        return super().to_internal_value(data)
