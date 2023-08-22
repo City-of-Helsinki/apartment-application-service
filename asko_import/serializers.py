@@ -63,7 +63,7 @@ class ProfileSerializer(CustomModelSerializer):
     street_address = serializers.CharField(required=False)
     postal_code = serializers.CharField(required=False)
     city = serializers.CharField(required=False)
-    date_of_birth = CustomDateField(required=False)
+    date_of_birth = CustomDateField(required=False, default=DEFAULT_DATE_OF_BIRTH)
 
     class Meta:
         model = Profile
