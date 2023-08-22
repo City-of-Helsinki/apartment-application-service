@@ -172,6 +172,7 @@ INSTALLED_APPS = [
     # local apps
     "apartment",
     "application_form",
+    "asko_import",
     "connections",
     "customer",
     "users",

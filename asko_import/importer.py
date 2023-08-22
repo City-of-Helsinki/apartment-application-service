@@ -1,12 +1,14 @@
 import csv
+import os
 import uuid
 from collections import defaultdict
 from datetime import date, datetime
+from typing import Tuple
+
 from django.contrib.auth import get_user_model
 from django.db import models, transaction
 from enumfields.drf import EnumSupportSerializerMixin
 from rest_framework import serializers
-from typing import Tuple
 
 from application_form.enums import ApartmentReservationState, ApplicationType
 from application_form.models import (
@@ -545,19 +547,3 @@ def run_asko_import(
             print("Done.")
 
     print("All done!")
-
-
-# allows running like commit=1 ./manage.py shell < asko_import.py
-if __name__ == "django.core.management.commands.shell":
-    import os
-
-    def get_boolean_env_var(var_name):
-        return os.getenv(var_name, "False").lower() in ("true", "1", "t")
-
-    directory = os.getenv("directory")
-    commit = get_boolean_env_var("commit")
-    ignore_errors = get_boolean_env_var("ignore_errors")
-    flush = get_boolean_env_var("flush")
-    flush_all = get_boolean_env_var("flush_all")
-
-    run_asko_import(directory, commit, ignore_errors, flush, flush_all)
