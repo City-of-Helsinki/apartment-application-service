@@ -13,8 +13,8 @@ class ObjectStore:
     def get(self, model, asko_id):
         try:
             return self.data[model][asko_id]
-        except AttributeError:
-            raise Exception(f"{model} asko_id {asko_id} not saved!")
+        except KeyError:
+            raise KeyError(f"{model.__name__} asko_id={asko_id} not saved")
 
     def get_instances(self, model):
         return self.data[model].values()
