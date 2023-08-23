@@ -1,7 +1,6 @@
 import csv
 import os
 import uuid
-from collections import defaultdict
 from datetime import date, datetime
 from typing import Tuple
 
@@ -10,7 +9,7 @@ from django.db import models, transaction
 from enumfields.drf import EnumSupportSerializerMixin
 from rest_framework import serializers
 
-from application_form.enums import ApartmentReservationState, ApplicationType
+from application_form.enums import ApartmentReservationState
 from application_form.models import (
     ApartmentReservation,
     ApartmentReservationStateChangeEvent,
@@ -25,7 +24,17 @@ from customer.models import Customer
 from invoicing.models import ApartmentInstallment, ProjectInstallmentTemplate
 from users.models import Profile
 
+from .fields import (
+    CustomBooleanField,
+    CustomDateField,
+    CustomDateTimeField,
+    CustomDecimalField,
+    CustomPrimaryKeyRelatedField,
+)
 from .logger import LOG
+from .object_store import get_object_store
+
+_object_store = get_object_store()
 
 ADDED_TO_SAP_AT = datetime(2022, 1, 1)
 DEFAULT_OFFER_VALID_UNTIL = date(2022, 10, 10)
@@ -43,85 +52,6 @@ def get_project_uuid(asko_id):
 
 def get_apartment_uuid(asko_id):
     return uuid.uuid5(APARTMENT_UUID_NAMESPACE, asko_id)
-
-
-class ObjectStore:
-    """Contains already imported objects grouped by their models."""
-
-    data = defaultdict(dict)
-
-    def get(self, model, asko_id):
-        try:
-            return self.data[model][asko_id]
-        except AttributeError:
-            raise Exception(f"{model} asko_id {asko_id} not saved!")
-
-    def get_instances(self, model):
-        return self.data[model].values()
-
-    def get_ids(self, model):
-        return [o.pk for o in self.get_instances(model)]
-
-    def put(self, asko_id, instance):
-        model = type(instance)
-        if model not in self.data or asko_id not in self.data[model]:
-            self.data[model][asko_id] = instance
-
-    def get_apartment_uuids(self):
-        return set(r.apartment_uuid for r in self.data[ApartmentReservation].values())
-
-    def get_hitas_apartment_uuids(self):
-        return set(
-            r.apartment_uuid
-            for r in self.data[ApartmentReservation].values()
-            if r.application_apartment.application.type
-            in (ApplicationType.HITAS, ApplicationType.PUOLIHITAS)
-        )
-
-    def get_haso_apartment_uuids(self):
-        return set(
-            r.apartment_uuid
-            for r in self.data[ApartmentReservation].values()
-            if r.application_apartment.application.type == ApplicationType.HASO
-        )
-
-
-_object_store = ObjectStore()
-
-
-class CustomBooleanField(serializers.BooleanField):
-    def to_internal_value(self, data):
-        if data == "0":
-            return False
-        elif data == "-1":
-            return True
-        return super().to_internal_value(data)
-
-
-class CustomDateField(serializers.DateField):
-    def __init__(self, *args, **kwargs):
-        kwargs["input_formats"] = ["%d.%m.%Y", "%d.%m.%Y %H:%M:%S"]
-        super().__init__(*args, **kwargs)
-
-
-class CustomDateTimeField(serializers.DateTimeField):
-    def __init__(self, *args, **kwargs):
-        kwargs["input_formats"] = ["%d.%m.%Y %H:%M:%S"]
-        super().__init__(*args, **kwargs)
-
-
-class CustomDecimalField(serializers.DecimalField):
-    def to_internal_value(self, data):
-        if type(data) is str:
-            data = data.replace(" ", "").replace(",", ".").replace("€", "")
-        return super().to_internal_value(data)
-
-
-class CustomPrimaryKeyRelatedField(serializers.PrimaryKeyRelatedField):
-    def to_internal_value(self, data):
-        return super().to_internal_value(
-            _object_store.get(self.queryset.model, data).pk
-        )
 
 
 class CustomModelSerializer(EnumSupportSerializerMixin, serializers.ModelSerializer):
@@ -536,8 +466,7 @@ def run_asko_import(
         elif flush:
             _flush()
         else:
-            global _object_store
-            _object_store = ObjectStore()
+            _object_store.clear()
 
             _import_data(directory=directory, ignore_errors=ignore_errors)
             _set_hitas_reservation_positions()
