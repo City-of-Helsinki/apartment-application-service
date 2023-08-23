@@ -26,6 +26,7 @@ from .fields import (
     CustomPrimaryKeyRelatedField,
     TruncatingCharField,
 )
+from .nin_utils import fix_nin_and_log_if_changed
 from .object_store import get_object_store
 
 _object_store = get_object_store()
@@ -73,6 +74,14 @@ class ProfileSerializer(CustomModelSerializer):
 
     def to_internal_value(self, data):
         data["contact_language"] = "fi"
+
+        current_object_name = f"profile asko_id={data['id']}"
+
+        # Fix some known problems with the National Identification Numbers
+        nin = data.get("national_identification_number")
+        nin = fix_nin_and_log_if_changed(nin, current_object_name)
+        data["national_identification_number"] = nin
+
         return super().to_internal_value(data)
 
 

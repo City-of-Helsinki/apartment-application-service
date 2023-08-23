@@ -39,3 +39,23 @@ def redact_nin_values(data: Any) -> Any:
 
 def is_nin_field_name(field_name: str) -> bool:
     return any(x in field_name.lower() for x in NIN_FIELD_NAMES)
+
+
+def fix_nin_and_log_if_changed(nin: str, owner_name: str) -> str:
+    fixed_nin = fix_nin(nin)
+    if fixed_nin != nin:
+        from .log_utils import log_debug_nin_data
+
+        LOG.warning("Modified NIN of %s", owner_name)
+        log_debug_nin_data("Modified NIN: %s -> %s", nin, fixed_nin)
+    return fixed_nin
+
+
+def fix_nin(nin: str) -> str:
+    if nin and len(nin) > 11:  # Too long value
+        nin = nin.replace(" ", "")  # Remove spaces
+        if "--" in nin:
+            nin = nin.replace("--", "-")
+        if len(nin) > 11:
+            nin = nin[:11]
+    return nin
