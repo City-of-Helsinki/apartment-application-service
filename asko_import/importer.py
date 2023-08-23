@@ -1,6 +1,6 @@
 import csv
 import os
-from typing import Tuple
+from typing import Tuple, Type
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
@@ -63,7 +63,8 @@ def _import_data(directory=None, ignore_errors=False):
     directory = directory or ""
 
     def import_model(
-        filename: str, serializer_class: type(serializers.ModelSerializer)
+        filename: str,
+        serializer_class: Type[serializers.ModelSerializer],
     ) -> Tuple[int, int]:
         imported = 0
         name = serializer_class.Meta.model.__name__ + "s"
