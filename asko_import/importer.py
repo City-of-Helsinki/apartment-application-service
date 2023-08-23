@@ -20,6 +20,7 @@ from customer.models import Customer
 from invoicing.models import ApartmentInstallment, ProjectInstallmentTemplate
 from users.models import Profile
 
+from .log_utils import log_debug_data
 from .logger import LOG
 from .object_store import get_object_store
 from .serializers import (
@@ -67,30 +68,43 @@ def _import_data(directory=None, ignore_errors=False):
         serializer_class: Type[serializers.ModelSerializer],
     ) -> Tuple[int, int]:
         imported = 0
-        name = serializer_class.Meta.model.__name__ + "s"
+        name = serializer_class.Meta.model.__name__
         file_path = os.path.join(directory, filename)
-        print(f"Importing {name}...", end=" ")
+        LOG.info("Importing %ss from %s", name, filename)
 
         with open(file_path, mode="r", encoding="utf-8-sig") as csv_file:
+            count = sum(1 for _ in csv.DictReader(csv_file, delimiter=";"))
+            print(f"[{count} entries]", end="", flush=True)
+            csv_file.seek(0)
+
             reader = csv.DictReader(csv_file, delimiter=";")
             for index, row in enumerate(reader, 1):
+                if index % 500 == 0:
+                    if index % 5000 == 0:
+                        print(f"({index})", end="", flush=True)
+                    else:
+                        print(".", end="", flush=True)
                 row = {k.lower(): v for k, v in row.items() if v != ""}
+                eid = row["id"]  # External ID (aka AsKo ID) of the row
                 serializer = serializer_class(data=row)
                 try:
                     serializer.is_valid(raise_exception=True)
                     instance = serializer.save()
-                except Exception as e:  # noqa
-                    print(f"Cannot import {name} {row}, error: {e}")
+                except Exception:
+                    LOG.exception("Failed to import %s asko_id=%s", name, eid)
+                    log_debug_data("Row data: %s", row)
                     if ignore_errors:
                         continue
                     else:
                         raise
-                _object_store.put(row["id"], instance)
+                _object_store.put(eid, instance)
                 imported += 1
 
-        print(f"Done. Imported {imported} / {index} {name}")
+        print("Done.")
+        failed = count - imported
+        LOG.info("Imported %d %ss (failed: %d)", imported, name, failed)
 
-        return imported, index
+        return imported, count
 
     print("Importing data from AsKo...")
 
