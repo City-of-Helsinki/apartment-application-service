@@ -38,7 +38,7 @@ class CustomDecimalField(serializers.DecimalField):
 class CustomPrimaryKeyRelatedField(serializers.PrimaryKeyRelatedField):
     def to_internal_value(self, data):
         return super().to_internal_value(
-            _object_store.get(self.queryset.model, data).pk
+            _object_store.get_id(self.queryset.model, data)
         )
 
 

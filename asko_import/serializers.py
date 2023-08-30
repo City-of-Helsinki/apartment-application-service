@@ -172,7 +172,7 @@ class ApartmentReservationSerializer(
         data["apartment_uuid"] = get_apartment_uuid(data["apartment_uuid"])
 
         data["state"] = data.pop("state").lower().replace(" ", "_")
-        data["customer"] = _object_store.get(Customer, data["customer"]).pk
+        data["customer"] = _object_store.get_id(Customer, data["customer"])
 
         # will be populated later
         data["list_position"] = 0

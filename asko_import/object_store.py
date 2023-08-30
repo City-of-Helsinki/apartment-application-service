@@ -6,44 +6,38 @@ from application_form.models import ApartmentReservation
 
 
 class ObjectStore:
-    """Contains already imported objects grouped by their models."""
+    """Contains IDs of already imported objects grouped by their models."""
 
     data = defaultdict(dict)
 
-    def get(self, model, asko_id):
+    def get_id(self, model, asko_id):
         try:
             return self.data[model][asko_id]
         except KeyError:
             raise KeyError(f"{model.__name__} asko_id={asko_id} not saved")
 
-    def get_instances(self, model):
-        return self.data[model].values()
+    def get_objects(self, model):
+        return model.objects.filter(pk__in=self.get_ids(model))
 
     def get_ids(self, model):
-        return [o.pk for o in self.get_instances(model)]
+        return self.data[model].values()
 
     def put(self, asko_id, instance):
         model = type(instance)
         if model not in self.data or asko_id not in self.data[model]:
-            self.data[model][asko_id] = instance
-
-    def get_apartment_uuids(self):
-        return set(r.apartment_uuid for r in self.data[ApartmentReservation].values())
+            self.data[model][asko_id] = instance.pk
 
     def get_hitas_apartment_uuids(self):
-        return set(
-            r.apartment_uuid
-            for r in self.data[ApartmentReservation].values()
-            if r.application_apartment.application.type
-            in (ApplicationType.HITAS, ApplicationType.PUOLIHITAS)
-        )
+        hitas_types = [ApplicationType.HITAS, ApplicationType.PUOLIHITAS]
+        return self.get_apartment_uuids_by_types(hitas_types)
 
     def get_haso_apartment_uuids(self):
-        return set(
-            r.apartment_uuid
-            for r in self.data[ApartmentReservation].values()
-            if r.application_apartment.application.type == ApplicationType.HASO
-        )
+        return self.get_apartment_uuids_by_types([ApplicationType.HASO])
+
+    def get_apartment_uuids_by_types(self, types):
+        all = self.get_objects(ApartmentReservation)
+        res = all.filter(application_apartment__application__type__in=types)
+        return res.values_list("apartment_uuid", flat=True).distinct()
 
     def clear(self):
         self.data.clear()

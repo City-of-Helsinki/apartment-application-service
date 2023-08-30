@@ -3,7 +3,7 @@ import os
 from typing import Tuple, Type
 
 from django.contrib.auth import get_user_model
-from django.db import transaction
+from django.db import models, transaction
 from rest_framework import serializers
 
 from application_form.enums import ApartmentReservationState
@@ -112,10 +112,11 @@ def _import_data(directory=None, ignore_errors=False):
     import_model("customer.txt", CustomerSerializer)
     import_model("Application.txt", ApplicationSerializer)
     import_model("Applicant.txt", ApplicantSerializer)
-    for application in _object_store.get_instances(Application):
-        Application.objects.filter(pk=application.pk).update(
-            applicants_count=application.applicants.count()
-        )
+    applications = _object_store.get_objects(Application)
+    LOG.info("Updating applicants_count for %d applications", applications.count())
+    for application in applications.annotate(ac=models.Count("applicants")):
+        application_qs = Application.objects.filter(pk=application.pk)
+        application_qs.update(applicants_count=application.ac)
     import_model("ApplicationApartment.txt", ApplicationApartmentSerializer)
     import_model("ApartmentReservation.txt", ApartmentReservationSerializer)
     import_model("ProjectInstallmentTemplate.txt", ProjectInstallmentTemplateSerializer)
@@ -213,13 +214,17 @@ def _set_reservation_positions(reservations, lottery_event=None):
 def _validate_imported_data():
     print("Validating imported data...", end=" ")
 
-    for apartment_uuid in _object_store.get_apartment_uuids():
-        if not LotteryEvent.objects.filter(apartment_uuid=apartment_uuid).exists():
-            print(f"LOTTERY DOES NOT EXIST FOR APARTMENT {apartment_uuid}")
+    reservations = _object_store.get_objects(ApartmentReservation)
+    apartment_uuids = reservations.values("apartment_uuid").distinct()
+    apartment_uuids_without_lottery = apartment_uuids.exclude(
+        apartment_uuid__in=LotteryEvent.objects.values("apartment_uuid")
+    ).values_list("apartment_uuid", flat=True)
+    for apartment_uuid in apartment_uuids_without_lottery:
+        print(f"LOTTERY DOES NOT EXIST FOR APARTMENT {apartment_uuid}")
 
-    for reservation in ApartmentReservation.objects.filter(
-        pk__in=_object_store.get_ids(ApartmentReservation)
-    ):
+    for reservation in reservations:
+        apartment_uuid = reservation.apartment_uuid
+
         if not reservation.application_apartment:
             print(f"RESERVATION {reservation} DOES NOT HAVE AN APPLICATION")
 
