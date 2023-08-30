@@ -20,6 +20,7 @@ from customer.models import Customer
 from invoicing.models import ApartmentInstallment, ProjectInstallmentTemplate
 from users.models import Profile
 
+from .duplicate_checker import DuplicateChecker
 from .log_utils import log_debug_data
 from .logger import LOG
 from .object_store import get_object_store
@@ -68,7 +69,10 @@ def _import_data(directory=None, ignore_errors=False):
         serializer_class: Type[serializers.ModelSerializer],
     ) -> Tuple[int, int]:
         imported = 0
-        name = serializer_class.Meta.model.__name__
+        skipped = 0
+        model = serializer_class.Meta.model
+        name = model.__name__
+        duplicate_checker = DuplicateChecker(model)
         file_path = os.path.join(directory, filename)
         LOG.info("Importing %ss from %s", name, filename)
 
@@ -86,6 +90,18 @@ def _import_data(directory=None, ignore_errors=False):
                         print(".", end="", flush=True)
                 row = {k.lower(): v for k, v in row.items() if v != ""}
                 eid = row["id"]  # External ID (aka AsKo ID) of the row
+
+                duplication_info = duplicate_checker.check(row)
+                if duplication_info:
+                    LOG.warning(
+                        "Skipping import of %s asko_id=%s because %s",
+                        name,
+                        eid,
+                        duplication_info,
+                    )
+                    skipped += 1
+                    continue
+
                 serializer = serializer_class(data=row)
                 try:
                     serializer.is_valid(raise_exception=True)
@@ -101,8 +117,14 @@ def _import_data(directory=None, ignore_errors=False):
                 imported += 1
 
         print("Done.")
-        failed = count - imported
-        LOG.info("Imported %d %ss (failed: %d)", imported, name, failed)
+        failed = count - imported - skipped
+        LOG.info(
+            "Imported %d %ss (skipped: %d, failed: %d)",
+            imported,
+            name,
+            skipped,
+            failed,
+        )
 
         return imported, count
 
