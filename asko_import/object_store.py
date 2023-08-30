@@ -10,6 +10,9 @@ class ObjectStore:
 
     data = defaultdict(dict)
 
+    def has(self, model, asko_id):
+        return asko_id in self.data[model]
+
     def get_id(self, model, asko_id):
         try:
             return self.data[model][asko_id]
@@ -22,10 +25,11 @@ class ObjectStore:
     def get_ids(self, model):
         return self.data[model].values()
 
-    def put(self, asko_id, instance):
+    def put(self, asko_id, instance, replace=False):
         model = type(instance)
-        if model not in self.data or asko_id not in self.data[model]:
-            self.data[model][asko_id] = instance.pk
+        if self.has(model, asko_id) and not replace:
+            raise KeyError(f"{model.__name__} asko_id={asko_id} already saved")
+        self.data[model][asko_id] = instance.pk
 
     def get_hitas_apartment_uuids(self):
         hitas_types = [ApplicationType.HITAS, ApplicationType.PUOLIHITAS]
