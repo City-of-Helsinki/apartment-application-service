@@ -91,6 +91,14 @@ def _import_data(directory=None, ignore_errors=False):
                 row = {k.lower(): v for k, v in row.items() if v != ""}
                 eid = row["id"]  # External ID (aka AsKo ID) of the row
 
+                if _object_store.has(model, eid):
+                    if name != "Applicant":
+                        # There's a lot of duplicate applicants in the data
+                        # and we don't want log spam about them.
+                        LOG.warning("%s asko_id=%s already saved", name, eid)
+                    skipped += 1
+                    continue
+
                 duplication_info = duplicate_checker.check(row)
                 if duplication_info:
                     LOG.warning(
