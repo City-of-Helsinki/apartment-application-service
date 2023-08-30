@@ -33,7 +33,7 @@ ADDED_TO_SAP_AT = datetime(2022, 1, 1)
 DEFAULT_OFFER_VALID_UNTIL = date(2022, 10, 10)
 DEFAULT_SSN_SUFFIX = "XXXXX"
 DEFAULT_AGE = 1000
-DEFAULT_DATE_OR_BIRTH = date(1900, 1, 1)
+DEFAULT_DATE_OF_BIRTH = date(1900, 1, 1)
 
 PROJECT_UUID_NAMESPACE = uuid.UUID("11111111-1111-1111-1111-111111111111")
 APARTMENT_UUID_NAMESPACE = uuid.UUID("22222222-2222-2222-2222-222222222222")
@@ -89,7 +89,7 @@ class ApplicantSerializer(CustomModelSerializer):
     street_address = serializers.CharField(required=False)
     postal_code = serializers.CharField(required=False)
     city = serializers.CharField(required=False)
-    date_of_birth = CustomDateField(required=False, default=DEFAULT_DATE_OR_BIRTH)
+    date_of_birth = CustomDateField(required=False, default=DEFAULT_DATE_OF_BIRTH)
     age = serializers.IntegerField(required=False, default=DEFAULT_AGE)
     ssn_suffix = serializers.CharField(required=False, default=DEFAULT_SSN_SUFFIX)
 
