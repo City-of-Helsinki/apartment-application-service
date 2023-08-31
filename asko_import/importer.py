@@ -121,17 +121,15 @@ def _import_data(directory=None, ignore_errors=False, skip_imported=False):
         with transaction.atomic():
             _import_model(directory, fn, sc, ignore_errors)
 
+            if sc == ApplicantSerializer:
+                _set_applicants_counts()
+
     print("Importing data from AsKo...")
 
     import_model("profile.txt", ProfileSerializer)
     import_model("customer.txt", CustomerSerializer)
     import_model("Application.txt", ApplicationSerializer)
     import_model("Applicant.txt", ApplicantSerializer)
-    applications = _object_store.get_objects(Application)
-    LOG.info("Updating applicants_count for %d applications", applications.count())
-    for application in applications.annotate(ac=models.Count("applicants")):
-        application_qs = Application.objects.filter(pk=application.pk)
-        application_qs.update(applicants_count=application.ac)
     import_model("ApplicationApartment.txt", ApplicationApartmentSerializer)
     import_model("ApartmentReservation.txt", ApartmentReservationSerializer)
     import_model("ProjectInstallmentTemplate.txt", ProjectInstallmentTemplateSerializer)
@@ -221,6 +219,14 @@ def _import_model(
     )
 
     return imported, count
+
+
+def _set_applicants_counts():
+    applications = _object_store.get_objects(Application)
+    LOG.info("Updating applicants_count for %d applications", applications.count())
+    for application in applications.annotate(ac=models.Count("applicants")):
+        application_qs = Application.objects.filter(pk=application.pk)
+        application_qs.update(applicants_count=application.ac)
 
 
 def _set_hitas_reservation_positions():
