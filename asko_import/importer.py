@@ -183,13 +183,21 @@ def _import_model(
                 skipped += 1
                 continue
 
-            duplication_info = duplicate_checker.check(row)
-            if duplication_info:
+            problem_info = ""
+
+            if model == ApartmentInstallment:
+                if not row.get("apartment_reservation"):
+                    problem_info = "No apartment_reservation"
+
+            if not problem_info:
+                problem_info = duplicate_checker.check(row)
+
+            if problem_info:
                 LOG.warning(
                     "Skipping import of %s asko_id=%s because %s",
                     name,
                     eid,
-                    duplication_info,
+                    problem_info,
                 )
                 skipped += 1
                 continue
