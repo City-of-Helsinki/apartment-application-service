@@ -64,77 +64,8 @@ def _flush_profiles():
 def _import_data(directory=None, ignore_errors=False):
     directory = directory or ""
 
-    def import_model(
-        filename: str,
-        serializer_class: Type[serializers.ModelSerializer],
-    ) -> Tuple[int, int]:
-        imported = 0
-        skipped = 0
-        model = serializer_class.Meta.model
-        name = model.__name__
-        duplicate_checker = DuplicateChecker(model)
-        file_path = os.path.join(directory, filename)
-        LOG.info("Importing %ss from %s", name, filename)
-
-        with open(file_path, mode="r", encoding="utf-8-sig") as csv_file:
-            count = sum(1 for _ in csv.DictReader(csv_file, delimiter=";"))
-            print(f"[{count} entries]", end="", flush=True)
-            csv_file.seek(0)
-
-            reader = csv.DictReader(csv_file, delimiter=";")
-            for index, row in enumerate(reader, 1):
-                if index % 500 == 0:
-                    if index % 5000 == 0:
-                        print(f"({index})", end="", flush=True)
-                    else:
-                        print(".", end="", flush=True)
-                row = {k.lower(): v for k, v in row.items() if v != ""}
-                eid = row["id"]  # External ID (aka AsKo ID) of the row
-
-                if _object_store.has(model, eid):
-                    if name != "Applicant":
-                        # There's a lot of duplicate applicants in the data
-                        # and we don't want log spam about them.
-                        LOG.warning("%s asko_id=%s already saved", name, eid)
-                    skipped += 1
-                    continue
-
-                duplication_info = duplicate_checker.check(row)
-                if duplication_info:
-                    LOG.warning(
-                        "Skipping import of %s asko_id=%s because %s",
-                        name,
-                        eid,
-                        duplication_info,
-                    )
-                    skipped += 1
-                    continue
-
-                serializer = serializer_class(data=row)
-                try:
-                    serializer.is_valid(raise_exception=True)
-                    instance = serializer.save()
-                except Exception:
-                    LOG.exception("Failed to import %s asko_id=%s", name, eid)
-                    log_debug_data("Row data: %s", row)
-                    if ignore_errors:
-                        continue
-                    else:
-                        raise
-                _object_store.put(eid, instance)
-                imported += 1
-
-        print("Done.")
-        failed = count - imported - skipped
-        LOG.info(
-            "Imported %d %ss (skipped: %d, failed: %d)",
-            imported,
-            name,
-            skipped,
-            failed,
-        )
-
-        return imported, count
+    def import_model(fn: str, sc: Type[serializers.ModelSerializer]) -> None:
+        _import_model(directory, fn, sc, ignore_errors)
 
     print("Importing data from AsKo...")
 
@@ -153,6 +84,81 @@ def _import_data(directory=None, ignore_errors=False):
     import_model("ApartmentInstallment.txt", ApartmentInstallmentSerializer)
     import_model("LotteryEvent.txt", LotteryEventSerializer)
     import_model("LotteryEventResult.txt", LotteryEventResultSerializer)
+
+
+def _import_model(
+    directory: str,
+    filename: str,
+    serializer_class: Type[serializers.ModelSerializer],
+    ignore_errors: bool = False,
+) -> Tuple[int, int]:
+    imported = 0
+    skipped = 0
+    model = serializer_class.Meta.model
+    name = model.__name__
+    duplicate_checker = DuplicateChecker(model)
+    file_path = os.path.join(directory, filename)
+    LOG.info("Importing %ss from %s", name, filename)
+
+    with open(file_path, mode="r", encoding="utf-8-sig") as csv_file:
+        count = sum(1 for _ in csv.DictReader(csv_file, delimiter=";"))
+        print(f"[{count} entries]", end="", flush=True)
+        csv_file.seek(0)
+
+        reader = csv.DictReader(csv_file, delimiter=";")
+        for index, row in enumerate(reader, 1):
+            if index % 500 == 0:
+                if index % 5000 == 0:
+                    print(f"({index})", end="", flush=True)
+                else:
+                    print(".", end="", flush=True)
+            row = {k.lower(): v for k, v in row.items() if v != ""}
+            eid = row["id"]  # External ID (aka AsKo ID) of the row
+
+            if _object_store.has(model, eid):
+                if name != "Applicant":
+                    # There's a lot of duplicate applicants in the data
+                    # and we don't want log spam about them.
+                    LOG.warning("%s asko_id=%s already saved", name, eid)
+                skipped += 1
+                continue
+
+            duplication_info = duplicate_checker.check(row)
+            if duplication_info:
+                LOG.warning(
+                    "Skipping import of %s asko_id=%s because %s",
+                    name,
+                    eid,
+                    duplication_info,
+                )
+                skipped += 1
+                continue
+
+            serializer = serializer_class(data=row)
+            try:
+                serializer.is_valid(raise_exception=True)
+                instance = serializer.save()
+            except Exception:
+                LOG.exception("Failed to import %s asko_id=%s", name, eid)
+                log_debug_data("Row data: %s", row)
+                if ignore_errors:
+                    continue
+                else:
+                    raise
+            _object_store.put(eid, instance)
+            imported += 1
+
+    print("Done.")
+    failed = count - imported - skipped
+    LOG.info(
+        "Imported %d %ss (skipped: %d, failed: %d)",
+        imported,
+        name,
+        skipped,
+        failed,
+    )
+
+    return imported, count
 
 
 def _set_hitas_reservation_positions():
