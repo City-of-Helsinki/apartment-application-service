@@ -170,12 +170,13 @@ class ApartmentReservationSerializer(
 
     def to_internal_value(self, data):
         data["apartment_uuid"] = get_apartment_uuid(data["apartment_uuid"])
+        apartment_uuid = data["apartment_uuid"]
 
         data["state"] = data.pop("state").lower().replace(" ", "_")
         data["customer"] = _object_store.get_id(Customer, data["customer"])
 
         # will be populated later
-        data["list_position"] = 0
+        data["list_position"] = 10000 * get_incrementing_value(apartment_uuid)
 
         data = super().to_internal_value(data)
 
@@ -183,6 +184,15 @@ class ApartmentReservationSerializer(
             "application_apartment"
         ].application.right_of_residence
         return data
+
+
+def get_incrementing_value(key):
+    value = incrementing_values.get(key, 0) + 1
+    incrementing_values[key] = value
+    return value
+
+
+incrementing_values = {}
 
 
 class ApplicationApartmentSerializer(serializers.ModelSerializer):
