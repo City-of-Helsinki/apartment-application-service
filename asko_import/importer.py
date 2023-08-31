@@ -40,6 +40,36 @@ from .serializers import (
 _object_store = get_object_store()
 
 
+def run_asko_import(
+    directory=None,
+    commit=False,
+    ignore_errors=False,
+    flush=False,
+    flush_all=False,
+):
+    LOG.info("Starting AsKo import")
+    with transaction.atomic():
+        if flush_all:
+            _flush()
+            _flush_profiles()
+        elif flush:
+            _flush()
+        else:
+            _object_store.clear()
+
+            _import_data(directory=directory, ignore_errors=ignore_errors)
+            _set_hitas_reservation_positions()
+            _set_haso_reservation_positions()
+            _validate_imported_data()
+
+        if not commit:
+            print("Rolling back the changes...", end=" ")
+            transaction.set_rollback(True)
+            print("Done.")
+
+    print("All done!")
+
+
 def _flush():
     print("Deleting everything other than Profiles and Users...", end=" ")
     ApartmentInstallment.objects.all().delete()
@@ -284,33 +314,3 @@ def _validate_imported_data():
                 f"{reservation.queue_position}"
             )
     print("Done.")
-
-
-def run_asko_import(
-    directory=None,
-    commit=False,
-    ignore_errors=False,
-    flush=False,
-    flush_all=False,
-):
-    LOG.info("Starting AsKo import")
-    with transaction.atomic():
-        if flush_all:
-            _flush()
-            _flush_profiles()
-        elif flush:
-            _flush()
-        else:
-            _object_store.clear()
-
-            _import_data(directory=directory, ignore_errors=ignore_errors)
-            _set_hitas_reservation_positions()
-            _set_haso_reservation_positions()
-            _validate_imported_data()
-
-        if not commit:
-            print("Rolling back the changes...", end=" ")
-            transaction.set_rollback(True)
-            print("Done.")
-
-    print("All done!")
