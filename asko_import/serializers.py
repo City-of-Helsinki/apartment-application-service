@@ -222,6 +222,13 @@ class ApartmentInstallmentSerializer(CustomModelSerializer):
         model = ApartmentInstallment
         fields = "__all__"
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["invoice_number"]._kwargs["min_value"] = 1
+        for validator in self.fields["invoice_number"].validators:
+            if type(validator).__name__ == "MinValueValidator":
+                validator.limit_value = 1
+
     def to_internal_value(self, data):
         data["added_to_be_sent_to_sap_at"] = ADDED_TO_SAP_AT
         data["sent_to_sap_at"] = ADDED_TO_SAP_AT
