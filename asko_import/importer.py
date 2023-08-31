@@ -24,6 +24,7 @@ from users.models import Profile
 from .duplicate_checker import DuplicateChecker
 from .log_utils import log_debug_data
 from .logger import LOG
+from .models import AsKoLink
 from .object_store import get_object_store
 from .serializers import (
     ApartmentInstallmentSerializer,
@@ -80,23 +81,33 @@ def run_asko_import(
 
 
 def _flush():
-    print("Deleting everything other than Profiles and Users...", end=" ")
-    ApartmentInstallment.objects.all().delete()
-    Offer.objects.all().delete()
-    ApartmentReservation.objects.all().delete()
-    LotteryEventResult.objects.all().delete()
-    LotteryEvent.objects.all().delete()
-    Application.objects.all().delete()
-    ApplicationApartment.objects.all().delete()
-    ProjectInstallmentTemplate.objects.all().delete()
-    Customer.objects.all().delete()
-    print("Done.")
+    print("Deleting everything other than Profiles and Users...")
+    _flush_model(ApartmentInstallment)
+    _flush_model(Offer)
+    _flush_model(ApartmentReservation)
+    _flush_model(LotteryEventResult)
+    _flush_model(LotteryEvent)
+    _flush_model(Application)
+    _flush_model(ApplicationApartment)
+    _flush_model(ProjectInstallmentTemplate)
+    _flush_model(Customer)
 
 
 def _flush_profiles():
-    print("Deleting Profiles and Users...", end=" ")
-    get_user_model().objects.exclude(profile=None).delete()
-    Profile.objects.all().delete()
+    print("Deleting Profiles and Users...")
+    _flush_qs(get_user_model().objects.exclude(profile=None))
+    _flush_model(Profile)
+
+
+def _flush_model(model):
+    _flush_qs(model.objects.all())
+
+
+def _flush_qs(qs):
+    print(f"Deleting {qs.model.__name__}s..", end="")
+    AsKoLink.get_objects_of_model(qs.model, qs.values("pk")).delete()
+    print(".", end=" ")
+    qs.delete()
     print("Done.")
 
 
@@ -164,7 +175,7 @@ def _import_model(
                 else:
                     print(".", end="", flush=True)
             row = {k.lower(): v for k, v in row.items() if v != ""}
-            eid = row["id"]  # External ID (aka AsKo ID) of the row
+            eid = int(row["id"])  # External ID (aka AsKo ID) of the row
 
             if _object_store.has(model, eid):
                 if name != "Applicant":
