@@ -1,3 +1,4 @@
+import contextlib
 import csv
 import os
 from typing import Tuple, Type
@@ -43,12 +44,20 @@ _object_store = get_object_store()
 def run_asko_import(
     directory=None,
     commit=False,
+    commit_each=False,
+    skip_imported=False,
     ignore_errors=False,
     flush=False,
     flush_all=False,
 ):
     LOG.info("Starting AsKo import")
-    with transaction.atomic():
+
+    if commit_each:
+        outer_transaction = contextlib.nullcontext()
+    else:
+        outer_transaction = transaction.atomic()
+
+    with outer_transaction:
         if flush_all:
             _flush()
             _flush_profiles()
@@ -57,12 +66,12 @@ def run_asko_import(
         else:
             _object_store.clear()
 
-            _import_data(directory=directory, ignore_errors=ignore_errors)
+            _import_data(directory, ignore_errors, skip_imported)
             _set_hitas_reservation_positions()
             _set_haso_reservation_positions()
             _validate_imported_data()
 
-        if not commit:
+        if not (commit or commit_each):
             print("Rolling back the changes...", end=" ")
             transaction.set_rollback(True)
             print("Done.")
@@ -91,11 +100,15 @@ def _flush_profiles():
     print("Done.")
 
 
-def _import_data(directory=None, ignore_errors=False):
+def _import_data(directory=None, ignore_errors=False, skip_imported=False):
     directory = directory or ""
 
     def import_model(fn: str, sc: Type[serializers.ModelSerializer]) -> None:
-        _import_model(directory, fn, sc, ignore_errors)
+        if skip_imported and _is_imported(sc.Meta.model):
+            return
+
+        with transaction.atomic():
+            _import_model(directory, fn, sc, ignore_errors)
 
     print("Importing data from AsKo...")
 
@@ -114,6 +127,14 @@ def _import_data(directory=None, ignore_errors=False):
     import_model("ApartmentInstallment.txt", ApartmentInstallmentSerializer)
     import_model("LotteryEvent.txt", LotteryEventSerializer)
     import_model("LotteryEventResult.txt", LotteryEventResultSerializer)
+
+
+def _is_imported(model):
+    cnt = model.objects.count()
+    if cnt > 0:
+        print(f"Skipping import of {model.__name__} ({cnt} existing objects)")
+        return True
+    return False
 
 
 def _import_model(

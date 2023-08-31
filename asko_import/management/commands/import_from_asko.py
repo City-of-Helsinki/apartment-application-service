@@ -13,6 +13,8 @@ class Command(BaseCommand):
         self,
         import_directory,
         commit=False,
+        commit_each=False,
+        skip_imported=False,
         ignore_errors=False,
         flush=False,
         flush_all=False,
@@ -22,6 +24,8 @@ class Command(BaseCommand):
         run_asko_import(
             import_directory,
             commit,
+            commit_each,
+            skip_imported,
             ignore_errors,
             flush,
             flush_all,
@@ -30,6 +34,8 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("import_directory", metavar="IMPORT_DIRECTORY")
         parser.add_argument("--commit", action="store_true")
+        parser.add_argument("--commit-each", action="store_true")
+        parser.add_argument("--skip-imported", action="store_true")
         parser.add_argument("--ignore-errors", action="store_true")
         parser.add_argument("--flush", action="store_true")
         parser.add_argument("--flush-all", action="store_true")
