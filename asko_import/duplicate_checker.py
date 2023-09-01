@@ -2,9 +2,10 @@ from typing import Dict, List, Mapping, Optional, Tuple, Type
 
 from django.db import models
 
-from invoicing.models import ProjectInstallmentTemplate
+from invoicing.models import ApartmentInstallment, ProjectInstallmentTemplate
 
 KEY_TUPLES_BY_MODEL: Dict[Type[models.Model], List[Tuple[str, ...]]] = {
+    ApartmentInstallment: [("apartment_reservation", "type")],
     ProjectInstallmentTemplate: [("project_uuid", "type")],
 }
 
