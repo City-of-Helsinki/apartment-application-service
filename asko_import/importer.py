@@ -186,8 +186,12 @@ def _import_model(
             problem_info = ""
 
             if model == ApartmentInstallment:
+                problems = []
                 if not row.get("apartment_reservation"):
-                    problem_info = "No apartment_reservation"
+                    problems.append("No apartment_reservation")
+                if not row.get("reference_number"):
+                    problems.append("No reference_number")
+                problem_info = " & ".join(problems)
 
             if not problem_info:
                 problem_info = duplicate_checker.check(row)
