@@ -250,12 +250,7 @@ def _set_hitas_reservation_positions():
             apartment_uuid=apartment_uuid,
         )
         reservations_and_positions = (
-            (
-                reservation,
-                LotteryEventResult.objects.get(
-                    application_apartment=reservation.application_apartment
-                ).result_position,
-            )
+            (reservation, _get_hitas_position(reservation))
             for reservation in reservations
         )
         ordered_reservations = (
@@ -265,6 +260,18 @@ def _set_hitas_reservation_positions():
         _set_reservation_positions(ordered_reservations)
 
     print("Done.")
+
+
+def _get_hitas_position(reservation):
+    aa = reservation.application_apartment
+    qs = LotteryEventResult.objects.filter(application_apartment=aa)
+    count = qs.count()
+    if count == 0:
+        LOG.warning("No LotteryEventResult for ApplicationApartment %s", aa)
+        return float("inf")
+    elif count > 1:
+        raise ValueError(f"Many LotteryEventResults for ApplicationApartment {aa}")
+    return qs[0].result_position
 
 
 def _set_haso_reservation_positions():
