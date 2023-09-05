@@ -11,6 +11,7 @@ class ObjectStore:
 
     def __init__(self):
         self._data = {}
+        self._reverse_data = {}
 
     def for_model(self, model):
         data = self._data.get(model)
@@ -40,6 +41,23 @@ class ObjectStore:
             raise KeyError(f"{model.__name__} asko_id={asko_id} already saved")
         self.for_model(model)[asko_id] = instance.pk
         AsKoLink.store(asko_id, instance)
+
+    def get_asko_id(self, object_or_model, id=None):
+        if id is None:
+            model = type(object_or_model)
+            id = object_or_model.pk
+        else:
+            model = object_or_model
+        reverse_map = self._get_reverse_map_for_model(model)
+        return reverse_map[id]
+
+    def _get_reverse_map_for_model(self, model):
+        reverse_map = self._reverse_data.get(model)
+        forward_map = self.for_model(model)
+        if reverse_map is None or len(reverse_map) != len(forward_map):
+            reverse_map = {v: k for k, v in forward_map.items()}
+            self._reverse_data[model] = reverse_map
+        return reverse_map
 
     def get_hitas_apartment_uuids(self):
         hitas_types = [ApplicationType.HITAS, ApplicationType.PUOLIHITAS]

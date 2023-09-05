@@ -267,10 +267,16 @@ def _get_hitas_position(reservation):
     qs = LotteryEventResult.objects.filter(application_apartment=aa)
     count = qs.count()
     if count == 0:
-        LOG.warning("No LotteryEventResult for ApplicationApartment %s", aa)
+        aa_aid = _object_store.get_asko_id(aa)
+        LOG.warning(
+            "No LotteryEventResult for ApplicationApartment asko_id=%s",
+            aa_aid,
+        )
         return float("inf")
     elif count > 1:
-        raise ValueError(f"Many LotteryEventResults for ApplicationApartment {aa}")
+        aa_aid = _object_store.get_asko_id(aa)
+        msg = f"Many LotteryEventResults for ApplicationApartment {aa_aid}"
+        raise ValueError(msg)
     return qs[0].result_position
 
 
