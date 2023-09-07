@@ -21,7 +21,7 @@ from customer.models import Customer
 from invoicing.models import ApartmentInstallment, ProjectInstallmentTemplate
 from users.models import Profile
 
-from .duplicate_checker import DuplicateChecker
+from .issues import DataIssueChecker
 from .log_utils import log_debug_data
 from .logger import LOG
 from .models import AsKoLink
@@ -156,7 +156,7 @@ def _import_model(
     skipped = 0
     model = serializer_class.Meta.model
     name = model.__name__
-    duplicate_checker = DuplicateChecker(model)
+    checker = DataIssueChecker(model)
     file_path = os.path.join(directory, filename)
     LOG.info("Importing %ss from %s", name, filename)
 
@@ -175,34 +175,9 @@ def _import_model(
             row = {k.lower(): v for k, v in row.items() if v != ""}
             eid = int(row["id"])  # External ID (aka AsKo ID) of the row
 
-            if _object_store.has(model, eid):
-                if name != "Applicant":
-                    # There's a lot of duplicate applicants in the data
-                    # and we don't want log spam about them.
-                    LOG.warning("%s asko_id=%s already saved", name, eid)
-                skipped += 1
-                continue
-
-            problem_info = ""
-
-            if model == ApartmentInstallment:
-                problems = []
-                if not row.get("apartment_reservation"):
-                    problems.append("No apartment_reservation")
-                if not row.get("reference_number"):
-                    problems.append("No reference_number")
-                problem_info = " & ".join(problems)
-
-            if not problem_info:
-                problem_info = duplicate_checker.check(row)
-
-            if problem_info:
-                LOG.warning(
-                    "Skipping import of %s asko_id=%s because %s",
-                    name,
-                    eid,
-                    problem_info,
-                )
+            issues = checker.check(row)
+            if issues:
+                issues.log(LOG)
                 skipped += 1
                 continue
 
