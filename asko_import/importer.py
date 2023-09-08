@@ -23,7 +23,7 @@ from users.models import Profile
 
 from .issues import DataIssueChecker
 from .log_utils import log_debug_data
-from .logger import LOG
+from .logger import LOG, log_context
 from .models import AsKoLink
 from .object_store import get_object_store
 from .serializers import (
@@ -119,10 +119,11 @@ def _import_data(directory=None, ignore_errors=False, skip_imported=False):
             return
 
         with transaction.atomic():
-            _import_model(directory, fn, sc, ignore_errors)
+            with log_context(model=sc.Meta.model):
+                _import_model(directory, fn, sc, ignore_errors)
 
-            if sc == ApplicantSerializer:
-                _set_applicants_counts()
+                if sc == ApplicantSerializer:
+                    _set_applicants_counts()
 
     print("Importing data from AsKo...")
 
@@ -167,33 +168,34 @@ def _import_model(
 
         reader = csv.DictReader(csv_file, delimiter=";")
         for index, row in enumerate(reader, 1):
-            if index % 500 == 0:
-                if index % 5000 == 0:
-                    print(f"({index})", end="", flush=True)
-                else:
-                    print(".", end="", flush=True)
-            row = {k.lower(): v for k, v in row.items() if v != ""}
-            eid = int(row["id"])  # External ID (aka AsKo ID) of the row
+            with log_context(model=model, row=row):
+                if index % 500 == 0:
+                    if index % 5000 == 0:
+                        print(f"({index})", end="", flush=True)
+                    else:
+                        print(".", end="", flush=True)
+                row = {k.lower(): v for k, v in row.items() if v != ""}
+                eid = int(row["id"])  # External ID (aka AsKo ID) of the row
 
-            issues = checker.check(row)
-            if issues:
-                issues.log(LOG)
-                skipped += 1
-                continue
-
-            serializer = serializer_class(data=row)
-            try:
-                serializer.is_valid(raise_exception=True)
-                instance = serializer.save()
-            except Exception:
-                LOG.exception("Failed to import %s asko_id=%s", name, eid)
-                log_debug_data("Row data: %s", row)
-                if ignore_errors:
+                issues = checker.check(row)
+                if issues:
+                    issues.log(LOG)
+                    skipped += 1
                     continue
-                else:
-                    raise
-            _object_store.put(eid, instance)
-            imported += 1
+
+                serializer = serializer_class(data=row)
+                try:
+                    serializer.is_valid(raise_exception=True)
+                    instance = serializer.save()
+                except Exception:
+                    LOG.exception("Failed to import %s asko_id=%s", name, eid)
+                    log_debug_data("Row data: %s", row)
+                    if ignore_errors:
+                        continue
+                    else:
+                        raise
+                _object_store.put(eid, instance)
+                imported += 1
 
     print("Done.")
     failed = count - imported - skipped
@@ -243,10 +245,11 @@ def _get_hitas_position(reservation):
     count = qs.count()
     if count == 0:
         aa_aid = _object_store.get_asko_id(aa)
-        LOG.warning(
-            "No LotteryEventResult for ApplicationApartment asko_id=%s",
-            aa_aid,
-        )
+        with log_context(model=ApplicationApartment, row={"id": aa_aid}):
+            LOG.warning(
+                "No LotteryEventResult for ApplicationApartment asko_id=%s",
+                aa_aid,
+            )
         return float("inf")
     elif count > 1:
         aa_aid = _object_store.get_asko_id(aa)

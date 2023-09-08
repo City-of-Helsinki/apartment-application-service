@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 
@@ -63,3 +65,83 @@ class AsKoLink(models.Model):
 
     def __str__(self):
         return f"AsKo link {self.object_type.model} asko_id={self.asko_id}"
+
+
+class AsKoImportLogEntry(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True)
+    message_template = models.CharField(max_length=1000)
+    message = models.TextField()
+    level = models.IntegerField(null=True, blank=True)
+    exception = models.TextField(blank=True)
+    content_type = models.ForeignKey(
+        ContentType, on_delete=models.CASCADE, null=True, blank=True
+    )
+    asko_id = models.IntegerField(null=True, blank=True)
+    asko_link = models.ForeignKey(
+        AsKoLink,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="logs",
+    )
+
+    class Meta:
+        ordering = ("created_at", "id")
+
+    @property
+    def level_name(self):
+        return logging.getLevelName(self.level) if self.level else ""
+
+    @property
+    def model(self):
+        return self.content_type.model_class() if self.content_type else None
+
+    @property
+    def model_name(self):
+        return self.model.__name__ if self.model else ""
+
+    @classmethod
+    def store(
+        cls,
+        message_template,
+        message,
+        level=None,
+        model=None,
+        asko_id=None,
+        exception=None,
+    ):
+        """
+        Store a new log entry to database.
+        """
+        ctype = ContentType.objects.get_for_model(model) if model else None
+        asko_link = (
+            AsKoLink.objects.get_or_create(object_type=ctype, asko_id=asko_id)[0]
+            if ctype and asko_id
+            else None
+        )
+        return cls.objects.create(
+            message_template=message_template,
+            message=message,
+            level=level,
+            exception=str(exception) if exception else "",
+            content_type=ctype,
+            asko_id=asko_id,
+            asko_link=asko_link,
+        )
+
+    def __str__(self):
+        prefix = ""
+        if self.level:
+            prefix += f"({self.level_name}) "
+        if self.model_name:
+            prefix += f"{self.model_name} "
+        if self.asko_id:
+            prefix += f"asko_id={self.asko_id} "
+        if prefix:
+            prefix = prefix.rstrip() + ":"
+
+        suffix = ""
+        if self.exception:
+            suffix += f" ({self.exception})"
+
+        return f"{self.created_at}: {prefix}{self.message}{suffix}"
