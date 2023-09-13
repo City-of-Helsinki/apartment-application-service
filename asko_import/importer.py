@@ -316,7 +316,7 @@ def _set_reservation_positions(reservations, lottery_event=None):
 
         if queue_position == 1 and is_submitted:
             reservation.state = ApartmentReservationState.RESERVED
-        elif queue_position > 1 and not is_submitted:
+        elif queue_position > 1 and not_canceled:
             reservation.state = ApartmentReservationState.SUBMITTED
 
         ApartmentReservation.objects.filter(pk=reservation.pk).update(
