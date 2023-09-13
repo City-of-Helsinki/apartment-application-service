@@ -225,11 +225,16 @@ def _set_all_reservation_positions():
 def _set_hitas_reservation_positions():
     LOG.info("Setting HITAS reservation positions")
 
+    imported_reservations = _object_store.get_objects(ApartmentReservation)
+    reservation_qs = imported_reservations.annotate(
+        ler_count=models.Count("application_apartment__lotteryeventresult"),
+        ler_position=models.Min(
+            "application_apartment__lotteryeventresult__result_position"
+        ),
+    )
+
     for apartment_uuid in _object_store.get_hitas_apartment_uuids():
-        reservations = ApartmentReservation.objects.filter(
-            id__in=_object_store.get_ids(ApartmentReservation),
-            apartment_uuid=apartment_uuid,
-        )
+        reservations = reservation_qs.filter(apartment_uuid=apartment_uuid)
         reservations_and_positions = (
             (reservation, _get_hitas_position(reservation))
             for reservation in reservations
@@ -244,22 +249,20 @@ def _set_hitas_reservation_positions():
 
 
 def _get_hitas_position(reservation):
-    aa = reservation.application_apartment
-    qs = LotteryEventResult.objects.filter(application_apartment=aa)
-    positions = list(qs[:2].values_list("result_position", flat=True))
-    if len(positions) == 1:  # This is the normal case
-        return positions[0]
+    count = reservation.ler_count
+    if count == 1:  # This is the normal case
+        return reservation.ler_position
 
     # Didn't find a linked LotteryEventResult or found many: Log the
     # issue and raise exception if multiple results were found.
     model = type(reservation)
     eid = _object_store.get_asko_id(reservation)
     with log_context(model=model, row={"id": eid}):
-        if not positions:
+        if count == 0:
             LOG.warning("No LotteryEventResult found")
             return float("inf")
         else:
-            LOG.error("Multiple LotteryEventResults found (%d)", qs.count())
+            LOG.error("Multiple LotteryEventResults found (%d)", count)
             raise Exception(
                 f"Many LotteryEventResults for {model.__name__} asko_id={eid}"
             )
