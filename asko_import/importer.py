@@ -68,7 +68,10 @@ def run_asko_import(
             _object_store.clear()
 
             _import_data(directory, ignore_errors, skip_imported)
-            _set_all_reservation_positions()
+
+            with transaction.atomic():
+                _set_all_reservation_positions()
+
             _validate_imported_data()
 
         if not (commit or commit_each):
