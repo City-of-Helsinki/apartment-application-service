@@ -10,6 +10,7 @@ from rest_framework import serializers
 from application_form.enums import ApartmentReservationState
 from application_form.models import (
     ApartmentReservation,
+    Applicant,
     Application,
     ApplicationApartment,
     LotteryEvent,
@@ -90,9 +91,11 @@ def _flush():
     _flush_model(LotteryEventResult)
     _flush_model(LotteryEvent)
     _flush_model(Application)
+    _flush_model(Applicant)
     _flush_model(ApplicationApartment)
     _flush_model(ProjectInstallmentTemplate)
     _flush_model(Customer)
+    _flush_model(AsKoLink)
 
 
 def _flush_profiles():
@@ -106,9 +109,11 @@ def _flush_model(model):
 
 
 def _flush_qs(qs):
-    print(f"Deleting {qs.model.__name__}s..", end="")
-    AsKoLink.get_objects_of_model(qs.model, qs.values("pk")).delete()
-    print(".", end=" ", flush=True)
+    print(f"Deleting {qs.model.__name__}s...", end=" ", flush=True)
+    asko_links = AsKoLink.get_objects_of_model(qs.model, qs.values("pk"))
+    print("(%d AsKoLinks)" % (asko_links.count(),), end=" ", flush=True)
+    asko_links.delete()
+    print("(%d objects)" % (qs.count(),), end=" ", flush=True)
     qs.delete()
     print("Done.")
 
