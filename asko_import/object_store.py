@@ -3,6 +3,7 @@ from typing import Optional
 from application_form.enums import ApplicationType
 from application_form.models import ApartmentReservation
 
+from .logger import LOG
 from .models import AsKoLink
 
 
@@ -30,7 +31,17 @@ class ObjectStore:
             raise KeyError(f"{model.__name__} asko_id={asko_id} not saved")
 
     def get_objects(self, model):
-        return model.objects.filter(pk__in=self.get_ids(model))
+        all_objects = model.objects.all()
+        imported_ids = AsKoLink.get_ids_of_model(model)
+        imported = model.objects.filter(pk__in=imported_ids)
+        non_imported = all_objects.exclude(pk__in=imported.values("pk"))
+        if not non_imported:
+            LOG.debug(
+                "get_objects: No non-imported %s objects found, using all",
+                model.__name__,
+            )
+            return all_objects
+        return imported
 
     def get_ids(self, model):
         return self.for_model(model).values()

@@ -30,10 +30,15 @@ class AsKoLink(models.Model):
 
     @classmethod
     def get_map_for_model(cls, model):
-        object_type = ContentType.objects.get_for_model(model)
-        asko_links = cls.objects.filter(object_type=object_type)
+        asko_links = cls.get_objects_of_model(model)
         id_field_name = cls.get_id_field_name(model)
         return asko_links.values_list("asko_id", id_field_name)
+
+    @classmethod
+    def get_ids_of_model(cls, model):
+        asko_links = cls.get_objects_of_model(model)
+        id_field_name = cls.get_id_field_name(model)
+        return asko_links.values(id_field_name)
 
     @classmethod
     def get_objects_of_model(cls, model, object_ids=None):
