@@ -96,13 +96,13 @@ class IssueList:
     def log(self, logger=LOG, level=logging.WARNING):
         for i in self.issues:
             if i.log:
-                logger.warning(
-                    "Found %s on %s asko_id=%s: %s",
-                    i.issue_type,
-                    i.model.__name__,
-                    i.row["id"],
-                    i.get_details(),
-                )
+                if i.issue_type == IssueType.DUPLICATE_KEY:
+                    logger.log(level, "Duplicate key: %s", i.get_details())
+                elif i.issue_type == IssueType.MISSING_VALUE:
+                    logger.log(level, "Missing value: %s", i.get_details())
+                else:
+                    issue = i.issue_type.name
+                    logger.log(level, "%s issue: %s", issue, i.get_details())
 
 
 class DataIssueChecker:

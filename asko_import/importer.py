@@ -68,8 +68,7 @@ def run_asko_import(
             _object_store.clear()
 
             _import_data(directory, ignore_errors, skip_imported)
-            _set_hitas_reservation_positions()
-            _set_haso_reservation_positions()
+            _set_all_reservation_positions()
             _validate_imported_data()
 
         if not (commit or commit_each):
@@ -156,10 +155,9 @@ def _import_model(
     imported = 0
     skipped = 0
     model = serializer_class.Meta.model
-    name = model.__name__
     checker = DataIssueChecker(model)
     file_path = os.path.join(directory, filename)
-    LOG.info("Importing %ss from %s", name, filename)
+    LOG.info("Importing data from file: %s", filename)
 
     with open(file_path, mode="r", encoding="utf-8-sig") as csv_file:
         count = sum(1 for _ in csv.DictReader(csv_file, delimiter=";"))
@@ -188,6 +186,7 @@ def _import_model(
                     serializer.is_valid(raise_exception=True)
                     instance = serializer.save()
                 except Exception:
+                    name = model.__name__
                     LOG.exception("Failed to import %s asko_id=%s", name, eid)
                     log_debug_data("Row data: %s", row)
                     if ignore_errors:
@@ -200,9 +199,8 @@ def _import_model(
     print("Done.")
     failed = count - imported - skipped
     LOG.info(
-        "Imported %d %ss (skipped: %d, failed: %d)",
+        "Imported %d rows (skipped: %d, failed: %d)",
         imported,
-        name,
         skipped,
         failed,
     )
@@ -218,8 +216,14 @@ def _set_applicants_counts():
         application_qs.update(applicants_count=application.ac)
 
 
+def _set_all_reservation_positions():
+    with log_context(model=ApartmentReservation):
+        _set_hitas_reservation_positions()
+        _set_haso_reservation_positions()
+
+
 def _set_hitas_reservation_positions():
-    print("Setting HITAS reservation positions...", end=" ")
+    LOG.info("Setting HITAS reservation positions")
 
     for apartment_uuid in _object_store.get_hitas_apartment_uuids():
         reservations = ApartmentReservation.objects.filter(
@@ -236,30 +240,33 @@ def _set_hitas_reservation_positions():
 
         _set_reservation_positions(ordered_reservations)
 
-    print("Done.")
+    LOG.info("Done setting HITAS reservation positions")
 
 
 def _get_hitas_position(reservation):
     aa = reservation.application_apartment
     qs = LotteryEventResult.objects.filter(application_apartment=aa)
-    count = qs.count()
-    if count == 0:
-        aa_aid = _object_store.get_asko_id(aa)
-        with log_context(model=ApplicationApartment, row={"id": aa_aid}):
-            LOG.warning(
-                "No LotteryEventResult for ApplicationApartment asko_id=%s",
-                aa_aid,
+    positions = list(qs[:2].values_list("result_position", flat=True))
+    if len(positions) == 1:  # This is the normal case
+        return positions[0]
+
+    # Didn't find a linked LotteryEventResult or found many: Log the
+    # issue and raise exception if multiple results were found.
+    model = type(reservation)
+    eid = _object_store.get_asko_id(reservation)
+    with log_context(model=model, row={"id": eid}):
+        if not positions:
+            LOG.warning("No LotteryEventResult found")
+            return float("inf")
+        else:
+            LOG.error("Multiple LotteryEventResults found (%d)", qs.count())
+            raise Exception(
+                f"Many LotteryEventResults for {model.__name__} asko_id={eid}"
             )
-        return float("inf")
-    elif count > 1:
-        aa_aid = _object_store.get_asko_id(aa)
-        msg = f"Many LotteryEventResults for ApplicationApartment {aa_aid}"
-        raise ValueError(msg)
-    return qs[0].result_position
 
 
 def _set_haso_reservation_positions():
-    print("Setting HASO reservation positions...", end=" ")
+    LOG.info("Setting HASO reservation positions")
 
     for apartment_uuid in _object_store.get_haso_apartment_uuids():
         reservations = ApartmentReservation.objects.filter(
@@ -277,7 +284,7 @@ def _set_haso_reservation_positions():
         lottery_event = LotteryEvent.objects.create(apartment_uuid=apartment_uuid)
         _set_reservation_positions(ordered_reservations, lottery_event=lottery_event)
 
-    print("Done.")
+    LOG.info("Done setting HASO reservation positions")
 
 
 def _set_reservation_positions(reservations, lottery_event=None):

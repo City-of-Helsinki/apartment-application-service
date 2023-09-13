@@ -18,8 +18,15 @@ class LoggerAdapter(logging.LoggerAdapter):
     extra: LoggingContext
 
     def log(self, level, msg, *args, **kwargs):
-        super().log(level, msg, *args, **kwargs)
         self.store_to_database(level, msg, args, kwargs)
+        model = self.extra.get("model")
+        row = self.extra.get("row")
+        prefix = f"{model.__name__ if model else ''}"
+        if row:
+            prefix += f" asko_id={row.get('id')}"
+        if prefix:
+            msg = f"{prefix}: {msg}"
+        super().log(level, msg, *args, **kwargs)
 
     def store_to_database(self, level, msg, args, kwargs):
         AsKoImportLogEntry.store(

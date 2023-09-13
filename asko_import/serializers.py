@@ -75,11 +75,9 @@ class ProfileSerializer(CustomModelSerializer):
     def to_internal_value(self, data):
         data["contact_language"] = "fi"
 
-        current_object_name = f"profile asko_id={data['id']}"
-
         # Fix some known problems with the National Identification Numbers
         nin = data.get("national_identification_number")
-        nin = fix_nin_and_log_if_changed(nin, current_object_name)
+        nin = fix_nin_and_log_if_changed(nin)
         data["national_identification_number"] = nin
 
         return super().to_internal_value(data)
