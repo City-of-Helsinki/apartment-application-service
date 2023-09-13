@@ -10,7 +10,6 @@ from rest_framework import serializers
 from application_form.enums import ApartmentReservationState
 from application_form.models import (
     ApartmentReservation,
-    ApartmentReservationStateChangeEvent,
     Application,
     ApplicationApartment,
     LotteryEvent,
@@ -274,21 +273,34 @@ def _get_hitas_position(reservation):
 def _set_haso_reservation_positions():
     LOG.info("Setting HASO reservation positions")
 
-    for apartment_uuid in _object_store.get_haso_apartment_uuids():
-        reservations = ApartmentReservation.objects.filter(
-            id__in=_object_store.get_ids(ApartmentReservation),
-            apartment_uuid=apartment_uuid,
-        )
-        reservations_and_positions = (
-            (reservation, reservation.right_of_residence or float("inf"))
-            for reservation in reservations
-        )
-        ordered_reservations = (
-            r[0] for r in sorted(reservations_and_positions, key=lambda x: x[1])
-        )
+    imported_reservations = _object_store.get_objects(ApartmentReservation)
 
+    # Order the reservations by right_of_residence. NOTE: Reservations
+    # with right_of_residence=NULL will be ordered last.
+    reservation_qs = imported_reservations.order_by("right_of_residence")
+
+    # Check whether this is a re-run of the import, and if so, check
+    # whether the previous import was incomplete.
+    uuids = _object_store.get_haso_apartment_uuids()
+    lottery_events = LotteryEvent.objects.filter(apartment_uuid__in=uuids)
+    if lottery_events and lottery_events.count() == uuids.count():  # All done
+        LOG.info("All HASO lottery events already exist, skipping")
+        return
+    elif lottery_events:  # Previous import was incomplete
+        LOG.error(
+            "Some HASO lottery events already exist, but not all. "
+            "(HASO apartment count = %d, LotteryEvent count = %d)",
+            uuids.count(),
+            lottery_events.count(),
+        )
+        raise Exception("HASO lottery events already exist")
+    else:
+        LOG.debug("No HASO lottery events found")
+
+    for apartment_uuid in uuids:
+        reservations = reservation_qs.filter(apartment_uuid=apartment_uuid)
         lottery_event = LotteryEvent.objects.create(apartment_uuid=apartment_uuid)
-        _set_reservation_positions(ordered_reservations, lottery_event=lottery_event)
+        _set_reservation_positions(reservations, lottery_event=lottery_event)
 
     LOG.info("Done setting HASO reservation positions")
 
@@ -296,30 +308,31 @@ def _set_haso_reservation_positions():
 def _set_reservation_positions(reservations, lottery_event=None):
     queue_position = 0
     for list_position, reservation in enumerate(reservations, 1):
-        if reservation.state != ApartmentReservationState.CANCELED:
+        not_canceled = reservation.state != ApartmentReservationState.CANCELED
+        is_submitted = reservation.state == ApartmentReservationState.SUBMITTED
+
+        if not_canceled:
             queue_position += 1
 
-        if (
-            queue_position == 1
-            and reservation.state == ApartmentReservationState.SUBMITTED
-        ):
+        if queue_position == 1 and is_submitted:
             reservation.state = ApartmentReservationState.RESERVED
-        elif (
-            queue_position > 1
-            and reservation.state != ApartmentReservationState.SUBMITTED
-        ):
+        elif queue_position > 1 and not is_submitted:
             reservation.state = ApartmentReservationState.SUBMITTED
 
         ApartmentReservation.objects.filter(pk=reservation.pk).update(
             state=reservation.state,
             list_position=list_position,
-            queue_position=queue_position
-            if reservation.state != ApartmentReservationState.CANCELED
-            else None,
+            queue_position=(queue_position if not_canceled else None),
         )
-        ApartmentReservationStateChangeEvent.objects.filter(
-            pk=reservation.state_change_events.first().pk
-        ).update(
+        if reservation.state_change_events.count() != 1:
+            eid = _object_store.get_asko_id(reservation)
+            with log_context(model=ApartmentReservation, row={"id": eid}):
+                LOG.error(
+                    "Unexpected number of state change events: %d",
+                    reservation.state_change_events.count(),
+                )
+            raise Exception("State change event count mismatch")
+        reservation.state_change_events.update(
             state=reservation.state,
             comment="Tuotu AsKo:sta",
         )
