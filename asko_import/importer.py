@@ -23,7 +23,7 @@ from users.models import Profile
 from .issues import DataIssueChecker
 from .log_utils import log_debug_data
 from .logger import LOG, log_context
-from .models import AsKoLink
+from .models import AsKoImportLogEntry, AsKoLink
 from .object_store import get_object_store
 from .serializers import (
     ApartmentInstallmentSerializer,
@@ -83,6 +83,7 @@ def run_asko_import(
 
 def _flush():
     print("Deleting everything other than Profiles and Users...")
+    _flush_model(AsKoImportLogEntry)
     _flush_model(ApartmentInstallment)
     _flush_model(Offer)
     _flush_model(ApartmentReservation)
