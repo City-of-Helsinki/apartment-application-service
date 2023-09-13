@@ -1,5 +1,6 @@
-from django.core.management.base import BaseCommand
 from logging import getLogger
+
+from django.core.management.base import BaseCommand
 
 from invoicing.services import fetch_payments_from_sap
 

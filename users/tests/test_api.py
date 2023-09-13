@@ -1,9 +1,10 @@
+from unittest.mock import patch
+from uuid import UUID
+
 import pytest
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework_simplejwt.tokens import RefreshToken
-from unittest.mock import patch
-from uuid import UUID
 
 from audit_log.models import AuditLog
 from users.enums import Roles

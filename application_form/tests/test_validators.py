@@ -1,5 +1,6 @@
-import pytest
 from datetime import date
+
+import pytest
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from application_form.tests.factories import (

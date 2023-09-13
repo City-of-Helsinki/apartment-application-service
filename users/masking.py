@@ -1,6 +1,7 @@
+from uuid import UUID
+
 from django.conf import settings
 from hashids import Hashids
-from uuid import UUID
 
 _hashids = Hashids(salt=settings.HASHIDS_SALT)
 

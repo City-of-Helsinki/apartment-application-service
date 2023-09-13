@@ -1,6 +1,7 @@
-import factory
 import string
 from datetime import date, timedelta
+
+import factory
 from django.conf import settings
 from django.utils import timezone
 from elasticsearch_dsl import Document

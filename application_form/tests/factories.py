@@ -1,10 +1,11 @@
-import factory
 import random
 import uuid
 from datetime import timedelta
+from typing import List
+
+import factory
 from django.utils import timezone
 from factory import Faker, fuzzy, LazyAttribute
-from typing import List
 
 from apartment_application_service.settings import (
     METADATA_HANDLER_INFORMATION,

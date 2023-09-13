@@ -1,5 +1,6 @@
-import paramiko
 from typing import BinaryIO
+
+import paramiko
 
 
 def sftp_put_file_object(

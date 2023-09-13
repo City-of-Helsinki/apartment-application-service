@@ -1,4 +1,5 @@
 from decimal import Decimal
+
 from django.conf import settings
 from elasticsearch_dsl import connections
 

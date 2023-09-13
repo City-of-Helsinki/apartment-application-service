@@ -1,6 +1,7 @@
-import pytest
 from datetime import date, timedelta
 from decimal import Decimal
+
+import pytest
 from django.utils import timezone
 from freezegun import freeze_time
 from pytest import mark

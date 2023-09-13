@@ -2,8 +2,9 @@ import dataclasses
 from datetime import date, datetime
 from decimal import Decimal
 from io import BytesIO
-from num2words import num2words
 from typing import ClassVar, Dict, Union
+
+from num2words import num2words
 
 from apartment.elastic.queries import get_apartment
 from apartment_application_service.pdf import create_pdf, PDFCurrencyField, PDFData

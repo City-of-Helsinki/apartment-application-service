@@ -2,8 +2,9 @@ import logging
 import random
 import uuid
 from datetime import date
-from elasticsearch_dsl import Search
 from typing import List, Tuple
+
+from elasticsearch_dsl import Search
 
 from connections.enums import ApartmentStateOfSale
 from users.models import Profile

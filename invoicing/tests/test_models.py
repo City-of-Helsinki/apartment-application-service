@@ -1,5 +1,6 @@
-import pytest
 from datetime import date
+
+import pytest
 from freezegun import freeze_time
 
 from invoicing.enums import PaymentStatus

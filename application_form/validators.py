@@ -1,7 +1,8 @@
 from datetime import date
-from rest_framework.exceptions import PermissionDenied, ValidationError
 from typing import List, Tuple, Union
 from uuid import UUID
+
+from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apartment.elastic.queries import get_apartment_uuids
 from application_form import error_codes

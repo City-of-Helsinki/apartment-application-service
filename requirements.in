@@ -10,7 +10,7 @@ django-simple-history~=3.0.0
 djangorestframework~=3.12.4
 djangorestframework-simplejwt~=4.7.1
 drf-oidc-auth~=2.0.0
-drf-spectacular~=0.18.2
+drf-spectacular
 elasticsearch~=7.14.0
 elasticsearch-dsl>=7.0.0,<8.0.0
 Faker~=8.6.0

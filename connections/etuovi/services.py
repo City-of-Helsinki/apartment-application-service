@@ -1,8 +1,9 @@
 import logging
 import os
+from typing import Optional
+
 from django.conf import settings
 from django_etuovi.etuovi import create_xml_file
-from typing import Optional
 
 from apartment.elastic.documents import ApartmentDocument
 from connections.enums import ApartmentStateOfSale

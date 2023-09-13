@@ -1,10 +1,11 @@
 from datetime import datetime
+from io import BytesIO
+from logging import getLogger
+
 from django.conf import settings
 from django.core.mail import EmailMessage
 from django.utils import timezone
 from django.utils.timezone import localtime
-from io import BytesIO
-from logging import getLogger
 
 from audit_log import audit_logging
 from audit_log.enums import Operation

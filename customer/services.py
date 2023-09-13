@@ -1,6 +1,7 @@
 from datetime import date
-from django.db import transaction
 from typing import Optional, TypedDict
+
+from django.db import transaction
 
 from customer.models import Customer
 from users.models import Profile

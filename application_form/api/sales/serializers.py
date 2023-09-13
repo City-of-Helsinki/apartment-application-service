@@ -1,12 +1,13 @@
 import logging
 import math
 from decimal import Decimal
+from uuid import UUID
+
 from django.core.exceptions import ObjectDoesNotExist
 from drf_spectacular.utils import extend_schema_field
 from enumfields.drf import EnumSupportSerializerMixin
 from rest_framework import serializers
 from rest_framework.fields import UUIDField
-from uuid import UUID
 
 from apartment.elastic.queries import get_apartment
 from apartment.models import ProjectExtraData

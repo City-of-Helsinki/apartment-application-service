@@ -14,7 +14,6 @@ on:
 env:
   SECRET_KEY: topsecret123
   DATABASE_URL: postgres://postgres:postgres@localhost/apartment-application
-  LOG_LEVEL: INFO
   OIKOTIE_VENDOR_ID: test
   ELASTICSEARCH_VERSION: '7.9.1'
   ELASTICSEARCH_HOST: localhost

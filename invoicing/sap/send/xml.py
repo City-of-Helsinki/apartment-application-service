@@ -73,10 +73,11 @@
 #         </LineItem>
 #     </SBO_AccountsReceivable>
 # </SBO_AccountsReceivableContainer>
-from django.conf import settings
-from django.db.models import QuerySet
 from typing import List, Union
 from xml.etree.ElementTree import Element, SubElement, tostring
+
+from django.conf import settings
+from django.db.models import QuerySet
 
 from invoicing.models import ApartmentInstallment
 from invoicing.sap.send.xml_utils import (

@@ -2,7 +2,6 @@
 
 from django.db import migrations
 
-
 forwards_sql = """
 UPDATE application_form_apartmentreservationstatechangeevent
 SET cancellation_reason = 'reservation_agreement_canceled'
