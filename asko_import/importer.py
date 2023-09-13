@@ -74,7 +74,7 @@ def run_asko_import(
             _validate_imported_data()
 
         if not (commit or commit_each):
-            print("Rolling back the changes...", end=" ")
+            print("Rolling back the changes...", end=" ", flush=True)
             transaction.set_rollback(True)
             print("Done.")
 
@@ -107,7 +107,7 @@ def _flush_model(model):
 def _flush_qs(qs):
     print(f"Deleting {qs.model.__name__}s..", end="")
     AsKoLink.get_objects_of_model(qs.model, qs.values("pk")).delete()
-    print(".", end=" ")
+    print(".", end=" ", flush=True)
     qs.delete()
     print("Done.")
 
@@ -345,7 +345,7 @@ def _set_reservation_positions(reservations, lottery_event=None):
 
 
 def _validate_imported_data():
-    print("Validating imported data...", end=" ")
+    print("Validating imported data...", end=" ", flush=True)
 
     reservations = _object_store.get_objects(ApartmentReservation)
     apartment_uuids = reservations.values("apartment_uuid").distinct()
