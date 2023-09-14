@@ -67,6 +67,8 @@ class AsKoLink(models.Model):
             ("object_type", "asko_id", "object_id_int"),
             ("object_type", "asko_id", "object_id_uuid"),
         ]
+        verbose_name = "AsKo Link"
+        verbose_name_plural = "AsKo Links"
 
     def __str__(self):
         return f"AsKo link {self.object_type.model} asko_id={self.asko_id}"
@@ -92,6 +94,8 @@ class AsKoImportLogEntry(models.Model):
 
     class Meta:
         ordering = ("created_at", "id")
+        verbose_name = "AsKo Import Log Entry"
+        verbose_name_plural = "AsKo Import Log Entries"
 
     @property
     def level_name(self):

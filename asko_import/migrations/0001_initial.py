@@ -44,6 +44,8 @@ class Migration(migrations.Migration):
                     ("object_type", "asko_id", "object_id_int"),
                     ("object_type", "asko_id", "object_id_uuid"),
                 },
+                "verbose_name": "AsKo Link",
+                "verbose_name_plural": "AsKo Links",
             },
         ),
     ]

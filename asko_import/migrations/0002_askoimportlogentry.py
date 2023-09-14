@@ -13,7 +13,11 @@ class Migration(migrations.Migration):
     operations = [
         migrations.CreateModel(
             name="AsKoImportLogEntry",
-            options={"ordering": ("created_at", "id")},
+            options={
+                "ordering": ("created_at", "id"),
+                "verbose_name": "AsKo Import Log Entry",
+                "verbose_name_plural": "AsKo Import Log Entries",
+            },
             fields=[
                 (
                     "id",
