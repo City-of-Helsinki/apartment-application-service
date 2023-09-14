@@ -1,8 +1,12 @@
 import logging
 import pprint
+from contextlib import contextmanager
 
-from .logger import LOG
+from .logger import LOG, log_context
 from .nin_utils import redact_nin_values
+from .object_store import get_object_store
+
+_object_store = get_object_store()
 
 # Whether to log National Identification Number values.
 #
@@ -27,3 +31,11 @@ def log_pretty_data(level: int, message: str, *args: object) -> None:
             args = redact_nin_values(args)
         pretty_args = tuple(pprint.pformat(x) for x in args)
         LOG.log(level, message, *pretty_args)
+
+
+@contextmanager
+def log_context_from(instance):
+    model = type(instance)
+    asko_id = _object_store.get_asko_id(instance)
+    with log_context(model=model, row={"id": asko_id}) as log:
+        yield log

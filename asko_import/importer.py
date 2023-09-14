@@ -22,7 +22,7 @@ from invoicing.models import ApartmentInstallment, ProjectInstallmentTemplate
 from users.models import Profile
 
 from .issues import DataIssueChecker
-from .log_utils import log_debug_data
+from .log_utils import log_context_from, log_debug_data
 from .logger import LOG, log_context
 from .models import AsKoImportLogEntry, AsKoLink
 from .object_store import get_object_store
@@ -263,17 +263,13 @@ def _get_hitas_position(reservation):
 
     # Didn't find a linked LotteryEventResult or found many: Log the
     # issue and raise exception if multiple results were found.
-    model = type(reservation)
-    eid = _object_store.get_asko_id(reservation)
-    with log_context(model=model, row={"id": eid}):
+    with log_context_from(reservation):
         if count == 0:
             LOG.warning("No LotteryEventResult found")
             return float("inf")
         else:
             LOG.error("Multiple LotteryEventResults found (%d)", count)
-            raise Exception(
-                f"Many LotteryEventResults for {model.__name__} asko_id={eid}"
-            )
+            raise Exception("Many LotteryEventResults for single reservation")
 
 
 def _set_haso_reservation_positions():
@@ -331,8 +327,7 @@ def _set_reservation_positions(reservations, lottery_event=None):
             queue_position=(queue_position if not_canceled else None),
         )
         if reservation.state_change_events.count() != 1:
-            eid = _object_store.get_asko_id(reservation)
-            with log_context(model=ApartmentReservation, row={"id": eid}):
+            with log_context_from(reservation):
                 LOG.error(
                     "Unexpected number of state change events: %d",
                     reservation.state_change_events.count(),
