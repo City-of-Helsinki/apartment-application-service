@@ -1,6 +1,8 @@
+import logging
+from unittest.mock import Mock
+
 from django.db.models import QuerySet
 from pytest import mark, raises
-from unittest.mock import Mock
 
 from application_form.enums import ApartmentQueueChangeEventType, ApplicationType
 from application_form.models.reservation import (
@@ -305,6 +307,9 @@ def test_remove_reservation_without_queue_positio_bug_ASU_1672(
     reservation = ApartmentReservationFactory(
         apartment_uuid=first_apartment_uuid, queue_position=None
     )
-    remove_reservation_from_queue(reservation)
+
+    with caplog.at_level(logging.INFO, logger="application_form.services.queue"):
+        remove_reservation_from_queue(reservation)
+
     assert caplog.records[0].levelname == "WARNING"
     assert first_apartment_uuid in caplog.text

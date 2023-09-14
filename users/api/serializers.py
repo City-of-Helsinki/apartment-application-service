@@ -1,4 +1,7 @@
 import logging
+from typing import Optional
+from uuid import UUID
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.exceptions import ObjectDoesNotExist
@@ -9,8 +12,6 @@ from rest_framework_simplejwt.serializers import (
     PasswordField,
     TokenObtainPairSerializer,
 )
-from typing import Optional
-from uuid import UUID
 
 from audit_log import audit_logging
 from audit_log.enums import Operation

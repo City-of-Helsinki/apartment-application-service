@@ -1,6 +1,7 @@
+from unittest.mock import Mock
+
 from django.contrib.admin import AdminSite
 from pytest import mark
-from unittest.mock import Mock
 
 from audit_log.admin import AuditLogAdmin
 from audit_log.models import AuditLog

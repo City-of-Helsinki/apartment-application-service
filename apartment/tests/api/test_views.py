@@ -1,7 +1,8 @@
-import pytest
 import uuid
-from django.urls import reverse
 from urllib.parse import urlencode
+
+import pytest
+from django.urls import reverse
 
 from apartment.elastic.queries import get_project
 from apartment.models import ProjectExtraData

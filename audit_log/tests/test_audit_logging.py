@@ -1,9 +1,10 @@
-import pytest
 from datetime import datetime, timedelta
+from unittest import mock
+
+import pytest
 from django.contrib.auth.models import AnonymousUser
 from django.test import override_settings
 from django.utils import timezone
-from unittest import mock
 
 from audit_log import audit_logging
 from audit_log.enums import Operation, Status

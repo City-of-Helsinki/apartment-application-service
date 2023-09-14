@@ -1,5 +1,6 @@
-from django.conf import settings
 from xml.etree import ElementTree
+
+from django.conf import settings
 
 from invoicing.models import ApartmentInstallment
 from invoicing.sap.send.xml_utils import get_installment_type_text

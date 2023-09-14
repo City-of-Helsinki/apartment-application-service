@@ -1,5 +1,6 @@
-from django.test import override_settings
 from uuid import UUID
+
+from django.test import override_settings
 
 from users.masking import mask_string, mask_uuid, unmask_string, unmask_uuid
 

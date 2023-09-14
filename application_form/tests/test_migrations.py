@@ -1,6 +1,7 @@
-import pytest
 import uuid
 from datetime import date
+
+import pytest
 
 from application_form.enums import ApplicationType
 

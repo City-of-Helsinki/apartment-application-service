@@ -1,4 +1,5 @@
 import logging
+
 from django.conf import settings
 from django.core.management.base import BaseCommand
 from django_oikotie.oikotie import send_items

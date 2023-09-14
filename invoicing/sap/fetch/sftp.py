@@ -1,6 +1,7 @@
-import paramiko
 from io import BytesIO
 from typing import List, Optional
+
+import paramiko
 
 from apartment_application_service import settings
 

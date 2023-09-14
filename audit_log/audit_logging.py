@@ -1,7 +1,8 @@
 from datetime import datetime, timezone
+from typing import Callable, Optional, Union
+
 from django.contrib.auth.models import AnonymousUser
 from django.db.models import Model
-from typing import Callable, Optional, Union
 
 from audit_log.enums import Operation, Role, Status
 from audit_log.models import AuditLog

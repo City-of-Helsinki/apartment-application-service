@@ -1,5 +1,6 @@
-import pytest
 from datetime import date
+
+import pytest
 
 from application_form.enums import ApplicationType
 from application_form.models import ApartmentReservation

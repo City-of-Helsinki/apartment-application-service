@@ -1,13 +1,14 @@
-import pytest
 from datetime import timedelta
+from unittest import mock
+from unittest.mock import MagicMock, Mock
+
+import pytest
 from django.conf import settings
 from django.core import mail
 from django.core.management import call_command
 from django.test import override_settings
 from django.utils import timezone
 from django.utils.timezone import localtime
-from unittest import mock
-from unittest.mock import MagicMock, Mock
 
 from apartment.tests.factories import ApartmentDocumentFactory
 from invoicing.services import (
