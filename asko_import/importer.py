@@ -317,8 +317,15 @@ def _set_reservation_positions(reservations, lottery_event=None):
             queue_position += 1
 
         if queue_position == 1 and is_submitted:
+            with log_context_from(reservation):
+                LOG.warning("Updating state from SUBMITTED to RESERVED")
             reservation.state = ApartmentReservationState.RESERVED
-        elif queue_position > 1 and not_canceled:
+        elif queue_position > 1 and not_canceled and not is_submitted:
+            with log_context_from(reservation):
+                LOG.warning(
+                    "Updating state from %s to SUBMITTED",
+                    reservation.state,
+                )
             reservation.state = ApartmentReservationState.SUBMITTED
 
         ApartmentReservation.objects.filter(pk=reservation.pk).update(
