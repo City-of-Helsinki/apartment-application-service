@@ -45,6 +45,7 @@ def assert_customer_match_data(customer: Customer, data: dict, compact: bool = F
             "is_age_over_55",
             "is_right_of_occupancy_housing_changer",
             "right_of_residence",
+            "right_of_residence_is_old_batch",
         )
     assert_obj_match_data(customer, data, fields)
 
