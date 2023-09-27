@@ -61,6 +61,7 @@ class AsKoImportLogEntryAdmin(ReadOnlyModelAdmin, FormattedCreatedAtMixin):
         "asko_id",
         "level",
         "message",
+        "object_description",
     )
     list_filter = [
         "level",
