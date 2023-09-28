@@ -123,6 +123,7 @@ class CustomerSerializer(serializers.ModelSerializer):
             "last_contact_date",
             "primary_profile",
             "right_of_residence",
+            "right_of_residence_is_old_batch",
             "secondary_profile",
             "apartment_reservations",
         )

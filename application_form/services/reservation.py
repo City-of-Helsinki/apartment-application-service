@@ -94,6 +94,9 @@ def create_reservation_without_application(
             list_position=(max_list_position or 0) + 1,
             queue_position=(max_queue_position or 0) + 1,
             right_of_residence=reservation_data["customer"].right_of_residence,
+            right_of_residence_is_old_batch=reservation_data[
+                "customer"
+            ].right_of_residence_is_old_batch,
             has_children=reservation_data["customer"].has_children,
             has_hitas_ownership=reservation_data["customer"].has_hitas_ownership,
             is_age_over_55=reservation_data["customer"].is_age_over_55,

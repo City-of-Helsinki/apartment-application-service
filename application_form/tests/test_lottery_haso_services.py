@@ -54,11 +54,33 @@ def test_application_with_the_smallest_right_of_residence_number_wins(
     # added to the queue.
     project_uuid, apartments = elastic_haso_project_with_5_apartments
     first_apartment_uuid = apartments[0].uuid
-    winner = ApplicationFactory(type=ApplicationType.HASO, right_of_residence=1)
+    winner = ApplicationFactory(
+        type=ApplicationType.HASO,
+        right_of_residence=3,
+        right_of_residence_is_old_batch=True,
+    )
     applications = [
-        ApplicationFactory(type=ApplicationType.HASO, right_of_residence=2),
+        ApplicationFactory(
+            type=ApplicationType.HASO,
+            right_of_residence=4,
+            right_of_residence_is_old_batch=True,
+        ),
+        # a new batch number, should be after the old batch
+        ApplicationFactory(
+            type=ApplicationType.HASO,
+            right_of_residence=2,
+        ),
         winner,
-        ApplicationFactory(type=ApplicationType.HASO, right_of_residence=3),
+        ApplicationFactory(
+            type=ApplicationType.HASO,
+            right_of_residence=5,
+            right_of_residence_is_old_batch=True,
+        ),
+        # a new batch number, should be after the old batch
+        ApplicationFactory(
+            type=ApplicationType.HASO,
+            right_of_residence=1,
+        ),
     ]
     for app in applications:
         app.application_apartments.create(
@@ -70,7 +92,9 @@ def test_application_with_the_smallest_right_of_residence_number_wins(
     assert list(get_ordered_applications(first_apartment_uuid)) == [
         winner,
         applications[0],
-        applications[2],
+        applications[3],
+        applications[4],
+        applications[1],
     ]
     winner.refresh_from_db()
     # The application state also should have changed
@@ -86,10 +110,27 @@ def test_original_application_order_is_persisted_before_distribution(
 ):
     project_uuid, apartments = elastic_haso_project_with_5_apartments
     first_apartment_uuid = apartments[0].uuid
-    app1 = ApplicationFactory(type=ApplicationType.HASO, right_of_residence=1)
-    app2 = ApplicationFactory(type=ApplicationType.HASO, right_of_residence=2)
-    app3 = ApplicationFactory(type=ApplicationType.HASO, right_of_residence=3)
-    applications = [app3, app1, app2]
+    app1 = ApplicationFactory(
+        type=ApplicationType.HASO,
+        right_of_residence=1,
+        right_of_residence_is_old_batch=True,
+    )
+    app2 = ApplicationFactory(
+        type=ApplicationType.HASO,
+        right_of_residence=2,
+        right_of_residence_is_old_batch=True,
+    )
+    app3 = ApplicationFactory(
+        type=ApplicationType.HASO,
+        right_of_residence=3,
+        right_of_residence_is_old_batch=True,
+    )
+    app4 = ApplicationFactory(
+        type=ApplicationType.HASO,
+        right_of_residence=1,
+        right_of_residence_is_old_batch=False,
+    )
+    applications = [app3, app1, app4, app2]
     app_apt1 = app1.application_apartments.create(
         apartment_uuid=first_apartment_uuid, priority_number=0
     )
@@ -97,6 +138,9 @@ def test_original_application_order_is_persisted_before_distribution(
         apartment_uuid=first_apartment_uuid, priority_number=0
     )
     app_apt3 = app3.application_apartments.create(
+        apartment_uuid=first_apartment_uuid, priority_number=0
+    )
+    app_apt4 = app4.application_apartments.create(
         apartment_uuid=first_apartment_uuid, priority_number=0
     )
     for app in applications:
@@ -110,6 +154,7 @@ def test_original_application_order_is_persisted_before_distribution(
     assert results.filter(result_position=1, application_apartment=app_apt1).exists()
     assert results.filter(result_position=2, application_apartment=app_apt2).exists()
     assert results.filter(result_position=3, application_apartment=app_apt3).exists()
+    assert results.filter(result_position=4, application_apartment=app_apt4).exists()
 
 
 @mark.django_db
@@ -218,9 +263,24 @@ def test_winners_with_same_right_of_residence_number_are_marked_for_review(
     # they are still treated as "winners", but should be marked as "REVIEW".
     project_uuid, apartments = elastic_haso_project_with_5_apartments
     first_apartment_uuid = apartments[0].uuid
-    app1 = ApplicationFactory(type=ApplicationType.HASO, right_of_residence=1)
-    app2 = ApplicationFactory(type=ApplicationType.HASO, right_of_residence=1)
-    app3 = ApplicationFactory(type=ApplicationType.HASO, right_of_residence=2)
+    app1 = ApplicationFactory(
+        type=ApplicationType.HASO,
+        right_of_residence=1,
+        right_of_residence_is_old_batch=True,
+    )
+    app2 = ApplicationFactory(
+        type=ApplicationType.HASO,
+        right_of_residence=1,
+        right_of_residence_is_old_batch=True,
+    )
+    app3 = ApplicationFactory(
+        type=ApplicationType.HASO,
+        right_of_residence=2,
+        right_of_residence_is_old_batch=True,
+    )
+    # right of residence new batch, so should not be included in the winners
+    app4 = ApplicationFactory(type=ApplicationType.HASO, right_of_residence=1)
+
     app_apt1 = app1.application_apartments.create(
         apartment_uuid=first_apartment_uuid, priority_number=0
     )
@@ -230,17 +290,28 @@ def test_winners_with_same_right_of_residence_number_are_marked_for_review(
     app_apt3 = app3.application_apartments.create(
         apartment_uuid=first_apartment_uuid, priority_number=0
     )
+    app_apt4 = app4.application_apartments.create(
+        apartment_uuid=first_apartment_uuid, priority_number=0
+    )
     add_application_to_queues(app1)
     add_application_to_queues(app2)
     add_application_to_queues(app3)
+    add_application_to_queues(app4)
     _distribute_haso_apartments(project_uuid)
-    assert list(get_ordered_applications(first_apartment_uuid)) == [app1, app2, app3]
+    assert list(get_ordered_applications(first_apartment_uuid)) == [
+        app1,
+        app2,
+        app3,
+        app4,
+    ]
     app_apt1.refresh_from_db()
     app_apt2.refresh_from_db()
     app_apt3.refresh_from_db()
+    app_apt4.refresh_from_db()
     assert app_apt1.apartment_reservation.state == ApartmentReservationState.REVIEW
     assert app_apt2.apartment_reservation.state == ApartmentReservationState.REVIEW
     assert app_apt3.apartment_reservation.state == ApartmentReservationState.SUBMITTED
+    assert app_apt4.apartment_reservation.state == ApartmentReservationState.SUBMITTED
 
 
 @mark.django_db
