@@ -50,6 +50,7 @@ def run_asko_import(
     ignore_errors=False,
     flush=False,
     flush_all=False,
+    flush_reservations_etc=False,
 ):
     LOG.info("Starting AsKo import")
 
@@ -64,6 +65,8 @@ def run_asko_import(
             _flush_profiles()
         elif flush:
             _flush()
+        elif flush_reservations_etc:
+            _flush_reservations_etc()
         else:
             _object_store.clear()
 
@@ -98,6 +101,14 @@ def _flush():
     _flush_model(AsKoLink)
 
 
+def _flush_reservations_etc():
+    print("Deleting reservations, installments and lottery events...")
+    _flush_model(LotteryEventResult)
+    _flush_model(LotteryEvent)
+    _flush_model(ApartmentInstallment)
+    _flush_model(ApartmentReservation)
+
+
 def _flush_profiles():
     print("Deleting Profiles and Users...")
     _flush_qs(get_user_model().objects.exclude(profile=None))
@@ -111,6 +122,13 @@ def _flush_model(model):
 def _flush_qs(qs):
     print(f"Deleting {qs.model.__name__}s...", end=" ", flush=True)
     asko_links = AsKoLink.get_objects_of_model(qs.model, qs.values("pk"))
+    logs = AsKoImportLogEntry.objects.filter(asko_link__in=asko_links)
+    print(
+        "(unlinking %d AsKoImportLogEntries)" % (logs.count(),),
+        end=" ",
+        flush=True,
+    )
+    logs.update(asko_link=None)
     print("(%d AsKoLinks)" % (asko_links.count(),), end=" ", flush=True)
     asko_links.delete()
     print("(%d objects)" % (qs.count(),), end=" ", flush=True)
