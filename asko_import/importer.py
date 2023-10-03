@@ -1,7 +1,7 @@
 import contextlib
 import csv
 import os
-from typing import Tuple, Type
+from typing import Optional, Sequence, Tuple, Type
 
 from django.contrib.auth import get_user_model
 from django.db import models, transaction
@@ -50,6 +50,7 @@ def run_asko_import(
     ignore_errors=False,
     flush=False,
     flush_all=False,
+    flush_reservations_etc=False,
 ):
     LOG.info("Starting AsKo import")
 
@@ -64,6 +65,8 @@ def run_asko_import(
             _flush_profiles()
         elif flush:
             _flush()
+        elif flush_reservations_etc:
+            _flush_reservations_etc()
         else:
             _object_store.clear()
 
@@ -98,6 +101,14 @@ def _flush():
     _flush_model(AsKoLink)
 
 
+def _flush_reservations_etc():
+    print("Deleting reservations, installments and lottery events...")
+    _flush_model(LotteryEventResult)
+    _flush_model(LotteryEvent)
+    _flush_model(ApartmentInstallment)
+    _flush_model(ApartmentReservation)
+
+
 def _flush_profiles():
     print("Deleting Profiles and Users...")
     _flush_qs(get_user_model().objects.exclude(profile=None))
@@ -111,6 +122,13 @@ def _flush_model(model):
 def _flush_qs(qs):
     print(f"Deleting {qs.model.__name__}s...", end=" ", flush=True)
     asko_links = AsKoLink.get_objects_of_model(qs.model, qs.values("pk"))
+    logs = AsKoImportLogEntry.objects.filter(asko_link__in=asko_links)
+    print(
+        "(unlinking %d AsKoImportLogEntries)" % (logs.count(),),
+        end=" ",
+        flush=True,
+    )
+    logs.update(asko_link=None)
     print("(%d AsKoLinks)" % (asko_links.count(),), end=" ", flush=True)
     asko_links.delete()
     print("(%d objects)" % (qs.count(),), end=" ", flush=True)
@@ -243,14 +261,7 @@ def _set_hitas_reservation_positions():
 
     for apartment_uuid in _object_store.get_hitas_apartment_uuids():
         reservations = reservation_qs.filter(apartment_uuid=apartment_uuid)
-        reservations_and_positions = (
-            (reservation, _get_hitas_position(reservation))
-            for reservation in reservations
-        )
-        ordered_reservations = (
-            r[0] for r in sorted(reservations_and_positions, key=lambda x: x[1])
-        )
-
+        ordered_reservations = sorted(reservations, key=_get_hitas_position)
         _set_reservation_positions(ordered_reservations)
 
     LOG.info("Done setting HITAS reservation positions")
@@ -307,9 +318,18 @@ def _set_haso_reservation_positions():
     LOG.info("Done setting HASO reservation positions")
 
 
-def _set_reservation_positions(reservations, lottery_event=None):
+def _set_reservation_positions(
+    reservations: Sequence[ApartmentReservation],
+    lottery_event: Optional[LotteryEvent] = None,
+):
+    selected_lp = _find_selected_list_position(reservations)
     queue_position = 0
+
     for list_position, reservation in enumerate(reservations, 1):
+        if list_position < selected_lp and _is_submitted(reservation):
+            # Cancel all submitted reservations before the selected one
+            reservation.state = ApartmentReservationState.CANCELED
+
         not_canceled = reservation.state != ApartmentReservationState.CANCELED
         is_submitted = reservation.state == ApartmentReservationState.SUBMITTED
 
@@ -350,6 +370,42 @@ def _set_reservation_positions(reservations, lottery_event=None):
                 application_apartment=reservation.application_apartment,
                 result_position=list_position,
             )
+
+
+def _find_selected_list_position(reservations: Sequence[ApartmentReservation]) -> int:
+    """
+    Find the list position of the (first) selected reservation.
+
+    If there is no selected reservation, return the list position of the
+    first submitted reservation or if all reservations are cancelled,
+    return 0 (which is not a list position, since they start from 1).
+    """
+    first_submitted_lp = None
+    for list_position, reservation in enumerate(reservations, 1):
+        if first_submitted_lp is None and _is_submitted(reservation):
+            first_submitted_lp = list_position
+        elif _is_selected(reservation):
+            return list_position
+    return first_submitted_lp or 0
+
+
+def _is_selected(reservation):
+    """
+    Return True if the reservation is selected for the apartment.
+
+    The CANCELED and SUBMITTED states are not selected, which leaves
+    the other states (RESERVED, RESERVATION_AGREEMENT, OFFERED,
+    OFFER_ACCEPTED, OFFER_EXPIRED, ACCEPTED_BY_MUNICIPALITY, SOLD,
+    REVIEW) as selected.
+    """
+    return reservation.state not in {
+        ApartmentReservationState.CANCELED,
+        ApartmentReservationState.SUBMITTED,
+    }
+
+
+def _is_submitted(reservation):
+    return reservation.state == ApartmentReservationState.SUBMITTED
 
 
 def _validate_imported_data():

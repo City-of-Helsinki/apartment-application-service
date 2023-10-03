@@ -1,7 +1,10 @@
 import logging
+from typing import Optional
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
+
+from .describer import get_description
 
 
 class AsKoLink(models.Model):
@@ -12,7 +15,11 @@ class AsKoLink(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def get_object(self):
+    def describe_object(self) -> str:
+        obj = self.get_object()
+        return get_description(obj) if obj else ""
+
+    def get_object(self) -> Optional[models.Model]:
         model = self.object_type.model_class()
         pk = self.object_id_int or self.object_id_uuid
         return model.objects.get(pk=pk) if pk else None
@@ -154,3 +161,7 @@ class AsKoImportLogEntry(models.Model):
             suffix += f" ({self.exception})"
 
         return f"{self.created_at}: {prefix}{self.message}{suffix}"
+
+    @property
+    def object_description(self) -> str:
+        return self.asko_link.describe_object() if self.asko_link else ""
