@@ -331,6 +331,12 @@ def _set_reservation_positions(
     for list_position, reservation in enumerate(reservations, 1):
         if list_position < selected_lp and _is_submitted(reservation):
             # Cancel all submitted reservations before the selected one
+            with log_context_from(reservation):
+                LOG.debug(
+                    "Canceling reservation from position %s (Seleceted is %s)",
+                    list_position,
+                    selected_lp,
+                )
             reservation.state = ApartmentReservationState.CANCELED
 
         not_canceled = reservation.state != ApartmentReservationState.CANCELED
