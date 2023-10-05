@@ -163,10 +163,10 @@ def _import_data(directory=None, ignore_errors=False, skip_imported=False):
     import_model("Applicant.txt", ApplicantSerializer)
     import_model("ApplicationApartment.txt", ApplicationApartmentSerializer)
     import_model("ApartmentReservation.txt", ApartmentReservationSerializer)
-    import_model("ProjectInstallmentTemplate.txt", ProjectInstallmentTemplateSerializer)
-    import_model("ApartmentInstallment.txt", ApartmentInstallmentSerializer)
     import_model("LotteryEvent.txt", LotteryEventSerializer)
     import_model("LotteryEventResult.txt", LotteryEventResultSerializer)
+    import_model("ProjectInstallmentTemplate.txt", ProjectInstallmentTemplateSerializer)
+    import_model("ApartmentInstallment.txt", ApartmentInstallmentSerializer)
 
 
 def _is_imported(model):
