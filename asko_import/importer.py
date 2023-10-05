@@ -448,4 +448,13 @@ def _validate_imported_data():
                 reservation.queue_position,
             )
 
+    LOG.info("Checking that %s", "temporary list positions are overridden...")
+    has_temporary_list_position = reservations.filter(list_position__gte=10000)
+    for reservation in has_temporary_list_position:
+        with log_context_from(reservation):
+            LOG.error(
+                "Reservation has a temporary list position (%s)",
+                reservation.list_position,
+            )
+
     LOG.info("Data validation complete.")
