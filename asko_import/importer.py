@@ -52,8 +52,6 @@ def run_asko_import(
     flush_all=False,
     flush_reservations_etc=False,
 ):
-    LOG.info("Starting AsKo import")
-
     if commit_each:
         outer_transaction = contextlib.nullcontext()
     else:
@@ -68,10 +66,9 @@ def run_asko_import(
         elif flush_reservations_etc:
             _flush_reservations_etc()
         else:
+            LOG.info("Starting AsKo import")
             _object_store.clear()
-
             _import_data(directory, ignore_errors, skip_imported)
-
             _validate_imported_data()
 
         if not (commit or commit_each):
