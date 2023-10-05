@@ -72,9 +72,6 @@ def run_asko_import(
 
             _import_data(directory, ignore_errors, skip_imported)
 
-            with transaction.atomic():
-                _set_all_reservation_positions()
-
             _validate_imported_data()
 
         if not (commit or commit_each):
@@ -149,6 +146,14 @@ def _import_data(directory=None, ignore_errors=False, skip_imported=False):
 
                 if sc == ApplicantSerializer:
                     _set_applicants_counts()
+
+        # Set reservation positions after lottery results have been imported
+        if sc == LotteryEventResultSerializer:
+            with log_context(model=ApartmentReservation):
+                with transaction.atomic():
+                    _set_hitas_reservation_positions()
+                with transaction.atomic():
+                    _set_haso_reservation_positions()
 
     print("Importing data from AsKo...")
 
@@ -240,12 +245,6 @@ def _set_applicants_counts():
     for application in applications.annotate(ac=models.Count("applicants")):
         application_qs = Application.objects.filter(pk=application.pk)
         application_qs.update(applicants_count=application.ac)
-
-
-def _set_all_reservation_positions():
-    with log_context(model=ApartmentReservation):
-        _set_hitas_reservation_positions()
-        _set_haso_reservation_positions()
 
 
 def _set_hitas_reservation_positions():
