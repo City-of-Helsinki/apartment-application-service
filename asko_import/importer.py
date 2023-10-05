@@ -409,39 +409,43 @@ def _is_submitted(reservation):
 
 
 def _validate_imported_data():
-    print("Validating imported data...", end=" ", flush=True)
+    LOG.info("Validating imported data...")
 
     reservations = _object_store.get_objects(ApartmentReservation)
+
+    LOG.info("Checking that %s", "all apartments have a lottery event...")
     apartment_uuids = reservations.values("apartment_uuid").distinct()
     apartment_uuids_without_lottery = apartment_uuids.exclude(
         apartment_uuid__in=LotteryEvent.objects.values("apartment_uuid")
     ).values_list("apartment_uuid", flat=True)
     for apartment_uuid in apartment_uuids_without_lottery:
-        print(f"LOTTERY DOES NOT EXIST FOR APARTMENT {apartment_uuid}")
+        LOG.error("Lottery does not exists for apartment %s", apartment_uuid)
 
-    for reservation in reservations:
-        apartment_uuid = reservation.apartment_uuid
+    LOG.info("Checking that %s", "all reservations have an application...")
+    for reservation in reservations.filter(application_apartment=None):
+        with log_context_from(reservation):
+            LOG.error("Reservation does not have an application")
 
-        if not reservation.application_apartment:
-            print(f"RESERVATION {reservation} DOES NOT HAVE AN APPLICATION")
+    LOG.info("Checking that %s", "queue position 1 is not submitted...")
+    in_bad_state_with_queue_pos_1 = reservations.filter(
+        queue_position=1, state=ApartmentReservationState.SUBMITTED
+    )
+    for reservation in in_bad_state_with_queue_pos_1:
+        with log_context_from(reservation):
+            LOG.error("Reservation in queue pos 1 is submitted")
 
-        if (
-            reservation.queue_position == 1
-            and reservation.state == ApartmentReservationState.SUBMITTED
-        ):
-            print(
-                f"RESERVATION {reservation} customer {reservation.customer} is in "
-                f"wrong state"
+    LOG.info("Checking that %s", "other queue positions are submitted...")
+    in_bad_state_with_queue_pos_gt_1 = (
+        reservations.exclude(queue_position=None)
+        .exclude(queue_position=1)
+        .exclude(state=ApartmentReservationState.SUBMITTED)
+    )
+    for reservation in in_bad_state_with_queue_pos_gt_1:
+        with log_context_from(reservation):
+            LOG.error(
+                "Reservation should be SUBMITTED but it is %s in position %s",
+                reservation.state,
+                reservation.queue_position,
             )
 
-        if (
-            reservation.queue_position is not None
-            and reservation.queue_position != 1
-            and reservation.state != ApartmentReservationState.SUBMITTED
-        ):
-            print(
-                f"RESERVATION {reservation} customer {reservation.customer} should be "
-                f"SUBMITTED but it is {reservation.state} in position "
-                f"{reservation.queue_position}"
-            )
-    print("Done.")
+    LOG.info("Data validation complete.")
