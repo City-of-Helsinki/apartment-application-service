@@ -15,7 +15,8 @@ class AsKoLink(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def describe_object(self) -> str:
+    @property
+    def object_description(self) -> str:
         obj = self.get_object()
         return get_description(obj) if obj else ""
 
@@ -164,4 +165,4 @@ class AsKoImportLogEntry(models.Model):
 
     @property
     def object_description(self) -> str:
-        return self.asko_link.describe_object() if self.asko_link else ""
+        return self.asko_link.object_description if self.asko_link else ""

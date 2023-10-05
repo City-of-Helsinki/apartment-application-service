@@ -44,6 +44,7 @@ class AsKoLinkAdmin(ReadOnlyModelAdmin, FormattedTimestampsMixin):
         "asko_id",
         "object_id_int",
         "object_id_uuid",
+        "object_description",
     )
 
     list_filter = [
