@@ -1,7 +1,7 @@
 import contextlib
 import csv
 import os
-from typing import Optional, Sequence, Tuple, Type
+from typing import Dict, Iterator, Optional, Sequence, Tuple, Type
 
 from django.contrib.auth import get_user_model
 from django.db import models, transaction
@@ -184,6 +184,45 @@ def _import_model(
     skipped = 0
     model = serializer_class.Meta.model
     checker = DataIssueChecker(model)
+    count = 0
+    for row in _read_csv(directory, filename):
+        count += 1
+        with log_context(model=model, row=row):
+            eid = int(row["id"])  # External ID (aka AsKo ID) of the row
+
+            issues = checker.check(row)
+            if issues:
+                issues.log(LOG)
+                skipped += 1
+                continue
+
+            serializer = serializer_class(data=row)
+            try:
+                serializer.is_valid(raise_exception=True)
+                instance = serializer.save()
+            except Exception:
+                name = model.__name__
+                LOG.exception("Failed to import %s asko_id=%s", name, eid)
+                log_debug_data("Row data: %s", row)
+                if ignore_errors:
+                    continue
+                else:
+                    raise
+            _object_store.put(eid, instance)
+            imported += 1
+
+    failed = count - imported - skipped
+    LOG.info(
+        "Imported %d rows (skipped: %d, failed: %d)",
+        imported,
+        skipped,
+        failed,
+    )
+
+    return imported, count
+
+
+def _read_csv(directory: str, filename: str) -> Iterator[Dict[str, str]]:
     file_path = os.path.join(directory, filename)
     LOG.info("Importing data from file: %s", filename)
 
@@ -194,46 +233,14 @@ def _import_model(
 
         reader = csv.DictReader(csv_file, delimiter=";")
         for index, row in enumerate(reader, 1):
-            with log_context(model=model, row=row):
-                if index % 500 == 0:
-                    if index % 5000 == 0:
-                        print(f"({index})", end="", flush=True)
-                    else:
-                        print(".", end="", flush=True)
-                row = {k.lower(): v for k, v in row.items() if v != ""}
-                eid = int(row["id"])  # External ID (aka AsKo ID) of the row
-
-                issues = checker.check(row)
-                if issues:
-                    issues.log(LOG)
-                    skipped += 1
-                    continue
-
-                serializer = serializer_class(data=row)
-                try:
-                    serializer.is_valid(raise_exception=True)
-                    instance = serializer.save()
-                except Exception:
-                    name = model.__name__
-                    LOG.exception("Failed to import %s asko_id=%s", name, eid)
-                    log_debug_data("Row data: %s", row)
-                    if ignore_errors:
-                        continue
-                    else:
-                        raise
-                _object_store.put(eid, instance)
-                imported += 1
-
+            if index % 500 == 0:
+                if index % 5000 == 0:
+                    print(f"({index})", end="", flush=True)
+                else:
+                    print(".", end="", flush=True)
+            row = {k.lower(): v for k, v in row.items() if v != ""}
+            yield row
     print("Done.")
-    failed = count - imported - skipped
-    LOG.info(
-        "Imported %d rows (skipped: %d, failed: %d)",
-        imported,
-        skipped,
-        failed,
-    )
-
-    return imported, count
 
 
 def _set_applicants_counts():
