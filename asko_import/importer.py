@@ -1,6 +1,8 @@
 import contextlib
 import csv
 import os
+import uuid
+from collections import Counter
 from typing import Dict, Iterator, Optional, Sequence, Tuple, Type
 
 from django.contrib.auth import get_user_model
@@ -33,6 +35,7 @@ from .serializers import (
     ApplicationApartmentSerializer,
     ApplicationSerializer,
     CustomerSerializer,
+    get_apartment_uuid,
     LotteryEventResultSerializer,
     LotteryEventSerializer,
     ProfileSerializer,
@@ -40,6 +43,13 @@ from .serializers import (
 )
 
 _object_store = get_object_store()
+
+# Offset for generating fake AsKo IDs.
+#
+# Will be used to generate IDs for reservations created from apartment
+# states in apartment.txt.  Should avoid collision with AsKo IDs of real
+# ApartmentReservations.
+FAKE_ASKO_ID_OFFSET = 1000000000
 
 
 def run_asko_import(
@@ -152,6 +162,19 @@ def _import_data(directory=None, ignore_errors=False, skip_imported=False):
                 with transaction.atomic():
                     _set_haso_reservation_positions()
 
+    def import_apartment_owners(fn: str) -> None:
+        if skip_imported and _is_imported(
+            ApartmentReservation,
+            variant=" from apartment states",
+            min_asko_id=FAKE_ASKO_ID_OFFSET,
+            max_asko_id=2 * FAKE_ASKO_ID_OFFSET,
+        ):
+            return
+
+        with transaction.atomic():
+            with log_context(model=ApartmentReservation):
+                _import_apartment_owners(directory, fn)
+
     print("Importing data from AsKo...")
 
     import_model("profile.txt", ProfileSerializer)
@@ -160,16 +183,27 @@ def _import_data(directory=None, ignore_errors=False, skip_imported=False):
     import_model("Applicant.txt", ApplicantSerializer)
     import_model("ApplicationApartment.txt", ApplicationApartmentSerializer)
     import_model("ApartmentReservation.txt", ApartmentReservationSerializer)
+    import_apartment_owners("apartment.txt")
     import_model("LotteryEvent.txt", LotteryEventSerializer)
     import_model("LotteryEventResult.txt", LotteryEventResultSerializer)
     import_model("ProjectInstallmentTemplate.txt", ProjectInstallmentTemplateSerializer)
     import_model("ApartmentInstallment.txt", ApartmentInstallmentSerializer)
 
 
-def _is_imported(model):
-    cnt = model.objects.count()
+def _is_imported(
+    model,
+    variant="",
+    min_asko_id=0,
+    max_asko_id=FAKE_ASKO_ID_OFFSET,
+):
+    ids = AsKoLink.get_ids_of_model(model).filter(
+        asko_id__gte=min_asko_id,
+        asko_id__lt=max_asko_id,
+    )
+    cnt = model.objects.filter(pk__in=ids).count()
     if cnt > 0:
-        print(f"Skipping import of {model.__name__} ({cnt} existing objects)")
+        model_name = f"{model.__name__}{variant}"
+        print(f"Skipping import of {model_name} ({cnt} existing objects)")
         return True
     return False
 
@@ -414,6 +448,73 @@ def _is_selected(reservation):
 
 def _is_submitted(reservation):
     return reservation.state == ApartmentReservationState.SUBMITTED
+
+
+def _import_apartment_owners(directory: str, filename: str) -> None:
+    LOG.info("Creating missing reservations from apartment states...")
+    counts = Counter()
+
+    # Map AsKo apartment state to ApartmentReservation state
+    state_map = {
+        "FREE_FOR_RESERVATIONS": ApartmentReservationState.SUBMITTED,
+        "RESERVED": ApartmentReservationState.RESERVED,
+        "SOLD": ApartmentReservationState.SOLD,
+    }
+
+    for row in _read_csv(directory, filename):
+        counts["apartments"] += 1
+        customer_aid = row.get("customerid")
+        if not customer_aid:
+            counts["no_customer"] += 1
+            continue
+        customer_id = _object_store.get_id(Customer, customer_aid)
+        apartment_asko_id = row["taulun avainkenttä (apartment uuid)"]
+        apartment_uuid = get_apartment_uuid(apartment_asko_id)
+        state = row["apartment_state_of_sale"]
+
+        reservations = ApartmentReservation.objects.filter(
+            customer__id=customer_id, apartment_uuid=apartment_uuid
+        )
+
+        if not reservations:
+            reservation = _create_reservation(
+                apartment_uuid, customer_id, state_map[state]
+            )
+            fake_asko_id = FAKE_ASKO_ID_OFFSET + int(apartment_asko_id)
+            _object_store.put(fake_asko_id, reservation)
+            with log_context_from(reservation):
+                LOG.debug("Created reservation from apartment state")
+            counts["created"] += 1
+        else:
+            counts["exists"] += 1
+
+    LOG.info(
+        "Created %d reservations from apartment states. "
+        "(%d apartments, %d without customers, %d existing)",
+        counts["created"],
+        counts["apartments"],
+        counts["no_customer"],
+        counts["exists"],
+    )
+
+
+def _create_reservation(
+    apartment_uuid: uuid.UUID,
+    customer_id: int,
+    state: ApartmentReservationState,
+) -> ApartmentReservation:
+    reservations = ApartmentReservation.objects.filter(apartment_uuid=apartment_uuid)
+
+    max_lp = reservations.aggregate(m=models.Max("list_position"))["m"]
+    max_qp = reservations.active().aggregate(m=models.Max("queue_position"))["m"]
+
+    return ApartmentReservation.objects.create(
+        apartment_uuid=apartment_uuid,
+        customer_id=customer_id,
+        state=state,
+        list_position=(max_lp or 0) + 1,
+        queue_position=(max_qp or 0) + 1,
+    )
 
 
 def _validate_imported_data():
