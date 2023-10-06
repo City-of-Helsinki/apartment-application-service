@@ -16,14 +16,16 @@ from invoicing.models import ApartmentInstallment, ProjectInstallmentTemplate
 TEMPLATE_BY_MODEL = {
     Applicant: "{first_name} {last_name}",
     Application: "{customer} / {apartments}",
-    ApplicationApartment: "[Pri{priority_number}] {customer} / {apartment}",
+    ApplicationApartment: "{apartment} [Pri{priority_number}] / {customer}",
     ApartmentReservation: (
-        "[{state} L{list_position} Q{queue_position}] {customer} / {apartment}"
+        "[{state} L{list_position} Q{queue_position}] {apartment} / {customer}"
     ),
-    LotteryEvent: "{timestamp} {apartment}",
+    LotteryEvent: "{apartment} Lottery {id} at {timestamp}",
     LotteryEventResult: "{result_position}/{result_count} {appl_apartment}",
-    ApartmentInstallment: "{due_date} {reference_number} {value}€ {reservation}",
-    ProjectInstallmentTemplate: "{project}, {type}, {due_date} {value}{unit}",
+    ApartmentInstallment: (
+        "{due_date} {reference_number} {value}€ {type} -> {reservation}"
+    ),
+    ProjectInstallmentTemplate: "{project} / {due_date} {type} {value}{unit}",
 }
 
 
@@ -64,8 +66,8 @@ def _get_data_field(field, obj):
     elif field == "reservation":
         reservation = obj.apartment_reservation
         return get_description(reservation)
-    elif field == "state":
-        return obj.state.name
+    elif field in {"state", "type"}:
+        return getattr(obj, field).name
     elif field == "customer":
         customer = getattr(obj, "customer", None) or obj.application.customer
         return get_description(customer)

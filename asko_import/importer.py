@@ -1,7 +1,9 @@
 import contextlib
 import csv
 import os
-from typing import Optional, Sequence, Tuple, Type
+import uuid
+from collections import Counter
+from typing import Dict, Iterator, Optional, Sequence, Tuple, Type
 
 from django.contrib.auth import get_user_model
 from django.db import models, transaction
@@ -33,6 +35,7 @@ from .serializers import (
     ApplicationApartmentSerializer,
     ApplicationSerializer,
     CustomerSerializer,
+    get_apartment_uuid,
     LotteryEventResultSerializer,
     LotteryEventSerializer,
     ProfileSerializer,
@@ -40,6 +43,13 @@ from .serializers import (
 )
 
 _object_store = get_object_store()
+
+# Offset for generating fake AsKo IDs.
+#
+# Will be used to generate IDs for reservations created from apartment
+# states in apartment.txt.  Should avoid collision with AsKo IDs of real
+# ApartmentReservations.
+FAKE_ASKO_ID_OFFSET = 1000000000
 
 
 def run_asko_import(
@@ -52,8 +62,6 @@ def run_asko_import(
     flush_all=False,
     flush_reservations_etc=False,
 ):
-    LOG.info("Starting AsKo import")
-
     if commit_each:
         outer_transaction = contextlib.nullcontext()
     else:
@@ -68,13 +76,9 @@ def run_asko_import(
         elif flush_reservations_etc:
             _flush_reservations_etc()
         else:
+            LOG.info("Starting AsKo import")
             _object_store.clear()
-
             _import_data(directory, ignore_errors, skip_imported)
-
-            with transaction.atomic():
-                _set_all_reservation_positions()
-
             _validate_imported_data()
 
         if not (commit or commit_each):
@@ -150,6 +154,27 @@ def _import_data(directory=None, ignore_errors=False, skip_imported=False):
                 if sc == ApplicantSerializer:
                     _set_applicants_counts()
 
+        # Set reservation positions after lottery results have been imported
+        if sc == LotteryEventResultSerializer:
+            with log_context(model=ApartmentReservation):
+                with transaction.atomic():
+                    _set_hitas_reservation_positions()
+                with transaction.atomic():
+                    _set_haso_reservation_positions()
+
+    def import_apartment_owners(fn: str) -> None:
+        if skip_imported and _is_imported(
+            ApartmentReservation,
+            variant=" from apartment states",
+            min_asko_id=FAKE_ASKO_ID_OFFSET,
+            max_asko_id=2 * FAKE_ASKO_ID_OFFSET,
+        ):
+            return
+
+        with transaction.atomic():
+            with log_context(model=ApartmentReservation):
+                _import_apartment_owners(directory, fn)
+
     print("Importing data from AsKo...")
 
     import_model("profile.txt", ProfileSerializer)
@@ -158,16 +183,27 @@ def _import_data(directory=None, ignore_errors=False, skip_imported=False):
     import_model("Applicant.txt", ApplicantSerializer)
     import_model("ApplicationApartment.txt", ApplicationApartmentSerializer)
     import_model("ApartmentReservation.txt", ApartmentReservationSerializer)
-    import_model("ProjectInstallmentTemplate.txt", ProjectInstallmentTemplateSerializer)
-    import_model("ApartmentInstallment.txt", ApartmentInstallmentSerializer)
+    import_apartment_owners("apartment.txt")
     import_model("LotteryEvent.txt", LotteryEventSerializer)
     import_model("LotteryEventResult.txt", LotteryEventResultSerializer)
+    import_model("ProjectInstallmentTemplate.txt", ProjectInstallmentTemplateSerializer)
+    import_model("ApartmentInstallment.txt", ApartmentInstallmentSerializer)
 
 
-def _is_imported(model):
-    cnt = model.objects.count()
+def _is_imported(
+    model,
+    variant="",
+    min_asko_id=0,
+    max_asko_id=FAKE_ASKO_ID_OFFSET,
+):
+    ids = AsKoLink.get_ids_of_model(model).filter(
+        asko_id__gte=min_asko_id,
+        asko_id__lt=max_asko_id,
+    )
+    cnt = model.objects.filter(pk__in=ids).count()
     if cnt > 0:
-        print(f"Skipping import of {model.__name__} ({cnt} existing objects)")
+        model_name = f"{model.__name__}{variant}"
+        print(f"Skipping import of {model_name} ({cnt} existing objects)")
         return True
     return False
 
@@ -182,47 +218,35 @@ def _import_model(
     skipped = 0
     model = serializer_class.Meta.model
     checker = DataIssueChecker(model)
-    file_path = os.path.join(directory, filename)
-    LOG.info("Importing data from file: %s", filename)
+    count = 0
+    for row in _read_csv(directory, filename):
+        count += 1
+        with log_context(model=model, row=row):
+            eid = int(row["id"])  # External ID (aka AsKo ID) of the row
 
-    with open(file_path, mode="r", encoding="utf-8-sig") as csv_file:
-        count = sum(1 for _ in csv.DictReader(csv_file, delimiter=";"))
-        print(f"[{count} entries]", end="", flush=True)
-        csv_file.seek(0)
+            _fix_data(model, row)
 
-        reader = csv.DictReader(csv_file, delimiter=";")
-        for index, row in enumerate(reader, 1):
-            with log_context(model=model, row=row):
-                if index % 500 == 0:
-                    if index % 5000 == 0:
-                        print(f"({index})", end="", flush=True)
-                    else:
-                        print(".", end="", flush=True)
-                row = {k.lower(): v for k, v in row.items() if v != ""}
-                eid = int(row["id"])  # External ID (aka AsKo ID) of the row
+            issues = checker.check(row)
+            if issues:
+                issues.log(LOG)
+                skipped += 1
+                continue
 
-                issues = checker.check(row)
-                if issues:
-                    issues.log(LOG)
-                    skipped += 1
+            serializer = serializer_class(data=row)
+            try:
+                serializer.is_valid(raise_exception=True)
+                instance = serializer.save()
+            except Exception:
+                name = model.__name__
+                LOG.exception("Failed to import %s asko_id=%s", name, eid)
+                log_debug_data("Row data: %s", row)
+                if ignore_errors:
                     continue
+                else:
+                    raise
+            _object_store.put(eid, instance)
+            imported += 1
 
-                serializer = serializer_class(data=row)
-                try:
-                    serializer.is_valid(raise_exception=True)
-                    instance = serializer.save()
-                except Exception:
-                    name = model.__name__
-                    LOG.exception("Failed to import %s asko_id=%s", name, eid)
-                    log_debug_data("Row data: %s", row)
-                    if ignore_errors:
-                        continue
-                    else:
-                        raise
-                _object_store.put(eid, instance)
-                imported += 1
-
-    print("Done.")
     failed = count - imported - skipped
     LOG.info(
         "Imported %d rows (skipped: %d, failed: %d)",
@@ -234,18 +258,49 @@ def _import_model(
     return imported, count
 
 
+def _read_csv(directory: str, filename: str) -> Iterator[Dict[str, str]]:
+    file_path = os.path.join(directory, filename)
+    LOG.info("Importing data from file: %s", filename)
+
+    with open(file_path, mode="r", encoding="utf-8-sig") as csv_file:
+        count = sum(1 for _ in csv.DictReader(csv_file, delimiter=";"))
+        print(f"[{count} entries]", end="", flush=True)
+        csv_file.seek(0)
+
+        reader = csv.DictReader(csv_file, delimiter=";")
+        for index, row in enumerate(reader, 1):
+            if index % 500 == 0:
+                if index % 5000 == 0:
+                    print(f"({index})", end="", flush=True)
+                else:
+                    print(".", end="", flush=True)
+            row = {k.lower(): v for k, v in row.items() if v != ""}
+            yield row
+    print("Done.")
+
+
+def _fix_data(model, row):
+    if model != ApartmentInstallment:
+        return
+
+    if not row.get("apartment_reservation"):
+        customer = _object_store.get_id(Customer, row["customerid"])
+        apartment_uuid = get_apartment_uuid(row["apartment_uuid"])
+        reservation = ApartmentReservation.objects.filter(
+            apartment_uuid=apartment_uuid,
+            customer=customer,
+        ).first()
+        if reservation:
+            asko_id = _object_store.get_asko_id(reservation)
+            row["apartment_reservation"] = str(asko_id)
+
+
 def _set_applicants_counts():
     applications = _object_store.get_objects(Application)
     LOG.info("Updating applicants_count for %d applications", applications.count())
     for application in applications.annotate(ac=models.Count("applicants")):
         application_qs = Application.objects.filter(pk=application.pk)
         application_qs.update(applicants_count=application.ac)
-
-
-def _set_all_reservation_positions():
-    with log_context(model=ApartmentReservation):
-        _set_hitas_reservation_positions()
-        _set_haso_reservation_positions()
 
 
 def _set_hitas_reservation_positions():
@@ -276,7 +331,10 @@ def _get_hitas_position(reservation):
     # issue and raise exception if multiple results were found.
     with log_context_from(reservation):
         if count == 0:
-            LOG.warning("No LotteryEventResult found")
+            if _object_store.get_asko_id(reservation) < FAKE_ASKO_ID_OFFSET:
+                # For the reservations created from apartment states it
+                # is expected to not have a lottery event. Log the rest.
+                LOG.warning("No LotteryEventResult found")
             return float("inf")
         else:
             LOG.error("Multiple LotteryEventResults found (%d)", count)
@@ -328,6 +386,12 @@ def _set_reservation_positions(
     for list_position, reservation in enumerate(reservations, 1):
         if list_position < selected_lp and _is_submitted(reservation):
             # Cancel all submitted reservations before the selected one
+            with log_context_from(reservation):
+                LOG.debug(
+                    "Canceling reservation from position %s (Seleceted is %s)",
+                    list_position,
+                    selected_lp,
+                )
             reservation.state = ApartmentReservationState.CANCELED
 
         not_canceled = reservation.state != ApartmentReservationState.CANCELED
@@ -338,8 +402,7 @@ def _set_reservation_positions(
 
         if queue_position == 1 and is_submitted:
             with log_context_from(reservation):
-                LOG.warning("Updating state from SUBMITTED to RESERVED")
-            reservation.state = ApartmentReservationState.RESERVED
+                LOG.debug("First position is SUBMITTED instead of RESERVED")
         elif queue_position > 1 and not_canceled and not is_submitted:
             with log_context_from(reservation):
                 LOG.warning(
@@ -408,40 +471,117 @@ def _is_submitted(reservation):
     return reservation.state == ApartmentReservationState.SUBMITTED
 
 
-def _validate_imported_data():
-    print("Validating imported data...", end=" ", flush=True)
+def _import_apartment_owners(directory: str, filename: str) -> None:
+    LOG.info("Creating missing reservations from apartment states...")
+    counts = Counter()
 
-    reservations = _object_store.get_objects(ApartmentReservation)
+    # Map AsKo apartment state to ApartmentReservation state
+    state_map = {
+        "FREE_FOR_RESERVATIONS": ApartmentReservationState.SUBMITTED,
+        "RESERVED": ApartmentReservationState.RESERVED,
+        "SOLD": ApartmentReservationState.SOLD,
+    }
+
+    for row in _read_csv(directory, filename):
+        counts["apartments"] += 1
+        customer_aid = row.get("customerid")
+        if not customer_aid:
+            counts["no_customer"] += 1
+            continue
+        customer_id = _object_store.get_id(Customer, customer_aid)
+        apartment_asko_id = row["taulun avainkenttä (apartment uuid)"]
+        apartment_uuid = get_apartment_uuid(apartment_asko_id)
+        state = row["apartment_state_of_sale"]
+
+        reservations = ApartmentReservation.objects.filter(
+            customer__id=customer_id, apartment_uuid=apartment_uuid
+        )
+
+        if not reservations:
+            reservation = _create_reservation(
+                apartment_uuid, customer_id, state_map[state]
+            )
+            fake_asko_id = FAKE_ASKO_ID_OFFSET + int(apartment_asko_id)
+            _object_store.put(fake_asko_id, reservation)
+            with log_context_from(reservation):
+                LOG.debug("Created reservation from apartment state")
+            counts["created"] += 1
+        else:
+            counts["exists"] += 1
+
+    LOG.info(
+        "Created %d reservations from apartment states. "
+        "(%d apartments, %d without customers, %d existing)",
+        counts["created"],
+        counts["apartments"],
+        counts["no_customer"],
+        counts["exists"],
+    )
+
+
+def _create_reservation(
+    apartment_uuid: uuid.UUID,
+    customer_id: int,
+    state: ApartmentReservationState,
+) -> ApartmentReservation:
+    reservations = ApartmentReservation.objects.filter(apartment_uuid=apartment_uuid)
+
+    max_lp = reservations.aggregate(m=models.Max("list_position"))["m"]
+    max_qp = reservations.active().aggregate(m=models.Max("queue_position"))["m"]
+
+    return ApartmentReservation.objects.create(
+        apartment_uuid=apartment_uuid,
+        customer_id=customer_id,
+        state=state,
+        list_position=(max_lp or 0) + 1,
+        queue_position=(max_qp or 0) + 1,
+    )
+
+
+def _validate_imported_data():
+    LOG.info("Validating imported data...")
+
+    all_reservations = _object_store.get_objects(ApartmentReservation)
+    reservations = all_reservations.filter(
+        pk__in=AsKoLink.get_objects_of_model(ApartmentReservation)
+        .filter(asko_id__lt=FAKE_ASKO_ID_OFFSET)
+        .values("object_id_int")
+    )
+
+    LOG.info("Checking that %s", "apartments have a lottery event...")
     apartment_uuids = reservations.values("apartment_uuid").distinct()
     apartment_uuids_without_lottery = apartment_uuids.exclude(
         apartment_uuid__in=LotteryEvent.objects.values("apartment_uuid")
     ).values_list("apartment_uuid", flat=True)
     for apartment_uuid in apartment_uuids_without_lottery:
-        print(f"LOTTERY DOES NOT EXIST FOR APARTMENT {apartment_uuid}")
+        LOG.error("Lottery does not exists for apartment %s", apartment_uuid)
 
-    for reservation in reservations:
-        apartment_uuid = reservation.apartment_uuid
+    LOG.info("Checking that %s", "reservations have an application...")
+    for reservation in reservations.filter(application_apartment=None):
+        with log_context_from(reservation):
+            LOG.error("Reservation does not have an application")
 
-        if not reservation.application_apartment:
-            print(f"RESERVATION {reservation} DOES NOT HAVE AN APPLICATION")
-
-        if (
-            reservation.queue_position == 1
-            and reservation.state == ApartmentReservationState.SUBMITTED
-        ):
-            print(
-                f"RESERVATION {reservation} customer {reservation.customer} is in "
-                f"wrong state"
+    LOG.info("Checking that %s", "other queue positions are submitted...")
+    in_bad_state_with_queue_pos_gt_1 = (
+        reservations.exclude(queue_position=None)
+        .exclude(queue_position=1)
+        .exclude(state=ApartmentReservationState.SUBMITTED)
+    )
+    for reservation in in_bad_state_with_queue_pos_gt_1:
+        with log_context_from(reservation):
+            LOG.error(
+                "Reservation should be SUBMITTED but it is %s in position %s",
+                reservation.state,
+                reservation.queue_position,
             )
 
-        if (
-            reservation.queue_position is not None
-            and reservation.queue_position != 1
-            and reservation.state != ApartmentReservationState.SUBMITTED
-        ):
-            print(
-                f"RESERVATION {reservation} customer {reservation.customer} should be "
-                f"SUBMITTED but it is {reservation.state} in position "
-                f"{reservation.queue_position}"
+    LOG.info("Checking that %s", "temporary list positions are overridden...")
+    has_temporary_list_position = reservations.filter(list_position__gte=10000)
+    for reservation in has_temporary_list_position:
+        with log_context_from(reservation):
+            LOG.error(
+                "Reservation has a temporary list position (%s)",
+                reservation.list_position,
             )
-    print("Done.")
+
+    LOG.info("Data validation complete.")
