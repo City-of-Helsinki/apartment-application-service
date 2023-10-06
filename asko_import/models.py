@@ -4,6 +4,8 @@ from typing import Optional
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
 
+from customer.models import Customer
+
 from .describer import get_description
 
 
@@ -165,4 +167,21 @@ class AsKoImportLogEntry(models.Model):
 
     @property
     def object_description(self) -> str:
-        return self.asko_link.object_description if self.asko_link else ""
+        asko_link = self.asko_link
+        description = asko_link.object_description if asko_link else ""
+        if "Duplicate key: asko_id=" in self.message:
+            asko_id = self.message.split("asko_id=", 1)[1].split(" ", 1)[0]
+            asko_link = AsKoLink.objects.filter(
+                object_type=self.content_type, asko_id=asko_id
+            ).first()
+            other_desc = asko_link.object_description if asko_link else ""
+            description += f" (duplicate of {other_desc})"
+        elif "'customerid': '" in self.message:
+            asko_id = self.message.split("'customerid': '", 1)[1].split("'", 1)[0]
+            asko_link = AsKoLink.objects.filter(
+                object_type=ContentType.objects.get_for_model(Customer),
+                asko_id=asko_id,
+            ).first()
+            customer_desc = asko_link.object_description if asko_link else ""
+            description += f" (customer {customer_desc})"
+        return description
