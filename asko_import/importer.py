@@ -388,7 +388,7 @@ def _set_reservation_positions(
             # Cancel all submitted reservations before the selected one
             with log_context_from(reservation):
                 LOG.debug(
-                    "Canceling reservation from position %s (Seleceted is %s)",
+                    "Canceling reservation from position %s (Selected is %s)",
                     list_position,
                     selected_lp,
                 )
