@@ -331,7 +331,10 @@ def _get_hitas_position(reservation):
     # issue and raise exception if multiple results were found.
     with log_context_from(reservation):
         if count == 0:
-            LOG.warning("No LotteryEventResult found")
+            if _object_store.get_asko_id(reservation) < FAKE_ASKO_ID_OFFSET:
+                # For the reservations created from apartment states it
+                # is expected to not have a lottery event. Log the rest.
+                LOG.warning("No LotteryEventResult found")
             return float("inf")
         else:
             LOG.error("Multiple LotteryEventResults found (%d)", count)
@@ -538,9 +541,14 @@ def _create_reservation(
 def _validate_imported_data():
     LOG.info("Validating imported data...")
 
-    reservations = _object_store.get_objects(ApartmentReservation)
+    all_reservations = _object_store.get_objects(ApartmentReservation)
+    reservations = all_reservations.filter(
+        pk__in=AsKoLink.get_objects_of_model(ApartmentReservation)
+        .filter(asko_id__lt=FAKE_ASKO_ID_OFFSET)
+        .values("object_id_int")
+    )
 
-    LOG.info("Checking that %s", "all apartments have a lottery event...")
+    LOG.info("Checking that %s", "apartments have a lottery event...")
     apartment_uuids = reservations.values("apartment_uuid").distinct()
     apartment_uuids_without_lottery = apartment_uuids.exclude(
         apartment_uuid__in=LotteryEvent.objects.values("apartment_uuid")
@@ -548,7 +556,7 @@ def _validate_imported_data():
     for apartment_uuid in apartment_uuids_without_lottery:
         LOG.error("Lottery does not exists for apartment %s", apartment_uuid)
 
-    LOG.info("Checking that %s", "all reservations have an application...")
+    LOG.info("Checking that %s", "reservations have an application...")
     for reservation in reservations.filter(application_apartment=None):
         with log_context_from(reservation):
             LOG.error("Reservation does not have an application")
