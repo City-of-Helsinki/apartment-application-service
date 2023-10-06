@@ -224,6 +224,8 @@ def _import_model(
         with log_context(model=model, row=row):
             eid = int(row["id"])  # External ID (aka AsKo ID) of the row
 
+            _fix_data(model, row)
+
             issues = checker.check(row)
             if issues:
                 issues.log(LOG)
@@ -275,6 +277,22 @@ def _read_csv(directory: str, filename: str) -> Iterator[Dict[str, str]]:
             row = {k.lower(): v for k, v in row.items() if v != ""}
             yield row
     print("Done.")
+
+
+def _fix_data(model, row):
+    if model != ApartmentInstallment:
+        return
+
+    if not row.get("apartment_reservation"):
+        customer = _object_store.get_id(Customer, row["customerid"])
+        apartment_uuid = get_apartment_uuid(row["apartment_uuid"])
+        reservation = ApartmentReservation.objects.filter(
+            apartment_uuid=apartment_uuid,
+            customer=customer,
+        ).first()
+        if reservation:
+            asko_id = _object_store.get_asko_id(reservation)
+            row["apartment_reservation"] = str(asko_id)
 
 
 def _set_applicants_counts():
