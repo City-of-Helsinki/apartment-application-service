@@ -145,12 +145,8 @@ def _flush_qs(qs):
     print(f"Deleting {qs.model.__name__}s...", end=" ", flush=True)
     asko_links = AsKoLink.get_objects_of_model(qs.model, qs.values("pk"))
     logs = AsKoImportLogEntry.objects.filter(asko_link__in=asko_links)
-    print(
-        "(unlinking %d AsKoImportLogEntries)" % (logs.count(),),
-        end=" ",
-        flush=True,
-    )
-    logs.update(asko_link=None)
+    print("(%d AsKoImportLogEntrys)" % (logs.count(),), end=" ", flush=True)
+    logs.delete()
     print("(%d AsKoLinks)" % (asko_links.count(),), end=" ", flush=True)
     asko_links.delete()
     print("(%d objects)" % (qs.count(),), end=" ", flush=True)
