@@ -421,7 +421,8 @@ def _set_reservation_positions(
 
         if queue_position == 1 and is_submitted:
             with log_context_from(reservation):
-                LOG.debug("First position is SUBMITTED instead of RESERVED")
+                LOG.warning("Updating state from SUBMITTED to RESERVED")
+            reservation.state = ApartmentReservationState.RESERVED
         elif queue_position > 1 and not_canceled and not is_submitted:
             with log_context_from(reservation):
                 LOG.warning(
@@ -603,6 +604,14 @@ def _validate_imported_data():
     for reservation in reservations.filter(application_apartment=None):
         with log_context_from(reservation):
             LOG.error("Reservation does not have an application")
+
+    LOG.info("Checking that %s", "queue position 1 is not submitted...")
+    in_bad_state_with_queue_pos_1 = reservations.filter(
+        queue_position=1, state=ApartmentReservationState.SUBMITTED
+    )
+    for reservation in in_bad_state_with_queue_pos_1:
+        with log_context_from(reservation):
+            LOG.error("Reservation in queue pos 1 is submitted")
 
     LOG.info("Checking that %s", "other queue positions are submitted...")
     in_bad_state_with_queue_pos_gt_1 = (
