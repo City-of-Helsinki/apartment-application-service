@@ -350,7 +350,7 @@ def _get_hitas_position(reservation):
     # issue and raise exception if multiple results were found.
     with log_context_from(reservation):
         if count == 0:
-            if _object_store.get_asko_id(reservation) < FAKE_ASKO_ID_OFFSET:
+            if _is_normal_reservation(reservation):
                 # For the reservations created from apartment states it
                 # is expected to not have a lottery event. Log the rest.
                 LOG.warning("No LotteryEventResult found")
@@ -389,7 +389,11 @@ def _set_haso_reservation_positions():
 
     for apartment_uuid in uuids:
         reservations = reservation_qs.filter(apartment_uuid=apartment_uuid)
-        lottery_event = LotteryEvent.objects.create(apartment_uuid=apartment_uuid)
+        lottery_event = (
+            LotteryEvent.objects.create(apartment_uuid=apartment_uuid)
+            if reservations.exclude(application_apartment=None).exists()
+            else None
+        )
         _set_reservation_positions(reservations, lottery_event=lottery_event)
 
     LOG.info("Done setting HASO reservation positions")
@@ -448,12 +452,27 @@ def _set_reservation_positions(
                 state=reservation.state,
                 comment="Tuotu AsKo:sta",
             )
-        if lottery_event:
+        if lottery_event and reservation.application_apartment:
             LotteryEventResult.objects.create(
                 event=lottery_event,
                 application_apartment=reservation.application_apartment,
                 result_position=list_position,
             )
+        elif lottery_event and _is_normal_reservation(reservation):
+            # Reservation created from ApartmentReservation.txt
+            # should have an application
+            with log_context_from(reservation):
+                LOG.warning("No application_apartment found")
+
+
+def _is_normal_reservation(reservation):
+    """
+    Check whether reservation is a normal reservation.
+
+    Normal reservations are those that are created from
+    ApartmentReservation.txt and not from apartment states.
+    """
+    return _object_store.get_asko_id(reservation) < FAKE_ASKO_ID_OFFSET
 
 
 def _find_selected_list_position(reservations: Sequence[ApartmentReservation]) -> int:
