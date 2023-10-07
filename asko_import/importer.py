@@ -425,7 +425,8 @@ def _set_reservation_positions(
 
         if queue_position == 1 and is_submitted:
             with log_context_from(reservation):
-                LOG.warning("Updating state from SUBMITTED to RESERVED")
+                # This is quite common, so log it as debug
+                LOG.debug("Updating state from SUBMITTED to RESERVED")
             reservation.state = ApartmentReservationState.RESERVED
         elif queue_position > 1 and not_canceled and not is_submitted:
             with log_context_from(reservation):
