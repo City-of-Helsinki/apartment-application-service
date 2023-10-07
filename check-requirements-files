@@ -18,7 +18,7 @@ for file in $files; do
     echo -n "Checking that $reqtxt is compiled from $infile..."
 
     cp -f "$reqtxt" "$copy"
-    pip-compile --resolver=backtracking --quiet --output-file="$copy" "$infile"
+    pip-compile --strip-extras --quiet --output-file="$copy" "$infile"
     sed -i "s/--output-file=$copy //" "$copy"
     echo
     if ! diff -u "$reqtxt" "$copy"; then

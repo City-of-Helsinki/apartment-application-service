@@ -1,7 +1,7 @@
 Django~=3.2.15
 django-cors-headers~=3.7.0
 django-enumfields~=2.1.1
-django-environ~=0.4.5
+django-environ
 django-etuovi
 django-oikotie
 django-helusers~=0.7.0
