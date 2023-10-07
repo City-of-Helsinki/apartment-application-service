@@ -2,8 +2,8 @@ Django~=3.2.15
 django-cors-headers~=3.7.0
 django-enumfields~=2.1.1
 django-environ~=0.4.5
-git+https://github.com/City-of-Helsinki/django-etuovi@v0.2.0#egg=django_etuovi  # TODO: change this when released in PyPI
-git+https://github.com/City-of-Helsinki/django-oikotie@v0.2.0#egg=django_oikotie  # TODO: change this when released in PyPI
+django-etuovi
+django-oikotie
 django-helusers~=0.7.0
 git+https://github.com/incuna/django-pgcrypto-fields@5b4b8eed3f9636ba3331f26e41a639fe4bee9247#egg=django-pgcrypto-fields
 django-simple-history~=3.0.0
