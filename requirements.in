@@ -8,7 +8,7 @@ django-helusers~=0.7.0
 git+https://github.com/incuna/django-pgcrypto-fields@5b4b8eed3f9636ba3331f26e41a639fe4bee9247#egg=django-pgcrypto-fields
 django-simple-history~=3.0.0
 djangorestframework~=3.12.4
-djangorestframework-simplejwt~=4.7.1
+djangorestframework-simplejwt
 drf-oidc-auth~=2.0.0
 drf-spectacular
 elasticsearch~=7.14.0

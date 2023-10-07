@@ -73,7 +73,7 @@ djangorestframework==3.12.4
     #   djangorestframework-simplejwt
     #   drf-oidc-auth
     #   drf-spectacular
-djangorestframework-simplejwt==4.7.2
+djangorestframework-simplejwt==5.3.0
     # via -r requirements.in
 docopt==0.6.2
     # via num2words
