@@ -61,6 +61,7 @@ def run_asko_import(
     flush=False,
     flush_all=False,
     flush_reservations_etc=False,
+    flush_owners_lotterys_and_installments=False,
 ):
     if commit_each:
         outer_transaction = contextlib.nullcontext()
@@ -75,6 +76,8 @@ def run_asko_import(
             _flush()
         elif flush_reservations_etc:
             _flush_reservations_etc()
+        elif flush_owners_lotterys_and_installments:
+            _flush_owners_lotterys_and_installments()
         else:
             LOG.info("Starting AsKo import")
             _object_store.clear()
@@ -113,6 +116,21 @@ def _flush_reservations_etc():
     _flush_model(ApartmentReservation)
 
 
+def _flush_owners_lotterys_and_installments():
+    print('Deleting "owner" reservations, lottery events and installments...')
+    owner_reservations_qs = _get_model_objects_by_asko_id_range(
+        ApartmentReservation,
+        min_asko_id=FAKE_ASKO_ID_OFFSET,
+        max_asko_id=2 * FAKE_ASKO_ID_OFFSET,
+    )
+    ids = list(owner_reservations_qs.values_list("pk", flat=True))
+    owner_reservations = ApartmentReservation.objects.filter(pk__in=ids)
+    _flush_qs(owner_reservations)
+    _flush_model(LotteryEventResult)
+    _flush_model(LotteryEvent)
+    _flush_model(ApartmentInstallment)
+
+
 def _flush_profiles():
     print("Deleting Profiles and Users...")
     _flush_qs(get_user_model().objects.exclude(profile=None))
@@ -127,12 +145,8 @@ def _flush_qs(qs):
     print(f"Deleting {qs.model.__name__}s...", end=" ", flush=True)
     asko_links = AsKoLink.get_objects_of_model(qs.model, qs.values("pk"))
     logs = AsKoImportLogEntry.objects.filter(asko_link__in=asko_links)
-    print(
-        "(unlinking %d AsKoImportLogEntries)" % (logs.count(),),
-        end=" ",
-        flush=True,
-    )
-    logs.update(asko_link=None)
+    print("(%d AsKoImportLogEntrys)" % (logs.count(),), end=" ", flush=True)
+    logs.delete()
     print("(%d AsKoLinks)" % (asko_links.count(),), end=" ", flush=True)
     asko_links.delete()
     print("(%d objects)" % (qs.count(),), end=" ", flush=True)
@@ -196,16 +210,21 @@ def _is_imported(
     min_asko_id=0,
     max_asko_id=FAKE_ASKO_ID_OFFSET,
 ):
-    ids = AsKoLink.get_ids_of_model(model).filter(
-        asko_id__gte=min_asko_id,
-        asko_id__lt=max_asko_id,
-    )
-    cnt = model.objects.filter(pk__in=ids).count()
+    qs = _get_model_objects_by_asko_id_range(model, min_asko_id, max_asko_id)
+    cnt = qs.count()
     if cnt > 0:
         model_name = f"{model.__name__}{variant}"
         print(f"Skipping import of {model_name} ({cnt} existing objects)")
         return True
     return False
+
+
+def _get_model_objects_by_asko_id_range(model, min_asko_id, max_asko_id):
+    ids = AsKoLink.get_ids_of_model(model).filter(
+        asko_id__gte=min_asko_id,
+        asko_id__lt=max_asko_id,
+    )
+    return model.objects.filter(pk__in=ids)
 
 
 def _import_model(
@@ -331,7 +350,7 @@ def _get_hitas_position(reservation):
     # issue and raise exception if multiple results were found.
     with log_context_from(reservation):
         if count == 0:
-            if _object_store.get_asko_id(reservation) < FAKE_ASKO_ID_OFFSET:
+            if _is_normal_reservation(reservation):
                 # For the reservations created from apartment states it
                 # is expected to not have a lottery event. Log the rest.
                 LOG.warning("No LotteryEventResult found")
@@ -370,7 +389,11 @@ def _set_haso_reservation_positions():
 
     for apartment_uuid in uuids:
         reservations = reservation_qs.filter(apartment_uuid=apartment_uuid)
-        lottery_event = LotteryEvent.objects.create(apartment_uuid=apartment_uuid)
+        lottery_event = (
+            LotteryEvent.objects.create(apartment_uuid=apartment_uuid)
+            if reservations.exclude(application_apartment=None).exists()
+            else None
+        )
         _set_reservation_positions(reservations, lottery_event=lottery_event)
 
     LOG.info("Done setting HASO reservation positions")
@@ -402,7 +425,9 @@ def _set_reservation_positions(
 
         if queue_position == 1 and is_submitted:
             with log_context_from(reservation):
-                LOG.debug("First position is SUBMITTED instead of RESERVED")
+                # This is quite common, so log it as debug
+                LOG.debug("Updating state from SUBMITTED to RESERVED")
+            reservation.state = ApartmentReservationState.RESERVED
         elif queue_position > 1 and not_canceled and not is_submitted:
             with log_context_from(reservation):
                 LOG.warning(
@@ -423,16 +448,32 @@ def _set_reservation_positions(
                     reservation.state_change_events.count(),
                 )
             raise Exception("State change event count mismatch")
-        reservation.state_change_events.update(
-            state=reservation.state,
-            comment="Tuotu AsKo:sta",
-        )
-        if lottery_event:
+        if "AsKo" not in reservation.state_change_events.first().comment:
+            reservation.state_change_events.update(
+                state=reservation.state,
+                comment="Tuotu AsKo:sta",
+            )
+        if lottery_event and reservation.application_apartment:
             LotteryEventResult.objects.create(
                 event=lottery_event,
                 application_apartment=reservation.application_apartment,
                 result_position=list_position,
             )
+        elif lottery_event and _is_normal_reservation(reservation):
+            # Reservation created from ApartmentReservation.txt
+            # should have an application
+            with log_context_from(reservation):
+                LOG.warning("No application_apartment found")
+
+
+def _is_normal_reservation(reservation):
+    """
+    Check whether reservation is a normal reservation.
+
+    Normal reservations are those that are created from
+    ApartmentReservation.txt and not from apartment states.
+    """
+    return _object_store.get_asko_id(reservation) < FAKE_ASKO_ID_OFFSET
 
 
 def _find_selected_list_position(reservations: Sequence[ApartmentReservation]) -> int:
@@ -529,13 +570,36 @@ def _create_reservation(
     max_lp = reservations.aggregate(m=models.Max("list_position"))["m"]
     max_qp = reservations.active().aggregate(m=models.Max("queue_position"))["m"]
 
-    return ApartmentReservation.objects.create(
+    reservation = ApartmentReservation.objects.create(
         apartment_uuid=apartment_uuid,
         customer_id=customer_id,
         state=state,
         list_position=(max_lp or 0) + 1,
         queue_position=(max_qp or 0) + 1,
+        **_get_reservation_fields_from_customer(customer_id),
     )
+    reservation.state_change_events.update(
+        comment="Tuotu AsKo:sta (huoneiston tiedoista)"
+    )
+    return reservation
+
+
+def _get_reservation_fields_from_customer(customer_id):
+    customer = Customer.objects.get(pk=customer_id)
+    return {
+        field: getattr(customer, field)
+        for field in FIELDS_SHARED_BETWEEN_RESERVATION_AND_CUSTOMER
+    }
+
+
+FIELDS_SHARED_BETWEEN_RESERVATION_AND_CUSTOMER = [
+    "right_of_residence",
+    "right_of_residence_is_old_batch",
+    "has_children",
+    "has_hitas_ownership",
+    "is_age_over_55",
+    "is_right_of_occupancy_housing_changer",
+]
 
 
 def _validate_imported_data():
@@ -560,6 +624,14 @@ def _validate_imported_data():
     for reservation in reservations.filter(application_apartment=None):
         with log_context_from(reservation):
             LOG.error("Reservation does not have an application")
+
+    LOG.info("Checking that %s", "queue position 1 is not submitted...")
+    in_bad_state_with_queue_pos_1 = reservations.filter(
+        queue_position=1, state=ApartmentReservationState.SUBMITTED
+    )
+    for reservation in in_bad_state_with_queue_pos_1:
+        with log_context_from(reservation):
+            LOG.error("Reservation in queue pos 1 is submitted")
 
     LOG.info("Checking that %s", "other queue positions are submitted...")
     in_bad_state_with_queue_pos_gt_1 = (

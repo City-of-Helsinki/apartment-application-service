@@ -19,6 +19,7 @@ class Command(BaseCommand):
         flush=False,
         flush_all=False,
         flush_reservations_etc=False,
+        flush_owners_etc=False,
         *args,
         **kwargs
     ):
@@ -31,6 +32,7 @@ class Command(BaseCommand):
             flush,
             flush_all,
             flush_reservations_etc,
+            flush_owners_lotterys_and_installments=flush_owners_etc,
         )
 
     def add_arguments(self, parser):
@@ -42,3 +44,4 @@ class Command(BaseCommand):
         parser.add_argument("--flush", action="store_true")
         parser.add_argument("--flush-all", action="store_true")
         parser.add_argument("--flush-reservations-etc", action="store_true")
+        parser.add_argument("--flush-owners-etc", action="store_true")
