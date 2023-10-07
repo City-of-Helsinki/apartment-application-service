@@ -172,6 +172,7 @@ INSTALLED_APPS = [
     # local apps
     "apartment",
     "application_form",
+    "asko_import",
     "connections",
     "customer",
     "users",
@@ -250,6 +251,7 @@ LOGGING = {
             # required to avoid double logging with root logger
             "propagate": False,
         },
+        "asko_import": {"level": env("APPS_LOG_LEVEL")},
     },
 }
 

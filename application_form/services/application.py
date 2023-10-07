@@ -100,6 +100,9 @@ def create_application(
         type=data.pop("type"),
         has_children=data.pop("has_children"),
         right_of_residence=data.pop("right_of_residence"),
+        right_of_residence_is_old_batch=data.pop(
+            "right_of_residence_is_old_batch", None
+        ),
         has_hitas_ownership=data.pop("has_hitas_ownership"),
         is_right_of_occupancy_housing_changer=data.pop(
             "is_right_of_occupancy_housing_changer"
@@ -344,5 +347,13 @@ def _find_winning_candidates(applications: QuerySet) -> QuerySet:
     """Return all applications that have the smallest right of residence number."""
     if not applications.exists():
         return applications.none()
-    min_right_of_residence = applications.first().right_of_residence
-    return applications.filter(right_of_residence=min_right_of_residence)
+
+    first_app = applications.first()
+    first_app_right_of_residence = first_app.right_of_residence
+    first_app_right_of_residence_is_old_batch = (
+        first_app.right_of_residence_is_old_batch
+    )
+    return applications.filter(
+        right_of_residence=first_app_right_of_residence,
+        right_of_residence_is_old_batch=first_app_right_of_residence_is_old_batch,
+    )
