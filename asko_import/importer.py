@@ -554,7 +554,26 @@ def _create_reservation(
         state=state,
         list_position=(max_lp or 0) + 1,
         queue_position=(max_qp or 0) + 1,
+        **_get_reservation_fields_from_customer(customer_id),
     )
+
+
+def _get_reservation_fields_from_customer(customer_id):
+    customer = Customer.objects.get(pk=customer_id)
+    return {
+        field: getattr(customer, field)
+        for field in FIELDS_SHARED_BETWEEN_RESERVATION_AND_CUSTOMER
+    }
+
+
+FIELDS_SHARED_BETWEEN_RESERVATION_AND_CUSTOMER = [
+    "right_of_residence",
+    "right_of_residence_is_old_batch",
+    "has_children",
+    "has_hitas_ownership",
+    "is_age_over_55",
+    "is_right_of_occupancy_housing_changer",
+]
 
 
 def _validate_imported_data():
