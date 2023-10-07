@@ -70,7 +70,8 @@ class DuplicateKeyDataIssue(DataIssue):
     def get_details(self) -> str:
         return (
             f"asko_id={self.other_row_id} already has "
-            f"key {self.key}={self.key_value}"
+            f"key {self.key}={self.key_value}.\n"
+            f"row = {_redact(self.row)}"
         )
 
 
@@ -80,7 +81,20 @@ class MissingValueDataIssue(DataIssue):
         super().__init__(IssueType.MISSING_VALUE, model, row, log=log)
 
     def get_details(self) -> str:
-        return f"Missing '{self.field}' value"
+        return f"Missing '{self.field}' value.\nrow = {_redact(self.row)}"
+
+
+def _redact(row: RowType) -> RowType:
+    return {k: v for k, v in row.items() if k in ALLOWED_ROW_FIELDS}
+
+
+ALLOWED_ROW_FIELDS = {
+    "due_date",
+    "invoice_number",
+    "value",
+    "type",
+    "customerid",
+}
 
 
 class IssueList:

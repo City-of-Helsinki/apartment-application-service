@@ -127,6 +127,7 @@ def test_get_customer_api_detail(sales_ui_salesperson_api_client):
             "state": reservation.state.value,
             "offer": None,
             "right_of_residence": reservation.right_of_residence,
+            "right_of_residence_is_old_batch": reservation.right_of_residence_is_old_batch,  # noqa: E501
             "has_children": reservation.has_children,
             "has_hitas_ownership": reservation.has_hitas_ownership,
             "is_age_over_55": reservation.is_age_over_55,
@@ -318,6 +319,7 @@ def test_update_customer(
             "date_of_birth": "1980-07-07",
         },
         "right_of_residence": 127,
+        "right_of_residence_is_old_batch": True,
     }
 
     if updated_with_secondary_profile:

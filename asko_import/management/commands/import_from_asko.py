@@ -18,6 +18,7 @@ class Command(BaseCommand):
         ignore_errors=False,
         flush=False,
         flush_all=False,
+        flush_reservations_etc=False,
         *args,
         **kwargs
     ):
@@ -29,6 +30,7 @@ class Command(BaseCommand):
             ignore_errors,
             flush,
             flush_all,
+            flush_reservations_etc,
         )
 
     def add_arguments(self, parser):
@@ -39,3 +41,4 @@ class Command(BaseCommand):
         parser.add_argument("--ignore-errors", action="store_true")
         parser.add_argument("--flush", action="store_true")
         parser.add_argument("--flush-all", action="store_true")
+        parser.add_argument("--flush-reservations-etc", action="store_true")

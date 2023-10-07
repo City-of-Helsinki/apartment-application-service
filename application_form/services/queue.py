@@ -78,6 +78,7 @@ def add_application_to_queues(
                 application_apartment=application_apartment,
                 apartment_uuid=apartment_uuid,
                 right_of_residence=application.right_of_residence,
+                right_of_residence_is_old_batch=application.right_of_residence_is_old_batch,  # noqa: E501
                 has_children=application.has_children,
                 has_hitas_ownership=application.has_hitas_ownership,
                 is_age_over_55=application.customer.is_age_over_55,
@@ -134,17 +135,26 @@ def _calculate_queue_position(
     Late applications form a pool of their own and should be kept in the order of their
     right of residence number within that pool.
     """
-    right_of_residence = application_apartment.application.right_of_residence
+    right_of_residence_ordering_number = (
+        application_apartment.application.right_of_residence_ordering_number
+    )
     submitted_late = application_apartment.application.submitted_late
     all_reservations = ApartmentReservation.objects.filter(
         apartment_uuid=apartment_uuid
-    ).only("queue_position", "application_apartment__application__right_of_residence")
+    ).only(
+        "queue_position",
+        "application_apartment__application__right_of_residence",
+        "application_apartment__application__right_of_residence_is_old_batch",
+    )
     reservations = all_reservations.filter(
         application_apartment__application__submitted_late=submitted_late
     ).order_by("queue_position")
     for apartment_reservation in reservations:
         other_application = apartment_reservation.application_apartment.application
-        if right_of_residence < other_application.right_of_residence:
+        if (
+            right_of_residence_ordering_number
+            < other_application.right_of_residence_ordering_number
+        ):
             return apartment_reservation.queue_position
     return all_reservations.count() + 1
 

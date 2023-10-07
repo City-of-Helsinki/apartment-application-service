@@ -90,6 +90,10 @@ class CustomerSerializer(CustomModelSerializer):
         model = Customer
         exclude = ("id",)
 
+    def to_internal_value(self, data):
+        data["right_of_residence_is_old_batch"] = True
+        return super().to_internal_value(data)
+
 
 class ApplicantSerializer(CustomModelSerializer):
     application = CustomPrimaryKeyRelatedField(queryset=Application.objects.all())
@@ -137,12 +141,14 @@ class ApplicationSerializer(EnumSupportSerializerMixin, serializers.ModelSeriali
             "has_hitas_ownership",
             "is_right_of_occupancy_housing_changer",
             "right_of_residence",
+            "right_of_residence_is_old_batch",
             "submitted_late",
             "type",
             "applicants_count",
         )
 
     def to_internal_value(self, data):
+        data["right_of_residence_is_old_batch"] = True
         # will be populated later
         data["applicants_count"] = 0
         return super().to_internal_value(data)
@@ -164,6 +170,7 @@ class ApartmentReservationSerializer(
             "list_position",
             "application_apartment",
             "right_of_residence",
+            "right_of_residence_is_old_batch",
         )
 
     def to_internal_value(self, data):
@@ -181,6 +188,8 @@ class ApartmentReservationSerializer(
         data["right_of_residence"] = data[
             "application_apartment"
         ].application.right_of_residence
+        data["right_of_residence_is_old_batch"] = True
+
         return data
 
 

@@ -1,7 +1,12 @@
 import logging
+from typing import Optional
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
+
+from customer.models import Customer
+
+from .describer import get_description
 
 
 class AsKoLink(models.Model):
@@ -12,7 +17,12 @@ class AsKoLink(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    def get_object(self):
+    @property
+    def object_description(self) -> str:
+        obj = self.get_object()
+        return get_description(obj) if obj else ""
+
+    def get_object(self) -> Optional[models.Model]:
         model = self.object_type.model_class()
         pk = self.object_id_int or self.object_id_uuid
         return model.objects.get(pk=pk) if pk else None
@@ -154,3 +164,24 @@ class AsKoImportLogEntry(models.Model):
             suffix += f" ({self.exception})"
 
         return f"{self.created_at}: {prefix}{self.message}{suffix}"
+
+    @property
+    def object_description(self) -> str:
+        asko_link = self.asko_link
+        description = asko_link.object_description if asko_link else ""
+        if "Duplicate key: asko_id=" in self.message:
+            asko_id = self.message.split("asko_id=", 1)[1].split(" ", 1)[0]
+            asko_link = AsKoLink.objects.filter(
+                object_type=self.content_type, asko_id=asko_id
+            ).first()
+            other_desc = asko_link.object_description if asko_link else ""
+            description += f" (duplicate of {other_desc})"
+        elif "'customerid': '" in self.message:
+            asko_id = self.message.split("'customerid': '", 1)[1].split("'", 1)[0]
+            asko_link = AsKoLink.objects.filter(
+                object_type=ContentType.objects.get_for_model(Customer),
+                asko_id=asko_id,
+            ).first()
+            customer_desc = asko_link.object_description if asko_link else ""
+            description += f" (customer {customer_desc})"
+        return description

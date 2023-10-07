@@ -44,6 +44,7 @@ class AsKoLinkAdmin(ReadOnlyModelAdmin, FormattedTimestampsMixin):
         "asko_id",
         "object_id_int",
         "object_id_uuid",
+        "object_description",
     )
 
     list_filter = [
@@ -61,6 +62,7 @@ class AsKoImportLogEntryAdmin(ReadOnlyModelAdmin, FormattedCreatedAtMixin):
         "asko_id",
         "level",
         "message",
+        "object_description",
     )
     list_filter = [
         "level",

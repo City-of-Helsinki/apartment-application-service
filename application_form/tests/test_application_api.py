@@ -387,6 +387,56 @@ def test_application_post_generate_metadata(
     assert application.method_of_arrival == ApplicationArrivalMethod.ELECTRONICAL_SYSTEM
 
 
+@pytest.mark.parametrize(
+    "application_type",
+    (ApplicationType.HITAS, ApplicationType.PUOLIHITAS, ApplicationType.HASO),
+)
+@pytest.mark.django_db
+def test_application_post_right_of_residence_auto_populating(
+    api_client, elastic_single_project_with_apartments, application_type
+):
+    profile = ProfileFactory()
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
+
+    data = create_application_data(profile, application_type=application_type)
+    if application_type == ApplicationType.HASO:
+        data.pop("right_of_residence_is_old_batch", None)
+    else:
+        # this should be set to None because this is not a haso application
+        data["right_of_residence_is_old_batch"] = True
+
+    response = api_client.post(
+        reverse("application_form:application-list"), data, format="json"
+    )
+    assert response.status_code == 201, response.data
+    application = Application.objects.get(external_uuid=data["application_uuid"])
+
+    if application_type == ApplicationType.HASO:
+        # there was no value provided so this should contain the default value False
+        assert application.right_of_residence_is_old_batch is False
+    else:
+        assert application.right_of_residence_is_old_batch is None
+
+
+@pytest.mark.django_db
+def test_haso_application_post_right_of_residence_can_be_set(
+    api_client, elastic_single_project_with_apartments
+):
+    profile = ProfileFactory()
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
+
+    data = create_application_data(profile, application_type=ApplicationType.HASO)
+    data["right_of_residence_is_old_batch"] = True
+
+    response = api_client.post(
+        reverse("application_form:application-list"), data, format="json"
+    )
+    assert response.status_code == 201, response.data
+    application = Application.objects.get(external_uuid=data["application_uuid"])
+
+    assert application.right_of_residence_is_old_batch is True
+
+
 @pytest.mark.parametrize("has_children", (False, True))
 @pytest.mark.django_db
 def test_application_post_single_profile_customer_has_children(

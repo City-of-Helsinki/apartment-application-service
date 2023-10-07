@@ -112,6 +112,7 @@ def test_root_apartment_reservation_detail(
             "is_expired": False,
         },
         "right_of_residence": reservation.right_of_residence,
+        "right_of_residence_is_old_batch": reservation.right_of_residence_is_old_batch,
         "has_children": reservation.has_children,
         "has_hitas_ownership": reservation.has_hitas_ownership,
         "is_age_over_55": reservation.is_age_over_55,
@@ -707,6 +708,7 @@ def test_create_reservation(
         "state": "reserved",
         "offer": None,
         "right_of_residence": 777,
+        "right_of_residence_is_old_batch": False,
         "has_children": None,
         "has_hitas_ownership": None,
         "is_age_over_55": True,
@@ -718,6 +720,7 @@ def test_create_reservation(
     assert reservation.queue_position == 1
     assert reservation.state == ApartmentReservationState.RESERVED
     assert reservation.right_of_residence == 777
+    assert reservation.right_of_residence_is_old_batch is False
     assert reservation.has_children is None
     assert reservation.has_hitas_ownership is None
     assert reservation.is_age_over_55 is True
