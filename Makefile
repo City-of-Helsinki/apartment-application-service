@@ -39,10 +39,10 @@ fix-imports:
 	isort .
 
 requirements.txt: requirements.in
-	pip-compile --resolver=backtracking $<
+	pip-compile --strip-extras $<
 
 requirements-dev.txt: requirements-dev.in requirements.txt
-	pip-compile --resolver=backtracking $<
+	pip-compile --strip-extras $<
 
 requirements-prod.txt: requirements-prod.in requirements.txt
-	pip-compile --resolver=backtracking $<
+	pip-compile --strip-extras $<

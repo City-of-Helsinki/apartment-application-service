@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 
 import pytest
 
@@ -17,7 +17,10 @@ class TestApartmentModel:
         for field in fields:
             input_value = getattr(apartment, field)
             index_value = getattr(at, field)
-            if type(input_value) == date:
+            if isinstance(input_value, datetime):
+                # This if is needed, because datetime is also a date
+                pass  # datetimes should be OK
+            elif isinstance(input_value, date):
                 # elasticsearch-dsl does not support plain date values in the index.
                 # If 2020-01-01 is saved to the index,
                 # it will return 2020-01-01 00:00:00.
