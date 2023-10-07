@@ -442,10 +442,11 @@ def _set_reservation_positions(
                     reservation.state_change_events.count(),
                 )
             raise Exception("State change event count mismatch")
-        reservation.state_change_events.update(
-            state=reservation.state,
-            comment="Tuotu AsKo:sta",
-        )
+        if "AsKo" not in reservation.state_change_events.first().comment:
+            reservation.state_change_events.update(
+                state=reservation.state,
+                comment="Tuotu AsKo:sta",
+            )
         if lottery_event:
             LotteryEventResult.objects.create(
                 event=lottery_event,
@@ -548,7 +549,7 @@ def _create_reservation(
     max_lp = reservations.aggregate(m=models.Max("list_position"))["m"]
     max_qp = reservations.active().aggregate(m=models.Max("queue_position"))["m"]
 
-    return ApartmentReservation.objects.create(
+    reservation = ApartmentReservation.objects.create(
         apartment_uuid=apartment_uuid,
         customer_id=customer_id,
         state=state,
@@ -556,6 +557,10 @@ def _create_reservation(
         queue_position=(max_qp or 0) + 1,
         **_get_reservation_fields_from_customer(customer_id),
     )
+    reservation.state_change_events.update(
+        comment="Tuotu AsKo:sta (huoneiston tiedoista)"
+    )
+    return reservation
 
 
 def _get_reservation_fields_from_customer(customer_id):
