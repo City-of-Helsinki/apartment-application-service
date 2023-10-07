@@ -1,12 +1,10 @@
-# File: apartment-application-service/azure-pipelines-release.yml
-
 # Continuous integration (CI) triggers cause a pipeline to run whenever you push 
 # an update to the specified branches or you push specified tags.
 trigger:
   batch: true
-  branches:
+  tags:
     include:
-    - refs/tags/release-*
+    - release-*
   paths:
     exclude:
     - README.md
@@ -34,4 +32,4 @@ resources:
     name: asuntotuotanto/asuntotuotanto-django-pipelines
 
 extends:
-  template: azure-pipelines-asuntotuotanto-django-release.yml@asuntotuotanto-django-pipelines
+  template: azure-pipeline-att-django-release.yml@asuntotuotanto-django-pipelines
