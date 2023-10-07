@@ -152,7 +152,7 @@ pytz==2021.1
     # via django
 pyyaml==5.4.1
     # via drf-spectacular
-requests==2.26.0
+requests==2.31.0
     # via
     #   django-helusers
     #   drf-oidc-auth
