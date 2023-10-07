@@ -1,4 +1,4 @@
-check: lint check-django check-migrations test
+check: lint check-django check-migrations check-requirements test
 
 fix: fix-imports fix-code-style
 
@@ -25,6 +25,9 @@ check-django:
 
 check-migrations:
 	./manage.py makemigrations --check --dry-run
+
+check-requirements:
+	./check-requirements-files
 
 test:
 	pytest
