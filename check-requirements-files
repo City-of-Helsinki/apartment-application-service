@@ -1,0 +1,35 @@
+#!/bin/sh
+# Check that requirements*.txt files are compiled correctly from *.in files
+
+files=*.in
+
+if [ -n "$1" ]; then
+    files=$*
+fi
+
+failed=""
+
+for file in $files; do
+    bn=$(basename $(basename "$file" .in) .txt)
+    infile=$bn.in
+    reqtxt=$bn.txt
+    copy=$bn-COMPILED.txt
+
+    echo -n "Checking that $reqtxt is compiled from $infile..."
+
+    cp -f "$reqtxt" "$copy"
+    pip-compile --resolver=backtracking --quiet --output-file="$copy" "$infile"
+    sed -i "s/--output-file=$copy //" "$copy"
+    echo
+    if ! diff -u "$reqtxt" "$copy"; then
+        failed="$failed $reqtxt"
+    fi
+    rm -f "$copy"
+done
+
+if [ -n "$failed" ]; then
+    echo "Not correctly compiled:$failed"
+    exit 1
+else
+    echo "All checked requirements files were correctly compiled."
+fi

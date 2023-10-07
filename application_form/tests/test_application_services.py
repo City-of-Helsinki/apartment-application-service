@@ -31,6 +31,7 @@ def test_create_application(num_applicants, elastic_single_project_with_apartmen
     assert application.applicants.count() == num_applicants
     assert application.type.value == data["type"].value
     assert application.right_of_residence == data["right_of_residence"]
+    assert application.right_of_residence_is_old_batch is False
     assert application.has_children == data["has_children"]
     assert (
         application.is_right_of_occupancy_housing_changer
@@ -84,6 +85,23 @@ def test_create_application(num_applicants, elastic_single_project_with_apartmen
         application_apartment__application=application
     ):
         assert reservation.right_of_residence == application.right_of_residence
+        assert reservation.right_of_residence_is_old_batch is False
+
+
+@pytest.mark.django_db
+def test_create_old_batch_haso_application(elastic_single_project_with_apartments):
+    profile = ProfileFactory()
+    data = create_validated_application_data(profile, ApplicationType.HASO)
+    data = prepare_metadata(data, profile)
+    data["right_of_residence_is_old_batch"] = True
+    application = create_application(data)
+
+    assert application.right_of_residence_is_old_batch is True
+
+    for reservation in ApartmentReservation.objects.filter(
+        application_apartment__application=application
+    ):
+        assert reservation.right_of_residence_is_old_batch is True
 
 
 @pytest.mark.django_db

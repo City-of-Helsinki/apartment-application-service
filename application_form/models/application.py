@@ -16,13 +16,13 @@ from apartment_application_service.fields import (
     EnumPGPPublicKeyField,
     UUIDPGPPublicKeyField,
 )
-from apartment_application_service.models import TimestampedModel
+from apartment_application_service.models import CommonApplicationData, TimestampedModel
 from application_form.enums import ApplicationArrivalMethod, ApplicationType
 from customer.models import Customer
 from users.models import Profile
 
 
-class Application(TimestampedModel):
+class Application(TimestampedModel, CommonApplicationData):
     external_uuid = UUIDPGPPublicKeyField(
         _("application identifier"), default=uuid4, editable=False
     )
@@ -30,20 +30,11 @@ class Application(TimestampedModel):
     type = EnumPGPPublicKeyField(
         ApplicationType, max_length=15, verbose_name=_("application type")
     )
-    right_of_residence = IntegerPGPPublicKeyField(
-        _("right of residence number"), null=True
-    )
     has_children = BooleanPGPPublicKeyField(_("has children"), default=False)
     customer = models.ForeignKey(
         Customer, verbose_name=_("customer"), on_delete=models.CASCADE
     )
     submitted_late = models.BooleanField("submitted late", default=False)
-    has_hitas_ownership = BooleanPGPPublicKeyField(
-        "has HITAS ownership", blank=True, null=True
-    )
-    is_right_of_occupancy_housing_changer = BooleanPGPPublicKeyField(
-        "is right of occupancy housing changer", blank=True, null=True
-    )
 
     # Metadata fields
     process_number = models.CharField(_("process number"), max_length=32)

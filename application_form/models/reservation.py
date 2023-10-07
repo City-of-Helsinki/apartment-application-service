@@ -7,12 +7,9 @@ from django.db import models, transaction
 from django.db.models import Deferrable, UniqueConstraint
 from django.utils.translation import gettext_lazy as _
 from enumfields import EnumField
-from pgcrypto.fields import (
-    BooleanPGPPublicKeyField,
-    CharPGPPublicKeyField,
-    IntegerPGPPublicKeyField,
-)
+from pgcrypto.fields import BooleanPGPPublicKeyField, CharPGPPublicKeyField
 
+from apartment_application_service.models import CommonApplicationData
 from application_form.enums import (
     ApartmentQueueChangeEventType,
     ApartmentReservationCancellationReason,
@@ -62,7 +59,7 @@ class ApartmentReservationQuerySet(models.QuerySet):
             return None
 
 
-class ApartmentReservation(models.Model):
+class ApartmentReservation(CommonApplicationData):
     """
     Stores an applicant's reservation for the apartment.
     """
@@ -100,9 +97,6 @@ class ApartmentReservation(models.Model):
     )
     is_right_of_occupancy_housing_changer = BooleanPGPPublicKeyField(
         _("is right-of-occupancy housing changer"), blank=True, null=True
-    )
-    right_of_residence = IntegerPGPPublicKeyField(
-        _("right of residence number"), blank=True, null=True
     )
     # Metadata fields
     handler = CharPGPPublicKeyField(

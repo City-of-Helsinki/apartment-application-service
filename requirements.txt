@@ -14,7 +14,7 @@ bcrypt==3.2.0
     # via paramiko
 cachetools==4.2.2
     # via django-helusers
-certifi==2021.5.30
+certifi==2023.7.22
     # via
     #   elasticsearch
     #   requests
@@ -26,7 +26,7 @@ cffi==1.14.6
     #   pynacl
 charset-normalizer==2.0.4
     # via requests
-cryptography==41.0.2
+cryptography==41.0.4
     # via
     #   authlib
     #   drf-oidc-auth
@@ -38,7 +38,7 @@ defusedxml==0.7.1
     #   social-auth-core
 deprecation==2.1.0
     # via django-helusers
-django==3.2.15
+django==3.2.22
     # via
     #   -r requirements.in
     #   django-cors-headers
@@ -180,7 +180,7 @@ text-unidecode==1.3
     # via faker
 uritemplate==3.0.1
     # via drf-spectacular
-urllib3==1.26.6
+urllib3==1.26.17
     # via
     #   elasticsearch
     #   requests
