@@ -61,6 +61,7 @@ def run_asko_import(
     flush=False,
     flush_all=False,
     flush_reservations_etc=False,
+    flush_owners_lotterys_and_installments=False,
 ):
     if commit_each:
         outer_transaction = contextlib.nullcontext()
@@ -75,6 +76,8 @@ def run_asko_import(
             _flush()
         elif flush_reservations_etc:
             _flush_reservations_etc()
+        elif flush_owners_lotterys_and_installments:
+            _flush_owners_lotterys_and_installments()
         else:
             LOG.info("Starting AsKo import")
             _object_store.clear()
@@ -111,6 +114,21 @@ def _flush_reservations_etc():
     _flush_model(LotteryEvent)
     _flush_model(ApartmentInstallment)
     _flush_model(ApartmentReservation)
+
+
+def _flush_owners_lotterys_and_installments():
+    print('Deleting "owner" reservations, lottery events and installments...')
+    owner_reservations_qs = _get_model_objects_by_asko_id_range(
+        ApartmentReservation,
+        min_asko_id=FAKE_ASKO_ID_OFFSET,
+        max_asko_id=2 * FAKE_ASKO_ID_OFFSET,
+    )
+    ids = list(owner_reservations_qs.values_list("pk", flat=True))
+    owner_reservations = ApartmentReservation.objects.filter(pk__in=ids)
+    _flush_qs(owner_reservations)
+    _flush_model(LotteryEventResult)
+    _flush_model(LotteryEvent)
+    _flush_model(ApartmentInstallment)
 
 
 def _flush_profiles():
@@ -196,16 +214,21 @@ def _is_imported(
     min_asko_id=0,
     max_asko_id=FAKE_ASKO_ID_OFFSET,
 ):
-    ids = AsKoLink.get_ids_of_model(model).filter(
-        asko_id__gte=min_asko_id,
-        asko_id__lt=max_asko_id,
-    )
-    cnt = model.objects.filter(pk__in=ids).count()
+    qs = _get_model_objects_by_asko_id_range(model, min_asko_id, max_asko_id)
+    cnt = qs.count()
     if cnt > 0:
         model_name = f"{model.__name__}{variant}"
         print(f"Skipping import of {model_name} ({cnt} existing objects)")
         return True
     return False
+
+
+def _get_model_objects_by_asko_id_range(model, min_asko_id, max_asko_id):
+    ids = AsKoLink.get_ids_of_model(model).filter(
+        asko_id__gte=min_asko_id,
+        asko_id__lt=max_asko_id,
+    )
+    return model.objects.filter(pk__in=ids)
 
 
 def _import_model(
