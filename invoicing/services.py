@@ -1,6 +1,7 @@
 from datetime import datetime
 from io import BytesIO
 from logging import getLogger
+from typing import Optional
 
 from django.conf import settings
 from django.core.mail import EmailMessage
@@ -85,7 +86,9 @@ def send_email_notification_to_talpa(count: int, timestamp: datetime):
     return email.send()
 
 
-def generate_sap_xml_filename(timestamp: datetime) -> str:
+def generate_sap_xml_filename(timestamp: Optional[datetime] = None) -> str:
+    if not timestamp:
+        timestamp = timezone.now()
     return (
         settings.SAP_SFTP_FILENAME_PREFIX
         + f"{timestamp.strftime('%Y%m%d%H%M%S')}"

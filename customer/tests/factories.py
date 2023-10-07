@@ -23,4 +23,5 @@ class CustomerFactory(django.DjangoModelFactory):
     is_right_of_occupancy_housing_changer = Faker("boolean")
     last_contact_date = Faker("date")
     primary_profile = SubFactory(ProfileFactory)
-    right_of_residence = Faker("random_int", min=1, max=1000000000)
+    right_of_residence = Faker("random_int", min=1, max=100000)
+    right_of_residence_is_old_batch = False

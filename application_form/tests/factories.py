@@ -36,7 +36,8 @@ class ApplicationFactory(factory.django.DjangoModelFactory):
     external_uuid = factory.Faker("uuid4")
     applicants_count = fuzzy.FuzzyInteger(1, 2)
     type = fuzzy.FuzzyChoice(list(ApplicationType))
-    right_of_residence = fuzzy.FuzzyInteger(1, 1000000000)
+    right_of_residence = fuzzy.FuzzyInteger(1, 100000)
+    right_of_residence_is_old_batch = False
     has_children = Faker("boolean")
     customer = factory.SubFactory(CustomerFactory)
     handler_information = METADATA_HANDLER_INFORMATION
@@ -120,6 +121,11 @@ class ApartmentReservationFactory(factory.django.DjangoModelFactory):
         lambda o: o.application_apartment.application.right_of_residence
         if o.application_apartment
         else o.customer.right_of_residence
+    )
+    right_of_residence_is_old_batch = LazyAttribute(
+        lambda o: o.application_apartment.application.right_of_residence_is_old_batch
+        if o.application_apartment
+        else o.customer.right_of_residence_is_old_batch
     )
     handler = factory.Faker("name")
 
