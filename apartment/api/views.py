@@ -149,9 +149,9 @@ class SaleReportAPIView(APIView):
             raise ValidationError("Start date cannot be greater than end date")
         tz = timezone.get_default_timezone()
         if not start_date_obj.tzinfo:
-            start_date_obj = tz.localize(start_date_obj)
+            start_date_obj = start_date_obj.replace(tzinfo=tz)
         if not end_date_obj.tzinfo:
-            end_date_obj = tz.localize(end_date_obj)
+            end_date_obj = end_date_obj.replace(tzinfo=tz)
         state_events = ApartmentReservationStateChangeEvent.objects.filter(
             timestamp__range=[start_date_obj, end_date_obj],
             state=ApartmentReservationState.SOLD,

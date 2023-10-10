@@ -12,6 +12,8 @@ attrs==23.1.0
     #   referencing
 authlib==1.2.1
     # via drf-oidc-auth
+backports-zoneinfo==0.2.1
+    # via django
 bcrypt==4.0.1
     # via paramiko
 cachetools==5.3.1
@@ -41,7 +43,7 @@ deprecation==2.1.0
     # via
     #   django-helusers
     #   pikepdf
-django==3.2.22
+django==4.2.6
     # via
     #   -r requirements.in
     #   django-cors-headers
@@ -52,23 +54,24 @@ django==3.2.22
     #   djangorestframework-simplejwt
     #   drf-oidc-auth
     #   drf-spectacular
-django-cors-headers==3.7.0
+    #   social-auth-app-django
+django-cors-headers==4.2.0
     # via -r requirements.in
 django-enumfields==2.1.1
     # via -r requirements.in
-django-environ==0.4.5
+django-environ==0.11.2
     # via -r requirements.in
 django-etuovi==0.2.1
     # via -r requirements.in
-django-helusers==0.7.1
+django-helusers==0.9.0
     # via -r requirements.in
 django-oikotie==0.2.1
     # via -r requirements.in
 django-pgcrypto-fields @ git+https://github.com/incuna/django-pgcrypto-fields@5b4b8eed3f9636ba3331f26e41a639fe4bee9247
     # via -r requirements.in
-django-simple-history==3.0.0
+django-simple-history==3.4.0
     # via -r requirements.in
-djangorestframework==3.12.4
+djangorestframework==3.14.0
     # via
     #   -r requirements.in
     #   djangorestframework-simplejwt
@@ -78,7 +81,7 @@ djangorestframework-simplejwt==5.3.0
     # via -r requirements.in
 docopt==0.6.2
     # via num2words
-drf-oidc-auth==2.0.0
+drf-oidc-auth==3.0.0
     # via -r requirements.in
 drf-spectacular==0.26.5
     # via -r requirements.in
@@ -121,7 +124,7 @@ packaging==23.2
     # via
     #   deprecation
     #   pikepdf
-paramiko==2.10.6
+paramiko==3.3.1
     # via -r requirements.in
 pikepdf==8.5.0
     # via -r requirements.in
@@ -154,7 +157,7 @@ python-stdnum==1.19
 python3-openid==3.2.0
     # via social-auth-core
 pytz==2023.3.post1
-    # via django
+    # via djangorestframework
 pyyaml==6.0.1
     # via drf-spectacular
 referencing==0.30.2
@@ -181,9 +184,8 @@ six==1.16.0
     # via
     #   ecdsa
     #   elasticsearch-dsl
-    #   paramiko
     #   python-dateutil
-social-auth-app-django==5.0.0
+social-auth-app-django==5.3.0
     # via -r requirements.in
 social-auth-core==4.4.2
     # via social-auth-app-django
@@ -200,7 +202,7 @@ urllib3==1.26.17
     #   elasticsearch
     #   requests
     #   sentry-sdk
-whitenoise==5.3.0
+whitenoise==6.5.0
     # via -r requirements.in
 zipp==3.17.0
     # via importlib-resources
