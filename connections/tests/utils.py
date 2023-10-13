@@ -162,7 +162,7 @@ def publish_elastic_apartments(
     get_connection().indices.refresh(index=settings.APARTMENT_INDEX_NAME)
 
     s_obj = (
-        Search()
+        Search(index=settings.APARTMENT_INDEX_NAME)
         .filter("term", _language__keyword="fi")
         .filter("term", apartment_state_of_sale__keyword=ApartmentStateOfSale.FOR_SALE)
     )

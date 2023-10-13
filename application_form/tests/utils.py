@@ -4,6 +4,7 @@ import uuid
 from datetime import date
 from typing import List, Tuple
 
+from django.db.models.fields import settings
 from elasticsearch_dsl import Search
 
 from connections.enums import ApartmentStateOfSale
@@ -14,7 +15,7 @@ _logger = logging.getLogger(__name__)
 
 def get_elastic_apartments_uuids() -> Tuple[uuid.UUID, List[uuid.UUID]]:
     s_obj = (
-        Search()
+        Search(index=settings.APARTMENT_INDEX_NAME)
         .filter("term", _language__keyword="fi")
         .filter("term", apartment_state_of_sale__keyword=ApartmentStateOfSale.FOR_SALE)
     )
