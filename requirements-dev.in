@@ -1,5 +1,6 @@
 -c requirements.txt
 black==22.3.0
+django-extensions
 django-test-migrations
 factory-boy
 flake8

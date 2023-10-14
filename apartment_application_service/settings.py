@@ -7,6 +7,8 @@ import sentry_sdk
 from django.utils.translation import gettext_lazy as _
 from sentry_sdk.integrations.django import DjangoIntegration
 
+from .utils import is_module_available
+
 checkout_dir = environ.Path(__file__) - 2
 assert os.path.exists(checkout_dir("manage.py"))
 
@@ -181,6 +183,10 @@ INSTALLED_APPS = [
     "utils",
     "cost_index",
 ]
+
+if DEBUG and is_module_available("django_extensions"):
+    INSTALLED_APPS += ["django_extensions"]
+
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",

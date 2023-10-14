@@ -1,3 +1,6 @@
+import importlib
+
+
 class SafeAttributeObject:
     def __init__(self, obj):
         self.obj = obj
@@ -14,3 +17,11 @@ def update_obj(obj, data):
         setattr(obj, field, value)
     obj.save()
     return obj
+
+
+def is_module_available(module_name):
+    try:
+        importlib.import_module(module_name)
+    except ImportError:
+        return False
+    return True
