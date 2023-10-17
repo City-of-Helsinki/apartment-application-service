@@ -52,9 +52,8 @@ def add_application_to_queues(
                 # perspective, and should always be added to the end of the queue.
                 try:
                     queue_position = (
-                        ApartmentReservation.objects.filter(
-                            apartment_uuid=apartment_uuid
-                        )
+                        ApartmentReservation.objects.active()
+                        .filter(apartment_uuid=apartment_uuid)
                         .order_by("-queue_position")[0]
                         .queue_position
                         + 1
