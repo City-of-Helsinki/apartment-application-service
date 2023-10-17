@@ -4,7 +4,11 @@ from unittest.mock import Mock
 from django.db.models import QuerySet
 from pytest import mark, raises
 
-from application_form.enums import ApartmentQueueChangeEventType, ApplicationType
+from application_form.enums import (
+    ApartmentQueueChangeEventType,
+    ApartmentReservationState,
+    ApplicationType,
+)
 from application_form.models.reservation import (
     ApartmentQueueChangeEvent,
     ApartmentReservation,
@@ -313,3 +317,31 @@ def test_remove_reservation_without_queue_positio_bug_ASU_1672(
 
     assert caplog.records[0].levelname == "WARNING"
     assert first_apartment_uuid in caplog.text
+
+
+@mark.django_db
+def test_add_hitas_application_to_queue_with_only_cancelled_reservations(
+    elastic_project_with_5_apartments,
+):
+    project_uuid, apartments = elastic_project_with_5_apartments
+    first_apartment_uuid = apartments[0].uuid
+    app1 = ApplicationFactory(type=ApplicationType.HITAS, right_of_residence=1)
+    app1.application_apartments.create(
+        apartment_uuid=first_apartment_uuid, priority_number=1
+    )
+    ApartmentReservationFactory(
+        apartment_uuid=first_apartment_uuid,
+        state=ApartmentReservationState.CANCELED,
+        queue_position=None,
+    )
+
+    # this used to raise an exception
+    add_application_to_queues(app1)
+
+    assert (
+        ApartmentReservation.objects.active()
+        .filter(apartment_uuid=first_apartment_uuid)
+        .first()
+        .queue_position
+        == 1
+    )
