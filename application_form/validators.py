@@ -71,21 +71,18 @@ class ProjectApplicantValidator:
         if not date_of_birth_and_ssn_suffix:
             return
 
-        date_of_birth, ssn_suffix = date_of_birth_and_ssn_suffix.pop()
-        queryset = Applicant.objects.filter(
-            date_of_birth=date_of_birth, ssn_suffix=ssn_suffix
-        )
-        for item in date_of_birth_and_ssn_suffix:
-            date_of_birth, ssn_suffix = item
-            queryset = queryset | Applicant.objects.filter(
-                date_of_birth=date_of_birth, ssn_suffix=ssn_suffix
-            )
         apartment_uuids = get_apartment_uuids(project_uuid)
-        queryset = queryset & Applicant.objects.filter(
-            application__application_apartments__apartment_uuid__in=apartment_uuids
+        # We fetch the project's all DOBs and SSN suffixes first and then check those in
+        # Python to make sure Postgres won't end up decrypting all applicants in the
+        # database, which it seems to prefer and that caused major issues before.
+        project_applicants = list(
+            Applicant.objects.filter(
+                application__application_apartments__apartment_uuid__in=apartment_uuids
+            ).values_list("date_of_birth", "ssn_suffix")
         )
-        if queryset.exists():
-            raise PermissionDenied(
-                detail="Applicant(s) have already applied to project.",
-                code=error_codes.E1001_APPLICANT_HAS_ALREADY_APPLIED,
-            )
+        for date_of_birth, ssn_suffix in date_of_birth_and_ssn_suffix:
+            if (date_of_birth, ssn_suffix) in project_applicants:
+                raise PermissionDenied(
+                    detail="Applicant(s) have already applied to project.",
+                    code=error_codes.E1001_APPLICANT_HAS_ALREADY_APPLIED,
+                )
