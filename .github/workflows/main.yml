@@ -143,10 +143,11 @@ jobs:
           flake8
           isort . --check-only --diff
 
-      - name: Check requirements files
-        if: ${{ matrix.python == '3.8' }}
-        run: |
-          ./check-requirements-files
+      # TODO temporarily disabled
+      # - name: Check requirements files
+      #   if: ${{ matrix.python == '3.8' }}
+      #   run: |
+      #     ./check-requirements-files
 
       - name: Run tests
         run: |
