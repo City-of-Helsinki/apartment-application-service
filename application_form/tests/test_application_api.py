@@ -23,6 +23,7 @@ from application_form.tests.factories import (
     ApartmentReservationFactory,
     ApplicationApartmentFactory,
     ApplicationFactory,
+    LotteryEventFactory,
 )
 from audit_log.models import AuditLog
 from connections.enums import ApartmentStateOfSale
@@ -494,14 +495,32 @@ def test_get_apartment_states(
     )
     assert response.status_code == 200
     assert response.data == {}
-    _, haso_apartments = elastic_haso_project_with_5_apartments
-    _, hitas_apartments = elastic_hitas_project_with_5_apartments
+    haso_project_uuid, haso_apartments = elastic_haso_project_with_5_apartments
+    hitas_project_uuid, hitas_apartments = elastic_hitas_project_with_5_apartments
+
     for apartment in haso_apartments[:4]:
         ApartmentReservationFactory(
             apartment_uuid=apartment.uuid,
             state=ApartmentReservationState.RESERVED,
             list_position=1,
         )
+        LotteryEventFactory.create(apartment_uuid=apartment.uuid)
+
+    for apartment in hitas_apartments[:4]:
+        LotteryEventFactory.create(apartment_uuid=apartment.uuid)
+
+    # These apartments haven't been distributed yet, so change events of these
+    # reservations should not be returned
+    ApartmentReservationFactory(
+        apartment_uuid=haso_apartments[4].uuid,
+        state=ApartmentReservationState.RESERVED,
+        list_position=1,
+    )
+    ApartmentReservationFactory(
+        apartment_uuid=hitas_apartments[4].uuid,
+        state=ApartmentReservationState.RESERVED,
+        list_position=1,
+    )
 
     # Sold apartments
     sold_reservations = ApartmentReservation.objects.filter(
@@ -578,6 +597,7 @@ def test_get_apartment_states_filter(
             ApartmentReservationFactory(
                 apartment_uuid=apartment.uuid, state=ApartmentReservationState.RESERVED
             )
+            LotteryEventFactory(apartment_uuid=apartment.uuid)
 
     assert len(apartments) == 11
     sold_apartment_uuids_1 = [apt.uuid for apt in apartments[:5]]
