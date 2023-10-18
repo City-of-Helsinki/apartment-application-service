@@ -9,7 +9,7 @@ User = get_user_model()
 
 
 class LotteryEvent(models.Model):
-    apartment_uuid = models.UUIDField(verbose_name=_("apartment uuid"))
+    apartment_uuid = models.UUIDField(verbose_name=_("apartment uuid"), db_index=True)
     timestamp = models.DateTimeField(auto_now_add=True)
     # Metadata fields
     handler = CharPGPPublicKeyField(
