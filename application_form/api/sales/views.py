@@ -43,6 +43,7 @@ from application_form.exceptions import ProjectDoesNotHaveApplicationsException
 from application_form.models import (
     ApartmentReservation,
     ApartmentReservationStateChangeEvent,
+    LotteryEvent,
     Offer,
 )
 from application_form.pdf import (
@@ -96,7 +97,8 @@ def execute_lottery_for_project(request):
 @authentication_classes([DrupalAuthentication])
 def apartment_states(request):
     """
-    Returns ids of apartments sold during start_time and end_time
+    Returns ids and latest states of distributed apartments changed during start_time
+    and end_time
     By default
         start_time: timezone.now() - timedelta(hours=1)
         end_time = timezone.now()
@@ -123,10 +125,13 @@ def apartment_states(request):
             f"end date {end_time_obj}"
         )
 
-    # Select the latest state event of every apartment uuid
+    # Select the latest state event of apartments that have been distributed
     state_events = (
         ApartmentReservationStateChangeEvent.objects.filter(
             timestamp__range=[start_time_obj, end_time_obj],
+            reservation__apartment_uuid__in=LotteryEvent.objects.values(
+                "apartment_uuid"
+            ),
         )
         .select_related("reservation")
         .order_by("reservation__apartment_uuid", "-timestamp")
