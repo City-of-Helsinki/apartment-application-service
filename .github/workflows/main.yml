@@ -121,7 +121,7 @@ jobs:
           ./manage.py makemigrations --no-input --dry-run
           ./manage.py makemigrations --no-input --check
 
-  build:
+  test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
