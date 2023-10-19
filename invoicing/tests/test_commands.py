@@ -128,7 +128,7 @@ def test_fetch_payments_from_sap(_, paramiko_sftp):
     installment = ApartmentInstallmentFactory(invoice_number=730000077)
 
     mock_sftp = MagicMock()
-    mock_sftp.listdir = Mock(return_value=["MR_testing_123.txt"])
+    mock_sftp.listdir = Mock(return_value=["MR_TESTING_123.TXT"])
 
     def mock_getfo(_, local_file):
         local_file.write(VALID_TEST_PAYMENT_DATA.encode("utf-8"))
@@ -140,5 +140,5 @@ def test_fetch_payments_from_sap(_, paramiko_sftp):
         "fetch_payments_from_sap",
     )
 
-    mock_sftp.rename.assert_called_with("MR_testing_123.txt", "arch/MR_testing_123.txt")
+    mock_sftp.rename.assert_called_with("MR_TESTING_123.TXT", "arch/MR_TESTING_123.TXT")
     assert installment.payments.count() == 2

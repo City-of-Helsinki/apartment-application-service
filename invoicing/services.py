@@ -45,7 +45,11 @@ def send_needed_installments_to_sap() -> (int, datetime):
 
 def fetch_payments_from_sap() -> (int, int):
     with SFTPConnection() as sftp_connection:
-        filenames = [f for f in sftp_connection.get_filenames() if f.endswith(".txt")]
+        filenames = [
+            filename
+            for filename in sftp_connection.get_filenames()
+            if filename.upper().endswith(".TXT")
+        ]
         logger.debug(f"Filenames: {filenames}")
 
         num_of_payments = 0
@@ -55,17 +59,17 @@ def fetch_payments_from_sap() -> (int, int):
                 payment_data_file = sftp_connection.get_file(filename)
                 num_of_payments += process_payment_data(payment_data_file, filename)
             except SapPaymentDataAlreadyProcessedError:
-                logger.warning(f'Payment data file "{filename}" already processed')
-            except Exception as e:  # noqa
-                logger.exception(f'Error handling payment data file "{filename}": {e}')
+                logger.warning("Payment data file %s already processed", filename)
+            except Exception:
+                logger.exception("Error handling payment data file: %s", filename)
                 continue
             else:
                 num_of_files += 1
 
             try:
                 sftp_connection.rename_file(filename, f"arch/{filename}")
-            except Exception as e:  # noqa
-                logger.exception(f'Error renaming payment data file "{filename}": {e}')
+            except Exception:
+                logger.exception("Error renaming payment data file: %s", filename)
 
     return num_of_payments, num_of_files
 
@@ -90,7 +94,7 @@ def generate_sap_xml_filename(timestamp: Optional[datetime] = None) -> str:
     if not timestamp:
         timestamp = timezone.now()
     return (
-        settings.SAP_SFTP_FILENAME_PREFIX
+        settings.SAP_SFTP_SEND_FILENAME_PREFIX
         + f"{timestamp.strftime('%Y%m%d%H%M%S')}"
         + ".xml"
     )
@@ -105,13 +109,13 @@ def send_xml_to_sap(
         filename = generate_sap_xml_filename(timestamp)
     logger.debug(
         f"Sending XML file {filename} "
-        f"to {settings.SAP_SFTP_HOST}:{settings.SAP_SFTP_PORT}"
+        f"to {settings.SAP_SFTP_SEND_HOST}:{settings.SAP_SFTP_SEND_PORT}"
     )
     sftp_put_file_object(
-        settings.SAP_SFTP_HOST,
-        settings.SAP_SFTP_USERNAME,
-        settings.SAP_SFTP_PASSWORD,
+        settings.SAP_SFTP_SEND_HOST,
+        settings.SAP_SFTP_SEND_USERNAME,
+        settings.SAP_SFTP_SEND_PASSWORD,
         BytesIO(xml),
         filename,
-        settings.SAP_SFTP_PORT,
+        settings.SAP_SFTP_SEND_PORT,
     )
