@@ -26,7 +26,7 @@ class HasoContractPDFData(PDFData):
     floor: Union[int, None]
     index_increment: Union[Decimal, None]
     installment_amount: Union[PDFCurrencyField, None]
-    living_area: Union[str, None]
+    living_area: Union[float, None]
     occupant_1: str
     occupant_1_email: str
     occupant_1_phone_number: str
@@ -136,6 +136,13 @@ class HasoReleasePDFData(PDFData):
 
 
 def create_haso_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
+    pdf_data = get_haso_contract_pdf_data(reservation)
+    return create_haso_contract_pdf_from_data(pdf_data)
+
+
+def get_haso_contract_pdf_data(
+    reservation: ApartmentReservation,
+) -> HasoContractPDFData:
     customer = SafeAttributeObject(reservation.customer)
     primary_profile = SafeAttributeObject(customer.primary_profile)
     secondary_profile = SafeAttributeObject(customer.secondary_profile)
@@ -204,7 +211,7 @@ def create_haso_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
             cents=apartment.right_of_occupancy_fee, suffix=" € / kk"
         ),
         right_of_occupancy_fee_m2=PDFCurrencyField(
-            euros=right_of_occupancy_fee_m2_euros, suffix=" € /m\u00b2/kk"
+            euros=right_of_occupancy_fee_m2_euros, suffix=" € /m²/kk"
         ),
         project_contract_apartment_completion=(
             f"{completion_start_str} — {completion_end_str}"
@@ -223,13 +230,23 @@ def create_haso_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         alterations=None,
         index_increment=None,
     )
+    return pdf_data
 
+
+def create_haso_contract_pdf_from_data(pdf_data: HasoContractPDFData) -> BytesIO:
     return create_pdf(HASO_CONTRACT_PDF_TEMPLATE_FILE_NAME, pdf_data)
 
 
 def create_haso_release_pdf(
     sales_person_name: str, reservation: ApartmentReservation
 ) -> BytesIO:
+    pdf_data = get_haso_release_pdf_data(sales_person_name, reservation)
+    return create_haso_release_pdf_from_data(pdf_data)
+
+
+def get_haso_release_pdf_data(
+    sales_person_name: str, reservation: ApartmentReservation
+) -> HasoReleasePDFData:
     customer = SafeAttributeObject(reservation.customer)
     primary_profile = SafeAttributeObject(customer.primary_profile)
     secondary_profile = SafeAttributeObject(customer.secondary_profile)
@@ -268,4 +285,8 @@ def create_haso_release_pdf(
         document_date=timezone.now().date(),
         sales_person_name=sales_person_name,
     )
+    return pdf_data
+
+
+def create_haso_release_pdf_from_data(pdf_data: HasoReleasePDFData) -> BytesIO:
     return create_pdf(HASO_RELEASE_PDF_TEMPLATE_FILE_NAME, pdf_data)

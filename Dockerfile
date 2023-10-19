@@ -31,6 +31,9 @@ RUN SECRET_KEY="only-used-for-collectstatic" python manage.py collectstatic --no
 FROM appbase as development
 # ==============================
 
+# Install poppler-utils to get pdftotext, which is used in tests
+RUN yum install -y poppler-utils
+
 COPY --chown=1001:1001 requirements-dev.txt /app/requirements-dev.txt
 RUN pip install --no-cache-dir -r /app/requirements-dev.txt
 
