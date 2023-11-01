@@ -10,7 +10,11 @@ from audit_log.models import AuditLog
 from users.enums import Roles
 from users.masking import mask_string, mask_uuid, unmask_string, unmask_uuid
 from users.models import Profile
-from users.tests.conftest import PROFILE_TEST_DATA, TEST_USER_PASSWORD
+from users.tests.conftest import (
+    PROFILE_TEST_DATA,
+    PROFILE_TEST_DATA_WITH_NIN,
+    TEST_USER_PASSWORD,
+)
 from users.tests.utils import _create_token
 
 User = get_user_model()
@@ -28,11 +32,31 @@ def test_profile_get_list_is_not_allowed(profile, api_client):
 @pytest.mark.django_db
 def test_profile_get_detail(profile, api_client):
     # The user should be able to retrieve their own profile
+    response = call_profile_get_detail(profile, api_client)
+    check_profile_get_detail_response(response, profile, nin=None)
+
+
+@pytest.mark.django_db
+def test_profile_get_detail_with_nin(profile_with_nin, api_client):
+    response = call_profile_get_detail(profile_with_nin, api_client)
+    check_profile_get_detail_response(response, profile_with_nin, nin="250180-8887")
+
+
+def call_profile_get_detail(profile, api_client):
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
     response = api_client.get(
         reverse("users:profile-detail", args=(mask_uuid(profile.pk),))
     )
+    return response
+
+
+def check_profile_get_detail_response(response, profile, nin):
     assert response.status_code == 200
+    assert response.data == {
+        **PROFILE_TEST_DATA,
+        "is_salesperson": False,
+        "national_identification_number": nin,
+    }
     for attr, value in response.data.items():
         if hasattr(profile, attr):
             profile_value = getattr(profile, attr)
@@ -102,18 +126,29 @@ def test_profile_get_detail_writes_audit_log_if_not_authenticated(profile, api_c
 
 
 @pytest.mark.django_db
-def test_profile_post(api_client):
+@pytest.mark.parametrize("nin_kind", ["no NIN", "valid NIN", "invalid NIN"])
+def test_profile_post(api_client, nin_kind):
     # Creating new profile should be allowed as an unauthenticated user
-    response = api_client.post(reverse("users:profile-list"), PROFILE_TEST_DATA)
+    if nin_kind == "no NIN":
+        profile_data = PROFILE_TEST_DATA
+    elif nin_kind == "valid NIN":
+        profile_data = PROFILE_TEST_DATA_WITH_NIN
+    elif nin_kind == "invalid NIN":
+        # Note: Currently even invalid NINs are accepted
+        profile_data = {
+            **PROFILE_TEST_DATA_WITH_NIN,
+            "national_identification_number": "123456-XXXX",
+        }
+
+    response = api_client.post(reverse("users:profile-list"), profile_data)
     assert response.status_code == 201
     user = User.objects.get()
     # Response should contain masked profile ID and password
     assert user.profile.pk == unmask_uuid(response.data["profile_id"])
-    assert user.profile.pk == UUID(PROFILE_TEST_DATA["id"])
+    assert user.profile.pk == UUID(profile_data["id"])
     assert user.check_password(unmask_string(response.data["password"]))
     # We should be able to look up a profile based on the unmasked username
     profile = Profile.objects.get(pk=unmask_uuid(response.data["profile_id"]))
-    profile_data = PROFILE_TEST_DATA.copy()
     # The created profile should contain all the data from the request
     for attr, value in profile_data.items():
         assert str(getattr(profile, attr)) == str(value)
@@ -216,7 +251,10 @@ def test_salesperson_profile_put(profile, api_client):
     }
     response = api_client.put(url, put_data)
     assert response.status_code == 200
-    assert response.data == put_data
+    assert response.data == {
+        **put_data,
+        "national_identification_number": None,
+    }
     profile.refresh_from_db()
     # User should have a salesperson role
     assert profile.user.groups.filter(

@@ -44,6 +44,7 @@ class ProfileSerializer(ProfileSerializerBase):
         fields = ProfileSerializerBase.Meta.fields + (
             "street_address",
             "date_of_birth",
+            "national_identification_number",
             "city",
             "postal_code",
             "contact_language",
