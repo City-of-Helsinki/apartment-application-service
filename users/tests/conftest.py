@@ -23,6 +23,11 @@ PROFILE_TEST_DATA = {
     "contact_language": "fi",
 }
 
+PROFILE_TEST_DATA_WITH_NIN = {
+    **PROFILE_TEST_DATA,
+    "national_identification_number": "250180-8887",
+}
+
 OTHER_PROFILE_TEST_DATA = {
     **PROFILE_TEST_DATA,
     "id": "872e8f85-e23a-42ed-9364-c3620c190d98",
@@ -34,6 +39,11 @@ TEST_USER_PASSWORD = "test password"
 @pytest.fixture
 def profile():
     return _create_profile(PROFILE_TEST_DATA, TEST_USER_PASSWORD)
+
+
+@pytest.fixture
+def profile_with_nin():
+    return _create_profile(PROFILE_TEST_DATA_WITH_NIN, TEST_USER_PASSWORD)
 
 
 @pytest.fixture
