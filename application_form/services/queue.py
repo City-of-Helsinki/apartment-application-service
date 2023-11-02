@@ -178,7 +178,9 @@ def _shift_positions(
         )
         return
 
-    reservations = ApartmentReservation.objects.filter(apartment_uuid=apartment_uuid)
+    reservations = ApartmentReservation.objects.active().filter(
+        apartment_uuid=apartment_uuid
+    )
     if not deleted and reservations.filter(queue_position=None).exists():
         raise RuntimeError(
             "This function cannot be used for adding a reservation when the apartment "
