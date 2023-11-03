@@ -345,3 +345,35 @@ def test_add_hitas_application_to_queue_with_only_cancelled_reservations(
         .queue_position
         == 1
     )
+
+
+@mark.django_db
+def test_add_haso_application_to_queue_with_a_cancelled_reservation(
+    elastic_project_with_5_apartments,
+):
+    """
+    Test that a HASO application can be added to the queue even though
+    the queue has a cancelled reservation.
+    """
+    project_uuid, apartments = elastic_project_with_5_apartments
+    first_apartment_uuid = apartments[0].uuid
+    app = ApplicationFactory(type=ApplicationType.HASO, right_of_residence=42)
+    app.application_apartments.create(
+        apartment_uuid=first_apartment_uuid, priority_number=1
+    )
+    ApartmentReservationFactory(
+        apartment_uuid=first_apartment_uuid,
+        state=ApartmentReservationState.CANCELED,
+        queue_position=None,
+    )
+
+    # this used to raise an exception
+    add_application_to_queues(app)
+
+    assert (
+        ApartmentReservation.objects.active()
+        .filter(apartment_uuid=first_apartment_uuid)
+        .first()
+        .queue_position
+        == 1
+    )

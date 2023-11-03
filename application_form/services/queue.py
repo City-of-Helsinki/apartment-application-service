@@ -43,7 +43,9 @@ def add_application_to_queues(
                 )
                 list_position = queue_position
                 # Need to shift both list position and queue position
-                _shift_positions(apartment_uuid, queue_position)
+                _make_room_for_reservation(
+                    apartment_uuid, list_position, queue_position
+                )
             elif application.type in [
                 ApplicationType.HITAS,
                 ApplicationType.PUOLIHITAS,
@@ -105,11 +107,8 @@ def remove_reservation_from_queue(
     old_queue_position = apartment_reservation.queue_position
     apartment_reservation.queue_position = None
     apartment_reservation.save(update_fields=("queue_position",))
-    _shift_positions(
-        apartment_reservation.apartment_uuid,
-        old_queue_position,
-        deleted=True,
-    )
+    apartment_uuid = apartment_reservation.apartment_uuid
+    _remove_queue_position(apartment_uuid, old_queue_position)
     state_change_event = apartment_reservation.set_state(
         ApartmentReservationState.CANCELED,
         user=user,
@@ -145,6 +144,7 @@ def _calculate_queue_position(
         "application_apartment__application__right_of_residence",
         "application_apartment__application__right_of_residence_is_old_batch",
     )
+    all_reservations = all_reservations.active()
     reservations = all_reservations.filter(
         application_apartment__application__submitted_late=submitted_late
     ).order_by("queue_position")
@@ -158,40 +158,43 @@ def _calculate_queue_position(
     return all_reservations.count() + 1
 
 
-def _shift_positions(
-    apartment_uuid: uuid.UUID,
-    from_position: int,
-    deleted: bool = False,
-) -> None:
+def _make_room_for_reservation(apartment_uuid, new_list_position, new_queue_position):
     """
-    Shifts all items in the queue by one by either incrementing or decrementing their
-    positions, depending on whether the item was added or deleted from the queue.
+    Make room for a new reservation by shifting list and queue
+    positions.
 
-    NOTE: This function cannot be used for adding after the apartment's lottery has been
-    executed, because then there can be cancelled reservations, and for those the
-    shifting won't work correctly.
+    This function is used when adding a new reservation to the queue. It
+    shifts all reservations that are >= the new list position and >= the
+    new queue position by one.
     """
-    if from_position is None:
+    res = ApartmentReservation.objects.filter(apartment_uuid=apartment_uuid)
+    _adjust_positions(res, "list_position", new_list_position, by=1)
+    _adjust_positions(res, "queue_position", new_queue_position, by=1)
+
+
+def _remove_queue_position(apartment_uuid, queue_position):
+    """
+    Remove a queue position from the reservations list.
+
+    This function is used when cancelling a reservation in the queue. It
+    shifts all reservations that are >= the queue position by -1, i.e.
+    decreasing their queue position by 1.
+    """
+    if queue_position is None:
         logger.warning(
             "from_position is None, bad reservation data in apartment uuid"
             f"{apartment_uuid}?"
         )
         return
+    res = ApartmentReservation.objects.filter(apartment_uuid=apartment_uuid)
+    _adjust_positions(res, "queue_position", queue_position, by=-1)
 
-    reservations = ApartmentReservation.objects.active().filter(
-        apartment_uuid=apartment_uuid
-    )
-    if not deleted and reservations.filter(queue_position=None).exists():
-        raise RuntimeError(
-            "This function cannot be used for adding a reservation when the apartment "
-            "has reservations without a queue_position."
-        )
 
-    # We only need to update the positions in the queue that are >= from_position
-    reservations = reservations.filter(queue_position__gte=from_position)
+def _adjust_positions(reservations, position_field, from_position, *, by):
+    """
+    Adjust list or queue positions of reservations by given amount.
 
-    # When deleting, we have to decrement each position. When adding, increment instead.
-    position_change = -1 if deleted else 1
-    reservations.update(queue_position=F("queue_position") + position_change)
-    if not deleted:
-        reservations.update(list_position=F("list_position") + position_change)
+    position_field should be either "list_position" or "queue_position".
+    """
+    res_from_pos = reservations.filter(**{position_field + "__gte": from_position})
+    res_from_pos.update(**{position_field: F(position_field) + by})
