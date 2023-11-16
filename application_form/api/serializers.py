@@ -26,7 +26,11 @@ from application_form.models import (
     Offer,
 )
 from application_form.services.application import create_application
-from application_form.validators import ProjectApplicantValidator, SSNSuffixValidator
+from application_form.validators import (
+    ApartmentApplicationValidator,
+    ProjectApplicantValidator,
+    SSNSuffixValidator,
+)
 from customer.models import Customer
 
 _logger = logging.getLogger(__name__)
@@ -168,6 +172,7 @@ class ApplicationSerializer(ApplicationSerializerBase):
 
     def validate(self, attrs):
         project_uuid = attrs["project_id"]
+        apartment_uuid = attrs["apartments"][0]["identifier"]
         applicants = []
         profile = self.context["request"].user.profile
         applicants.append((profile.date_of_birth, attrs["ssn_suffix"]))
@@ -184,6 +189,9 @@ class ApplicationSerializer(ApplicationSerializerBase):
             )
         validator = ProjectApplicantValidator()
         validator(project_uuid, applicants)
+
+        apartment_validator = ApartmentApplicationValidator()
+        apartment_validator(apartment_uuid)
 
         return super().validate(attrs)
 

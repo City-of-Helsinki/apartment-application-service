@@ -112,6 +112,23 @@ def elastic_project_with_5_apartments(elasticsearch):
 
 
 @fixture
+def elastic_project_sold_unpublished_apartments(elasticsearch):
+    apartments = []
+    apartment = ApartmentDocumentFactory(apartment_state_of_sale="SOLD")
+    apartments.append(apartment)
+
+    apartment = ApartmentDocumentFactory(
+        apartment_published=False, apartment_state_of_sale="FOR_SALE"
+    )
+    apartments.append(apartment)
+
+    yield apartment.project_uuid, apartments
+
+    for apartment in apartments:
+        apartment.delete(refresh=True)
+
+
+@fixture
 def elastic_hitas_project_with_5_apartments(elasticsearch):
     apartments = []
 

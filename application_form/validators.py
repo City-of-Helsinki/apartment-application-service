@@ -4,7 +4,7 @@ from uuid import UUID
 
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
-from apartment.elastic.queries import get_apartment_uuids
+from apartment.elastic.queries import get_apartment, get_apartment_uuids
 from application_form import error_codes
 from application_form.models import Applicant
 
@@ -86,3 +86,20 @@ class ProjectApplicantValidator:
                     detail="Applicant(s) have already applied to project.",
                     code=error_codes.E1001_APPLICANT_HAS_ALREADY_APPLIED,
                 )
+
+
+class ApartmentApplicationValidator:
+    def __call__(
+        self,
+        apartment_uuid: UUID,
+    ):
+        apartment = get_apartment(apartment_uuid, include_project_fields=True)
+        unpublished = "unpublished" if not apartment.apartment_published else ""
+        if (
+            not apartment.apartment_published
+            or apartment.apartment_state_of_sale.upper() == "SOLD"
+        ):
+            raise ValidationError(
+                f"Can't create application for {unpublished} apartment {apartment.uuid}"
+                f"State of sale {apartment.apartment_state_of_sale}"
+            )

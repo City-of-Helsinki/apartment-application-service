@@ -8,7 +8,11 @@ from application_form.tests.factories import (
     ApplicationApartmentFactory,
     ApplicationFactory,
 )
-from application_form.validators import ProjectApplicantValidator, SSNSuffixValidator
+from application_form.validators import (
+    ApartmentApplicationValidator,
+    ProjectApplicantValidator,
+    SSNSuffixValidator,
+)
 
 
 def test_ssn_suffix_validator_valid_1800s():
@@ -61,6 +65,22 @@ def test_ssn_suffix_validator_invalid_control_character():
     validator = SSNSuffixValidator(date_of_birth)
     with pytest.raises(ValidationError):
         validator("730C")
+
+
+@pytest.mark.django_db
+def test_application_to_sold_unpublished_apartment(
+    elastic_project_sold_unpublished_apartments,
+):
+    """
+    Cannot apply to sold or unpublished apartments.
+    """
+    _, apartments = elastic_project_sold_unpublished_apartments
+
+    validator = ApartmentApplicationValidator()
+
+    for apartment in apartments:
+        with pytest.raises(ValidationError):
+            validator(apartment.uuid)
 
 
 @pytest.mark.django_db
