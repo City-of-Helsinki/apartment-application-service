@@ -10,15 +10,15 @@ RUN mkdir /entrypoint
 RUN yum update -y && yum install -y nc
 RUN pip install -U pip
 
-COPY --chown=1001:1001 requirements.txt .
+COPY requirements.txt .
 RUN --mount=type=cache,target=/tmp/pip-cache \
     pip install --cache-dir /tmp/pip-cache -r requirements.txt
 
-COPY --chown=1001:1001 requirements-prod.txt .
+COPY requirements-prod.txt .
 RUN --mount=type=cache,target=/tmp/pip-cache \
     pip install --cache-dir /tmp/pip-cache -r requirements-prod.txt
 
-COPY --chown=1001:1001 docker-entrypoint.sh /entrypoint/docker-entrypoint.sh
+COPY docker-entrypoint.sh /entrypoint/docker-entrypoint.sh
 ENTRYPOINT ["/entrypoint/docker-entrypoint.sh"]
 
 # ==============================
@@ -36,8 +36,9 @@ FROM appbase as development
 # Install poppler-utils to get pdftotext, which is used in tests
 RUN yum install -y poppler-utils
 
-COPY --chown=1001:1001 requirements-dev.txt /app/requirements-dev.txt
-RUN pip install --no-cache-dir -r /app/requirements-dev.txt
+COPY requirements-dev.txt .
+RUN --mount=type=cache,target=/tmp/pip-cache \
+    pip install --cache-dir /tmp/pip-cache -r requirements-dev.txt
 
 ENV DEV_SERVER=1
 
