@@ -7,14 +7,16 @@ USER 0
 WORKDIR /app
 RUN mkdir /entrypoint
 
-COPY --chown=1001:1001 requirements.txt /app/requirements.txt
-COPY --chown=1001:1001 requirements-prod.txt /app/requirements-prod.txt
+RUN yum update -y && yum install -y nc
+RUN pip install -U pip
 
-RUN yum update -y && yum install -y \
-    nc \
-    && pip install -U pip \
-    && pip install --no-cache-dir -r /app/requirements.txt \
-    && pip install --no-cache-dir  -r /app/requirements-prod.txt
+COPY --chown=1001:1001 requirements.txt .
+RUN --mount=type=cache,target=/tmp/pip-cache \
+    pip install --cache-dir /tmp/pip-cache -r requirements.txt
+
+COPY --chown=1001:1001 requirements-prod.txt .
+RUN --mount=type=cache,target=/tmp/pip-cache \
+    pip install --cache-dir /tmp/pip-cache -r requirements-prod.txt
 
 COPY --chown=1001:1001 docker-entrypoint.sh /entrypoint/docker-entrypoint.sh
 ENTRYPOINT ["/entrypoint/docker-entrypoint.sh"]
