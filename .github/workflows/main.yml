@@ -125,7 +125,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python: [3.8, 3.9, 3.11]
+        python: ['3.8', '3.9', '3.11']
     services:
       postgres:
         image: postgres:12
@@ -147,7 +147,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           cache: 'pip'
-          cache-dependency-path: requirements*.txt
+          cache-dependency-path: requirements*.*
 
       - name: psycopg2 prerequisites
         run: sudo apt-get install libpq-dev
@@ -155,10 +155,17 @@ jobs:
       - name: Install poppler-utils for pdftotext  # used in tests
         run: sudo apt-get install poppler-utils
 
-      - name: Install dependencies
+      - name: Install dependencies from requirements*.in
+        run: |
+          pip install -U pip
+          pip install codecov -r requirements.in -r requirements-dev.in
+        if: ${{ matrix.python != '3.11' }}
+
+      - name: Install dependencies from requirements*.txt
         run: |
           pip install -U pip
           pip install codecov -r requirements.txt -r requirements-dev.txt
+        if: ${{ matrix.python == '3.11' }}
 
       # https://github.com/marketplace/actions/setup-elasticsearch
       - name: Configure sysctl limits
