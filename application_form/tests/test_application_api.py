@@ -49,6 +49,31 @@ def test_application_post(api_client, elastic_single_project_with_apartments):
         assert reservation.state_change_events.last().user is None
 
 
+@pytest.mark.django_db
+def test_application_post_sets_nin(api_client, elastic_single_project_with_apartments):
+    # Setup: Create application data with NIN and a profile without NIN
+    profile: Profile
+    profile = ProfileFactory()  # type: ignore
+    data = create_application_data(profile)
+    profile.national_identification_number = ""
+    profile.save(update_fields=["national_identification_number"])
+    assert profile.national_identification_number == ""
+    assert not profile.ssn_suffix
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
+
+    # Run: Post the application data
+    response = api_client.post(
+        reverse("application_form:application-list"), data, format="json"
+    )
+
+    # Check the response and side effects, NIN of profile should be set
+    assert response.status_code == 201
+    assert response.data == {"application_uuid": data["application_uuid"]}
+    profile.refresh_from_db()
+    assert profile.ssn_suffix == data["ssn_suffix"]
+    assert len(profile.national_identification_number) == 11
+
+
 @pytest.mark.parametrize("already_existing_customer", (False, True))
 @pytest.mark.django_db
 def test_application_post_single_profile_customer(

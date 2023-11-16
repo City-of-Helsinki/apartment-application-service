@@ -27,6 +27,7 @@ from application_form.services.queue import (
 from audit_log import audit_logging
 from audit_log.enums import Operation
 from customer.services import get_or_create_customer_from_profiles
+from users.models import Profile
 
 _logger = logging.getLogger(__name__)
 
@@ -94,6 +95,7 @@ def create_application(
     customer = get_or_create_customer_from_profiles(
         profile, additional_applicant_data, data.get("has_children")
     )
+    update_profile_from_application_data(profile, application_data)
     application = Application.objects.create(
         external_uuid=data.pop("external_uuid"),
         applicants_count=2 if additional_applicant_data else 1,
@@ -155,6 +157,24 @@ def create_application(
     )
     add_application_to_queues(application, user=user)
     return application
+
+
+def update_profile_from_application_data(profile: Profile, data: dict) -> None:
+    """
+    Update Profile from application data.
+
+    Currently only fills the ssn_suffix field if it's empty in the
+    profile.
+    """
+    ssn_suffix = data.get("ssn_suffix")
+    if not profile.ssn_suffix and ssn_suffix:
+        profile.ssn_suffix = ssn_suffix
+        profile.save(update_fields=["ssn_suffix"])
+    elif profile.ssn_suffix != ssn_suffix:
+        _logger.warning(
+            "Profile %s has a different ssn_suffix than the application data",
+            profile.pk,
+        )
 
 
 def get_ordered_applications(apartment_uuid: uuid.UUID) -> QuerySet:

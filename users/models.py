@@ -104,10 +104,21 @@ class Profile(TimestampedModel):
     )
 
     @property
-    def ssn_suffix(cls):
-        if cls.national_identification_number:
-            return cls.national_identification_number[6:]
+    def ssn_suffix(self):
+        if self.national_identification_number:
+            return self.national_identification_number[6:]
         return None
+
+    @ssn_suffix.setter
+    def ssn_suffix(self, value):
+        prefix = ""
+        if self.date_of_birth:
+            prefix = self.date_of_birth.strftime("%d%m%y")
+        elif self.national_identification_number:
+            prefix = self.national_identification_number[:6]
+        if len(prefix) != 6:
+            prefix = "000000"
+        self.national_identification_number = prefix + value
 
     def delete(self, *args, **kwargs):
         pk = self.pk
@@ -118,8 +129,12 @@ class Profile(TimestampedModel):
         _logger.info(f"Profile {pk} deleted")
         return result
 
-    def save(self, *args, **kwargs):
-        super(Profile, self).save(*args, **kwargs)
+    def save(self, *args, update_fields=None, **kwargs):
+        if update_fields and "ssn_suffix" in update_fields:
+            update_fields = list(update_fields)
+            update_fields.remove("ssn_suffix")
+            update_fields.append("national_identification_number")
+        super(Profile, self).save(*args, update_fields=update_fields, **kwargs)
 
     def is_salesperson(self):
         return self.user.is_drupal_salesperson()
