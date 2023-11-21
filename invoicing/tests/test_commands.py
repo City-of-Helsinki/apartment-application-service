@@ -1,4 +1,5 @@
 from datetime import timedelta
+from pathlib import Path
 from unittest import mock
 from unittest.mock import MagicMock, Mock
 
@@ -114,13 +115,6 @@ def test_email_notification_after_sending_installments_to_sap(_, freezer):
     )
 
 
-VALID_TEST_PAYMENT_DATA = """022121917199          12800     0000000000000000000000000000000000000000000000000000000000
-300000010700152221218221218730000077                           SAP ATestaaj1 00006658100  
-300000010700152221218221218730000077                           SAP BTestaaj1 00006658101  
-900000200001331620000000000000000000000000000000000000000000000000000000000000000000000000
-"""  # noqa: E501, W291
-
-
 @mock.patch("paramiko.SFTPClient.from_transport")
 @mock.patch("paramiko.Transport")
 @pytest.mark.django_db
@@ -131,7 +125,7 @@ def test_fetch_payments_from_sap(_, paramiko_sftp):
     mock_sftp.listdir = Mock(return_value=["MR_TESTING_123.TXT"])
 
     def mock_getfo(_, local_file):
-        local_file.write(VALID_TEST_PAYMENT_DATA.encode("utf-8"))
+        local_file.write(get_data("example_payment_data.txt"))
 
     mock_sftp.getfo = Mock(side_effect=mock_getfo)
     paramiko_sftp.return_value = mock_sftp
@@ -142,3 +136,8 @@ def test_fetch_payments_from_sap(_, paramiko_sftp):
 
     mock_sftp.rename.assert_called_with("MR_TESTING_123.TXT", "arch/MR_TESTING_123.TXT")
     assert installment.payments.count() == 2
+
+
+def get_data(data_file):
+    with (Path(__file__).parent / data_file).open("rb") as fp:
+        return fp.read()

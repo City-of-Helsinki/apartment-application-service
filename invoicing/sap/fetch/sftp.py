@@ -35,7 +35,7 @@ class SFTPConnection:
         local_file = BytesIO()
         self.sftp.getfo(filename, local_file)
         local_file.seek(0)
-        return local_file.read().decode("utf-8")
+        return local_file.read().decode("latin1")
 
     def rename_file(self, old_filename: str, new_filename: str) -> None:
         self.sftp.rename(old_filename, new_filename)
