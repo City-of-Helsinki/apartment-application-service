@@ -1,16 +1,12 @@
 import datetime
 import pathlib
-import re
-import subprocess
 import unittest
 from decimal import Decimal
-from typing import List
-
-import pytest
 
 from apartment_application_service.pdf import PDFCurrencyField as CF
 
 from ..pdf.haso import create_haso_contract_pdf_from_data, HasoContractPDFData
+from .pdf_utils import get_cleaned_pdf_texts, remove_pdf_id
 
 # This variable should be normally False, but can be set temporarily to
 # True to override the expected test result PDF file.  This is useful
@@ -364,41 +360,3 @@ def read_file(file_name: str) -> bytes:
 def write_file(file_name: str, data: bytes) -> None:  # pragma: no cover
     with open(my_dir / file_name, "wb") as fp:
         fp.write(data)
-
-
-def get_cleaned_pdf_texts(pdf: bytes) -> List[str]:
-    result = []
-    for text_line in get_pdf_text_lines(pdf):
-        cleaned = re.sub(r"\s+", " ", text_line).strip()
-        if cleaned:
-            result.append(cleaned)
-    return result
-
-
-def get_pdf_text_lines(pdf: bytes) -> List[str]:
-    pdftotext = "pdftotext"
-    try:
-        retcode = subprocess.call([pdftotext, "-v"], stdout=subprocess.DEVNULL)
-    except FileNotFoundError:
-        return pytest.skip("pdftotext is not available")
-    if retcode != 0:
-        return pytest.skip("pdftotext not functioning")
-
-    process = subprocess.Popen(
-        [pdftotext, "-layout", "-", "-"],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    (stdout, stderr) = process.communicate(input=pdf)
-    if process.returncode != 0:
-        msg = f"pdftotext failed with code {process.returncode}: {stderr}"
-        raise RuntimeError(msg)
-    return stdout.decode("utf-8", errors="replace").splitlines()
-
-
-def remove_pdf_id(pdf: bytes) -> bytes:
-    """
-    Remove the /ID entry from the PDF file.
-    """
-    return re.sub(rb"/ID\s+\[<[^]]+>\]", b"", pdf)
