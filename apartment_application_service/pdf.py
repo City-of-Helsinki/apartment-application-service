@@ -2,7 +2,7 @@ import dataclasses
 from datetime import date
 from decimal import Decimal
 from io import BytesIO
-from typing import ClassVar, Dict, Iterable, Union
+from typing import ClassVar, Dict, Iterable, Optional, Union
 
 from pikepdf import Name, Pdf, String
 
@@ -83,9 +83,12 @@ class PDFCurrencyField:
 def create_pdf(
     template_file_name: str, pdf_data_list: Union[PDFData, Iterable[PDFData]]
 ) -> BytesIO:
+    pdf: Optional[Pdf]
     if not isinstance(pdf_data_list, Iterable):
         pdf_data_list = [pdf_data_list]
-    pdf = Pdf.new()
+        pdf = None
+    else:
+        pdf = Pdf.new()
 
     for idx, pdf_data in enumerate(pdf_data_list):
         single_pdf = _create_pdf(
@@ -93,6 +96,9 @@ def create_pdf(
             pdf_data.to_data_dict(),
             idx,
         )
+        if pdf is None:  # Only one repetition of data
+            pdf = single_pdf  # Output the single filled PDF
+            break
         if not hasattr(pdf.Root, "AcroForm") and hasattr(single_pdf.Root, "AcroForm"):
             acroform = pdf.copy_foreign(single_pdf.Root.AcroForm)
             pdf.Root.AcroForm = acroform
@@ -100,7 +106,8 @@ def create_pdf(
             pdf.Root.AcroForm.NeedAppearances = True
         pdf.pages.extend(single_pdf.pages)
     pdf_bytes = BytesIO()
-    pdf.save(pdf_bytes)
+    if pdf is not None:
+        pdf.save(pdf_bytes)
     pdf_bytes.seek(0)
 
     return pdf_bytes
