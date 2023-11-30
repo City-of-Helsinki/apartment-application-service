@@ -5,7 +5,6 @@ from io import BytesIO
 from typing import ClassVar, Dict, Optional, Union
 
 from django.utils import timezone
-from num2words import num2words
 
 from apartment.elastic.queries import get_apartment
 from apartment_application_service.pdf import create_pdf, PDFCurrencyField, PDFData
@@ -22,17 +21,20 @@ class HasoContractPDFData(PDFData):
     alterations: Union[str, None]
     apartment_number: Union[str, None]
     apartment_structure: Union[str, None]
+    approver: str
     approval_date: Union[str, None]
     floor: Union[int, None]
     index_increment: Union[Decimal, None]
     installment_amount: Union[PDFCurrencyField, None]
     living_area: Union[float, None]
     occupant_1: str
+    occupant_1_signing_text: str
     occupant_1_email: str
     occupant_1_phone_number: str
     occupant_1_ssn: str
     occupant_1_street_address: str
     occupant_2: Union[str, None]
+    occupant_2_signing_text: str
     occupant_2_email: Union[str, None]
     occupant_2_phone_number: Union[str, None]
     occupant_2_ssn: Union[str, None]
@@ -48,47 +50,46 @@ class HasoContractPDFData(PDFData):
     right_of_occupancy_fee: Union[PDFCurrencyField, None]
     right_of_occupancy_fee_m2: Union[PDFCurrencyField, None]
     right_of_occupancy_payment: Union[PDFCurrencyField, None]
-    right_of_occupancy_payment_text: Union[str, None]
     right_of_residence_number: Union[str, None]
-    signing_place: str
-    signing_text: str
-    signing_time: Union[str, None]
+    signing_place_and_time: str
 
     FIELD_MAPPING: ClassVar[Dict[str, str]] = {
-        "alterations": "Muutostyöt",
-        "apartment_number": "Huoneiston numero",
-        "apartment_structure": "Huoneistotyyppi",
-        "approval_date": "Hyväksymispäivämäärä",
-        "floor": "Sijaintikerros",
-        "index_increment": "Indeksikorotus",
-        "installment_amount": "Maksuerän suuruus",
-        "living_area": "Huoneiston pinta-ala",
-        "occupant_1": "Asumisoikeuden haltija 1",
-        "occupant_1_email": "Haltija 1 sähköposti",
-        "occupant_1_phone_number": "Haltija 1 puhelinnumero",
-        "occupant_1_ssn": "Haltija 1 henkilötunnus",
-        "occupant_1_street_address": "Haltija 1 osoite",
-        "occupant_2": "Asumisoikeuden haltija 2",
-        "occupant_2_email": "Haltija 2 sähköposti",
-        "occupant_2_phone_number": "Haltija 2 puhelinnumero",
-        "occupant_2_ssn": "Haltija 2 henkilötunnus",
-        "occupant_2_street_address": "Haltija 2 osoite",
-        "payment_due_date": "Eräpäivä maksulle",
-        "project_acc_salesperson": "rakennuttaja-asimies",
-        "project_contract_apartment_completion": "Valmistumisaika",
-        "project_contract_other_terms": "Muut ehdot",
-        "project_contract_right_of_occupancy_payment_verification": "Lisätietokenttä",
-        "project_contract_usage_fees": "Vapaakenttä käyttövastike",
-        "project_housing_company": "Kohteen nimi",
-        "project_street_address": "Kohteen osoite",
-        "right_of_occupancy_fee": "Käyttövastike",
-        "right_of_occupancy_fee_m2": "Käyttövastike asuinneliö",
-        "right_of_occupancy_payment": "Alkuperäinen asumisoikeusmaksu",
-        "right_of_occupancy_payment_text": "Alkuperäinen asumisoikeusmaksu tekstinä",
-        "right_of_residence_number": "järjestysnumero",
-        "signing_place": "Paikka",
-        "signing_text": "Sopimus oikeaksi todistetaan",
-        "signing_time": "Aika",
+        "alterations": "P31Muutostyöt",
+        "approver": "P1AOhyväksyjä",
+        "apartment_number": "P2AOHuoneistoNumero",
+        "apartment_structure": "P2Huoneluku",
+        "approval_date": "P1Hyväksymispäivä",
+        "floor": "P2HuoneistoKerros",
+        "index_increment": "P31Indeksikorotus",
+        "installment_amount": "P31Maksuerä1suuruus",
+        "living_area": "P2HuoneistoPintaala",
+        "occupant_1": "P1AOhaltija1nimi",
+        "occupant_1_signing_text": "AllekirjoitusAOhaltija1",
+        "occupant_1_email": "P1Sähköposti1",
+        "occupant_1_phone_number": "P1Puhelin1",
+        "occupant_1_ssn": "P1Henkilötunnus1",
+        "occupant_1_street_address": "P1Osoite1",
+        "occupant_2": "P1AOhaltija2nimi",
+        "occupant_2_signing_text": "AllekirjoitusAOhaltija2",
+        "occupant_2_email": "P1Sähköposti2",
+        "occupant_2_phone_number": "P1Puhelin2",
+        "occupant_2_ssn": "P1Henkilötunnus2",
+        "occupant_2_street_address": "P1Osoite2",
+        "payment_due_date": "P31Eräpäivä1",
+        "project_acc_salesperson": "AllekirjoitusValtakirjalla",
+        "project_contract_apartment_completion": "P6LuovutusPäivämäärä",
+        "project_contract_other_terms": "P91MuutEhdotJaAsiakirjat",
+        "project_contract_right_of_occupancy_payment_verification": (
+            "P9RakentamisAOmaksunTarkistus"
+        ),
+        "project_contract_usage_fees": "P4AOhaltijoidenLisäkorvaukset",
+        "project_housing_company": "P2AOkohteenNimi",
+        "project_street_address": "P2AOkohteenOsoite",
+        "right_of_occupancy_fee": "P4EuroKK",
+        "right_of_occupancy_fee_m2": "P4m2KK",
+        "right_of_occupancy_payment": "P31TalonRakentamisAOmaksu",
+        "right_of_residence_number": "P1Järjestysnumero",
+        "signing_place_and_time": "AllekirjoitusPaikkaAika",
     }
 
 
@@ -169,6 +170,7 @@ def get_haso_contract_pdf_data(
 
     pdf_data = HasoContractPDFData(
         occupant_1=primary_profile.full_name,
+        occupant_1_signing_text=primary_profile.full_name,
         occupant_1_street_address=(
             (primary_profile.street_address or "")
             + ", "
@@ -180,6 +182,7 @@ def get_haso_contract_pdf_data(
         occupant_1_email=primary_profile.email,
         occupant_1_ssn=primary_profile.national_identification_number,
         occupant_2=secondary_profile.full_name,
+        occupant_2_signing_text=secondary_profile.full_name,
         occupant_2_street_address=(
             (secondary_profile.street_address or "")
             + ", "
@@ -200,11 +203,6 @@ def get_haso_contract_pdf_data(
         right_of_occupancy_payment=PDFCurrencyField(
             cents=apartment.current_right_of_occupancy_payment, suffix=" €"
         ),
-        right_of_occupancy_payment_text=num2words(
-            Decimal(apartment.current_right_of_occupancy_payment) / 100, lang="fi"
-        )
-        if apartment.current_right_of_occupancy_payment is not None
-        else None,
         payment_due_date=first_payment.due_date,
         installment_amount=PDFCurrencyField(euros=first_payment.value),
         right_of_occupancy_fee=PDFCurrencyField(
@@ -218,14 +216,15 @@ def get_haso_contract_pdf_data(
             if completion_start_str or completion_end_str
             else ""
         ),
-        signing_place="Helsingin kaupunki",
+        signing_place_and_time="Helsinki",  # TODO: Is Signing Time needed?
         project_acc_salesperson=apartment.project_acc_salesperson,
         project_contract_other_terms=apartment.project_contract_other_terms,
         project_contract_usage_fees=apartment.project_contract_usage_fees,
-        project_contract_right_of_occupancy_payment_verification=apartment.project_contract_right_of_occupancy_payment_verification,  # noqa E501
+        project_contract_right_of_occupancy_payment_verification=(
+            apartment.project_contract_right_of_occupancy_payment_verification
+        ),
+        approver="Helsingin kaupunki",
         # TODO the following fields are still WIP
-        signing_text="Sopimus oikeaksi todistetaan",
-        signing_time=None,
         approval_date=None,
         alterations=None,
         index_increment=None,
