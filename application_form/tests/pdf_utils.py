@@ -5,6 +5,16 @@ from typing import List
 import pytest
 
 
+def assert_pdf_has_text(pdf: bytes, text: str) -> bool:
+    """
+    Check if the PDF file contains the given text.
+    """
+    pdf_text_content = "\n".join(get_cleaned_pdf_texts(pdf))
+    assert (
+        text in pdf_text_content
+    ), f"Text {text!r} was not found in PDF text:\n{pdf_text_content}"
+
+
 def get_cleaned_pdf_texts(pdf: bytes) -> List[str]:
     result = []
     for text_line in get_pdf_text_lines(pdf):
