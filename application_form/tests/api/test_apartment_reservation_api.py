@@ -28,6 +28,8 @@ from invoicing.tests.factories import (
 )
 from users.tests.factories import ProfileFactory
 
+from ..pdf_utils import assert_pdf_has_text
+
 
 @pytest.mark.django_db
 def test_root_apartment_reservation_detail_unauthorized(
@@ -312,7 +314,9 @@ def test_contract_pdf_creation(
         if ownership_type == "HASO"
         else apartment.project_realty_id
     )
-    assert bytes(test_value, encoding="utf-8") in response.content
+
+    assert isinstance(test_value, str) and len(test_value) > 10
+    assert_pdf_has_text(response.content, test_value)
 
 
 @pytest.mark.django_db
@@ -1071,7 +1075,8 @@ def test_release_pdf_creation(
             assert response.status_code == 200
             assert response["Content-Type"] == "application/pdf"
             test_value = apartment.project_housing_company
-            assert bytes(test_value, encoding="utf-8") in response.content
+            assert isinstance(test_value, str) and len(test_value) > 10
+            assert_pdf_has_text(response.content, test_value)
         else:
             assert response.status_code == 400
             assert "Reservation has no revaluation" in str(response.data)
