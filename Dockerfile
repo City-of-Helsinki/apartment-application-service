@@ -1,5 +1,5 @@
 # ==============================
-FROM registry.access.redhat.com/ubi8/python-311 as appbase
+FROM registry.access.redhat.com/ubi9/python-311 as appbase
 # ==============================
 
 ENV PYTHONUNBUFFERED 1
