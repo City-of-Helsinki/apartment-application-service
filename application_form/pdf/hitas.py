@@ -392,7 +392,7 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         )
         if apartment.project_contract_construction_permit_requested
         else None,
-        project_contract_other_terms=apartment.project_contract_other_terms,
+        project_contract_other_terms=apartment.project_contract_combined_terms,
         project_documents_delivered=apartment.project_documents_delivered,
         signing_place_and_time="Helsingin kaupunki",
         signing_text="Kauppakirja oikeaksi todistetaan",
