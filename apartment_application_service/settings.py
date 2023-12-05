@@ -1,5 +1,4 @@
 import os
-import subprocess
 from datetime import timedelta
 
 import environ
@@ -8,6 +7,7 @@ from django.utils.translation import gettext_lazy as _
 from sentry_sdk.integrations.django import DjangoIntegration
 
 from .utils import is_module_available
+from .version import get_version
 
 checkout_dir = environ.Path(__file__) - 2
 assert os.path.exists(checkout_dir("manage.py"))
@@ -132,17 +132,12 @@ vars().update(EMAIL_CONFIG)
 if env.str("DEFAULT_FROM_EMAIL"):
     DEFAULT_FROM_EMAIL = env.str("DEFAULT_FROM_EMAIL")
 
-try:
-    version = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).strip()
-except Exception:
-    version = "n/a"
-
 SENTRY_DSN = env.str("SENTRY_DSN")
 SENTRY_ENVIRONMENT = env("SENTRY_ENVIRONMENT")
 if SENTRY_DSN and SENTRY_ENVIRONMENT:
     sentry_sdk.init(
         dsn=SENTRY_DSN,
-        release=version,
+        release=get_version(),
         environment=SENTRY_ENVIRONMENT,
         integrations=[DjangoIntegration()],
     )
