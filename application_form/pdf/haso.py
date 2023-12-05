@@ -218,7 +218,7 @@ def get_haso_contract_pdf_data(
         ),
         signing_place_and_time="Helsinki",  # TODO: Is Signing Time needed?
         project_acc_salesperson=apartment.project_acc_salesperson,
-        project_contract_other_terms=apartment.project_contract_other_terms,
+        project_contract_other_terms=apartment.project_contract_combined_terms,
         project_contract_usage_fees=apartment.project_contract_usage_fees,
         project_contract_right_of_occupancy_payment_verification=(
             apartment.project_contract_right_of_occupancy_payment_verification

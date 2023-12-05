@@ -1,5 +1,5 @@
 from django.conf import settings
-from elasticsearch_dsl import Boolean, Date, Document, Float, Keyword, Long
+from elasticsearch_dsl import Boolean, Date, Document, Float, Keyword, Long, Text
 
 from cost_index.utils import (
     current_right_of_occupancy_payment,
@@ -151,6 +151,8 @@ class ApartmentDocument(ReadOnlyDocument):
 
     project_contract_apartment_completion_selection_2_start = Date()
     project_contract_apartment_completion_selection_2_end = Date()
+    project_contract_customer_handover = Text()
+    project_contract_bill_of_sale_terms = Text()
     project_contract_other_terms = Keyword()
     project_contract_usage_fees = Keyword()
     project_contract_right_of_occupancy_payment_verification = Keyword()
@@ -173,3 +175,13 @@ class ApartmentDocument(ReadOnlyDocument):
         return reservation_right_of_occupancy_payment(
             reservation_id, self.uuid, self.right_of_occupancy_payment
         )
+
+    @property
+    def project_contract_combined_terms(self):
+        items = [
+            self.project_contract_customer_handover,
+            self.project_contract_bill_of_sale_terms,
+            self.project_contract_other_terms,
+        ]
+        non_empty_items = [x for x in items if isinstance(x, str) and x]
+        return "\n\n".join(non_empty_items)
