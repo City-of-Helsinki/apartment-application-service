@@ -151,7 +151,7 @@ class ApartmentDocument(ReadOnlyDocument):
 
     project_contract_apartment_completion_selection_2_start = Date()
     project_contract_apartment_completion_selection_2_end = Date()
-    project_contract_customer_handover = Text()
+    project_contract_customer_document_handover = Text()
     project_contract_bill_of_sale_terms = Text()
     project_contract_other_terms = Keyword()
     project_contract_usage_fees = Keyword()
@@ -179,9 +179,9 @@ class ApartmentDocument(ReadOnlyDocument):
     @property
     def project_contract_combined_terms(self):
         items = [
-            self.project_contract_customer_handover,
             self.project_contract_bill_of_sale_terms,
             self.project_contract_other_terms,
+            self.project_contract_customer_document_handover,
         ]
         non_empty_items = [x for x in items if isinstance(x, str) and x]
         return "\n\n".join(non_empty_items)
