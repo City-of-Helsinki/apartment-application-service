@@ -155,11 +155,11 @@ def get_haso_contract_pdf_data(
         ).first()
     )
 
-    completion_start = apartment.project_contract_apartment_completion_selection_2_start
+    completion_start = apartment.project_contract_estimated_handover_date_start
     completion_start_str = (
         completion_start.strftime("%-d.%-m.%Y") if completion_start else ""
     )
-    completion_end = apartment.project_contract_apartment_completion_selection_2_end
+    completion_end = apartment.project_contract_estimated_handover_date_end
     completion_end_str = completion_end.strftime("%-d.%-m.%Y") if completion_end else ""
 
     right_of_occupancy_fee_m2_euros = (
