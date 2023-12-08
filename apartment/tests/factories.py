@@ -183,6 +183,14 @@ class ApartmentDocumentFactory(ElasticFactory):
         start_date=timezone.localdate() + timedelta(days=1),
         end_date=timezone.localdate() + timedelta(days=7),
     )
+    project_contract_estimated_handover_date_start = fuzzy.FuzzyDate(
+        start_date=timezone.localdate() - timedelta(days=7),
+        end_date=timezone.localdate() - timedelta(days=1),
+    )
+    project_contract_estimated_handover_date_end = fuzzy.FuzzyDate(
+        start_date=timezone.localdate() + timedelta(days=1),
+        end_date=timezone.localdate() + timedelta(days=7),
+    )
     project_contract_customer_document_handover = fuzzy.FuzzyText()
     project_contract_bill_of_sale_terms = fuzzy.FuzzyText()
     project_contract_other_terms = fuzzy.FuzzyText()

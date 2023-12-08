@@ -151,6 +151,8 @@ class ApartmentDocument(ReadOnlyDocument):
 
     project_contract_apartment_completion_selection_2_start = Date()
     project_contract_apartment_completion_selection_2_end = Date()
+    project_contract_estimated_handover_date_start = Date()
+    project_contract_estimated_handover_date_end = Date()
     project_contract_customer_document_handover = Text()
     project_contract_bill_of_sale_terms = Text()
     project_contract_other_terms = Keyword()
