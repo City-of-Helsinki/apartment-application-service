@@ -1,0 +1,68 @@
+# Media and static files
+var/
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# CI configs
+.github
+azure*.yml
+
+# Docker
+docker-compose.yml
+Dockerfile
+.docker
+.dockerignore
+
+# Python byte-compiled files
+**/__pycache__/
+**/*.py[cod]
+
+# Shared Objects (Python C extensions etc.)
+*.so
+
+# Python packaging
+.Python
+.python-version
+build/
+develop-eggs/
+dist/
+eggs/
+sdist/
+*.egg-info/
+*.egg
+
+# Various caches
+**/.cache/
+**/.mypy_cache/
+**/.pytest_cache/
+**/.ruff_cache/
+
+# Testing related
+htmlcov/
+.tox/
+.coverage
+coverage.xml
+
+# Compiled translations
+*.mo
+
+# Virtual environments
+.env
+.venv/
+env/
+venv/
+
+# IDEs
+.idea
+.vscode/
+.ropeproject
+**/.ropeproject
+
+# Temporary files from editors
+**/*~
+**/.#*
+**/*.swp
+**/*.tmp
