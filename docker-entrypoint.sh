@@ -12,7 +12,7 @@ if [ -n "$DATABASE_HOST" ]; then
 fi
 
 if [ -n "$ELASTICSEARCH_HOST" ]; then
-  until nc -z -v -w30 "$ELASTICSEARCH_HOST" "$ELASTICSEARCH_HOST_PORT"
+  until nc -z -v -w30 "$ELASTICSEARCH_HOST" "${ELASTICSEARCH_PORT:-9200}"
   do
     echo "Waiting for elasticsearch connection..."
     sleep 1

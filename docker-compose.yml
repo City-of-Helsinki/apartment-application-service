@@ -29,7 +29,6 @@ services:
             DATABASE_URL: postgres://apartment-application:apartment-application@apartment-application-db/apartment-application
             DATABASE_HOST: apartment-application-db.helsinki
             ELASTICSEARCH_HOST: apartment-application-elasticsearch.helsinki
-            ELASTICSEARCH_HOST_PORT: 9200
         volumes:
             - .:/app
         ports:
