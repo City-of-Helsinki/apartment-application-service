@@ -2,6 +2,7 @@ from datetime import date
 from typing import List, Tuple, Union
 from uuid import UUID
 
+from django.conf import settings
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apartment.elastic.queries import get_apartment_uuids
@@ -63,6 +64,9 @@ class ProjectApplicantValidator:
         project_uuid: UUID,
         date_of_birth_and_ssn_suffix: Union[Tuple[date, str], List[Tuple[date, str]]],
     ):
+        if getattr(settings, "APPLICANT_DUPLICATE_VALIDATION_DISABLED", False):
+            return
+
         if isinstance(date_of_birth_and_ssn_suffix, Tuple):
             date_of_birth_and_ssn_suffix = [date_of_birth_and_ssn_suffix]
         if isinstance(date_of_birth_and_ssn_suffix, List):
