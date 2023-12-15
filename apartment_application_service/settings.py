@@ -107,6 +107,7 @@ env = environ.Env(
     DRUPAL_SERVER_AUTH_TOKEN=(str, "example-token"),
     DEFAULT_SOLD_APARMENT_TIME_RANGE=(int, 1),
     DEFAULT_APARTMENT_REVALUATION_TIME_RANGE=(int, 1),
+    APPLICANT_DUPLICATE_VALIDATION_DISABLED=(bool, False),
 )
 if os.path.exists(env_file):
     env.read_env(env_file)
@@ -424,6 +425,11 @@ DEFAULT_SOLD_APARMENT_TIME_RANGE = env.int("DEFAULT_SOLD_APARMENT_TIME_RANGE")  
 DEFAULT_APARTMENT_REVALUATION_TIME_RANGE = env.int(
     "DEFAULT_APARTMENT_REVALUATION_TIME_RANGE"
 )  # hours
+
+# Tunables
+APPLICANT_DUPLICATE_VALIDATION_DISABLED = env.bool(
+    "APPLICANT_DUPLICATE_VALIDATION_DISABLED"
+)
 
 # local_settings.py can be used to override environment-specific settings
 # like database and email that differ between development and production.
