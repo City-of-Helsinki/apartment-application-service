@@ -84,6 +84,10 @@ class Command(BaseCommand):
     def fix(self, reservations_to_fix):
         for reservation in reservations_to_fix:
             print(f"Fixing {get_description(reservation)}...")
+            # Refresh reservation from DB to make sure we have the latest
+            # value of the queue_position field, since it might have been
+            # updated by previous iterations of this loop.
+            reservation.refresh_from_db()
             remove_reservation_from_queue(
                 reservation,
                 comment="Poistettu jonosta, koska oli peruttu ennen arvontaa",
