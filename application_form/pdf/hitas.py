@@ -398,5 +398,8 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         signing_text="Kauppakirja oikeaksi todistetaan",
         salesperson=None,
     )
+    return create_hitas_contract_pdf_from_data(pdf_data)
 
+
+def create_hitas_contract_pdf_from_data(pdf_data: HitasContractPDFData) -> BytesIO:
     return create_pdf(HITAS_CONTRACT_PDF_TEMPLATE_FILE_NAME, pdf_data)
