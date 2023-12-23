@@ -130,7 +130,6 @@ class HitasContractPDFData(PDFData):
     signing_place_and_time: Union[str, None]
     salesperson: Union[str, None]
     signing_buyers: str
-    sign_project_contract_depositary: Union[str, None]
 
     FIELD_MAPPING: ClassVar[Dict[str, str]] = {
         "occupant_1": "P1Ostaja1Nimi",
@@ -230,8 +229,7 @@ class HitasContractPDFData(PDFData):
         "project_contract_repository": "P9TurvaAsiankirjaSäilysOsoite",
         "breach_of_contract_option_1": "P15SopimusRikkomisestaVahinkoKorvaus",
         "breach_of_contract_option_2": "P15SopimusRikkomisestaKulutJa2PcntVH",
-        "project_contract_collateral_type": "vakuuden laji",  # FIXME: where to?
-        "project_contract_collateral_bank_and_address": "P17AKL217vakuus",  # Correct?
+        "project_contract_collateral_type": "P17AKL217vakuus",
         "project_contract_default_collateral": "P17AKL219suorituskyvyttymyysvakuus",
         "project_contract_construction_permit_requested": "P19RakennuslupaTietoa",
         "project_contract_other_terms": "P22MuutEhdotOsa1",
@@ -241,7 +239,7 @@ class HitasContractPDFData(PDFData):
         "salesperson": "AllekirjoitusValtakirjalla",
         "signing_buyers": "AllekirjoitusOstajat",
         "collateral_place_and_time": "AKL17VakuuksienAsetusPaikkaJaAika",  # UNUSED
-        "sign_project_contract_depositary": "TurvaAsiakirjojenSäilyttäjä",  # UNUSED
+        "project_contract_collateral_bank_and_address": "TurvaAsiakirjojenSäilyttäjä",
     }
 
 
@@ -415,12 +413,6 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         breach_of_contract_option_1=False,
         breach_of_contract_option_2=True,
         project_contract_collateral_type=apartment.project_contract_collateral_type,
-        project_contract_collateral_bank_and_address="  ".join(
-            [
-                apartment.project_contract_depositary or "",
-                apartment.project_contract_repository or "",
-            ]
-        ),
         project_contract_default_collateral=apartment.project_contract_default_collateral,  # noqa E501
         project_contract_construction_permit_requested=(
             apartment.project_contract_construction_permit_requested
@@ -436,7 +428,12 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
             for name in [primary_profile.full_name, secondary_profile.full_name]
             if name
         ),
-        sign_project_contract_depositary=apartment.project_contract_depositary,
+        project_contract_collateral_bank_and_address="  ".join(
+            [
+                apartment.project_contract_depositary or "",
+                apartment.project_contract_repository or "",
+            ]
+        ),
     )
     return create_hitas_contract_pdf_from_data(pdf_data)
 

@@ -108,8 +108,8 @@ CONTRACT_PDF_DATA = HitasContractPDFData(
     project_contract_apartment_completion_selection_3_date=datetime.date(2021, 6, 30),
     #
     # 9
-    project_contract_depositary="Döpö döpö",
-    project_contract_repository="Röpö röpö",
+    project_contract_depositary="Ö-Pankki Oyj",
+    project_contract_repository="PL 123, 00020 Ö-Pankki",
     #
     # 15
     breach_of_contract_option_1=True,
@@ -117,8 +117,7 @@ CONTRACT_PDF_DATA = HitasContractPDFData(
     #
     # 17
     project_contract_collateral_type="kiinteistökiinnitys",
-    project_contract_collateral_bank_and_address="Pankki Oyj, PL 123, 00020 Pankki",
-    project_contract_default_collateral="kiinteistökiinnitys",
+    project_contract_default_collateral="pankkitalletus 100 € Ä-Pankki Oyj:ssä",
     #
     # 19
     project_contract_construction_permit_requested=datetime.date(2020, 7, 1),
@@ -131,7 +130,7 @@ CONTRACT_PDF_DATA = HitasContractPDFData(
     signing_place_and_time="Mörkökylässä 1.7.2020",
     signing_buyers="Matti Meikäläinen & Maija Meikäläinen",
     salesperson="Mörkö",
-    sign_project_contract_depositary="Döpö döpö",
+    project_contract_collateral_bank_and_address="Ö-Pankki Oyj, PL 123, 00020 Ö-Pankki",
 )
 
 
@@ -426,9 +425,9 @@ class TesthitasContractPdfFromData(unittest.TestCase):
             "(taloussuunnitelman muuttaminen, ks. kohta 11 ).",
             "7",
             "Turva-asiakirjojen ja osakekirjojen säilyttäjä",
-            "Döpö döpö",
+            "Ö-Pankki Oyj",
             "Säilytyspaikan osoite, missä turva-asiakirjat ovat ostajan nähtävillä",
-            "Röpö röpö",
+            "PL 123, 00020 Ö-Pankki",
             "5 Valtioneuvoston asetus turva-asiakirjoista asuntokaupoissa (835/2005)",
             "10 Kauppakirjaan perustuvien oikeuksien ja velvollisuuksien luovuttaminen ja",
             "panttaaminen",
@@ -684,7 +683,7 @@ class TesthitasContractPdfFromData(unittest.TestCase):
             "asunto-",
             "osakkeenostajien hyväksi seuraavat vakuudet.",
             "A) Asuntokauppalain 2 luvun 17 §:n mukainen rakentamisvaiheen vakuus",
-            "Pankki Oyj, PL 123, 00020 Pankki",
+            "kiinteistökiinnitys",
             "12",
             "Merkittävä vakuuden laji: pankkitalletus, pankkitakaus tai tarkoitukseen "
             "soveltuva",
@@ -743,7 +742,7 @@ class TesthitasContractPdfFromData(unittest.TestCase):
             "pankkitalletuksen ja jolle tässä kappaleessa tarkoitettu ilmoitus ja "
             "todistus on toimitettava.",
             "B) Asuntokauppalain 2 luvun 19 §:n mukainen suorituskyvyttömyysvakuus",
-            "kiinteistökiinnitys",
+            "pankkitalletus 100 € Ä-Pankki Oyj:ssä",
             "13",
             "Merkittävä vakuuden antaja ja vakuuden laji: vakuutus, pankkitakaus tai "
             "Kuluttajaviraston",
@@ -845,7 +844,7 @@ class TesthitasContractPdfFromData(unittest.TestCase):
             "Asuntokauppalain edellyttämät vakuudet on asetettu kohdan 17. mukaisesti",
             "Paikka ja aika",
             "Turva-asiakirjojen säilyttäjä",
-            "Döpö döpö",
+            "Ö-Pankki Oyj, PL 123, 00020 Ö-Pankki",
             "18",
         ]
 
