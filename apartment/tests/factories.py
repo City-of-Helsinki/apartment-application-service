@@ -175,6 +175,12 @@ class ApartmentDocumentFactory(ElasticFactory):
     publish_on_oikotie = Faker("boolean")
     right_of_occupancy_payment = fuzzy.FuzzyInteger(0, 999)
     right_of_occupancy_fee = fuzzy.FuzzyInteger(0, 999)
+    project_contract_apartment_completion_selection_1 = Faker("boolean")
+    project_contract_apartment_completion_selection_1_date = fuzzy.FuzzyDate(
+        start_date=timezone.localdate() - timedelta(days=7),
+        end_date=timezone.localdate() - timedelta(days=1),
+    )
+    project_contract_apartment_completion_selection_2 = Faker("boolean")
     project_contract_apartment_completion_selection_2_start = fuzzy.FuzzyDate(
         start_date=timezone.localdate() - timedelta(days=7),
         end_date=timezone.localdate() - timedelta(days=1),
@@ -183,6 +189,12 @@ class ApartmentDocumentFactory(ElasticFactory):
         start_date=timezone.localdate() + timedelta(days=1),
         end_date=timezone.localdate() + timedelta(days=7),
     )
+    project_contract_apartment_completion_selection_3 = Faker("boolean")
+    project_contract_apartment_completion_selection_3_date = fuzzy.FuzzyDate(
+        start_date=timezone.localdate() - timedelta(days=7),
+        end_date=timezone.localdate() - timedelta(days=1),
+    )
+    project_contract_depositary = fuzzy.FuzzyText()
     project_contract_estimated_handover_date_start = fuzzy.FuzzyDate(
         start_date=timezone.localdate() - timedelta(days=7),
         end_date=timezone.localdate() - timedelta(days=1),
@@ -193,8 +205,23 @@ class ApartmentDocumentFactory(ElasticFactory):
     )
     project_contract_customer_document_handover = fuzzy.FuzzyText()
     project_contract_bill_of_sale_terms = fuzzy.FuzzyText()
+    project_contract_material_selection_date = fuzzy.FuzzyDate(
+        start_date=timezone.localdate() - timedelta(days=7),
+        end_date=timezone.localdate() - timedelta(days=1),
+    )
+    project_contract_material_selection_description = fuzzy.FuzzyText()
+    project_contract_material_selection_later = Faker("boolean")
     project_contract_other_terms = fuzzy.FuzzyText()
     project_contract_usage_fees = fuzzy.FuzzyText()
+    project_contract_repository = fuzzy.FuzzyText()
     project_contract_right_of_occupancy_payment_verification = fuzzy.FuzzyText()
     project_property_number = fuzzy.FuzzyText(length=3)
     project_contract_rs_bank = fuzzy.FuzzyText()
+
+    project_contract_collateral_type = fuzzy.FuzzyText()
+    project_contract_default_collateral = fuzzy.FuzzyText()
+    project_contract_construction_permit_requested = fuzzy.FuzzyDate(
+        start_date=timezone.localdate() - timedelta(days=7),
+        end_date=timezone.localdate() - timedelta(days=1),
+    )
+    project_documents_delivered = fuzzy.FuzzyText()

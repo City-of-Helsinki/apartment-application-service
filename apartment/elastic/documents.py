@@ -149,16 +149,32 @@ class ApartmentDocument(ReadOnlyDocument):
     field_index_adjusted_right_of_oc = Long()
     field_alteration_work = Long()
 
+    project_contract_apartment_completion_selection_1 = Boolean()
+    project_contract_apartment_completion_selection_1_date = Date()
+    project_contract_apartment_completion_selection_2 = Boolean()
     project_contract_apartment_completion_selection_2_start = Date()
     project_contract_apartment_completion_selection_2_end = Date()
+    project_contract_apartment_completion_selection_3 = Boolean()
+    project_contract_apartment_completion_selection_3_date = Date()
+    project_contract_depositary = Text()
+
     project_contract_estimated_handover_date_start = Date()
     project_contract_estimated_handover_date_end = Date()
     project_contract_customer_document_handover = Text()
     project_contract_bill_of_sale_terms = Text()
+    project_contract_material_selection_date = Date()
+    project_contract_material_selection_description = Text()
+    project_contract_material_selection_later = Boolean()
     project_contract_other_terms = Keyword()
     project_contract_usage_fees = Keyword()
+    project_contract_repository = Text()
     project_contract_right_of_occupancy_payment_verification = Keyword()
     project_contract_rs_bank = Keyword()
+
+    project_contract_collateral_type = Text()
+    project_contract_default_collateral = Text()
+    project_contract_construction_permit_requested = Date()
+    project_documents_delivered = Text()
 
     class Index:
         name = settings.APARTMENT_INDEX_NAME

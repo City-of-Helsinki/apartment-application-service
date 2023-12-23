@@ -1,5 +1,5 @@
 import dataclasses
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
 from io import BytesIO
 from typing import ClassVar, Dict, Union
@@ -21,13 +21,13 @@ HITAS_CONTRACT_PDF_TEMPLATE_FILE_NAME = "hitas_contract_template.pdf"
 class HitasContractPDFData(PDFData):
     # contract part 1
     occupant_1: str
-    occupant_1_share_of_ownership = Union[str, None]
+    occupant_1_share_of_ownership: Union[str, None]
     occupant_1_address: str
     occupant_1_phone_number: str
     occupant_1_email: str
     occupant_1_ssn_or_business_id: Union[str, None]
     occupant_2: Union[str, None]
-    occupant_2_share_of_ownership = Union[str, None]
+    occupant_2_share_of_ownership: Union[str, None]
     occupant_2_address: Union[str, None]
     occupant_2_phone_number: Union[str, None]
     occupant_2_email: Union[str, None]
@@ -53,6 +53,7 @@ class HitasContractPDFData(PDFData):
     project_contract_material_selection_later_false: Union[bool, None]
     project_contract_material_selection_later_true: Union[bool, None]
     project_contract_material_selection_description: Union[str, None]
+    project_contract_material_selection_date: Union[date, None]
 
     # 3
     sales_price: Union[PDFCurrencyField, None]
@@ -78,10 +79,14 @@ class HitasContractPDFData(PDFData):
     payment_5_amount: Union[PDFCurrencyField, None]
     payment_5_due_date: Union[date, None]
     payment_5_percentage: Union[Decimal, None]
+    payment_6_label: Union[str, None]
     payment_6_amount: Union[PDFCurrencyField, None]
     payment_6_due_date: Union[date, None]
+    payment_6_percentage: Union[Decimal, None]
+    payment_7_label: Union[str, None]
     payment_7_amount: Union[PDFCurrencyField, None]
     payment_7_due_date: Union[date, None]
+    payment_7_percentage: Union[Decimal, None]
     second_last_payment_basis_sales_price: Union[bool, None]
     second_last_payment_basis_debt_free_sales_price: Union[bool, None]
     last_payment_basis_sales_price: Union[bool, None]
@@ -123,97 +128,120 @@ class HitasContractPDFData(PDFData):
 
     # contract part "allekirjoitukset" (signings)
     signing_place_and_time: Union[str, None]
-    signing_text: str
     salesperson: Union[str, None]
+    signing_buyers: str
+    sign_project_contract_depositary: Union[str, None]
 
     FIELD_MAPPING: ClassVar[Dict[str, str]] = {
-        "occupant_1": "Ostaja 1",
-        "occupant_1_share_of_ownership": "Ostaja 1 omistusosuus",
-        "occupant_1_address": "Ostaja 1 osoite",
-        "occupant_1_phone_number": "Ostaja 1 puhelin",
-        "occupant_1_email": "Ostaja 1 sähköposti",
-        "occupant_1_ssn_or_business_id": "Ostaja 1 sotu",
-        "occupant_2": "Ostaja 2",
-        "occupant_2_share_of_ownership": "Ostaja 2 omistusosuus",
-        "occupant_2_address": "Ostaja 2 osoite",
-        "occupant_2_phone_number": "Ostaja 2 puhelin",
-        "occupant_2_email": "Ostaja 2 sähköposti",
-        "occupant_2_ssn_or_business_id": "Ostaja 2 sotu",
-        "apartment_number": "asunto",
-        "project_housing_company": "Yhtiön osoite",  # TODO puuttuu ?
-        "project_contract_business_id": "Yhtiön y-tunnus",
-        "project_address": "Yhtiön osoite",
-        "project_realty_id": "kiinteistötunnus",
-        "housing_type_ownership": "Check Box36",
-        "housing_type_rental": "Check Box37",
-        "housing_shares": "osakkeiden numerot",
-        "apartment_street_address": "Asunnon osoite",
-        "floor": "Text19",
-        "apartment_structure": "huonetyyppi",
-        "living_area": "Text20",
-        "other_space": "Text21",
-        "other_space_area": "Text22",
-        "project_contract_transfer_restriction_false": "Check Box34",
-        "project_contract_transfer_restriction_true": "Check Box35",
-        "project_contract_material_selection_later_false": "Check Box38",
-        "project_contract_material_selection_later_true": "Check Box39",
-        "project_contract_material_selection_description": "Täsmennyksen ajankohta",
-        "sales_price": "Text25",
-        "loan_share": "yhtiölaina",
-        "debt_free_sales_price": "velaton hinta",
-        "payment_1_label": "Text40",
-        "payment_2_label": "Text41",
-        "payment_3_label": "eräpäivä3",
-        "payment_4_label": "eräpäivä 4",
-        "payment_5_label": "eräpäivä 5",
-        "payment_1_amount": "Text54",
-        "payment_2_amount": "Text55",
-        "payment_3_amount": "Text1",
-        "payment_4_amount": "Text2",
-        "payment_5_amount": "Text3",
-        "payment_6_amount": "Text6",
-        "payment_7_amount": "Text16",
-        "payment_1_due_date": "Text42",
-        "payment_2_due_date": "Text43",
-        "payment_3_due_date": "Text44",
-        "payment_4_due_date": "Text45",
-        "payment_5_due_date": "Text46",
-        "payment_6_due_date": "Text52",
-        "payment_7_due_date": "Text53",
-        "payment_1_percentage": "Text47",
-        "payment_2_percentage": "Text48",
-        "payment_3_percentage": "Text49",
-        "payment_4_percentage": "Text50",
-        "payment_5_percentage": "Text51",
-        "second_last_payment_basis_sales_price": "Check Box17",
-        "second_last_payment_basis_debt_free_sales_price": "Check Box19",
-        "last_payment_basis_sales_price": "Check Box18",
-        "last_payment_basis_debt_free_sales_price": "Check Box20",
-        "payment_bank_1": "Pankkitili1",
-        "payment_account_number_1": "Text23",
-        "payment_bank_2": "pankkitili2",
-        "payment_account_number_2": "Text24",
-        "down_payment_amount": "Text26",
-        "project_contract_apartment_completion_selection_1": "Check Box27",
-        "project_contract_apartment_completion_selection_1_date": "Text29",
-        "project_contract_apartment_completion_selection_2": "Check Box28",
-        "project_contract_apartment_completion_selection_2_start": "Text30",
-        "project_contract_apartment_completion_selection_2_end": "Text31",
-        "project_contract_apartment_completion_selection_3": "Check Box32",
-        "project_contract_apartment_completion_selection_3_date": "Text34",
-        "project_contract_depositary": "Turva-asiakirjojen säilyttäjä",
-        "project_contract_repository": "osoite pankki",
-        "breach_of_contract_option_1": "Check Box2",
-        "breach_of_contract_option_2": "Check Box3",
-        "project_contract_collateral_type": "vakuuden laji",
-        "project_contract_collateral_bank_and_address": "Text35",
-        "project_contract_default_collateral": "suorituskyvyttömyysvakuutus",
-        "project_contract_construction_permit_requested": "Text4",
-        "project_contract_other_terms": "22 Muut ehdot Uatkoa",
-        "project_documents_delivered": "Kauppakirjan liitteet",
-        "signing_place_and_time": "Text7",
-        "signing_text": "oikeaksi todistetaan",
-        "salesperson": "Text5",
+        "occupant_1": "P1Ostaja1Nimi",
+        "occupant_1_share_of_ownership": "P1Ostaja1Omistusosuus",
+        "occupant_1_address": "P1Ostaja1Osoite",
+        "occupant_1_phone_number": "P1Ostaja1Puhelin",
+        "occupant_1_email": "P1Ostaja1Sähköposti",
+        "occupant_1_ssn_or_business_id": "P1Ostaja1HenkariTaiY",
+        "occupant_2": "P1Ostaja2Nimi",
+        "occupant_2_share_of_ownership": "P1Ostaja2Omistusosuus",
+        "occupant_2_address": "P1Ostaja2Osoite",
+        "occupant_2_phone_number": "P1Ostaja2Puhelin",
+        "occupant_2_email": "P1Ostaja2Sähköposti",
+        "occupant_2_ssn_or_business_id": "P1Ostaja2HenkariTaiY",
+        "apartment_number": "P2AsunnonNumero",
+        "project_housing_company": "P2YhtiönToiminimi",
+        "project_contract_business_id": "P2Ytunnus",
+        "project_address": "P2YhtiönOsoite",
+        "project_realty_id": "P2Kiinteistötunnus",
+        "housing_type_ownership": "P2omistus",
+        "housing_type_rental": "P2vuokra",
+        "housing_shares": "P2Osakkeet",
+        "apartment_street_address": "P2AsunnonOsoite",
+        "floor": "P2AsunnonKerros",
+        "apartment_structure": "P2Huoneistotyyppi",
+        "living_area": "P2Pintaala",
+        "other_space": "P2MuutTilat",
+        "other_space_area": "P2MuutTilatPintaala",
+        "project_contract_transfer_restriction_false": "P2EiRajoitettu",
+        "project_contract_transfer_restriction_true": "P2Rajoitettu",
+        "project_contract_transfer_restriction_text": "P2Rajoitus",  # UNUSED
+        "project_contract_material_selection_later_false": "P2EiValintaTäsmennyksiä",
+        "project_contract_material_selection_later_true": "P2ValintaTäsmennyksiäMyöhemmin",  # noqa E501
+        "project_contract_material_selection_description": "P2TäsmennysOsat",
+        "project_contract_material_selection_date": "P2TäsmennysAjankohta",
+        "sales_price": "P3Kauppahinta",
+        "loan_share": "P3OsuusYhtiönLainoista",
+        "debt_free_sales_price": "P3VelatonHinta",
+        "payment_1_label": "P3Erä1Nro",
+        "payment_2_label": "P3Erä2Nro",
+        "payment_3_label": "P3Erä3Nro",
+        "payment_4_label": "P3Erä4Nro",
+        "payment_5_label": "P3Erä5Nro",
+        "payment_6_label": "P3Erä6Nro",
+        "payment_7_label": "P3Erä7Nro",
+        "payment_1_amount": "P3Erä1EUR",
+        "payment_2_amount": "P3Erä2EUR",
+        "payment_3_amount": "P3Erä3EUR",
+        "payment_4_amount": "P3Erä4EUR",
+        "payment_5_amount": "P3Erä5EUR",
+        "payment_6_amount": "P3Erä6EUR",
+        "payment_7_amount": "P3Erä7EUR",
+        "payment_1_due_date": "P3Erä1pvm",
+        "payment_2_due_date": "P3Erä2pvm",
+        "payment_3_due_date": "P3Erä3pvm",
+        "payment_4_due_date": "P3Erä4pvm",
+        "payment_5_due_date": "P3Erä5pvm",
+        "payment_6_due_date": "P3Erä6pvm",
+        "payment_7_due_date": "P3Erä8pvm",  # NOTE: typo in the template
+        "payment_1_percentage": "P3Erä1Pcnt",
+        "payment_2_percentage": "P3Erä2Pcnt",
+        "payment_3_percentage": "P3Erä3Pcnt",
+        "payment_4_percentage": "P3Erä4Pcnt",  # NOTE: MISSING from template
+        "payment_5_percentage": "P3Erä5Pcnt",
+        "payment_6_percentage": "P3Erä6Pcnt",
+        "payment_7_percentage": "P3Erä7Pcnt",
+        "second_last_payment_label": "P3ToiseksiViimeinenErä",  # UNUSED
+        "second_last_payment_basis_sales_price": "P3TVE008xKh",
+        "second_last_payment_sp_percentage": "P3TVEPcntKh",  # UNUSED
+        "second_last_payment_sp_amount": "P3TVEEurKh",  # UNUSED
+        "second_last_payment_basis_debt_free_sales_price": "P3TVE0056xVh",
+        "second_last_payment_dfsp_percentage": "P3TVEPcntVh",  # UNUSED
+        "second_last_payment_dfsp_amount": "P3TVEEurVh",  # UNUSED
+        "second_last_payment_comment": "P3TVEEräpäiväIlmoitusKommentti",  # UNUSED
+        "last_payment_label": "P3ViimeinenErä",  # UNUSED
+        "last_payment_basis_sales_price": "P3VE002xKh",
+        "last_payment_sp_percentage": "P3VEPcntKh",  # UNUSED
+        "last_payment_sp_amount": "P3VEEurKh",  # UNUSED
+        "last_payment_basis_debt_free_sales_price": "P3VE0014xVh",
+        "last_payment_dfsp_percentage": "P3VEPcntVh",  # UNUSED
+        "last_payment_dfsp_amount": "P3VEEurVh",  # UNUSED
+        "last_payment_comment": "P3VEEräpäiväIlmotusKommentti",  # UNUSED
+        "payment_bank_1_payment_labels": "P3TililleMaksettavatErät",  # UNUSED
+        "payment_bank_1": "P3Pankki",
+        "payment_account_number_1": "P3Tilinumero",
+        "payment_bank_2": "P3ViimeisinEränPankki",
+        "payment_account_number_2": "P3ViimeisenEränTilinumero",
+        "down_payment_amount": "P3Käsiraha",
+        "project_contract_apartment_completion_selection_1": "P5ValmistuminenKiinteä",
+        "project_contract_apartment_completion_selection_1_date": "P5ValmistumisPäivä",
+        "project_contract_apartment_completion_selection_2": "P5ValmistuminenAikaväli",
+        "project_contract_apartment_completion_selection_2_start": "P5ValmistusAikaisintaan",  # noqa E501
+        "project_contract_apartment_completion_selection_2_end": "P5ValmistusViimeistään",  # noqa E501
+        "project_contract_apartment_completion_selection_3": "P5ValmistuminenTapahtunut",  # noqa E501
+        "project_contract_apartment_completion_selection_3_date": "P5ValmistumisenKommentti",  # noqa E501
+        "project_contract_depositary": "P9TurvaAsiankirjaSäilyttäjä",
+        "project_contract_repository": "P9TurvaAsiankirjaSäilysOsoite",
+        "breach_of_contract_option_1": "P15SopimusRikkomisestaVahinkoKorvaus",
+        "breach_of_contract_option_2": "P15SopimusRikkomisestaKulutJa2PcntVH",
+        "project_contract_collateral_type": "vakuuden laji",  # FIXME: where to?
+        "project_contract_collateral_bank_and_address": "P17AKL217vakuus",  # Correct?
+        "project_contract_default_collateral": "P17AKL219suorituskyvyttymyysvakuus",
+        "project_contract_construction_permit_requested": "P19RakennuslupaTietoa",
+        "project_contract_other_terms": "P22MuutEhdotOsa1",
+        "project_contract_other_terms_2": "P22MuutEhdotOsa2",  # UNUSED
+        "project_documents_delivered": "P22LuovutetutAsiakirjat",
+        "signing_place_and_time": "AllekirjoitusPaikkaJaAika",
+        "salesperson": "AllekirjoitusValtakirjalla",
+        "signing_buyers": "AllekirjoitusOstajat",
+        "collateral_place_and_time": "AKL17VakuuksienAsetusPaikkaJaAika",  # UNUSED
+        "sign_project_contract_depositary": "TurvaAsiakirjojenSäilyttäjä",  # UNUSED
     }
 
 
@@ -282,6 +310,7 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
 
     pdf_data = HitasContractPDFData(
         occupant_1=primary_profile.full_name,
+        occupant_1_share_of_ownership=None,
         occupant_1_address=(
             (primary_profile.street_address or "")
             + ", "
@@ -293,6 +322,7 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         occupant_1_email=primary_profile.email,
         occupant_1_ssn_or_business_id=primary_profile.national_identification_number,
         occupant_2=secondary_profile.full_name,
+        occupant_2_share_of_ownership=None,
         occupant_2_address=(
             (secondary_profile.street_address or "")
             + ", "
@@ -329,6 +359,7 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         is False,
         project_contract_material_selection_later_true=apartment.project_contract_material_selection_later,  # noqa E501
         project_contract_material_selection_description=apartment.project_contract_material_selection_description,  # noqa E501
+        project_contract_material_selection_date=apartment.project_contract_material_selection_date,  # noqa E501
         sales_price=hitas_price(apartment.sales_price),
         loan_share=hitas_price(apartment.loan_share),
         debt_free_sales_price=hitas_price(apartment.debt_free_sales_price),
@@ -352,8 +383,12 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         payment_5_amount=PDFCurrencyField(euros=payment_5.value),
         payment_5_due_date=payment_5.due_date,
         payment_5_percentage=get_percentage(payment_5),
+        payment_6_label=payment_6.type,
+        payment_6_percentage=get_percentage(payment_6),
         payment_6_amount=PDFCurrencyField(euros=payment_6.value),
         payment_6_due_date=payment_6.due_date,
+        payment_7_label=payment_7.type,
+        payment_7_percentage=get_percentage(payment_7),
         payment_7_amount=PDFCurrencyField(euros=payment_7.value),
         payment_7_due_date=payment_7.due_date,
         second_last_payment_basis_sales_price=False,
@@ -387,16 +422,24 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
             ]
         ),
         project_contract_default_collateral=apartment.project_contract_default_collateral,  # noqa E501
-        project_contract_construction_permit_requested=datetime.fromisoformat(
+        project_contract_construction_permit_requested=(
             apartment.project_contract_construction_permit_requested
         )
         if apartment.project_contract_construction_permit_requested
         else None,
         project_contract_other_terms=apartment.project_contract_combined_terms,
         project_documents_delivered=apartment.project_documents_delivered,
-        signing_place_and_time="Helsingin kaupunki",
-        signing_text="Kauppakirja oikeaksi todistetaan",
-        salesperson=None,
+        signing_place_and_time="Helsinki",
+        salesperson=apartment.project_acc_salesperson,
+        signing_buyers=" & ".join(
+            name
+            for name in [primary_profile.full_name, secondary_profile.full_name]
+            if name
+        ),
+        sign_project_contract_depositary=apartment.project_contract_depositary,
     )
+    return create_hitas_contract_pdf_from_data(pdf_data)
 
+
+def create_hitas_contract_pdf_from_data(pdf_data: HitasContractPDFData) -> BytesIO:
     return create_pdf(HITAS_CONTRACT_PDF_TEMPLATE_FILE_NAME, pdf_data)
