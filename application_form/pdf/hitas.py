@@ -343,7 +343,7 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         housing_type_ownership=False,
         housing_type_rental=True,
         housing_shares=apartment.housing_shares,
-        apartment_street_address=apartment.apartment_address,
+        apartment_street_address=None,
         apartment_structure=apartment.apartment_structure,
         apartment_number=apartment.apartment_number,
         floor=apartment.floor,
