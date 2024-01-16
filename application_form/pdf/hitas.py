@@ -87,8 +87,10 @@ class HitasContractPDFData(PDFData):
     payment_7_amount: Union[PDFCurrencyField, None]
     payment_7_due_date: Union[date, None]
     payment_7_percentage: Union[Decimal, None]
+    second_last_payment_label: Union[str, None]
     second_last_payment_basis_sales_price: Union[bool, None]
     second_last_payment_basis_debt_free_sales_price: Union[bool, None]
+    last_payment_label: Union[str, None]
     last_payment_basis_sales_price: Union[bool, None]
     last_payment_basis_debt_free_sales_price: Union[bool, None]
     payment_bank_1: Union[str, None]
@@ -196,7 +198,7 @@ class HitasContractPDFData(PDFData):
         "payment_5_percentage": "P3Erä5Pcnt",
         "payment_6_percentage": "P3Erä6Pcnt",
         "payment_7_percentage": "P3Erä7Pcnt",
-        "second_last_payment_label": "P3ToiseksiViimeinenErä",  # UNUSED
+        "second_last_payment_label": "P3ToiseksiViimeinenErä",
         "second_last_payment_basis_sales_price": "P3TVE008xKh",
         "second_last_payment_sp_percentage": "P3TVEPcntKh",  # UNUSED
         "second_last_payment_sp_amount": "P3TVEEurKh",  # UNUSED
@@ -204,7 +206,7 @@ class HitasContractPDFData(PDFData):
         "second_last_payment_dfsp_percentage": "P3TVEPcntVh",  # UNUSED
         "second_last_payment_dfsp_amount": "P3TVEEurVh",  # UNUSED
         "second_last_payment_comment": "P3TVEEräpäiväIlmoitusKommentti",  # UNUSED
-        "last_payment_label": "P3ViimeinenErä",  # UNUSED
+        "last_payment_label": "P3ViimeinenErä",
         "last_payment_basis_sales_price": "P3VE002xKh",
         "last_payment_sp_percentage": "P3VEPcntKh",  # UNUSED
         "last_payment_sp_amount": "P3VEEurKh",  # UNUSED
@@ -389,8 +391,10 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         payment_7_percentage=get_percentage(payment_7),
         payment_7_amount=PDFCurrencyField(euros=payment_7.value),
         payment_7_due_date=payment_7.due_date,
+        second_last_payment_label="6",
         second_last_payment_basis_sales_price=False,
         second_last_payment_basis_debt_free_sales_price=True,
+        last_payment_label="7",
         last_payment_basis_sales_price=False,
         last_payment_basis_debt_free_sales_price=True,
         payment_bank_1=apartment.project_contract_depositary,
