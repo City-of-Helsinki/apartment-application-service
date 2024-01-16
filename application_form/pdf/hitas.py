@@ -393,9 +393,9 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         second_last_payment_basis_debt_free_sales_price=True,
         last_payment_basis_sales_price=False,
         last_payment_basis_debt_free_sales_price=True,
-        payment_bank_1=apartment.project_contract_rs_bank,
+        payment_bank_1=apartment.project_contract_depositary,
         payment_account_number_1=apartment.project_regular_bank_account,
-        payment_bank_2=apartment.project_contract_rs_bank,
+        payment_bank_2=apartment.project_contract_depositary,
         payment_account_number_2=apartment.project_barred_bank_account,
         down_payment_amount=PDFCurrencyField(
             euros=down_payment.amount if down_payment.amount else Decimal(0),

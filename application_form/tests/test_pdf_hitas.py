@@ -94,7 +94,7 @@ CONTRACT_PDF_DATA = HitasContractPDFData(
     last_payment_basis_debt_free_sales_price=True,
     payment_bank_1="Nordea",
     payment_account_number_1="FI12 3456 7890 1234 56",
-    payment_bank_2="OP",
+    payment_bank_2="Nordea",
     payment_account_number_2="FI34 5678 9012 3456 78",
     down_payment_amount=CF(euros=Decimal("1234.56")),
     #
@@ -253,7 +253,7 @@ class TesthitasContractPdfFromData(unittest.TestCase):
             "Nordea FI12 3456 7890 1234 56",
             "Viimeinen kauppahintaerä on maksettava tallettamalla se myyjän tilille",
             "Pankki Tilinumero",
-            "OP FI34 5678 9012 3456 78",
+            "Nordea FI34 5678 9012 3456 78",
             "Ostajan maksama käsiraha/varausmaksu",
             "1 234,56",
             "sisältyy 1. kauppahintaerään ja ostaja saa vähentää sen 1. kauppahintaerän "
