@@ -136,8 +136,11 @@ def _set_pdf_fields(pdf: Pdf, data_dict: DataDict, idx: None) -> None:
                 annot.AP = ""
             elif annot.FT == "/Btn":  # checkbox
                 if not data_dict[field_name]:
+                    # Not checked
                     continue
-                pdf_value = Name("/Kyllä")
+                # NOTE: There is no universal value for a checked checkbox, so this
+                # will break if the template is updated to use a different value
+                pdf_value = Name("/On")
                 annot.AS = pdf_value
                 annot.V = pdf_value
             else:
