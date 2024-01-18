@@ -50,6 +50,7 @@ class HitasContractPDFData(PDFData):
     other_space_area: Union[str, None]
     project_contract_transfer_restriction_false: Union[bool, None]
     project_contract_transfer_restriction_true: Union[bool, None]
+    project_contract_transfer_restriction_text: Union[str, None]
     project_contract_material_selection_later_false: Union[bool, None]
     project_contract_material_selection_later_true: Union[bool, None]
     project_contract_material_selection_description: Union[str, None]
@@ -355,6 +356,7 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         project_contract_transfer_restriction_false=apartment.project_contract_transfer_restriction  # noqa E501
         is False,
         project_contract_transfer_restriction_true=apartment.project_contract_transfer_restriction,  # noqa E501
+        project_contract_transfer_restriction_text=apartment.project_contract_article_of_association,  # noqa E501
         project_contract_material_selection_later_false=apartment.project_contract_material_selection_later  # noqa E501
         is False,
         project_contract_material_selection_later_true=apartment.project_contract_material_selection_later,  # noqa E501
