@@ -194,7 +194,7 @@ class HitasContractPDFData(PDFData):
         "payment_1_percentage": "P3Erä1Pcnt",
         "payment_2_percentage": "P3Erä2Pcnt",
         "payment_3_percentage": "P3Erä3Pcnt",
-        "payment_4_percentage": "P3Erä4Pcnt",  # NOTE: MISSING from template
+        "payment_4_percentage": "P3Erä4Pcnt",
         "payment_5_percentage": "P3Erä5Pcnt",
         "payment_6_percentage": "P3Erä6Pcnt",
         "payment_7_percentage": "P3Erä7Pcnt",

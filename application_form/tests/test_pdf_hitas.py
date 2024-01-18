@@ -229,7 +229,7 @@ class TesthitasContractPdfFromData(unittest.TestCase):
             "Maksuerä 1 19.8.2020 4 567,89",
             "Maksuerä 2 3.9.2020 25,0 5 678,90",
             "Maksuerä 3 3.10.2020 37,5 6 789,01",
-            "Maksuerä 4 3.11.2020 7 890,12",
+            "Maksuerä 4 3.11.2020 50,0 7 890,12",
             "Maksuerä 5 3.12.2020 62,5 8 901,23",
             "Maksuerä 6 3.1.2021 72,5 9 012,34",
             "Maksuerä 7 3.2.2021 82,5 10 123,45",
