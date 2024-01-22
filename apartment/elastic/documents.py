@@ -139,6 +139,8 @@ class ApartmentDocument(ReadOnlyDocument):
     services = Keyword()
     apartment_state_of_sale = Keyword()
     apartment_published = Boolean()
+    stock_start_number = Long()
+    stock_end_number = Long()
 
     right_of_occupancy_payment = Long()
     right_of_occupancy_fee = Long()

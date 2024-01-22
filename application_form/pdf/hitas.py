@@ -40,7 +40,7 @@ class HitasContractPDFData(PDFData):
     project_realty_id: Union[str, None]
     housing_type_ownership: Union[bool, None]
     housing_type_rental: Union[bool, None]
-    housing_shares: Union[str, None]
+    housing_shares: str
     apartment_street_address: Union[str, None]
     apartment_structure: Union[str, None]
     apartment_number: Union[str, None]
@@ -345,7 +345,7 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         project_realty_id=apartment.project_realty_id,
         housing_type_ownership=False,
         housing_type_rental=True,
-        housing_shares=apartment.housing_shares,
+        housing_shares=f"{apartment.stock_start_number or ''}–{apartment.stock_end_number or ''}",  # noqa: E501
         apartment_street_address=None,
         apartment_structure=apartment.apartment_structure,
         apartment_number=apartment.apartment_number,
