@@ -206,7 +206,7 @@ def test_root_apartment_reservation_detail_installment_candidates(
 
     assert installment_candidates[1] == {
         "type": installment_template_2.type.value,
-        "amount": 12346,  # 10% of 123456,78e in cents rounded to euros
+        "amount": 1234600,  # 10% of 123456,78e in cents rounded to euros
         "account_number": installment_template_2.account_number,
         "due_date": None,
     }
@@ -233,8 +233,7 @@ def test_root_apartment_reservation_detail_installment_candidates(
         "due_date": None,
     }
 
-    # Test two flexible payments, the first one being rounded down and the second one
-    # rounded up to the nearest cent.
+    # Test that there can be only one flexible price
     installment_template_3.percentage_specifier = (
         InstallmentPercentageSpecifier.SALES_PRICE_FLEXIBLE
     )
@@ -246,22 +245,8 @@ def test_root_apartment_reservation_detail_installment_candidates(
         ),
         format="json",
     )
-    assert response.status_code == 200
-
-    installment_candidates = response.data["installment_candidates"]
-    assert len(installment_candidates) == 5
-    assert installment_candidates[2] == {
-        "type": installment_template_3.type.value,
-        "amount": 5555555,
-        "account_number": installment_template_3.account_number,
-        "due_date": None,
-    }
-    assert installment_candidates[3] == {
-        "type": installment_template_4.type.value,
-        "amount": 5555556,
-        "account_number": installment_template_4.account_number,
-        "due_date": None,
-    }
+    assert response.status_code == 400
+    assert "only one" in str(response.data)
 
 
 @pytest.mark.django_db
