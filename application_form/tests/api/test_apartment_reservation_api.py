@@ -206,14 +206,14 @@ def test_root_apartment_reservation_detail_installment_candidates(
 
     assert installment_candidates[1] == {
         "type": installment_template_2.type.value,
-        "amount": 1234568,  # 10% of 123456,78e in cents
+        "amount": 12346,  # 10% of 123456,78e in cents rounded to euros
         "account_number": installment_template_2.account_number,
         "due_date": None,
     }
 
     assert installment_candidates[2] == {
         "type": installment_template_3.type.value,
-        "amount": 69136,  # 0,7% of 987654,43e in cents
+        "amount": 69100,  # 0,7% of 98765,43e in cents rounded to euros
         "account_number": installment_template_3.account_number,
         "due_date": None,
     }

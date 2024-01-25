@@ -27,11 +27,7 @@ from invoicing.api.serializers import (
     ApartmentInstallmentCandidateSerializer,
     ApartmentInstallmentSerializer,
 )
-from invoicing.enums import (
-    InstallmentPercentageSpecifier,
-    InstallmentType,
-    InstallmentUnit,
-)
+from invoicing.enums import InstallmentPercentageSpecifier, InstallmentUnit
 from invoicing.models import ProjectInstallmentTemplate
 from invoicing.utils import get_euros_from_cents
 from users.models import Profile
@@ -199,15 +195,7 @@ class RootApartmentReservationSerializer(ApartmentReservationSerializerBase):
                 == InstallmentPercentageSpecifier.SALES_PRICE_FLEXIBLE
             ):
                 flexible_installments.append(installment)
-            elif installment.type in [
-                InstallmentType.PAYMENT_1,
-                InstallmentType.PAYMENT_2,
-                InstallmentType.PAYMENT_3,
-                InstallmentType.PAYMENT_4,
-                InstallmentType.PAYMENT_5,
-                InstallmentType.PAYMENT_6,
-                InstallmentType.PAYMENT_7,
-            ]:
+            elif installment.is_numbered_payment():
                 fixed_installments.append(installment)
 
         if flexible_installments:

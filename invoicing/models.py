@@ -21,6 +21,7 @@ from invoicing.enums import (
     InstallmentType,
     InstallmentUnit,
     PaymentStatus,
+    PriceRounding,
 )
 from invoicing.utils import (
     generate_reference_number,
@@ -55,6 +56,17 @@ class InstallmentBase(models.Model):
 
     class Meta:
         abstract = True
+
+    def is_numbered_payment(self) -> bool:
+        return self.type in {
+            InstallmentType.PAYMENT_1,
+            InstallmentType.PAYMENT_2,
+            InstallmentType.PAYMENT_3,
+            InstallmentType.PAYMENT_4,
+            InstallmentType.PAYMENT_5,
+            InstallmentType.PAYMENT_6,
+            InstallmentType.PAYMENT_7,
+        }
 
 
 class ApartmentInstallmentQuerySet(models.QuerySet):
@@ -247,9 +259,13 @@ class ProjectInstallmentTemplate(InstallmentBase):
         else:
             assert_never(ps)
 
+        if self.is_numbered_payment():
+            price_rounding = PriceRounding.EUROS
+        else:
+            price_rounding = PriceRounding.CENTS
         price = get_euros_from_cents(price_in_cents)
         percentage_multiplier = self.value / 100
-        return get_rounded_price(price * percentage_multiplier)
+        return get_rounded_price(price * percentage_multiplier, price_rounding)
 
 
 class PaymentBatch(TimestampedModel):
