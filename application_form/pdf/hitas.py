@@ -1,8 +1,8 @@
 import dataclasses
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from io import BytesIO
-from typing import ClassVar, Dict, Union
+from typing import ClassVar, Dict, List, Optional, Union
 
 from num2words import num2words
 
@@ -10,8 +10,12 @@ from apartment.elastic.queries import get_apartment
 from apartment_application_service.pdf import create_pdf, PDFCurrencyField, PDFData
 from apartment_application_service.utils import SafeAttributeObject
 from application_form.models import ApartmentReservation
-from invoicing.enums import InstallmentType, InstallmentUnit
-from invoicing.models import ProjectInstallmentTemplate
+from invoicing.enums import (
+    InstallmentPercentageSpecifier,
+    InstallmentType,
+    InstallmentUnit,
+)
+from invoicing.models import ApartmentInstallment, ProjectInstallmentTemplate
 from invoicing.utils import remove_exponent
 
 HITAS_CONTRACT_PDF_TEMPLATE_FILE_NAME = "hitas_contract_template.pdf"
@@ -254,24 +258,15 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         get_apartment(reservation.apartment_uuid, include_project_fields=True)
     )
 
-    project_installment_templates = ProjectInstallmentTemplate.objects.filter(
-        project_uuid=apartment.project_uuid
-    )
-
-    payment_1, payment_2, payment_3, payment_4, payment_5, payment_6, payment_7 = [
-        SafeAttributeObject(
-            reservation.apartment_installments.filter(type=payment_type).first()
-        )
-        for payment_type in (
-            InstallmentType.PAYMENT_1,
-            InstallmentType.PAYMENT_2,
-            InstallmentType.PAYMENT_3,
-            InstallmentType.PAYMENT_4,
-            InstallmentType.PAYMENT_5,
-            InstallmentType.PAYMENT_6,
-            InstallmentType.PAYMENT_7,
-        )
-    ]
+    (
+        payment_1,
+        payment_2,
+        payment_3,
+        payment_4,
+        payment_5,
+        payment_6,
+        payment_7,
+    ) = _get_numbered_installments(apartment, reservation)
 
     down_payment = SafeAttributeObject(
         reservation.apartment_installments.filter(
@@ -287,27 +282,6 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
             cents=cents,
             suffix=" €",
         )
-
-    project_installment_templates = list(
-        ProjectInstallmentTemplate.objects.filter(project_uuid=apartment.project_uuid)
-    )
-
-    def get_percentage(apartment_installment):
-        installment_template = next(
-            (
-                i
-                for i in project_installment_templates
-                if i.type == apartment_installment.type
-            ),
-            None,
-        )
-        if (
-            installment_template
-            and installment_template.unit == InstallmentUnit.PERCENT
-        ):
-            return remove_exponent(installment_template.value)
-        else:
-            return None
 
     pdf_data = HitasContractPDFData(
         occupant_1=primary_profile.full_name,
@@ -368,29 +342,29 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         payment_1_label=payment_1.type,
         payment_1_amount=PDFCurrencyField(euros=payment_1.value),
         payment_1_due_date=payment_1.due_date,
-        payment_1_percentage=get_percentage(payment_1),
+        payment_1_percentage=payment_1._percentage,
         payment_2_label=payment_2.type,
         payment_2_amount=PDFCurrencyField(euros=payment_2.value),
         payment_2_due_date=payment_2.due_date,
-        payment_2_percentage=get_percentage(payment_2),
+        payment_2_percentage=payment_2._percentage,
         payment_3_label=payment_3.type,
         payment_3_amount=PDFCurrencyField(euros=payment_3.value),
         payment_3_due_date=payment_3.due_date,
-        payment_3_percentage=get_percentage(payment_3),
+        payment_3_percentage=payment_3._percentage,
         payment_4_label=payment_4.type,
         payment_4_amount=PDFCurrencyField(euros=payment_4.value),
         payment_4_due_date=payment_4.due_date,
-        payment_4_percentage=get_percentage(payment_4),
+        payment_4_percentage=payment_4._percentage,
         payment_5_label=payment_5.type,
         payment_5_amount=PDFCurrencyField(euros=payment_5.value),
         payment_5_due_date=payment_5.due_date,
-        payment_5_percentage=get_percentage(payment_5),
+        payment_5_percentage=payment_5._percentage,
         payment_6_label=payment_6.type,
-        payment_6_percentage=get_percentage(payment_6),
+        payment_6_percentage=payment_6._percentage,
         payment_6_amount=PDFCurrencyField(euros=payment_6.value),
         payment_6_due_date=payment_6.due_date,
         payment_7_label=payment_7.type,
-        payment_7_percentage=get_percentage(payment_7),
+        payment_7_percentage=payment_7._percentage,
         payment_7_amount=PDFCurrencyField(euros=payment_7.value),
         payment_7_due_date=payment_7.due_date,
         second_last_payment_label="6",
@@ -446,3 +420,61 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
 
 def create_hitas_contract_pdf_from_data(pdf_data: HitasContractPDFData) -> BytesIO:
     return create_pdf(HITAS_CONTRACT_PDF_TEMPLATE_FILE_NAME, pdf_data)
+
+
+def _get_numbered_installments(
+    apartment, reservation: ApartmentReservation
+) -> List[ApartmentInstallment]:
+    try:
+        flexible_type = ProjectInstallmentTemplate.objects.get(
+            project_uuid=apartment.project_uuid,
+            unit=InstallmentUnit.PERCENT,
+            percentage_specifier=InstallmentPercentageSpecifier.SALES_PRICE_FLEXIBLE,
+        ).type
+    except ProjectInstallmentTemplate.DoesNotExist:
+        flexible_type = None
+
+    numbered_installments = []
+    flexible_installment = None
+    cumulative_percentage = 0
+
+    for payment_type in (
+        InstallmentType.PAYMENT_1,
+        InstallmentType.PAYMENT_2,
+        InstallmentType.PAYMENT_3,
+        InstallmentType.PAYMENT_4,
+        InstallmentType.PAYMENT_5,
+        InstallmentType.PAYMENT_6,
+        InstallmentType.PAYMENT_7,
+    ):
+        if installment := reservation.apartment_installments.filter(
+            type=payment_type
+        ).first():
+            if installment.type == flexible_type:
+                flexible_installment = installment
+            else:
+                percentage = _get_percentage(installment, apartment.sales_price)
+                # ApartmentInstallment model doesn't actually have a percentage field,
+                # we add it here dynamically to the instance to make life easier
+                installment._percentage = percentage
+                cumulative_percentage += percentage
+        numbered_installments.append(SafeAttributeObject(installment))
+
+    if flexible_installment:
+        flexible_installment._percentage = Decimal(100) - cumulative_percentage
+
+    return numbered_installments
+
+
+def _get_percentage(
+    apartment_installment: ApartmentInstallment,
+    sales_price_in_cents: int,
+) -> Optional[Decimal]:
+    if not apartment_installment.value:
+        return None
+    # round to one decimal place and remove trailing zeros
+    return remove_exponent(
+        (
+            apartment_installment.value / (Decimal(sales_price_in_cents) / 100) * 100
+        ).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
+    )
