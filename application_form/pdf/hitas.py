@@ -84,20 +84,16 @@ class HitasContractPDFData(PDFData):
     payment_5_amount: Union[PDFCurrencyField, None]
     payment_5_due_date: Union[date, None]
     payment_5_percentage: Union[Decimal, None]
-    payment_6_label: Union[str, None]
-    payment_6_amount: Union[PDFCurrencyField, None]
-    payment_6_due_date: Union[date, None]
-    payment_6_percentage: Union[Decimal, None]
-    payment_7_label: Union[str, None]
-    payment_7_amount: Union[PDFCurrencyField, None]
-    payment_7_due_date: Union[date, None]
-    payment_7_percentage: Union[Decimal, None]
     second_last_payment_label: Union[str, None]
     second_last_payment_basis_sales_price: Union[bool, None]
     second_last_payment_basis_debt_free_sales_price: Union[bool, None]
+    second_last_payment_dfsp_percentage: Union[Decimal, None]
+    second_last_payment_dfsp_amount: Union[PDFCurrencyField, None]
     last_payment_label: Union[str, None]
     last_payment_basis_sales_price: Union[bool, None]
     last_payment_basis_debt_free_sales_price: Union[bool, None]
+    last_payment_dfsp_percentage: Union[Decimal, None]
+    last_payment_dfsp_amount: Union[PDFCurrencyField, None]
     payment_bank_1: Union[str, None]
     payment_account_number_1: Union[str, None]
     payment_bank_2: Union[str, None]
@@ -180,44 +176,44 @@ class HitasContractPDFData(PDFData):
         "payment_3_label": "P3Erä3Nro",
         "payment_4_label": "P3Erä4Nro",
         "payment_5_label": "P3Erä5Nro",
-        "payment_6_label": "P3Erä6Nro",
-        "payment_7_label": "P3Erä7Nro",
+        "payment_6_label": "P3Erä6Nro",  # UNUSED
+        "payment_7_label": "P3Erä7Nro",  # UNUSED
         "payment_1_amount": "P3Erä1EUR",
         "payment_2_amount": "P3Erä2EUR",
         "payment_3_amount": "P3Erä3EUR",
         "payment_4_amount": "P3Erä4EUR",
         "payment_5_amount": "P3Erä5EUR",
-        "payment_6_amount": "P3Erä6EUR",
-        "payment_7_amount": "P3Erä7EUR",
+        "payment_6_amount": "P3Erä6EUR",  # UNUSED
+        "payment_7_amount": "P3Erä7EUR",  # UNUSED
         "payment_1_due_date": "P3Erä1pvm",
         "payment_2_due_date": "P3Erä2pvm",
         "payment_3_due_date": "P3Erä3pvm",
         "payment_4_due_date": "P3Erä4pvm",
         "payment_5_due_date": "P3Erä5pvm",
-        "payment_6_due_date": "P3Erä6pvm",
-        "payment_7_due_date": "P3Erä8pvm",  # NOTE: typo in the template
+        "payment_6_due_date": "P3Erä6pvm",  # UNUSED
+        "payment_7_due_date": "P3Erä8pvm",  # UNUSED, NOTE: typo in the template
         "payment_1_percentage": "P3Erä1Pcnt",
         "payment_2_percentage": "P3Erä2Pcnt",
         "payment_3_percentage": "P3Erä3Pcnt",
         "payment_4_percentage": "P3Erä4Pcnt",
         "payment_5_percentage": "P3Erä5Pcnt",
-        "payment_6_percentage": "P3Erä6Pcnt",
-        "payment_7_percentage": "P3Erä7Pcnt",
+        "payment_6_percentage": "P3Erä6Pcnt",  # UNUSED
+        "payment_7_percentage": "P3Erä7Pcnt",  # UNUSED
         "second_last_payment_label": "P3ToiseksiViimeinenErä",
         "second_last_payment_basis_sales_price": "P3TVE008xKh",
         "second_last_payment_sp_percentage": "P3TVEPcntKh",  # UNUSED
         "second_last_payment_sp_amount": "P3TVEEurKh",  # UNUSED
         "second_last_payment_basis_debt_free_sales_price": "P3TVE0056xVh",
-        "second_last_payment_dfsp_percentage": "P3TVEPcntVh",  # UNUSED
-        "second_last_payment_dfsp_amount": "P3TVEEurVh",  # UNUSED
+        "second_last_payment_dfsp_percentage": "P3TVEPcntVh",
+        "second_last_payment_dfsp_amount": "P3TVEEurVh",
         "second_last_payment_comment": "P3TVEEräpäiväIlmoitusKommentti",  # UNUSED
         "last_payment_label": "P3ViimeinenErä",
         "last_payment_basis_sales_price": "P3VE002xKh",
         "last_payment_sp_percentage": "P3VEPcntKh",  # UNUSED
         "last_payment_sp_amount": "P3VEEurKh",  # UNUSED
         "last_payment_basis_debt_free_sales_price": "P3VE0014xVh",
-        "last_payment_dfsp_percentage": "P3VEPcntVh",  # UNUSED
-        "last_payment_dfsp_amount": "P3VEEurVh",  # UNUSED
+        "last_payment_dfsp_percentage": "P3VEPcntVh",
+        "last_payment_dfsp_amount": "P3VEEurVh",
         "last_payment_comment": "P3VEEräpäiväIlmotusKommentti",  # UNUSED
         "payment_bank_1_payment_labels": "P3TililleMaksettavatErät",  # UNUSED
         "payment_bank_1": "P3Pankki",
@@ -359,20 +355,16 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         payment_5_amount=PDFCurrencyField(euros=payment_5.value),
         payment_5_due_date=payment_5.due_date,
         payment_5_percentage=payment_5._percentage,
-        payment_6_label=payment_6.type,
-        payment_6_percentage=payment_6._percentage,
-        payment_6_amount=PDFCurrencyField(euros=payment_6.value),
-        payment_6_due_date=payment_6.due_date,
-        payment_7_label=payment_7.type,
-        payment_7_percentage=payment_7._percentage,
-        payment_7_amount=PDFCurrencyField(euros=payment_7.value),
-        payment_7_due_date=payment_7.due_date,
         second_last_payment_label="6",
         second_last_payment_basis_sales_price=False,
         second_last_payment_basis_debt_free_sales_price=True,
+        second_last_payment_dfsp_percentage=payment_6._percentage,
+        second_last_payment_dfsp_amount=PDFCurrencyField(euros=payment_6.value),
         last_payment_label="7",
         last_payment_basis_sales_price=False,
         last_payment_basis_debt_free_sales_price=True,
+        last_payment_dfsp_percentage=payment_7._percentage,
+        last_payment_dfsp_amount=PDFCurrencyField(euros=payment_7.value),
         payment_bank_1=apartment.project_contract_depositary,
         payment_account_number_1=apartment.project_regular_bank_account,
         payment_bank_2=apartment.project_contract_depositary,
