@@ -315,7 +315,7 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         project_realty_id=apartment.project_realty_id,
         housing_type_ownership=False,
         housing_type_rental=True,
-        housing_shares=f"{apartment.stock_start_number or ''}–{apartment.stock_end_number or ''}",  # noqa: E501
+        housing_shares=f"{apartment.stock_start_number or ''} - {apartment.stock_end_number or ''}",  # noqa: E501
         apartment_street_address=None,
         apartment_structure=apartment.apartment_structure,
         apartment_number=apartment.apartment_number,
