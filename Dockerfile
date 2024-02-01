@@ -1,5 +1,5 @@
 # ==============================
-FROM registry.access.redhat.com/ubi8/python-38 as appbase
+FROM registry.access.redhat.com/ubi9/python-311 as appbase
 # ==============================
 
 ENV PYTHONUNBUFFERED 1
@@ -7,16 +7,18 @@ USER 0
 WORKDIR /app
 RUN mkdir /entrypoint
 
-COPY --chown=1001:1001 requirements.txt /app/requirements.txt
-COPY --chown=1001:1001 requirements-prod.txt /app/requirements-prod.txt
+RUN yum update -y && yum install -y nc
+RUN pip install -U pip
 
-RUN yum update -y && yum install -y \
-    nc \
-    && pip install -U pip \
-    && pip install --no-cache-dir -r /app/requirements.txt \
-    && pip install --no-cache-dir  -r /app/requirements-prod.txt
+COPY requirements.txt .
+RUN --mount=type=cache,target=/tmp/pip-cache \
+    pip install --cache-dir /tmp/pip-cache -r requirements.txt
 
-COPY --chown=1001:1001 docker-entrypoint.sh /entrypoint/docker-entrypoint.sh
+COPY requirements-prod.txt .
+RUN --mount=type=cache,target=/tmp/pip-cache \
+    pip install --cache-dir /tmp/pip-cache -r requirements-prod.txt
+
+COPY docker-entrypoint.sh /entrypoint/docker-entrypoint.sh
 ENTRYPOINT ["/entrypoint/docker-entrypoint.sh"]
 
 # ==============================
@@ -34,8 +36,9 @@ FROM appbase as development
 # Install poppler-utils to get pdftotext, which is used in tests
 RUN yum install -y poppler-utils
 
-COPY --chown=1001:1001 requirements-dev.txt /app/requirements-dev.txt
-RUN pip install --no-cache-dir -r /app/requirements-dev.txt
+COPY requirements-dev.txt .
+RUN --mount=type=cache,target=/tmp/pip-cache \
+    pip install --cache-dir /tmp/pip-cache -r requirements-dev.txt
 
 ENV DEV_SERVER=1
 
