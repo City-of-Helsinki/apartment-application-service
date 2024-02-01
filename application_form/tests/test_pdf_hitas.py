@@ -224,7 +224,7 @@ class TesthitasContractPdfFromData(unittest.TestCase):
             "3 456,78",
             "Kauppahinta määräytyy maksettavaksi seuraavan aikataulun mukaisesti 3",
             "Eränumero Eräpäivämäärä % €",
-            "Maksuerä 1 19.8.2020 4 567,89",
+            "Maksuerä 1 19.8.2020 12,5 4 567,89",
             "Maksuerä 2 3.9.2020 25,0 5 678,90",
             "Maksuerä 3 3.10.2020 37,5 6 789,01",
             "Maksuerä 4 3.11.2020 50,0 7 890,12",
