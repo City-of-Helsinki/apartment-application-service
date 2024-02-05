@@ -1,8 +1,8 @@
 import dataclasses
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from io import BytesIO
-from typing import ClassVar, Dict, Union
+from typing import ClassVar, Dict, List, Optional, Union
 
 from num2words import num2words
 
@@ -10,8 +10,12 @@ from apartment.elastic.queries import get_apartment
 from apartment_application_service.pdf import create_pdf, PDFCurrencyField, PDFData
 from apartment_application_service.utils import SafeAttributeObject
 from application_form.models import ApartmentReservation
-from invoicing.enums import InstallmentType, InstallmentUnit
-from invoicing.models import ProjectInstallmentTemplate
+from invoicing.enums import (
+    InstallmentPercentageSpecifier,
+    InstallmentType,
+    InstallmentUnit,
+)
+from invoicing.models import ApartmentInstallment, ProjectInstallmentTemplate
 from invoicing.utils import remove_exponent
 
 HITAS_CONTRACT_PDF_TEMPLATE_FILE_NAME = "hitas_contract_template.pdf"
@@ -80,20 +84,16 @@ class HitasContractPDFData(PDFData):
     payment_5_amount: Union[PDFCurrencyField, None]
     payment_5_due_date: Union[date, None]
     payment_5_percentage: Union[Decimal, None]
-    payment_6_label: Union[str, None]
-    payment_6_amount: Union[PDFCurrencyField, None]
-    payment_6_due_date: Union[date, None]
-    payment_6_percentage: Union[Decimal, None]
-    payment_7_label: Union[str, None]
-    payment_7_amount: Union[PDFCurrencyField, None]
-    payment_7_due_date: Union[date, None]
-    payment_7_percentage: Union[Decimal, None]
     second_last_payment_label: Union[str, None]
     second_last_payment_basis_sales_price: Union[bool, None]
     second_last_payment_basis_debt_free_sales_price: Union[bool, None]
+    second_last_payment_dfsp_percentage: Union[Decimal, None]
+    second_last_payment_dfsp_amount: Union[PDFCurrencyField, None]
     last_payment_label: Union[str, None]
     last_payment_basis_sales_price: Union[bool, None]
     last_payment_basis_debt_free_sales_price: Union[bool, None]
+    last_payment_dfsp_percentage: Union[Decimal, None]
+    last_payment_dfsp_amount: Union[PDFCurrencyField, None]
     payment_bank_1: Union[str, None]
     payment_account_number_1: Union[str, None]
     payment_bank_2: Union[str, None]
@@ -176,44 +176,44 @@ class HitasContractPDFData(PDFData):
         "payment_3_label": "P3Erä3Nro",
         "payment_4_label": "P3Erä4Nro",
         "payment_5_label": "P3Erä5Nro",
-        "payment_6_label": "P3Erä6Nro",
-        "payment_7_label": "P3Erä7Nro",
+        "payment_6_label": "P3Erä6Nro",  # UNUSED
+        "payment_7_label": "P3Erä7Nro",  # UNUSED
         "payment_1_amount": "P3Erä1EUR",
         "payment_2_amount": "P3Erä2EUR",
         "payment_3_amount": "P3Erä3EUR",
         "payment_4_amount": "P3Erä4EUR",
         "payment_5_amount": "P3Erä5EUR",
-        "payment_6_amount": "P3Erä6EUR",
-        "payment_7_amount": "P3Erä7EUR",
+        "payment_6_amount": "P3Erä6EUR",  # UNUSED
+        "payment_7_amount": "P3Erä7EUR",  # UNUSED
         "payment_1_due_date": "P3Erä1pvm",
         "payment_2_due_date": "P3Erä2pvm",
         "payment_3_due_date": "P3Erä3pvm",
         "payment_4_due_date": "P3Erä4pvm",
         "payment_5_due_date": "P3Erä5pvm",
-        "payment_6_due_date": "P3Erä6pvm",
-        "payment_7_due_date": "P3Erä8pvm",  # NOTE: typo in the template
+        "payment_6_due_date": "P3Erä6pvm",  # UNUSED
+        "payment_7_due_date": "P3Erä8pvm",  # UNUSED, NOTE: typo in the template
         "payment_1_percentage": "P3Erä1Pcnt",
         "payment_2_percentage": "P3Erä2Pcnt",
         "payment_3_percentage": "P3Erä3Pcnt",
         "payment_4_percentage": "P3Erä4Pcnt",
         "payment_5_percentage": "P3Erä5Pcnt",
-        "payment_6_percentage": "P3Erä6Pcnt",
-        "payment_7_percentage": "P3Erä7Pcnt",
+        "payment_6_percentage": "P3Erä6Pcnt",  # UNUSED
+        "payment_7_percentage": "P3Erä7Pcnt",  # UNUSED
         "second_last_payment_label": "P3ToiseksiViimeinenErä",
         "second_last_payment_basis_sales_price": "P3TVE008xKh",
         "second_last_payment_sp_percentage": "P3TVEPcntKh",  # UNUSED
         "second_last_payment_sp_amount": "P3TVEEurKh",  # UNUSED
         "second_last_payment_basis_debt_free_sales_price": "P3TVE0056xVh",
-        "second_last_payment_dfsp_percentage": "P3TVEPcntVh",  # UNUSED
-        "second_last_payment_dfsp_amount": "P3TVEEurVh",  # UNUSED
+        "second_last_payment_dfsp_percentage": "P3TVEPcntVh",
+        "second_last_payment_dfsp_amount": "P3TVEEurVh",
         "second_last_payment_comment": "P3TVEEräpäiväIlmoitusKommentti",  # UNUSED
         "last_payment_label": "P3ViimeinenErä",
         "last_payment_basis_sales_price": "P3VE002xKh",
         "last_payment_sp_percentage": "P3VEPcntKh",  # UNUSED
         "last_payment_sp_amount": "P3VEEurKh",  # UNUSED
         "last_payment_basis_debt_free_sales_price": "P3VE0014xVh",
-        "last_payment_dfsp_percentage": "P3VEPcntVh",  # UNUSED
-        "last_payment_dfsp_amount": "P3VEEurVh",  # UNUSED
+        "last_payment_dfsp_percentage": "P3VEPcntVh",
+        "last_payment_dfsp_amount": "P3VEEurVh",
         "last_payment_comment": "P3VEEräpäiväIlmotusKommentti",  # UNUSED
         "payment_bank_1_payment_labels": "P3TililleMaksettavatErät",  # UNUSED
         "payment_bank_1": "P3Pankki",
@@ -254,24 +254,15 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         get_apartment(reservation.apartment_uuid, include_project_fields=True)
     )
 
-    project_installment_templates = ProjectInstallmentTemplate.objects.filter(
-        project_uuid=apartment.project_uuid
-    )
-
-    payment_1, payment_2, payment_3, payment_4, payment_5, payment_6, payment_7 = [
-        SafeAttributeObject(
-            reservation.apartment_installments.filter(type=payment_type).first()
-        )
-        for payment_type in (
-            InstallmentType.PAYMENT_1,
-            InstallmentType.PAYMENT_2,
-            InstallmentType.PAYMENT_3,
-            InstallmentType.PAYMENT_4,
-            InstallmentType.PAYMENT_5,
-            InstallmentType.PAYMENT_6,
-            InstallmentType.PAYMENT_7,
-        )
-    ]
+    (
+        payment_1,
+        payment_2,
+        payment_3,
+        payment_4,
+        payment_5,
+        payment_6,
+        payment_7,
+    ) = _get_numbered_installments(apartment, reservation)
 
     down_payment = SafeAttributeObject(
         reservation.apartment_installments.filter(
@@ -287,27 +278,6 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
             cents=cents,
             suffix=" €",
         )
-
-    project_installment_templates = list(
-        ProjectInstallmentTemplate.objects.filter(project_uuid=apartment.project_uuid)
-    )
-
-    def get_percentage(apartment_installment):
-        installment_template = next(
-            (
-                i
-                for i in project_installment_templates
-                if i.type == apartment_installment.type
-            ),
-            None,
-        )
-        if (
-            installment_template
-            and installment_template.unit == InstallmentUnit.PERCENT
-        ):
-            return remove_exponent(installment_template.value)
-        else:
-            return None
 
     pdf_data = HitasContractPDFData(
         occupant_1=primary_profile.full_name,
@@ -345,7 +315,7 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         project_realty_id=apartment.project_realty_id,
         housing_type_ownership=False,
         housing_type_rental=True,
-        housing_shares=f"{apartment.stock_start_number or ''}–{apartment.stock_end_number or ''}",  # noqa: E501
+        housing_shares=f"{apartment.stock_start_number or ''} - {apartment.stock_end_number or ''}",  # noqa: E501
         apartment_street_address=None,
         apartment_structure=apartment.apartment_structure,
         apartment_number=apartment.apartment_number,
@@ -368,37 +338,33 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         payment_1_label=payment_1.type,
         payment_1_amount=PDFCurrencyField(euros=payment_1.value),
         payment_1_due_date=payment_1.due_date,
-        payment_1_percentage=get_percentage(payment_1),
+        payment_1_percentage=payment_1._percentage,
         payment_2_label=payment_2.type,
         payment_2_amount=PDFCurrencyField(euros=payment_2.value),
         payment_2_due_date=payment_2.due_date,
-        payment_2_percentage=get_percentage(payment_2),
+        payment_2_percentage=payment_2._percentage,
         payment_3_label=payment_3.type,
         payment_3_amount=PDFCurrencyField(euros=payment_3.value),
         payment_3_due_date=payment_3.due_date,
-        payment_3_percentage=get_percentage(payment_3),
+        payment_3_percentage=payment_3._percentage,
         payment_4_label=payment_4.type,
         payment_4_amount=PDFCurrencyField(euros=payment_4.value),
         payment_4_due_date=payment_4.due_date,
-        payment_4_percentage=get_percentage(payment_4),
+        payment_4_percentage=payment_4._percentage,
         payment_5_label=payment_5.type,
         payment_5_amount=PDFCurrencyField(euros=payment_5.value),
         payment_5_due_date=payment_5.due_date,
-        payment_5_percentage=get_percentage(payment_5),
-        payment_6_label=payment_6.type,
-        payment_6_percentage=get_percentage(payment_6),
-        payment_6_amount=PDFCurrencyField(euros=payment_6.value),
-        payment_6_due_date=payment_6.due_date,
-        payment_7_label=payment_7.type,
-        payment_7_percentage=get_percentage(payment_7),
-        payment_7_amount=PDFCurrencyField(euros=payment_7.value),
-        payment_7_due_date=payment_7.due_date,
+        payment_5_percentage=payment_5._percentage,
         second_last_payment_label="6",
         second_last_payment_basis_sales_price=False,
         second_last_payment_basis_debt_free_sales_price=True,
+        second_last_payment_dfsp_percentage=payment_6._percentage,
+        second_last_payment_dfsp_amount=PDFCurrencyField(euros=payment_6.value),
         last_payment_label="7",
         last_payment_basis_sales_price=False,
         last_payment_basis_debt_free_sales_price=True,
+        last_payment_dfsp_percentage=payment_7._percentage,
+        last_payment_dfsp_amount=PDFCurrencyField(euros=payment_7.value),
         payment_bank_1=apartment.project_contract_depositary,
         payment_account_number_1=apartment.project_regular_bank_account,
         payment_bank_2=apartment.project_contract_depositary,
@@ -446,3 +412,61 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
 
 def create_hitas_contract_pdf_from_data(pdf_data: HitasContractPDFData) -> BytesIO:
     return create_pdf(HITAS_CONTRACT_PDF_TEMPLATE_FILE_NAME, pdf_data)
+
+
+def _get_numbered_installments(
+    apartment, reservation: ApartmentReservation
+) -> List[ApartmentInstallment]:
+    try:
+        flexible_type = ProjectInstallmentTemplate.objects.get(
+            project_uuid=apartment.project_uuid,
+            unit=InstallmentUnit.PERCENT,
+            percentage_specifier=InstallmentPercentageSpecifier.SALES_PRICE_FLEXIBLE,
+        ).type
+    except ProjectInstallmentTemplate.DoesNotExist:
+        flexible_type = None
+
+    numbered_installments = []
+    flexible_installment = None
+    cumulative_percentage = 0
+
+    for payment_type in (
+        InstallmentType.PAYMENT_1,
+        InstallmentType.PAYMENT_2,
+        InstallmentType.PAYMENT_3,
+        InstallmentType.PAYMENT_4,
+        InstallmentType.PAYMENT_5,
+        InstallmentType.PAYMENT_6,
+        InstallmentType.PAYMENT_7,
+    ):
+        if installment := reservation.apartment_installments.filter(
+            type=payment_type
+        ).first():
+            if installment.type == flexible_type:
+                flexible_installment = installment
+            else:
+                percentage = _get_percentage(installment, apartment.sales_price)
+                # ApartmentInstallment model doesn't actually have a percentage field,
+                # we add it here dynamically to the instance to make life easier
+                installment._percentage = percentage
+                cumulative_percentage += percentage
+        numbered_installments.append(SafeAttributeObject(installment))
+
+    if flexible_installment:
+        flexible_installment._percentage = Decimal(100) - cumulative_percentage
+
+    return numbered_installments
+
+
+def _get_percentage(
+    apartment_installment: ApartmentInstallment,
+    sales_price_in_cents: int,
+) -> Optional[Decimal]:
+    if not apartment_installment.value:
+        return None
+    # round to one decimal place and remove trailing zeros
+    return remove_exponent(
+        (
+            apartment_installment.value / (Decimal(sales_price_in_cents) / 100) * 100
+        ).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
+    )

@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.utils.translation import gettext_lazy as _
 from enumfields import Enum
 
@@ -68,3 +70,8 @@ class PaymentStatus(Enum):
         UNPAID = _("unpaid")
         OVERPAID = _("overpaid")
         UNDERPAID = _("underpaid")
+
+
+class PriceRounding(Enum):
+    CENTS = Decimal(".01")
+    EUROS = Decimal("1")

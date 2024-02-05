@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from decimal import Decimal
 from uuid import uuid4
 
 from django.conf import settings
@@ -11,6 +12,7 @@ from django.utils.timezone import localdate, now
 from django.utils.translation import gettext_lazy as _
 from enumfields import EnumField
 from pgcrypto.fields import CharPGPPublicKeyField
+from typing_extensions import assert_never
 
 from apartment_application_service.models import TimestampedModel
 from application_form.models import ApartmentReservation
@@ -19,6 +21,7 @@ from invoicing.enums import (
     InstallmentType,
     InstallmentUnit,
     PaymentStatus,
+    PriceRounding,
 )
 from invoicing.utils import (
     generate_reference_number,
@@ -53,6 +56,17 @@ class InstallmentBase(models.Model):
 
     class Meta:
         abstract = True
+
+    def is_numbered_payment(self) -> bool:
+        return self.type in {
+            InstallmentType.PAYMENT_1,
+            InstallmentType.PAYMENT_2,
+            InstallmentType.PAYMENT_3,
+            InstallmentType.PAYMENT_4,
+            InstallmentType.PAYMENT_5,
+            InstallmentType.PAYMENT_6,
+            InstallmentType.PAYMENT_7,
+        }
 
 
 class ApartmentInstallmentQuerySet(models.QuerySet):
@@ -209,7 +223,9 @@ class ProjectInstallmentTemplate(InstallmentBase):
     def get_percentage(self):
         return self.value if self.unit == InstallmentUnit.PERCENT else None
 
-    def get_corresponding_apartment_installment(self, apartment_data):
+    def get_corresponding_apartment_installment(
+        self, apartment_data
+    ) -> ApartmentInstallment:
         apartment_installment = ApartmentInstallment()
 
         field_names = [
@@ -218,31 +234,38 @@ class ProjectInstallmentTemplate(InstallmentBase):
         for field_name in field_names:
             setattr(apartment_installment, field_name, getattr(self, field_name))
 
-        if self.unit == InstallmentUnit.PERCENT:
-            if not self.percentage_specifier:
-                raise ValueError(
-                    f"Cannot calculate apartment installment value, {self} "
-                    f"has no percentage_specifier"
-                )
-            if self.percentage_specifier == InstallmentPercentageSpecifier.SALES_PRICE:
-                price_in_cents = apartment_data["sales_price"]
-            elif (
-                self.percentage_specifier
-                == InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT
-            ):
-                price_in_cents = apartment_data["right_of_occupancy_payment"]
-            else:
-                price_in_cents = apartment_data["debt_free_sales_price"]
-
-            price = get_euros_from_cents(price_in_cents)
-            percentage_multiplier = self.value / 100
-            apartment_installment.value = get_rounded_price(
-                price * percentage_multiplier
+        if self.unit == InstallmentUnit.EURO:
+            return apartment_installment
+        elif self.unit == InstallmentUnit.PERCENT:
+            apartment_installment.value = self._get_value_from_percentage(
+                apartment_data
             )
+            return apartment_installment
         else:
-            apartment_installment.value = self.value
+            assert_never(self.unit)
 
-        return apartment_installment
+    def _get_value_from_percentage(self, apartment_data) -> Decimal:
+        ps: InstallmentPercentageSpecifier = self.percentage_specifier
+        if ps == InstallmentPercentageSpecifier.SALES_PRICE_FLEXIBLE:
+            # flexible payment's value will be populated later based on the other
+            # installments of the same apartment
+            return Decimal(0)
+        elif ps == InstallmentPercentageSpecifier.SALES_PRICE:
+            price_in_cents = apartment_data["sales_price"]
+        elif ps == InstallmentPercentageSpecifier.DEBT_FREE_SALES_PRICE:
+            price_in_cents = apartment_data["debt_free_sales_price"]
+        elif ps == InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT:
+            price_in_cents = apartment_data["right_of_occupancy_payment"]
+        else:
+            assert_never(ps)
+
+        if self.is_numbered_payment():
+            price_rounding = PriceRounding.EUROS
+        else:
+            price_rounding = PriceRounding.CENTS
+        price = get_euros_from_cents(price_in_cents)
+        percentage_multiplier = self.value / 100
+        return get_rounded_price(price * percentage_multiplier, price_rounding)
 
 
 class PaymentBatch(TimestampedModel):

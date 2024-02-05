@@ -1,6 +1,4 @@
 import logging
-import math
-from decimal import Decimal
 from uuid import UUID
 
 from django.core.exceptions import ObjectDoesNotExist
@@ -27,11 +25,7 @@ from invoicing.api.serializers import (
     ApartmentInstallmentCandidateSerializer,
     ApartmentInstallmentSerializer,
 )
-from invoicing.enums import (
-    InstallmentPercentageSpecifier,
-    InstallmentType,
-    InstallmentUnit,
-)
+from invoicing.enums import InstallmentPercentageSpecifier, InstallmentUnit
 from invoicing.models import ProjectInstallmentTemplate
 from invoicing.utils import get_euros_from_cents
 from users.models import Profile
@@ -190,7 +184,7 @@ class RootApartmentReservationSerializer(ApartmentReservationSerializerBase):
             for template in installment_templates
         ]
 
-        flexible_installments = []
+        flexible_installment = None
         fixed_installments = []
         for installment, template in zip(apartment_installments, installment_templates):
             if (
@@ -198,49 +192,20 @@ class RootApartmentReservationSerializer(ApartmentReservationSerializerBase):
                 and template.percentage_specifier
                 == InstallmentPercentageSpecifier.SALES_PRICE_FLEXIBLE
             ):
-                flexible_installments.append(installment)
-            elif installment.type in [
-                InstallmentType.PAYMENT_1,
-                InstallmentType.PAYMENT_2,
-                InstallmentType.PAYMENT_3,
-                InstallmentType.PAYMENT_4,
-                InstallmentType.PAYMENT_5,
-                InstallmentType.PAYMENT_6,
-                InstallmentType.PAYMENT_7,
-            ]:
+                if flexible_installment:
+                    raise serializers.ValidationError(
+                        "There can be only one flexible payment."
+                    )
+                flexible_installment = installment
+            elif installment.is_numbered_payment():
                 fixed_installments.append(installment)
 
-        if flexible_installments:
+        if flexible_installment:
             sales_price = get_euros_from_cents(apartment_data["sales_price"])
             fixed_installments_price = sum(
                 installment.value for installment in fixed_installments
             )
-            flexible_price = sales_price - fixed_installments_price
-
-            # A bit wonky, but need to be careful not to lose any cents to
-            # rounding e.g. if flexible_price was 1.01€ and the number of
-            # flexible payments is 3 the quotient is 0.3366 we should get
-            # flexible payments of [0.33, 0.33, 0.35]
-            if len(flexible_installments) > 1:
-                flexible_floor_price = (
-                    Decimal(
-                        math.floor(flexible_price / len(flexible_installments) * 100)
-                    )
-                    / 100
-                )
-                flexible_final_price = (
-                    flexible_price
-                    - (len(flexible_installments) - 1) * flexible_floor_price
-                )
-                for flexible_installment in flexible_installments[:-1]:
-                    flexible_installment.value = flexible_floor_price
-                flexible_installments[-1].value = flexible_final_price
-                assert (
-                    sum(installment.value for installment in flexible_installments)
-                    == flexible_price
-                )
-            else:
-                flexible_installments[0].value = flexible_price
+            flexible_installment.value = sales_price - fixed_installments_price
 
         serializer = ApartmentInstallmentCandidateSerializer(
             apartment_installments,

@@ -1,12 +1,16 @@
-from decimal import Decimal, ROUND_UP
+from decimal import Decimal, ROUND_HALF_UP
 from itertools import cycle
 from typing import Union
+
+from invoicing.enums import PriceRounding
 
 REFERENCE_NUMBER_PREFIX = "2825"
 
 
-def get_rounded_price(price: Decimal) -> Decimal:
-    return price.quantize(Decimal(".01"), rounding=ROUND_UP)
+def get_rounded_price(
+    price: Decimal, price_rounding: PriceRounding = PriceRounding.CENTS
+) -> Decimal:
+    return price.quantize(price_rounding.value, rounding=ROUND_HALF_UP)
 
 
 def get_euros_from_cents(in_cents: int) -> Decimal:
