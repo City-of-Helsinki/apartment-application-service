@@ -131,6 +131,18 @@ class ApartmentInstallmentAddToSapAPIView(APIView):
         if not installments.exists():
             raise Http404
 
+        # Check that all apartments have a property number
+        for installment in installments:
+            apartment = get_apartment(
+                installment.apartment_reservation.apartment_uuid,
+                include_project_fields=True,
+            )
+            property_number = getattr(apartment, "project_property_number", None)
+            if not property_number:
+                raise ValidationError(
+                    f"Apartment {apartment.title} does not have a property number."
+                )
+
         with transaction.atomic():
             for installment in installments:
                 try:
