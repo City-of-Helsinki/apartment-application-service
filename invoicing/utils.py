@@ -23,7 +23,7 @@ def generate_reference_number(identifier: Union[int, str]) -> str:
     coefficients = (7, 3, 1)
     check_digit = (
         10 - sum(int(d) * c for d, c in zip(reversed(actual), cycle(coefficients))) % 10
-    )
+    ) % 10
 
     return f"{actual}{check_digit}"
 
