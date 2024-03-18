@@ -43,7 +43,7 @@ deprecation==2.1.0
     # via
     #   django-helusers
     #   pikepdf
-django==4.2.7
+django==4.2.11
     # via
     #   -r requirements.in
     #   django-cors-headers
