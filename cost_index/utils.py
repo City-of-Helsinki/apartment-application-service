@@ -1,6 +1,5 @@
-import math
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, ROUND_UP
 
 from cost_index.models import ApartmentRevaluation, CostIndex
 from invoicing.enums import InstallmentType
@@ -28,9 +27,7 @@ def determine_date_index(dt: date):
 
 def adjust_value(value: Decimal, start_index: Decimal, end_index: Decimal):
     adjusted_value = value / start_index * end_index
-
-    # Round to floor 2 decimals
-    return Decimal(math.floor(adjusted_value * 100)) / 100
+    return Decimal(adjusted_value).quantize(Decimal("0.01"), rounding=ROUND_UP)
 
 
 def current_right_of_occupancy_payment(

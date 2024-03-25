@@ -16,7 +16,7 @@ from cost_index.utils import calculate_end_value
 @mark.django_db
 def test_cost_index_utils_correct():
     cost_index_data = [
-        {"value": Decimal("100.00"), "valid_from": date(2022, 11, 23)},
+        {"value": Decimal("99.998"), "valid_from": date(2022, 11, 23)},
         {"value": Decimal("50.00"), "valid_from": date(2022, 11, 24)},
         {"value": Decimal("200.00"), "valid_from": date(2022, 11, 25)},
     ]
@@ -25,8 +25,8 @@ def test_cost_index_utils_correct():
 
     # Test the very basics
     assert calculate_end_value(
-        Decimal("100.00"), date(2022, 11, 23), date(2022, 11, 23)
-    ) == Decimal("100.00")
+        Decimal("99.989"), date(2022, 11, 23), date(2022, 11, 23)
+    ) == Decimal("99.99")
     assert calculate_end_value(
         Decimal("100.00"), date(2022, 11, 23), date(2022, 11, 24)
     ) == Decimal("50.00")
@@ -40,7 +40,7 @@ def test_cost_index_utils_correct():
     # Test rounding behaviour
     assert calculate_end_value(
         Decimal("100.01"), date(2022, 11, 23), date(2022, 11, 24)
-    ) == Decimal("50.00")
+    ) == Decimal("50.01")
 
     with pytest.raises(ValueError):
         calculate_end_value(Decimal("100.00"), date(1988, 11, 22), date(2022, 11, 23))
