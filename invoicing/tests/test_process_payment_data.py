@@ -25,8 +25,7 @@ INVALID_TEST_PAYMENT_DATA = """022121917199          12800     00000000000000000
 """  # noqa: E501, W291
 
 EXPECTED_ERROR_MESSAGE = """Parsing errors:
-2: Incorrect line length 6
-3: ApartmentInstallment with invoice number "730000077" does not exist."""  # noqa: E501, W291
+2: Incorrect line length 6"""  # noqa: E501, W291
 
 
 @pytest.mark.parametrize("has_filename", (True, False))

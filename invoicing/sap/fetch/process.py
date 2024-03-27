@@ -79,7 +79,7 @@ def process_payment_data(  # noqa: C901
                 invoice_number=invoice_number
             )
         except ApartmentInstallment.DoesNotExist:
-            errors.append(
+            logger.error(
                 f"{line_number}: ApartmentInstallment with invoice number "
                 f'"{invoice_number}" does not exist.'
             )
