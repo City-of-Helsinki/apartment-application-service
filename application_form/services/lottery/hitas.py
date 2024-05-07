@@ -51,9 +51,10 @@ def _shuffle_applications(apartment_uuid: uuid.UUID) -> None:
     """
     apartment = get_apartment(apartment_uuid)
     apartment_apps = ApplicationApartment.objects.filter(apartment_uuid=apartment_uuid)
-
+    # room_count could be None if apartment data is invalid in ElasticSearch
+    room_count: int = apartment.room_count or 0
     # If the apartment has enough rooms, applications with children should have priority
-    prioritize_children = apartment.room_count >= _PRIORITIZE_CHILDREN_ROOM_THRESHOLD
+    prioritize_children = room_count >= _PRIORITIZE_CHILDREN_ROOM_THRESHOLD
     if prioritize_children:
         # Split applications into two pools
         apps_with_children = apartment_apps.filter(application__has_children=True)
