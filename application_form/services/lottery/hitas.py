@@ -51,7 +51,8 @@ def _shuffle_applications(apartment_uuid: uuid.UUID) -> None:
     """
     apartment = get_apartment(apartment_uuid)
     apartment_apps = ApplicationApartment.objects.filter(apartment_uuid=apartment_uuid)
-
+    if not apartment_apps:
+        return
     # If the apartment has enough rooms, applications with children should have priority
     prioritize_children = apartment.room_count >= _PRIORITIZE_CHILDREN_ROOM_THRESHOLD
     if prioritize_children:
