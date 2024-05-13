@@ -87,7 +87,9 @@ Asumisoikeusasunnon vaihtaja: {_get_bool_str(reservation.is_right_of_occupancy_h
 """  # noqa: E501
 
 
-def _get_price_str(cents: int) -> str:
+def _get_price_str(cents: Optional[int]) -> str:
+    if cents is None:
+        cents = 0
     return (
         format((Decimal(cents) / 100).quantize(Decimal(".01")), ",")
         .replace(",", " ")
