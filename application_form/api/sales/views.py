@@ -170,7 +170,9 @@ class ApartmentReservationViewSet(
         apartment = get_apartment(
             reservation.apartment_uuid, include_project_fields=True
         )
-        title = (apartment.title or "").strip().lower().replace(" ", "_")
+        title = (
+            (apartment.title or "").strip().lower().replace(" ", "_").replace(",", "")
+        )
 
         ownership_type = apartment.project_ownership_type.lower()
         if ownership_type == "hitas":
@@ -206,7 +208,9 @@ class ApartmentReservationViewSet(
         if not hasattr(reservation, "revaluation"):
             raise ValidationError("Reservation has no revaluation")
 
-        title = (apartment.title or "").strip().lower().replace(" ", "_")
+        title = (
+            (apartment.title or "").strip().lower().replace(" ", "_").replace(",", "")
+        )
         filename = f"haso_luovutuslaskelma{title}" if title else "haso_luovutuslaskelma"
 
         pdf_data = create_haso_release_pdf(
