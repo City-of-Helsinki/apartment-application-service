@@ -21,6 +21,26 @@ class SapPaymentDataParsingError(Exception):
 
 
 class LineParser:
+    """
+     File format documentation for the LineParser
+    | Len | Pos| Description             | Example |
+    | --- | -- | ----------------------- |
+    | 1   | 0  | Record Id               | 3, 5, 7 |
+    | 14  | 1  | Account Number          |
+    | 6   | 15 | Registration Date       | YYMMDD  |
+    | 6   | 21 | Term                    | YYMMDD  |
+    | 16  | 27 | FillingID               |
+    | 20  | 43 | Reference               |
+    | 12  | 63 | Payer Name Abbreviation |
+    | 1   | 75 | Currency Unit Code      | 1 = Euro|
+    | 1   | 76 | Source of Name          | 1       |
+    | 10  | 77 | Amount                  | 8  + 2d |
+    | 1   | 87 | Adjustment Id           |
+    | 1   | 88 | Mode Of Transmission    |
+    | 1   | 89 | Feedback Code           |
+    Total lenght 90 characters
+    """
+
     def __init__(self, line: str):
         assert len(line) == 90, f"Incorrect line length {len(line)}"
         self.line = line
@@ -29,15 +49,15 @@ class LineParser:
         return self.line[index : index + length].strip()  # noqa: E203
 
     def get_payment_date(self) -> datetime.date:
-        return datetime.strptime(self.get_value_from_line(15, 6), "%d%m%y").date()
+        return datetime.strptime(self.get_value_from_line(15, 6), "%y%m%d").date()
 
     def get_amount(self) -> Decimal:
-        return Decimal(int(self.get_value_from_line(79, 10)) / Decimal("100")).quantize(
+        return Decimal(int(self.get_value_from_line(77, 10)) / Decimal("100")).quantize(
             Decimal(".01")
         )
 
     def get_invoice_number(self) -> int:
-        return int(self.get_value_from_line(27, 9))
+        return int(self.get_value_from_line(27, 16))
 
 
 @transaction.atomic
