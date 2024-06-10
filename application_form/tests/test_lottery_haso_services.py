@@ -1,18 +1,23 @@
+import pytest
+from django.db import transaction
 from pytest import fixture, mark
+from rest_framework.exceptions import ValidationError
 
+from apartment.tests.factories import ApartmentDocumentFactory
 from application_form.enums import (
     ApartmentReservationCancellationReason,
     ApartmentReservationState,
     ApplicationType,
 )
 from application_form.models.lottery import LotteryEvent, LotteryEventResult
+from application_form.models.reservation import ApartmentReservation
 from application_form.services.application import (
     cancel_reservation,
     get_ordered_applications,
 )
 from application_form.services.lottery.haso import _distribute_haso_apartments
 from application_form.services.queue import add_application_to_queues
-from application_form.services.reservation import create_reservation_without_application
+from application_form.services.reservation import create_late_reservation
 from application_form.tests.factories import ApplicationFactory
 from customer.tests.factories import CustomerFactory
 
@@ -191,6 +196,74 @@ def test_canceling_application_sets_application_state_to_canceled_and_queue_posi
     assert app_apt.apartment_reservation.queue_position is None
 
 
+@pytest.mark.django_db
+def test_late_reservation_user():
+    apartment = ApartmentDocumentFactory(project_ownership_type="Haso")
+    customer = CustomerFactory(right_of_residence=None)
+
+    # calling create_late_application with with a customer with
+    # no right_of_residence should raise an error
+    with pytest.raises(ValidationError):
+        create_late_reservation(
+            {
+                "apartment_uuid": apartment.uuid,
+                "customer": customer,
+            }
+        )
+
+
+@mark.django_db
+def test_haso_application_without_reservation_order():
+
+    apartment = ApartmentDocumentFactory(project_ownership_type="Haso")
+
+    with transaction.atomic():
+        reservation_without_application_4 = create_late_reservation(
+            {
+                "apartment_uuid": apartment.uuid,
+                "customer": CustomerFactory(right_of_residence=4),
+            }
+        )
+
+        reservation_without_application_2 = create_late_reservation(
+            {
+                "apartment_uuid": apartment.uuid,
+                "customer": CustomerFactory(right_of_residence=2),
+            }
+        )
+
+        reservation_without_application_3 = create_late_reservation(
+            {
+                "apartment_uuid": apartment.uuid,
+                "customer": CustomerFactory(right_of_residence=3),
+            }
+        )
+
+        reservation_without_application_2.set_state(
+            ApartmentReservationState.OFFERED,
+        )
+
+        reservation_without_application_1 = create_late_reservation(
+            {
+                "apartment_uuid": apartment.uuid,
+                "customer": CustomerFactory(right_of_residence=1),
+            }
+        )
+
+    ordered = (
+        ApartmentReservation.objects.related_fields()
+        .filter(apartment_uuid=apartment.uuid)
+        .order_by("list_position")
+    )
+
+    assert list(ordered) == [
+        reservation_without_application_2,
+        reservation_without_application_1,
+        reservation_without_application_3,
+        reservation_without_application_4,
+    ]
+
+
 @mark.django_db
 def test_removing_application_from_queue_cancels_application_and_decides_new_winner(
     elastic_haso_project_with_5_apartments,
@@ -214,7 +287,7 @@ def test_removing_application_from_queue_cancels_application_and_decides_new_win
     _distribute_haso_apartments(project_uuid)
 
     # Add third reservation that does not have an application
-    reservation_without_application = create_reservation_without_application(
+    reservation_without_application = create_late_reservation(
         {
             "apartment_uuid": first_apartment_uuid,
             "customer": CustomerFactory(),

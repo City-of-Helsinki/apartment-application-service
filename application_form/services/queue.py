@@ -43,9 +43,9 @@ def add_application_to_queues(
                 )
                 list_position = queue_position
                 # Need to shift both list position and queue position
-                _make_room_for_reservation(
-                    apartment_uuid, list_position, queue_position
-                )
+                res = ApartmentReservation.objects.filter(apartment_uuid=apartment_uuid)
+
+                _make_room_for_reservation(res, list_position, queue_position)
             elif application.type in [
                 ApplicationType.HITAS,
                 ApplicationType.PUOLIHITAS,
@@ -158,7 +158,7 @@ def _calculate_queue_position(
     return all_reservations.count() + 1
 
 
-def _make_room_for_reservation(apartment_uuid, new_list_position, new_queue_position):
+def _make_room_for_reservation(res, new_list_position, new_queue_position):
     """
     Make room for a new reservation by shifting list and queue
     positions.
@@ -167,7 +167,6 @@ def _make_room_for_reservation(apartment_uuid, new_list_position, new_queue_posi
     shifts all reservations that are >= the new list position and >= the
     new queue position by one.
     """
-    res = ApartmentReservation.objects.filter(apartment_uuid=apartment_uuid)
     _adjust_positions(res, "list_position", new_list_position, by=1)
     _adjust_positions(res, "queue_position", new_queue_position, by=1)
 

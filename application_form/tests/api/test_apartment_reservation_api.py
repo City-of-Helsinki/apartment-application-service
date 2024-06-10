@@ -119,6 +119,7 @@ def test_root_apartment_reservation_detail(
         "has_hitas_ownership": reservation.has_hitas_ownership,
         "is_age_over_55": reservation.is_age_over_55,
         "is_right_of_occupancy_housing_changer": reservation.is_right_of_occupancy_housing_changer,  # noqa: E501
+        "submitted_late": reservation.submitted_late,
     }
 
 
@@ -682,7 +683,7 @@ def test_create_reservation(
         data=data,
         format="json",
     )
-
+    print(response.data)
     assert response.status_code == 201
 
     assert response.data.pop("customer_id") == customer.id
@@ -702,6 +703,7 @@ def test_create_reservation(
         "has_hitas_ownership": None,
         "is_age_over_55": True,
         "is_right_of_occupancy_housing_changer": False,
+        "submitted_late": True,
     }
 
     reservation = ApartmentReservation.objects.get(id=reservation_id)
