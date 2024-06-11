@@ -109,7 +109,10 @@ def apartment_revaluation_summary(request):
         release_payment = (
             revaluation.end_right_of_occupancy_payment + revaluation.alteration_work
         )
-
+        apartment = get_apartment(apartment_uuid, False)
+        right_of_occupancy_payment = get_euros_from_cents(
+            apartment.right_of_occupancy_payment
+        )
         # fmt: off
         apartments[apartment_uuid] = {
             "apartment_uuid": apartment_uuid,
@@ -119,6 +122,7 @@ def apartment_revaluation_summary(request):
             "right_of_occupancy_payment_adjustment":
                 right_of_occupancy_payment_adjustment,
             "release_payment": release_payment,
+            "right_of_occupancy_payment": right_of_occupancy_payment,
         }
         # fmt: on
 
