@@ -1,6 +1,6 @@
 from decimal import Decimal, ROUND_HALF_UP
 from itertools import cycle
-from typing import Union
+from typing import Optional, Union
 
 from invoicing.enums import PriceRounding
 
@@ -13,7 +13,9 @@ def get_rounded_price(
     return price.quantize(price_rounding.value, rounding=ROUND_HALF_UP)
 
 
-def get_euros_from_cents(in_cents: int) -> Decimal:
+def get_euros_from_cents(in_cents: Optional[int]) -> Decimal:
+    if in_cents is None:
+        in_cents = 0
     return Decimal(in_cents) / 100
 
 
