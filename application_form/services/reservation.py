@@ -1,15 +1,23 @@
+import logging
+from typing import Optional, Tuple
+
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from django.db.models import F, Max
+from django.db.models import F, Max, QuerySet
+from rest_framework.exceptions import ValidationError
 
+from apartment.elastic.queries import get_apartment
 from application_form.enums import (
     ApartmentQueueChangeEventType,
     ApartmentReservationCancellationReason,
     ApartmentReservationState,
 )
 from application_form.models import ApartmentReservation
+from application_form.services.queue import _make_room_for_reservation
 from application_form.utils import lock_table
 from customer.models import Customer
+
+_logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
@@ -65,45 +73,135 @@ def transfer_reservation_to_another_customer(
     return state_change_event
 
 
-def create_reservation_without_application(
+def calculate_haso_positions(
+    reservations, right_of_residence_ordering_number
+) -> Optional[Tuple[int, int]]:
+    """
+    Calculate new queue position in late reservations based on
+    right of residence ordering number if right of residence is not smaller
+    than any of the existing reservations just return keep the max queue position + 1
+    """
+    for apartment_reservation in reservations:
+        if (
+            right_of_residence_ordering_number
+            < apartment_reservation.right_of_residence_ordering_number
+            and apartment_reservation.queue_position is not None
+        ):
+            return (
+                apartment_reservation.queue_position,
+                apartment_reservation.list_position,
+            )
+    return None
+
+
+def create_late_reservation(
     reservation_data: dict, user: User = None
 ) -> ApartmentReservation:
     with lock_table(ApartmentReservation):
-        existing_reservations = ApartmentReservation.objects.filter(
-            apartment_uuid=reservation_data["apartment_uuid"]
-        )
+        apartment_uuid = reservation_data["apartment_uuid"]
+        apartment = get_apartment(apartment_uuid, include_project_fields=True)
+        existing_reservations = get_existing_reservations(apartment_uuid)
 
-        if existing_reservations.reserved().exists():
-            state = ApartmentReservationState.SUBMITTED
-        else:
-            state = ApartmentReservationState.RESERVED
-
-        max_list_position = existing_reservations.aggregate(
-            max_list_position=Max("list_position")
-        )["max_list_position"]
-        max_queue_position = existing_reservations.exclude(
-            state=ApartmentReservationState.CANCELED
-        ).aggregate(max_queue_position=Max("queue_position"))["max_queue_position"]
+        state = get_reservation_state(existing_reservations)
+        max_list_position, max_queue_position = get_max_positions(existing_reservations)
 
         if user:
             reservation_data["handler"] = user.profile_or_user_full_name
 
-        reservation = ApartmentReservation(
-            **reservation_data,
-            state=state,
-            list_position=(max_list_position or 0) + 1,
-            queue_position=(max_queue_position or 0) + 1,
-            right_of_residence=reservation_data["customer"].right_of_residence,
-            right_of_residence_is_old_batch=reservation_data[
-                "customer"
-            ].right_of_residence_is_old_batch,
-            has_children=reservation_data["customer"].has_children,
-            has_hitas_ownership=reservation_data["customer"].has_hitas_ownership,
-            is_age_over_55=reservation_data["customer"].is_age_over_55,
-            is_right_of_occupancy_housing_changer=reservation_data[
-                "customer"
-            ].is_right_of_occupancy_housing_changer,  # noqa: E501
+        ownership_type = apartment.project_ownership_type
+        right_of_residence_ordering_number = get_right_of_residence_ordering_number(
+            reservation_data
+        )
+        if right_of_residence_ordering_number is None:
+            raise ValidationError("User has no right of residence number set")
+
+        new_list_position, new_queue_position = calculate_new_positions(
+            max_list_position,
+            max_queue_position,
+            ownership_type,
+            right_of_residence_ordering_number,
+            existing_reservations,
+        )
+        reservation = create_reservation(
+            reservation_data, state, new_list_position, new_queue_position, user
         )
         reservation.save(user=user)
 
-    return reservation
+        return reservation
+
+
+def get_existing_reservations(apartment_uuid: str) -> QuerySet:
+    return ApartmentReservation.objects.filter(apartment_uuid=apartment_uuid)
+
+
+def get_reservation_state(existing_reservations: QuerySet) -> str:
+    if existing_reservations.reserved().exists():
+        return ApartmentReservationState.SUBMITTED
+    return ApartmentReservationState.RESERVED
+
+
+def get_max_positions(existing_reservations: QuerySet) -> tuple:
+    max_list_position = existing_reservations.aggregate(
+        max_list_position=Max("list_position")
+    )["max_list_position"]
+    max_queue_position = existing_reservations.exclude(
+        state=ApartmentReservationState.CANCELED
+    ).aggregate(max_queue_position=Max("queue_position"))["max_queue_position"]
+    return max_list_position, max_queue_position
+
+
+def get_right_of_residence_ordering_number(reservation_data: dict) -> int:
+    return reservation_data["customer"].right_of_residence_ordering_number
+
+
+def calculate_new_positions(
+    max_list_position: int,
+    max_queue_position: int,
+    ownership_type: str,
+    right_of_residence_ordering_number: int,
+    existing_reservations: QuerySet,
+) -> tuple:
+    new_list_position = (max_list_position or 0) + 1
+    new_queue_position = (max_queue_position or 0) + 1
+
+    if ownership_type.lower() == "haso":
+        late_reservations = (
+            existing_reservations.filter(submitted_late=True)
+            .exclude(state=ApartmentReservationState.OFFERED)
+            .order_by("list_position")
+        )
+        if late_reservations:
+            positions = calculate_haso_positions(
+                late_reservations,
+                right_of_residence_ordering_number,
+            )
+            if positions is not None:
+                new_queue_position, new_list_position = positions
+            _make_room_for_reservation(
+                late_reservations, new_list_position, new_queue_position
+            )
+
+    return new_list_position, new_queue_position
+
+
+def create_reservation(
+    reservation_data: dict,
+    state: str,
+    list_position: int,
+    queue_position: int,
+    user: User,
+) -> ApartmentReservation:
+    customer = reservation_data["customer"]
+    return ApartmentReservation(
+        **reservation_data,
+        state=state,
+        list_position=list_position,
+        submitted_late=True,
+        queue_position=queue_position,
+        right_of_residence=customer.right_of_residence,
+        right_of_residence_is_old_batch=customer.right_of_residence_is_old_batch,
+        has_children=customer.has_children,
+        has_hitas_ownership=customer.has_hitas_ownership,
+        is_age_over_55=customer.is_age_over_55,
+        is_right_of_occupancy_housing_changer=customer.is_right_of_occupancy_housing_changer,  # noqa: E501
+    )

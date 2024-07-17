@@ -102,7 +102,7 @@ class ApartmentReservation(CommonApplicationData):
     handler = CharPGPPublicKeyField(
         verbose_name=_("handler"), max_length=200, blank=True
     )
-
+    submitted_late = models.BooleanField("submitted late", default=False)
     objects = ApartmentReservationQuerySet.as_manager()
 
     class Meta:

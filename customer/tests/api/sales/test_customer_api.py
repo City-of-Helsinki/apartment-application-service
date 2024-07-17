@@ -132,6 +132,7 @@ def test_get_customer_api_detail(sales_ui_salesperson_api_client):
             "has_hitas_ownership": reservation.has_hitas_ownership,
             "is_age_over_55": reservation.is_age_over_55,
             "is_right_of_occupancy_housing_changer": reservation.is_right_of_occupancy_housing_changer,  # noqa: E501
+            "submitted_late": reservation.submitted_late,
         }
     ]
 
