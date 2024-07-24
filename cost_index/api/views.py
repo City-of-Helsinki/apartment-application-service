@@ -109,13 +109,14 @@ def apartment_revaluation_summary(request):
         release_payment = (
             revaluation.end_right_of_occupancy_payment + revaluation.alteration_work
         )
-
+        end_right_of_occupancy_payment = revaluation.end_right_of_occupancy_payment
         # fmt: off
         apartments[apartment_uuid] = {
             "apartment_uuid": apartment_uuid,
             "created_at": revaluation.created_at,
             "updated_at": revaluation.updated_at,
             "alteration_work_total": revaluation.alteration_work,
+            "end_right_of_occupancy_payment": end_right_of_occupancy_payment,
             "right_of_occupancy_payment_adjustment":
                 right_of_occupancy_payment_adjustment,
             "release_payment": release_payment,
