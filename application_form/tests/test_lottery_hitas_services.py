@@ -2,12 +2,14 @@ from unittest.mock import patch
 
 from pytest import fixture, mark
 
+from apartment.tests.factories import ApartmentDocumentFactory
 from application_form.enums import (
     ApartmentReservationCancellationReason,
     ApartmentReservationState,
     ApplicationType,
 )
 from application_form.models import LotteryEvent, LotteryEventResult
+from application_form.models.reservation import ApartmentReservation
 from application_form.services.application import (
     cancel_reservation,
     get_ordered_applications,
@@ -453,6 +455,33 @@ def test_winning_high_priority_apartment_redistributes_apartments_if_winner_chan
     assert app2_apt1.apartment_reservation.state == ApartmentReservationState.CANCELED
     assert app2_apt2.apartment_reservation.state == ApartmentReservationState.CANCELED
     assert app3_apt3.apartment_reservation.state == ApartmentReservationState.CANCELED
+
+
+@mark.django_db
+def test_hitas_application_without_reservation_order():
+    apartment = ApartmentDocumentFactory(project_ownership_type="hitas")
+
+    reservation_1 = create_late_reservation(
+        {
+            "apartment_uuid": apartment.uuid,
+            "customer": CustomerFactory(right_of_residence=None),
+        }
+    )
+
+    reservation_2 = create_late_reservation(
+        {
+            "apartment_uuid": apartment.uuid,
+            "customer": CustomerFactory(right_of_residence=None),
+        }
+    )
+
+    ordered = (
+        ApartmentReservation.objects.related_fields()
+        .filter(apartment_uuid=apartment.uuid)
+        .order_by("list_position")
+    )
+
+    assert list(ordered) == [reservation_1, reservation_2]
 
 
 @mark.django_db

@@ -108,11 +108,11 @@ def create_late_reservation(
         if user:
             reservation_data["handler"] = user.profile_or_user_full_name
 
-        ownership_type = apartment.project_ownership_type
+        ownership_type = apartment.project_ownership_type.lower()
         right_of_residence_ordering_number = get_right_of_residence_ordering_number(
             reservation_data
         )
-        if right_of_residence_ordering_number is None:
+        if right_of_residence_ordering_number is None and ownership_type == "haso":
             raise ValidationError("User has no right of residence number set")
 
         new_list_position, new_queue_position = calculate_new_positions(
