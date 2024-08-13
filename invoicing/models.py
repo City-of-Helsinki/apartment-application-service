@@ -11,7 +11,6 @@ from django.utils import timezone
 from django.utils.timezone import localdate, now
 from django.utils.translation import gettext_lazy as _
 from enumfields import EnumField
-from pgcrypto.fields import CharPGPPublicKeyField
 from typing_extensions import assert_never
 
 from apartment_application_service.models import TimestampedModel
@@ -112,10 +111,8 @@ class ApartmentInstallment(InstallmentBase):
     sent_to_sap_at = models.DateTimeField(
         verbose_name=_("sent to SAP at"), null=True, blank=True
     )
-    # Metadata fields
-    handler = CharPGPPublicKeyField(
-        verbose_name=_("handler"), max_length=200, blank=True
-    )
+
+    handler = models.CharField(verbose_name=_("handler"), max_length=200, blank=True)
 
     objects = ApartmentInstallmentQuerySet.as_manager()
 
