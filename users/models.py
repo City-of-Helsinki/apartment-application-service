@@ -72,22 +72,23 @@ class Profile(TimestampedModel):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True
     )
-    first_name = CharPGPPublicKeyField(_("first name"), max_length=30, blank=True)
-    middle_name = CharPGPPublicKeyField(
+    first_name = models.CharField(_("first name"), max_length=30, blank=True)
+    middle_name = models.CharField(
         _("middle name"), max_length=30, blank=True, null=True
     )
-    last_name = CharPGPPublicKeyField(_("last name"), max_length=150, blank=True)
-    calling_name = CharPGPPublicKeyField(
+    last_name = models.CharField(_("last name"), max_length=150, blank=True)
+    calling_name = models.CharField(
         _("calling name"), max_length=50, blank=True, null=True
     )
-    email = CharPGPPublicKeyField(
+    email = models.CharField(
         max_length=254, verbose_name=_("email address"), blank=True
     )
-    phone_number = CharPGPPublicKeyField(_("phone number"), max_length=40, null=False)
-    phone_number_nightly = CharPGPPublicKeyField(
+    phone_number = models.CharField(_("phone number"), max_length=40)
+    phone_number_nightly = models.CharField(
         _("phone number nightly"), max_length=50, blank=True, null=True
     )
-    street_address = CharPGPPublicKeyField(_("street address"), max_length=200)
+    street_address = models.CharField(_("street address"), max_length=200)
+
     date_of_birth = DatePGPPublicKeyField(_("date of birth"))
     national_identification_number = CharPGPPublicKeyField(
         _("national identification number"),
@@ -95,9 +96,9 @@ class Profile(TimestampedModel):
         blank=True,
         null=True,
     )
-    city = CharPGPPublicKeyField(_("city"), max_length=50)
-    postal_code = CharPGPPublicKeyField(_("postal code"), max_length=10)
-    contact_language = CharPGPPublicKeyField(
+    city = models.CharField(_("city"), max_length=50)
+    postal_code = models.CharField(_("postal code"), max_length=10)
+    contact_language = models.CharField(
         _("contact language"),
         max_length=2,
         choices=CONTACT_LANGUAGE_CHOICES,
