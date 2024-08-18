@@ -118,14 +118,20 @@ def test_project_detail_application_count_field(
         # two applications, the first one is for two apartments which should not matter
         application_1 = ApplicationFactory()
         ApplicationApartmentFactory(
-            application=application_1, apartment_uuid=apartments[0].uuid
+            application=application_1,
+            apartment_uuid=apartments[0].uuid,
+            priority_number=1,
         )
         ApplicationApartmentFactory(
-            application=application_1, apartment_uuid=apartments[1].uuid
+            application=application_1,
+            apartment_uuid=apartments[1].uuid,
+            priority_number=2,
         )
         application_2 = ApplicationFactory()
         ApplicationApartmentFactory(
-            application=application_2, apartment_uuid=apartments[2].uuid
+            application=application_2,
+            apartment_uuid=apartments[2].uuid,
+            priority_number=1,
         )
 
     # another project application that should not be counted
