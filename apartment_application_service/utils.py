@@ -32,7 +32,10 @@ def is_module_available(module_name):
 
 def decrypt_and_update_generic(model: Model, fields, reverse=False):
     """
-    Helper function for decrypt migrations
+    Helper function for decrypt migrations. Iterates through the model rows
+    and copies data on each instance. Uses iterator + bulk update in forward (decrypt)
+    migration, but a slow iterator + save in reverse (encrypt) migration. pgcrypto
+    seems to corrupt data with bulk update.
     """
     if reverse:
         to_fields = fields
@@ -41,20 +44,30 @@ def decrypt_and_update_generic(model: Model, fields, reverse=False):
         to_fields = [f"{field}_plain" for field in fields]
         from_fields = fields
 
-    instances = model.objects.all()
-    for instance in instances:
+    instances_qs = model.objects.all().only(*from_fields)
+    instances_to_update = []
+    chunk_size = 2000
+    for instance in instances_qs.iterator(chunk_size=chunk_size):
         for to_field, from_field in zip(to_fields, from_fields):
             setattr(instance, to_field, getattr(instance, from_field))
 
         # See comment below
         if reverse:
             instance.save(update_fields=to_fields)
+        else:
+            instances_to_update.append(instance)
+            if len(instances_to_update) == chunk_size:
+                model.objects.bulk_update(
+                    instances_to_update,
+                    to_fields,
+                )
+                instances_to_update = []
 
     # Bulk update definitely encrypts data with django-pgcrypto-fields but the
     # encrypted data does no longer decrypt, so there is something fishy!
-    if not reverse:
+    if not reverse and instances_to_update:
         model.objects.bulk_update(
-            instances,
+            instances_to_update,
             to_fields,
         )
 
