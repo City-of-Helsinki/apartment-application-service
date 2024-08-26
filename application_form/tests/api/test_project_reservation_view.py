@@ -25,9 +25,11 @@ def test_list_project_reservations_get(api_client, elastic_project_with_5_apartm
     apartment_reservation_count = 5
     profile = ProfileFactory()
     application = ApplicationFactory(customer=CustomerFactory(primary_profile=profile))
-    for apartment in apartments:
+    for i, apartment in enumerate(apartments):
         application_apartment = ApplicationApartmentFactory(
-            apartment_uuid=apartment.uuid, application=application
+            apartment_uuid=apartment.uuid,
+            application=application,
+            priority_number=i + 1,
         )
         ApartmentReservationFactory(
             apartment_uuid=apartment.uuid, application_apartment=application_apartment
@@ -59,9 +61,11 @@ def test_list_project_reservations_get_without_lottery_data(
     apartment_reservation_count = 5
     profile = ProfileFactory()
     application = ApplicationFactory(customer=CustomerFactory(primary_profile=profile))
-    for apartment in apartments:
+    for i, apartment in enumerate(apartments):
         application_apartment = ApplicationApartmentFactory(
-            apartment_uuid=apartment.uuid, application=application
+            apartment_uuid=apartment.uuid,
+            application=application,
+            priority_number=i + 1,
         )
         ApartmentReservationFactory(
             apartment_uuid=apartment.uuid, application_apartment=application_apartment

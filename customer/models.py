@@ -5,11 +5,6 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q, UniqueConstraint
 from django.utils.translation import gettext_lazy as _
-from pgcrypto.fields import (
-    BooleanPGPPublicKeyField,
-    DatePGPPublicKeyField,
-    TextPGPPublicKeyField,
-)
 
 from apartment_application_service.models import CommonApplicationData, TimestampedModel
 from users.models import Profile
@@ -34,16 +29,11 @@ class Customer(TimestampedModel, CommonApplicationData):
         blank=True,
         null=True,
     )
-    additional_information = TextPGPPublicKeyField(
-        _("additional information"), blank=True
-    )
-    last_contact_date = DatePGPPublicKeyField(
-        _("last contact date"), blank=True, null=True
-    )
-    has_children = BooleanPGPPublicKeyField(_("has children"), blank=True, null=True)
-    is_age_over_55 = BooleanPGPPublicKeyField(
-        _("is age over 55"), blank=True, null=True
-    )
+
+    additional_information = models.TextField(_("additional information"), blank=True)
+    last_contact_date = models.DateField(_("last contact date"), blank=True, null=True)
+    has_children = models.BooleanField(_("has children"), blank=True, null=True)
+    is_age_over_55 = models.BooleanField(_("is age over 55"), blank=True, null=True)
 
     class Meta:
         constraints = [

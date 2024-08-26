@@ -1,10 +1,8 @@
 from typing import Optional
 
 from django.db import models
+from django.db.models import BooleanField, IntegerField
 from django.utils.translation import gettext_lazy as _
-from pgcrypto.fields import IntegerPGPPublicKeyField
-
-from apartment_application_service.fields import BooleanPGPPublicKeyField
 
 
 class TimestampedModel(models.Model):
@@ -18,16 +16,15 @@ class TimestampedModel(models.Model):
 class CommonApplicationData(models.Model):
     """Common fields used in Application, ApartmentReservation and Customer models."""
 
-    is_right_of_occupancy_housing_changer = BooleanPGPPublicKeyField(
+    is_right_of_occupancy_housing_changer = BooleanField(
         _("is right-of-occupancy housing changer"), blank=True, null=True
     )
-    has_hitas_ownership = BooleanPGPPublicKeyField(
-        _("has HITAS ownership"), blank=True, null=True
-    )
-    right_of_residence = IntegerPGPPublicKeyField(
+    has_hitas_ownership = BooleanField(_("has HITAS ownership"), blank=True, null=True)
+    right_of_residence = IntegerField(
         _("right of residence number"), blank=True, null=True
     )
-    right_of_residence_is_old_batch = BooleanPGPPublicKeyField(
+
+    right_of_residence_is_old_batch = BooleanField(
         _("right of residence is old batch"),
         blank=True,
         null=True,

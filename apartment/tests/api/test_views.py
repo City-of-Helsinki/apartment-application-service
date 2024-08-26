@@ -118,14 +118,20 @@ def test_project_detail_application_count_field(
         # two applications, the first one is for two apartments which should not matter
         application_1 = ApplicationFactory()
         ApplicationApartmentFactory(
-            application=application_1, apartment_uuid=apartments[0].uuid
+            application=application_1,
+            apartment_uuid=apartments[0].uuid,
+            priority_number=1,
         )
         ApplicationApartmentFactory(
-            application=application_1, apartment_uuid=apartments[1].uuid
+            application=application_1,
+            apartment_uuid=apartments[1].uuid,
+            priority_number=2,
         )
         application_2 = ApplicationFactory()
         ApplicationApartmentFactory(
-            application=application_2, apartment_uuid=apartments[2].uuid
+            application=application_2,
+            apartment_uuid=apartments[2].uuid,
+            priority_number=1,
         )
 
     # another project application that should not be counted
@@ -307,12 +313,13 @@ def test_project_detail_apartment_reservations_multiple_winning(
         type=ApplicationType.HITAS, has_children=True
     )
 
-    # Customer of app1 win 2 apartments but not the third app
+    # Customer of app1 will win the apartments[1]
+    # (apartments[0] will be cancelled due to lower priority)
     app1.application_apartments.create(
-        apartment_uuid=apartments[0].uuid, priority_number=1
+        apartment_uuid=apartments[0].uuid, priority_number=3
     )
     app1.application_apartments.create(
-        apartment_uuid=apartments[1].uuid, priority_number=1
+        apartment_uuid=apartments[1].uuid, priority_number=2
     )
     app1.application_apartments.create(
         apartment_uuid=apartments[2].uuid, priority_number=1
@@ -322,7 +329,7 @@ def test_project_detail_apartment_reservations_multiple_winning(
         apartment_uuid=apartments[2].uuid, priority_number=1
     )
 
-    # Customer of app2 win only 1 apartments
+    # Customer of app2 win apartments[3]
     app2.application_apartments.create(
         apartment_uuid=apartments[3].uuid, priority_number=1
     )
@@ -339,11 +346,9 @@ def test_project_detail_apartment_reservations_multiple_winning(
     apartments_data = response.data["apartments"]
     for apartment_data in apartments_data:
         if apartment_data["winning_reservation"]:
-            assert apartment_data["winning_reservation"][
+            assert not apartment_data["winning_reservation"][
                 "has_multiple_winning_apartments"
-            ] == (
-                apartment_data["winning_reservation"]["customer"]["id"] == customer.id
-            )
+            ]
 
 
 @pytest.mark.django_db

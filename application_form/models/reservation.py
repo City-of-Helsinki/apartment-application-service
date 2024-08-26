@@ -89,14 +89,8 @@ class ApartmentReservation(CommonApplicationData):
         verbose_name=_("apartment reservation state"),
     )
     has_children = BooleanPGPPublicKeyField(_("has children"), blank=True, null=True)
-    has_hitas_ownership = BooleanPGPPublicKeyField(
-        _("has hitas ownership"), blank=True, null=True
-    )
     is_age_over_55 = BooleanPGPPublicKeyField(
         _("is age over 55"), blank=True, null=True
-    )
-    is_right_of_occupancy_housing_changer = BooleanPGPPublicKeyField(
-        _("is right-of-occupancy housing changer"), blank=True, null=True
     )
     # Metadata fields
     handler = CharPGPPublicKeyField(

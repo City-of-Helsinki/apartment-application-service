@@ -33,9 +33,11 @@ def applicant_export_service(elastic_project_with_5_apartments):
     customer = CustomerFactory(primary_profile=profile, secondary_profile=None)
     application = ApplicationFactory(customer=customer)
     reservations = []
-    for apartment in apartments:
+    for i, apartment in enumerate(apartments):
         application_apartment = ApplicationApartmentFactory(
-            apartment_uuid=apartment.uuid, application=application
+            apartment_uuid=apartment.uuid,
+            application=application,
+            priority_number=i + 1,
         )
         reservations.append(
             ApartmentReservationFactory(
@@ -60,9 +62,11 @@ def applicant_export_service_with_additional_applicant(
     )
     application = ApplicationFactory(customer=customer)
     reservations = []
-    for apartment in apartments:
+    for i, apartment in enumerate(apartments):
         application_apartment = ApplicationApartmentFactory(
-            apartment_uuid=apartment.uuid, application=application
+            apartment_uuid=apartment.uuid,
+            application=application,
+            priority_number=i + 1,
         )
         reservations.append(
             ApartmentReservationFactory(
