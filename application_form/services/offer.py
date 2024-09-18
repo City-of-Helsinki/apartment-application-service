@@ -107,7 +107,11 @@ def update_other_customer_reservations_states(reservation):
     other_reservations = ApartmentReservation.objects.filter(
         apartment_uuid__in=get_apartment_uuids(apartment.project_uuid),
         customer=reservation.customer,
-    ).exclude(Q(state=ApartmentReservationState.CANCELED) | Q(id=reservation.id))
+    ).exclude(
+        Q(state=ApartmentReservationState.CANCELED)
+        | Q(id=reservation.id)
+        | Q(state=ApartmentReservationState.SOLD)
+    )
     for reservation in other_reservations:
         cancel_reservation(
             reservation,
