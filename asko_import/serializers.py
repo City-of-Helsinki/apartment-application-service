@@ -124,6 +124,13 @@ class ApplicantSerializer(CustomModelSerializer):
             "street_address",
         )
 
+    def __init__(self, *args, **kwargs):
+        exclude_fields = kwargs.pop("exclude_fields", None)
+        super().__init__(*args, **kwargs)
+        if exclude_fields:
+            for field_name in exclude_fields:
+                self.fields.pop(field_name, None)
+
 
 class ApplicationSerializer(EnumSupportSerializerMixin, serializers.ModelSerializer):
     customer = CustomPrimaryKeyRelatedField(queryset=Customer.objects.all())
