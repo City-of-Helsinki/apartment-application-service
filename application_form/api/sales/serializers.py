@@ -38,6 +38,9 @@ class ProjectUUIDSerializer(serializers.Serializer):
 
 
 class SalesApplicantSerializer(ApplicantSerializerBase):
+    class Meta(ApplicantSerializerBase.Meta):
+        fields = ApplicantSerializerBase.Meta.fields + ["date_of_birth", "ssn_suffix"]
+
     pass
 
 
@@ -45,10 +48,11 @@ class SalesApplicationSerializer(ApplicationSerializerBase):
     profile = serializers.PrimaryKeyRelatedField(
         queryset=Profile.objects.all(), write_only=True
     )
+    applicant = SalesApplicantSerializer(write_only=True)
     additional_applicant = SalesApplicantSerializer(write_only=True, allow_null=True)
 
     class Meta(ApplicationSerializerBase.Meta):
-        fields = ApplicationSerializerBase.Meta.fields + ("profile",)
+        fields = ApplicationSerializerBase.Meta.fields + ("profile", "applicant")
 
     def _get_senders_name_from_applicants_data(self, validated_data):
         additional_applicant = validated_data.get("additional_applicant")

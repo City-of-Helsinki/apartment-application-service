@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from enumfields.drf import EnumField, EnumSupportSerializerMixin
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
-from rest_framework.fields import CharField, IntegerField, UUIDField
+from rest_framework.fields import IntegerField, UUIDField
 
 from apartment_application_service.settings import (
     METADATA_HANDLER_INFORMATION,
@@ -36,8 +36,6 @@ User = get_user_model()
 
 
 class ApplicantSerializerBase(serializers.ModelSerializer):
-    date_of_birth = serializers.DateField(write_only=True)
-
     class Meta:
         model = Applicant
         fields = [
@@ -49,13 +47,16 @@ class ApplicantSerializerBase(serializers.ModelSerializer):
             "city",
             "postal_code",
             "age",
-            "date_of_birth",
-            "ssn_suffix",
         ]
         extra_kwargs = {"age": {"read_only": True}}
 
 
 class ApplicantSerializer(ApplicantSerializerBase):
+    date_of_birth = serializers.DateField(write_only=True)
+
+    class Meta(ApplicantSerializerBase.Meta):
+        fields = ApplicantSerializerBase.Meta.fields + ["date_of_birth", "ssn_suffix"]
+
     def validate(self, attrs):
         super().validate(attrs)
         date_of_birth = attrs.get("date_of_birth")
@@ -71,6 +72,13 @@ class ApplicantSerializer(ApplicantSerializerBase):
             )
         return attrs
 
+    def __init__(self, *args, **kwargs):
+        exclude_fields = kwargs.pop("exclude_fields", None)
+        super().__init__(*args, **kwargs)
+        if exclude_fields:
+            for field_name in exclude_fields:
+                self.fields.pop(field_name, None)
+
 
 class ApplicationApartmentSerializer(serializers.Serializer):
     priority = IntegerField(min_value=0, max_value=5)
@@ -81,7 +89,6 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
     application_uuid = UUIDField(source="external_uuid")
     application_type = EnumField(ApplicationType, source="type", write_only=True)
     project_id = UUIDField(write_only=True)
-    ssn_suffix = CharField(write_only=True, min_length=5, max_length=5)
     apartments = ApplicationApartmentSerializer(write_only=True, many=True)
 
     class Meta:
@@ -89,7 +96,6 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
         fields = (
             "application_uuid",
             "application_type",
-            "ssn_suffix",
             "has_children",
             "additional_applicant",
             "right_of_residence",
@@ -125,8 +131,15 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
 
 
 class ApplicationSerializer(ApplicationSerializerBase):
+    applicant = ApplicantSerializer(write_only=True)
     additional_applicant = ApplicantSerializer(write_only=True, allow_null=True)
     project_id = UUIDField(write_only=True)
+
+    class Meta(ApplicationSerializerBase.Meta):
+        fields = ApplicationSerializerBase.Meta.fields + (
+            "applicant",
+            "additional_applicant",
+        )
 
     def _get_senders_name_from_applicants_data(self, validated_data):
         additional_applicant = validated_data.get("additional_applicant")
@@ -169,17 +182,18 @@ class ApplicationSerializer(ApplicationSerializerBase):
     def validate(self, attrs):
         project_uuid = attrs["project_id"]
         applicants = []
-        profile = self.context["request"].user.profile
-        applicants.append((profile.date_of_birth, attrs["ssn_suffix"]))
-        is_additional_applicant = (
-            "additional_applicant" in attrs
-            and attrs["additional_applicant"] is not None
-        )
-        if is_additional_applicant:
+        applicant_data = attrs.get("applicant")
+        if applicant_data:
+            applicants.append(
+                (applicant_data["date_of_birth"], applicant_data["ssn_suffix"])
+            )
+
+        additional_applicant = attrs.get("additional_applicant")
+        if additional_applicant:
             applicants.append(
                 (
-                    attrs["additional_applicant"]["date_of_birth"],
-                    attrs["additional_applicant"]["ssn_suffix"],
+                    additional_applicant["date_of_birth"],
+                    additional_applicant["ssn_suffix"],
                 )
             )
         validator = ProjectApplicantValidator()

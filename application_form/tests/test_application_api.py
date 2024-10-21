@@ -70,7 +70,7 @@ def test_application_post_sets_nin(api_client, elastic_single_project_with_apart
     assert response.status_code == 201
     assert response.data == {"application_uuid": data["application_uuid"]}
     profile.refresh_from_db()
-    assert profile.ssn_suffix == data["ssn_suffix"]
+    assert profile.ssn_suffix == data["applicant"]["ssn_suffix"]
     assert len(profile.national_identification_number) == 11
 
 
@@ -212,14 +212,14 @@ def test_application_post_fails_if_incorrect_ssn_suffix(
     profile = ProfileFactory()
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
     data = create_application_data(profile)
-    data["ssn_suffix"] = "-000$"
+    data["applicant"]["ssn_suffix"] = "-000$"
     response = api_client.post(
         reverse("application_form:application-list"), data, format="json"
     )
     assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert len(response.data["ssn_suffix"][0]["message"]) > 0
+    assert len(response.data["applicant"]["ssn_suffix"][0]["message"]) > 0
     assert (
-        response.data["ssn_suffix"][0]["code"]
+        response.data["applicant"]["ssn_suffix"][0]["code"]
         == error_codes.E1000_SSN_SUFFIX_IS_NOT_VALID
     )
 
@@ -350,9 +350,9 @@ def test_application_post_fails_if_partner_profile_have_already_applied_to_proje
         ).date(),
     )
     partner_application_data = create_application_data(partner_profile)
-    partner_application_data["ssn_suffix"] = application_data["additional_applicant"][
-        "ssn_suffix"
-    ]
+    partner_application_data["applicant"]["ssn_suffix"] = application_data[
+        "additional_applicant"
+    ]["ssn_suffix"]
     api_client.credentials(
         HTTP_AUTHORIZATION=f"Bearer {_create_token(partner_profile)}"
     )

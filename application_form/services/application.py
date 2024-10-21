@@ -91,7 +91,8 @@ def create_application(
     )
     data = application_data.copy()
     profile = data.pop("profile")
-    additional_applicant_data = data.pop("additional_applicant")
+    applicant_data = data.pop("applicant")
+    additional_applicant_data = data.pop("additional_applicant", None)
     customer = get_or_create_customer_from_profiles(
         profile, additional_applicant_data, data.get("has_children")
     )
@@ -116,17 +117,19 @@ def create_application(
         sender_names=data.pop("sender_names"),
     )
     Applicant.objects.create(
-        first_name=profile.first_name,
-        last_name=profile.last_name,
-        email=profile.email,
-        phone_number=profile.phone_number,
-        street_address=profile.street_address,
-        city=profile.city,
-        postal_code=profile.postal_code,
-        age=_calculate_age(profile.date_of_birth),
-        date_of_birth=profile.date_of_birth,
-        ssn_suffix=application_data["ssn_suffix"],
-        contact_language=profile.contact_language,
+        first_name=applicant_data["first_name"],
+        last_name=applicant_data["last_name"],
+        email=applicant_data["email"],
+        phone_number=applicant_data["phone_number"],
+        street_address=applicant_data["street_address"],
+        city=applicant_data["city"],
+        postal_code=applicant_data["postal_code"],
+        age=_calculate_age(applicant_data["date_of_birth"]),
+        date_of_birth=applicant_data["date_of_birth"],
+        ssn_suffix=applicant_data["ssn_suffix"],
+        contact_language=applicant_data.get(
+            "contact_language", profile.contact_language
+        ),
         is_primary_applicant=True,
         application=application,
     )
@@ -166,7 +169,7 @@ def update_profile_from_application_data(profile: Profile, data: dict) -> None:
     Currently only fills the ssn_suffix field if it's empty in the
     profile.
     """
-    ssn_suffix = data.get("ssn_suffix")
+    ssn_suffix = data.get("applicant", {}).get("ssn_suffix")
     if not profile.ssn_suffix and ssn_suffix:
         profile.ssn_suffix = ssn_suffix
         profile.save(update_fields=["ssn_suffix"])
