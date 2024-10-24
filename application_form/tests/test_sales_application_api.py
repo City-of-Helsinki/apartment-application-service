@@ -48,11 +48,12 @@ def test_sales_application_post(
     )
     data = create_application_data(customer_profile)
     data["profile"] = customer_profile.id
-    data["ssn_suffix"] = "XXXXX"  # ssn suffix should not be validated
+    data["applicant"]["ssn_suffix"] = "XXXXX"  # ssn suffix should not be validated
     data["additional_applicant"]["ssn_suffix"] = "XXXXX"
     response = drupal_salesperson_api_client.post(
         reverse("application_form:sales-application-list"), data, format="json"
     )
+    print("response", response)
     assert response.status_code == 201
     assert response.data == {"application_uuid": data["application_uuid"]}
 
