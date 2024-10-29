@@ -8,7 +8,11 @@ from application_form.api.sales.views import (
     OfferViewSet,
     SalesApplicationViewSet,
 )
-from application_form.api.views import ApplicationViewSet, ListProjectReservations
+from application_form.api.views import (
+    ApplicationViewSet,
+    LatestApplicantInfo,
+    ListProjectReservations,
+)
 from invoicing.api.views import (
     ApartmentInstallmentAddToSapAPIView,
     ApartmentInstallmentAPIView,
@@ -69,6 +73,11 @@ urlpatterns = [
         r"sales/apartment_states/",
         apartment_states,
         name="apartment_states",
+    ),
+    path(
+        r"sales/applicant/latest/<int:customer_id>/",
+        LatestApplicantInfo.as_view(),
+        name="applicant-by-customer",
     ),
     path("", include(router.urls)),
 ]

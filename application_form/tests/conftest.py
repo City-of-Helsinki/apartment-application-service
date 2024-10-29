@@ -243,15 +243,24 @@ def create_application_data(
         for index, apartment_uuid in enumerate(apartment_uuids[0:5])
     ]
     right_of_residence = 123456 if application_type == ApplicationType.HASO else None
-
     # Build application request data
     application_data = {
         "application_uuid": str(uuid.uuid4()),
         "application_type": application_type.value,
-        "ssn_suffix": profile.ssn_suffix,
         "has_children": True,
         "right_of_residence": right_of_residence,
         "additional_applicant": None,
+        "applicant": {
+            "first_name": profile.first_name,
+            "last_name": profile.last_name,
+            "email": profile.email,
+            "street_address": profile.street_address,
+            "postal_code": profile.postal_code,
+            "city": profile.city,
+            "phone_number": profile.phone_number,
+            "date_of_birth": profile.date_of_birth,
+            "ssn_suffix": profile.ssn_suffix,
+        },
         "project_id": str(project_uuid),
         "apartments": apartments_data,
         "has_hitas_ownership": True,
@@ -260,15 +269,15 @@ def create_application_data(
     # Add a second applicant if needed
     if num_applicants == 2:
         date_of_birth = faker.Faker().date_of_birth(minimum_age=18)
-        applicant = ApplicantFactory.build()
+        additional_applicant = ApplicantFactory.build()
         application_data["additional_applicant"] = {
-            "first_name": applicant.first_name,
-            "last_name": applicant.last_name,
-            "email": applicant.email,
-            "street_address": applicant.street_address,
-            "postal_code": applicant.postal_code,
-            "city": applicant.city,
-            "phone_number": applicant.phone_number,
+            "first_name": additional_applicant.first_name,
+            "last_name": additional_applicant.last_name,
+            "email": additional_applicant.email,
+            "street_address": additional_applicant.street_address,
+            "postal_code": additional_applicant.postal_code,
+            "city": additional_applicant.city,
+            "phone_number": additional_applicant.phone_number,
             "date_of_birth": f"{date_of_birth:%Y-%m-%d}",
             "ssn_suffix": calculate_ssn_suffix(date_of_birth),
         }

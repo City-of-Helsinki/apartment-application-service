@@ -6,6 +6,7 @@ from rest_framework_simplejwt.authentication import JWTAuthentication
 from apartment.elastic.queries import get_apartment_uuids
 from application_form.api.serializers import (
     ApartmentReservationSerializer,
+    ApplicantSerializerBase,
     ApplicationSerializer,
 )
 from application_form.models import ApartmentReservation, Application
@@ -40,3 +41,24 @@ class ListProjectReservations(GenericAPIView):
         )
         serializer = self.get_serializer(reservations, many=True)
         return Response(serializer.data)
+
+
+class LatestApplicantInfo(GenericAPIView):
+    """
+    Returns the primary applicant from the latest application.
+    """
+
+    serializer_class = ApplicantSerializerBase
+    http_method_names = ["get"]
+
+    def get(self, request, customer_id):
+        application = Application.objects.filter(customer__id=customer_id).latest(
+            "created_at"
+        )
+        if application:
+            applicant = application.applicants.filter(is_primary_applicant=True).first()
+            if applicant:
+                serializer = self.get_serializer(applicant)
+                return Response(serializer.data)
+
+        return Response({})
