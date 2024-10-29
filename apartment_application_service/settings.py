@@ -49,6 +49,7 @@ env = environ.Env(
     OIDC_API_SCOPE_PREFIX=(str, ""),
     OIDC_REQUIRE_API_SCOPE_FOR_AUTHENTICATION=(bool, False),
     OIDC_ISSUER=(str, ""),
+    HELUSERS_BACK_CHANNEL_LOGOUT_ENABLED=(bool, False),
     SOCIAL_AUTH_TUNNISTAMO_KEY=(str, ""),
     SOCIAL_AUTH_TUNNISTAMO_SECRET=(str, ""),
     SOCIAL_AUTH_TUNNISTAMO_OIDC_ENDPOINT=(str, ""),
@@ -306,6 +307,8 @@ OIDC_API_TOKEN_AUTH = {
     ),
     "ISSUER": env("OIDC_ISSUER"),
 }
+
+HELUSERS_BACK_CHANNEL_LOGOUT_ENABLED = env("HELUSERS_BACK_CHANNEL_LOGOUT_ENABLED")
 
 # drf-oidc-auth rejects tokens older this so we don't want to use the default value 600s
 # see https://github.com/ByteInternet/drf-oidc-auth/issues/28
