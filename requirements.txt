@@ -63,7 +63,7 @@ django-environ==0.11.2
     # via -r requirements.in
 django-etuovi==0.2.1
     # via -r requirements.in
-django-helusers==0.9.0
+django-helusers==0.13.0
     # via -r requirements.in
 django-oikotie==0.2.1
     # via -r requirements.in
@@ -99,7 +99,7 @@ hashids==1.3.1
     # via -r requirements.in
 idna==3.4
     # via requests
-importlib-resources==6.1.0
+importlib-resources==6.4.5
     # via
     #   jsonschema
     #   jsonschema-specifications
@@ -204,5 +204,5 @@ urllib3==1.26.18
     #   sentry-sdk
 whitenoise==6.5.0
     # via -r requirements.in
-zipp==3.17.0
+zipp==3.20.2
     # via importlib-resources
