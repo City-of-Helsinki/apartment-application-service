@@ -52,9 +52,13 @@ class LatestApplicantInfo(GenericAPIView):
     http_method_names = ["get"]
 
     def get(self, request, customer_id):
-        application = Application.objects.filter(customer__id=customer_id).latest(
-            "created_at"
-        )
+        try:
+            application = Application.objects.filter(customer__id=customer_id).latest(
+                "created_at"
+            )
+        except Application.DoesNotExist:
+            application = None
+
         if application:
             applicant = application.applicants.filter(is_primary_applicant=True).first()
             if applicant:
