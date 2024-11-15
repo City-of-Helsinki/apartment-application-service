@@ -15,6 +15,7 @@ Prerequisites:
 
 * PostgreSQL 12
 * Python 3.8
+* Pip 24.2
 
 ### Installing Python requirements
 

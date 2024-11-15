@@ -92,6 +92,9 @@ jobs:
           cache: 'pip'
           cache-dependency-path: requirements-dev.txt
   
+      - name: Install dependencies
+        run: pip install -U pip==24.2
+
       - name: Install app requirements
         run: pip install -r requirements.txt
         if: ${{ matrix.part == 'migrations' }}
@@ -160,7 +163,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -U pip
+          pip install -U pip==24.2
           pip install codecov -r requirements.txt -r requirements-dev.txt
 
       # https://github.com/marketplace/actions/setup-elasticsearch
