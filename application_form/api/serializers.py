@@ -284,10 +284,13 @@ class ApartmentReservationStateChangeEventSerializer(
     changed_by = ApartmentReservationStateChangeEventUserSerializer(
         source="user", read_only=True
     )
+    queue_position = serializers.IntegerField(
+        required=False, allow_null=True, write_only=True
+    )
 
     class Meta:
         model = ApartmentReservationStateChangeEvent
-        fields = ("timestamp", "state", "comment", "cancellation_reason", "changed_by")
+        fields = ("timestamp", "state", "comment", "cancellation_reason", "changed_by", "queue_position")
         read_only_fields = (
             "timestamp",
             "changed_by",
