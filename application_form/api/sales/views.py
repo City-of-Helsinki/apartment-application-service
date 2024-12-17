@@ -240,10 +240,11 @@ class ApartmentReservationViewSet(
         )
         state_change_event_serializer.is_valid(raise_exception=True)
 
-        queue_position = state_change_event_serializer.validated_data.get("queue_position", None)
+        queue_position = state_change_event_serializer.validated_data.get(
+            "queue_position", None
+        )
         if queue_position is not None:
             reservation.queue_position = queue_position
-
 
         state_change_event = reservation.set_state(
             **state_change_event_serializer.validated_data,

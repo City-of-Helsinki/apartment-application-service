@@ -133,7 +133,7 @@ class ApartmentReservation(CommonApplicationData):
             raise ValidationError(
                 "cancellation_reason cannot be set when state is not canceled."
             )
-        
+
         if queue_position is not None:
             self.queue_position = queue_position
 
