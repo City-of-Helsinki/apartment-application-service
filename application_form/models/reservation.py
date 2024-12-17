@@ -127,11 +127,15 @@ class ApartmentReservation(CommonApplicationData):
         comment: str = None,
         cancellation_reason: ApartmentReservationCancellationReason = None,
         replaced_by: "ApartmentReservation" = None,
+        queue_position: int = None,
     ) -> "ApartmentReservationStateChangeEvent":
         if cancellation_reason and state != ApartmentReservationState.CANCELED:
             raise ValidationError(
                 "cancellation_reason cannot be set when state is not canceled."
             )
+
+        if queue_position is not None:
+            self.queue_position = queue_position
 
         state_change_event = ApartmentReservationStateChangeEvent.objects.create(
             reservation=self,
@@ -142,7 +146,7 @@ class ApartmentReservation(CommonApplicationData):
             replaced_by=replaced_by,
         )
         self.state = state
-        self.save(update_fields=("state",))
+        self.save(update_fields=("state", "queue_position"))
         audit_logging.log(user, operation=Operation.CREATE, target=state_change_event)
         return state_change_event
 
