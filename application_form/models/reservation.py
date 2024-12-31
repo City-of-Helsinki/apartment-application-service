@@ -135,6 +135,8 @@ class ApartmentReservation(CommonApplicationData):
             )
 
         if queue_position is not None:
+            if isinstance(queue_position, str):
+                queue_position = int(queue_position.lstrip("0"))
             self.queue_position = queue_position
 
         state_change_event = ApartmentReservationStateChangeEvent.objects.create(

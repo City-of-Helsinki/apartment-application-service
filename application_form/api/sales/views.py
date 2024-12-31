@@ -62,6 +62,7 @@ from application_form.services.reservation import (
 )
 from audit_log.viewsets import AuditLoggingModelViewSet
 from users.permissions import IsDjangoSalesperson, IsDrupalSalesperson
+from application_form.services.queue import _adjust_positions
 
 
 @api_view(http_method_names=["POST"])
@@ -243,15 +244,38 @@ class ApartmentReservationViewSet(
         queue_position = state_change_event_serializer.validated_data.get(
             "queue_position", None
         )
-        if queue_position is not None:
-            reservation.queue_position = queue_position
+        new_state = state_change_event_serializer.validated_data.get("state")
 
+        if (
+            queue_position is not None
+            and new_state != ApartmentReservationState.CANCELED
+        ):
+            # conver queue_position from string to number
+            if isinstance(queue_position, str):
+                queue_position = int(queue_position.lstrip("0"))
+
+            # position correction in queue
+            _adjust_positions(
+                ApartmentReservation.objects.filter(
+                    apartment_uuid=reservation.apartment_uuid
+                ),
+                "queue_position",
+                queue_position,
+                by=1,
+            )
+
+        # set state and position
         state_change_event = reservation.set_state(
             **state_change_event_serializer.validated_data,
             user=request.user,
         )
 
-        if queue_position is not None:
+        if (
+            queue_position is not None
+            and new_state != ApartmentReservationState.CANCELED
+        ):
+            # save new position to database
+            reservation.queue_position = queue_position
             reservation.save(update_fields=["queue_position"])
 
         return Response(
