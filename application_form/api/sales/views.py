@@ -57,12 +57,12 @@ from application_form.services.lottery.exceptions import (
     ApplicationTimeNotFinishedException,
 )
 from application_form.services.lottery.machine import distribute_apartments
+from application_form.services.queue import _adjust_positions
 from application_form.services.reservation import (
     transfer_reservation_to_another_customer,
 )
 from audit_log.viewsets import AuditLoggingModelViewSet
 from users.permissions import IsDjangoSalesperson, IsDrupalSalesperson
-from application_form.services.queue import _adjust_positions
 
 
 @api_view(http_method_names=["POST"])
