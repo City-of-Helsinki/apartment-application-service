@@ -1,10 +1,11 @@
 from datetime import timedelta
+from typing import List
 
 import pytest
 from _pytest.fixtures import fixture
 from django.utils import timezone
 
-from apartment.elastic.queries import get_apartment_uuids, get_project
+from apartment.elastic.queries import get_apartment, get_apartment_uuids, get_project
 from application_form.enums import ApartmentReservationState
 from application_form.models import (
     ApartmentReservation,
@@ -12,8 +13,10 @@ from application_form.models import (
 )
 from application_form.services.export import (
     ApplicantExportService,
+    ApplicantMailingListExportService,
     ProjectLotteryResultExportService,
     SaleReportExportService,
+    _get_reservation_cell_value,
 )
 from application_form.services.lottery.machine import distribute_apartments
 from application_form.services.queue import add_application_to_queues
@@ -76,6 +79,132 @@ def applicant_export_service_with_additional_applicant(
             )
         )
     return ApplicantExportService(reservations)
+
+@fixture
+def reservations(elastic_project_with_5_apartments):
+    project_uuid, apartments = elastic_project_with_5_apartments
+    profile = ProfileFactory()
+    profile_secondary = ProfileFactory()
+    customer = CustomerFactory(primary_profile=profile, secondary_profile=profile_secondary)
+    application = ApplicationFactory(customer=customer)
+    reservations = []
+
+    for i, apartment in enumerate(apartments):
+        application_apartment = ApplicationApartmentFactory(
+            apartment_uuid=apartment.uuid,
+            application=application,
+            priority_number=i + 1,
+        )
+        reservations.append(
+            ApartmentReservationFactory(
+                apartment_uuid=apartment.uuid,
+                application_apartment=application_apartment,
+                customer=customer,
+            )
+        )
+
+    return reservations
+
+def _validate_mailing_list_csv(csv_rows: List[List[str]], reservations: List[ApartmentReservation]):
+        for idx, header in enumerate(csv_rows[0]):
+            assert header == ApplicantMailingListExportService.COLUMNS[idx][0]
+
+        for i, row in enumerate(csv_rows[1:]):
+            reservation = reservations[i]
+            apartment = get_apartment(reservation.apartment_uuid, include_project_fields=True)
+            assert row[0] == apartment.apartment_number
+            assert row[1] == reservation.customer.primary_profile.first_name
+            assert row[2] == reservation.customer.primary_profile.last_name
+            assert row[3] == reservation.customer.primary_profile.email
+            assert row[4] == reservation.customer.primary_profile.street_address
+            assert row[5] == reservation.customer.primary_profile.national_identification_number
+            assert row[6] == reservation.customer.secondary_profile.email
+            assert row[7] == reservation.customer.secondary_profile.street_address
+            assert row[8] == reservation.customer.secondary_profile.national_identification_number
+            assert row[9] == reservation.queue_position
+            assert row[10] == bool(reservation.has_children)
+            assert row[11] == apartment.project_street_address
+            assert row[12] == apartment.apartment_structure
+            assert row[13] == apartment.living_area
+        pass
+
+@pytest.mark.django_db
+def test_export_applicants_mailing_list_all(reservations):
+    """Assert that getting all applicants except for state = 'CANCELED' works"""
+
+    # convert list to queryset
+    reservation_queryset = ApartmentReservation.objects.filter(
+        apartment_uuid__in=[res.apartment_uuid for res in reservations]
+    )
+    reservation_queryset.update(state=ApartmentReservationState.SUBMITTED)
+    first_reservation = reservation_queryset.first()
+    first_reservation.state = ApartmentReservationState.CANCELED
+    first_reservation.save()
+
+    applicant_mailing_list_export_service = ApplicantMailingListExportService(
+        reservation_queryset,
+        export_type=ApartmentReservationState.RESERVED.value,
+    )
+
+    filtered_reservations = applicant_mailing_list_export_service.filter_reservations()
+    csv_lines = applicant_mailing_list_export_service.get_rows()
+
+    assert len(filtered_reservations) == 4
+    assert len(csv_lines) == 5
+    _validate_mailing_list_csv(csv_lines, filtered_reservations)
+
+
+@pytest.mark.django_db
+def test_export_applicants_mailing_list_first_in_queue(reservations):
+    """Assert that filtering for reservations that are first in queue works."""
+
+    # convert list to queryset
+    reservation_queryset = ApartmentReservation.objects.filter(
+        apartment_uuid__in=[res.apartment_uuid for res in reservations]
+    )
+
+    reservation_queryset.update(queue_position=2)
+    last_reservation = reservation_queryset.last()
+    last_reservation.queue_position = 1
+    last_reservation.save()
+
+    applicant_mailing_list_export_service = ApplicantMailingListExportService(
+        reservation_queryset,
+        export_type=ApplicantMailingListExportService.export_first_in_queue,
+    )
+    
+
+    filtered_reservations = applicant_mailing_list_export_service.filter_reservations()
+    csv_lines = applicant_mailing_list_export_service.get_rows()
+    assert len(filtered_reservations) == 1
+    assert len(csv_lines) == 2
+
+    _validate_mailing_list_csv(csv_lines, filtered_reservations)
+
+@pytest.mark.django_db
+def test_export_applicants_mailing_list_sold(reservations):
+    """Assert that filtering for reservations that have the state 'SOLD' works"""
+
+    # convert list to queryset
+    reservation_queryset = ApartmentReservation.objects.filter(
+        apartment_uuid__in=[res.apartment_uuid for res in reservations]
+    )
+    reservation_queryset.update(state=ApartmentReservationState.SUBMITTED)
+    first_reservation = reservation_queryset.first()
+    first_reservation.state = ApartmentReservationState.SOLD
+    first_reservation.save()
+
+    applicant_mailing_list_export_service = ApplicantMailingListExportService(
+        reservation_queryset,
+        export_type=ApartmentReservationState.SOLD.value,
+    )
+
+    csv_lines = applicant_mailing_list_export_service.get_rows()
+    filtered_reservations = applicant_mailing_list_export_service.filter_reservations()
+    assert len(filtered_reservations) == 1
+    assert len(csv_lines) == 2
+    _validate_mailing_list_csv(csv_lines, filtered_reservations)
+
 
 
 @pytest.mark.django_db
