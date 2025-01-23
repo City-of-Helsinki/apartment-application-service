@@ -1,9 +1,11 @@
 import csv
+import logging
 import operator
 from abc import abstractmethod
 from io import StringIO
+from typing import List
 
-from django.db.models import Max
+from django.db.models import Max, QuerySet
 
 from apartment.elastic.queries import (
     get_apartment,
@@ -13,6 +15,7 @@ from apartment.elastic.queries import (
 )
 from apartment.enums import ApartmentState
 from apartment.utils import get_apartment_state_from_apartment_uuid
+from application_form.enums import ApartmentReservationState
 from application_form.models import ApartmentReservation, LotteryEvent
 from application_form.utils import get_apartment_number_sort_tuple
 
@@ -20,6 +23,7 @@ from application_form.utils import get_apartment_number_sort_tuple
 def _get_reservation_cell_value(column_name, apartment=None, reservation=None):
     if not reservation:
         return ""
+
     # Apartment fields
     if (
         column_name
@@ -89,6 +93,78 @@ class CSVExportService:
             csv_writer.writerow(line)
 
         return io.getvalue()
+
+
+class ApplicantMailingListExportService(CSVExportService):
+    COLUMNS = [
+        ("Apartment number", "apartment_number"),
+        ("Primary applicant", "primary_profile.first_name"),
+        ("Primary applicant", "primary_profile.last_name"),
+        ("Primary applicant e-mail", "primary_profile.email"),
+        ("Primary applicant address", "primary_profile.street_address"),
+        ("Primary applicant national identification number", "primary_profile.national_identification_number"),
+        ("Secondary applicant e-mail", "secondary_profile.email"),
+        ("Secondary applicant address", "secondary_profile.street_address"),
+        ("Secondary applicant national identification number", "secondary_profile.national_identification_number"),
+        ("Queue position", "queue_position"),
+        ("Has children", "has_children"),
+        ("Project address", "project_street_address"),
+        ("Apartment structure", "apartment_structure"),
+        ("Apartment area", "living_area"),
+    ]
+
+    export_first_in_queue = 'first_in_queue'
+
+    allowed_apartment_export_types = [
+        ApartmentReservationState.RESERVED.value, # export all reservers
+        ApartmentReservationState.SOLD.value, # export all who have bought
+        export_first_in_queue # export reservers who are first in queue
+    ]
+
+
+    def __init__(self, reservations: QuerySet, export_type: str):
+        self.reservations: QuerySet = reservations
+        self.export_type = export_type
+
+    def filter_reservations(self):
+        if self.export_type not in self.allowed_apartment_export_types:
+            raise ValueError(f"Invalid export type '{self.export_type}'")
+
+        reservations = self.reservations.exclude(
+            state=ApartmentReservationState.CANCELED
+        )
+
+        if self.export_type == self.export_first_in_queue:
+            reservations = reservations.filter(
+                queue_position=1
+            )
+        elif self.export_type == ApartmentReservationState.SOLD.value:
+            reservations = reservations.filter(
+                state=ApartmentReservationState.SOLD
+            )
+
+        self.reservations = reservations
+        return reservations
+
+    def get_rows(self):
+        self.filter_reservations()
+        rows = [self._get_header_row()]
+
+        for reservation in self.reservations:
+            apartment = get_apartment(
+                reservation.apartment_uuid, include_project_fields=True
+            )
+            row = self.get_row(reservation, apartment)
+            rows.append(row)
+        return rows
+
+    def get_row(self, reservation, apartment):
+        line = []
+
+        for column in self.COLUMNS:
+            cell_value = _get_reservation_cell_value(column[1], apartment, reservation)
+            line.append(cell_value)
+        return line
 
 
 class ApplicantExportService(CSVExportService):
