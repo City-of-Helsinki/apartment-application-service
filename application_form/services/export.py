@@ -2,6 +2,7 @@ import csv
 import operator
 from abc import abstractmethod
 from io import StringIO
+
 from django.db.models import Max, QuerySet
 
 from apartment.elastic.queries import (
