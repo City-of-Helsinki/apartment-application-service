@@ -19,7 +19,7 @@ env:
   ELASTICSEARCH_HOST: localhost
   ELASTICSEARCH_URL: http://localhost
   APARTMENT_INDEX_NAME: test-apartment
-  PDFTOTEXT_VERSION: '22.02.0-2ubuntu0.6'
+  PDFTOTEXT_VERSION: '0.86.1'
   PUBLIC_PGP_KEY: |
     -----BEGIN PGP PUBLIC KEY BLOCK-----
 
@@ -81,7 +81,7 @@ env:
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
         part: [requirements, style, lint, migrations]
