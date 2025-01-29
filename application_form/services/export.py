@@ -117,7 +117,7 @@ class ApplicantMailingListExportService(CSVExportService):
         ("Asuinpinta-ala", "living_area"),
     ]
 
-    ORDER_BY = ['apartment_uuid', 'queue_position']
+    ORDER_BY = ["apartment_uuid", "queue_position"]
 
     export_first_in_queue = "first_in_queue"
 
@@ -144,9 +144,7 @@ class ApplicantMailingListExportService(CSVExportService):
         elif self.export_type == ApartmentReservationState.SOLD.value:
             reservations = reservations.filter(state=ApartmentReservationState.SOLD)
 
-        reservations = reservations.order_by(
-            *self.ORDER_BY
-        )
+        reservations = reservations.order_by(*self.ORDER_BY)
 
         self.reservations = reservations
         return reservations
