@@ -160,7 +160,7 @@ jobs:
         run: sudo apt-get install libpq-dev
 
       - name: Install poppler-utils for pdftotext  # used in tests
-        run: sudo apt-get install poppler-utils=${{env.PDFTOTEXT_VERSION}}
+        run: sudo apt-get install poppler-utils
 
       - name: Install dependencies
         run: |
