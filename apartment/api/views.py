@@ -1,4 +1,3 @@
-import logging
 from dateutil import parser
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import Http404, HttpResponse
@@ -38,6 +37,7 @@ from application_form.services.export import (
     ProjectLotteryResultExportService,
     SaleReportExportService,
 )
+
 
 class ApartmentAPIView(APIView):
     http_method_names = ["get"]
@@ -105,13 +105,14 @@ class ProjectExportApplicantsAPIView(APIView):
         )
         return response
 
+
 class ProjectExportApplicantsMailingListAPIView(APIView):
-    export_first_in_queue = 'first_in_queue'
+    export_first_in_queue = "first_in_queue"
 
     allowed_apartment_export_types = [
-        ApartmentReservationState.RESERVED.value, # export all reservers
-        ApartmentReservationState.SOLD.value, # export all who have bought
-        export_first_in_queue # export reservers who are first in queue
+        ApartmentReservationState.RESERVED.value,  # export all reservers
+        ApartmentReservationState.SOLD.value,  # export all who have bought
+        export_first_in_queue,  # export reservers who are first in queue
     ]
 
     http_method_names = ["get"]
