@@ -19,6 +19,7 @@ env:
   ELASTICSEARCH_HOST: localhost
   ELASTICSEARCH_URL: http://localhost
   APARTMENT_INDEX_NAME: test-apartment
+  PDFTOTEXT_VERSION: '20.11.0' 
   PUBLIC_PGP_KEY: |
     -----BEGIN PGP PUBLIC KEY BLOCK-----
 
@@ -159,7 +160,7 @@ jobs:
         run: sudo apt-get install libpq-dev
 
       - name: Install poppler-utils for pdftotext  # used in tests
-        run: sudo apt-get install poppler-utils
+        run: sudo apt-get install poppler-utils=${{env.PDFTOTEXT_VERSION}}
 
       - name: Install dependencies
         run: |
