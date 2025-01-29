@@ -119,26 +119,25 @@ def _validate_mailing_list_csv(
         apartment = get_apartment(
             reservation.apartment_uuid, include_project_fields=True
         )
-        assert row[0] == apartment.apartment_number
-        assert row[1] == reservation.customer.primary_profile.first_name
-        assert row[2] == reservation.customer.primary_profile.last_name
-        assert row[3] == reservation.customer.primary_profile.email
-        assert row[4] == reservation.customer.primary_profile.street_address
-        assert (
-            row[5]
-            == reservation.customer.primary_profile.national_identification_number
-        )
-        assert row[6] == reservation.customer.secondary_profile.email
-        assert row[7] == reservation.customer.secondary_profile.street_address
-        assert (
-            row[8]
-            == reservation.customer.secondary_profile.national_identification_number
-        )
-        assert row[9] == reservation.queue_position
-        assert row[10] == bool(reservation.has_children)
-        assert row[11] == apartment.project_street_address
-        assert row[12] == apartment.apartment_structure
-        assert row[13] == apartment.living_area
+
+        expected_row = [
+            apartment.apartment_number,
+            reservation.queue_position,
+            reservation.customer.primary_profile.first_name,
+            reservation.customer.primary_profile.last_name,
+            reservation.customer.primary_profile.email,
+            reservation.customer.primary_profile.street_address,
+            reservation.customer.primary_profile.national_identification_number,
+            reservation.customer.secondary_profile.email,
+            reservation.customer.secondary_profile.street_address,
+            reservation.customer.secondary_profile.national_identification_number,
+            bool(reservation.has_children),
+            apartment.project_street_address,
+            apartment.apartment_structure,
+            apartment.living_area,
+        ]
+        assert row == expected_row
+
     pass
 
 
