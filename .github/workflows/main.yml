@@ -19,7 +19,7 @@ env:
   ELASTICSEARCH_HOST: localhost
   ELASTICSEARCH_URL: http://localhost
   APARTMENT_INDEX_NAME: test-apartment
-  PDFTOTEXT_VERSION: '20.11.0' 
+  PDFTOTEXT_VERSION: '22.02.0-2ubuntu0.6'
   PUBLIC_PGP_KEY: |
     -----BEGIN PGP PUBLIC KEY BLOCK-----
 
