@@ -95,27 +95,29 @@ class CSVExportService:
 
 class ApplicantMailingListExportService(CSVExportService):
     COLUMNS = [
-        ("Apartment number", "apartment_number"),
-        ("Primary applicant", "primary_profile.first_name"),
-        ("Primary applicant", "primary_profile.last_name"),
-        ("Primary applicant e-mail", "primary_profile.email"),
-        ("Primary applicant address", "primary_profile.street_address"),
+        ("Asunnon numero", "apartment_number"),
+        ("Sijainti jonossa", "queue_position"),
+        ("Ensisijainen hakija etunimi", "primary_profile.first_name"),
+        ("Ensisijainen hakija sukunimi", "primary_profile.last_name"),
+        ("Ensisijainen hakija sähköposti", "primary_profile.email"),
+        ("Ensisijainen hakija osoite", "primary_profile.street_address"),
         (
-            "Primary applicant national identification number",
+            "Ensisijainen hakija henkilötunnus",
             "primary_profile.national_identification_number",
         ),
-        ("Secondary applicant e-mail", "secondary_profile.email"),
-        ("Secondary applicant address", "secondary_profile.street_address"),
+        ("Kanssahakija sähköposti", "secondary_profile.email"),
+        ("Kanssahakija osoite", "secondary_profile.street_address"),
         (
-            "Secondary applicant national identification number",
+            "Kanssahakija henkilötunnus",
             "secondary_profile.national_identification_number",
         ),
-        ("Queue position", "queue_position"),
-        ("Has children", "has_children"),
-        ("Project address", "project_street_address"),
-        ("Apartment structure", "apartment_structure"),
-        ("Apartment area", "living_area"),
+        ("Lapsia", "has_children"),
+        ("Kohteen osoite", "project_street_address"),
+        ("Huoneiston kokoonpano", "apartment_structure"),
+        ("Asuinpinta-ala", "living_area"),
     ]
+
+    ORDER_BY = ['apartment_uuid', 'queue_position']
 
     export_first_in_queue = "first_in_queue"
 
@@ -141,6 +143,10 @@ class ApplicantMailingListExportService(CSVExportService):
             reservations = reservations.filter(queue_position=1)
         elif self.export_type == ApartmentReservationState.SOLD.value:
             reservations = reservations.filter(state=ApartmentReservationState.SOLD)
+
+        reservations = reservations.order_by(
+            *self.ORDER_BY
+        )
 
         self.reservations = reservations
         return reservations
