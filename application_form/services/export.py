@@ -1,10 +1,7 @@
 import csv
-import logging
 import operator
 from abc import abstractmethod
 from io import StringIO
-from typing import List
-
 from django.db.models import Max, QuerySet
 
 from apartment.elastic.queries import (
@@ -102,10 +99,16 @@ class ApplicantMailingListExportService(CSVExportService):
         ("Primary applicant", "primary_profile.last_name"),
         ("Primary applicant e-mail", "primary_profile.email"),
         ("Primary applicant address", "primary_profile.street_address"),
-        ("Primary applicant national identification number", "primary_profile.national_identification_number"),
+        (
+            "Primary applicant national identification number",
+            "primary_profile.national_identification_number",
+        ),
         ("Secondary applicant e-mail", "secondary_profile.email"),
         ("Secondary applicant address", "secondary_profile.street_address"),
-        ("Secondary applicant national identification number", "secondary_profile.national_identification_number"),
+        (
+            "Secondary applicant national identification number",
+            "secondary_profile.national_identification_number",
+        ),
         ("Queue position", "queue_position"),
         ("Has children", "has_children"),
         ("Project address", "project_street_address"),
@@ -113,14 +116,13 @@ class ApplicantMailingListExportService(CSVExportService):
         ("Apartment area", "living_area"),
     ]
 
-    export_first_in_queue = 'first_in_queue'
+    export_first_in_queue = "first_in_queue"
 
     allowed_apartment_export_types = [
-        ApartmentReservationState.RESERVED.value, # export all reservers
-        ApartmentReservationState.SOLD.value, # export all who have bought
-        export_first_in_queue # export reservers who are first in queue
+        ApartmentReservationState.RESERVED.value,  # export all reservers
+        ApartmentReservationState.SOLD.value,  # export all who have bought
+        export_first_in_queue,  # export reservers who are first in queue
     ]
-
 
     def __init__(self, reservations: QuerySet, export_type: str):
         self.reservations: QuerySet = reservations
@@ -135,13 +137,9 @@ class ApplicantMailingListExportService(CSVExportService):
         )
 
         if self.export_type == self.export_first_in_queue:
-            reservations = reservations.filter(
-                queue_position=1
-            )
+            reservations = reservations.filter(queue_position=1)
         elif self.export_type == ApartmentReservationState.SOLD.value:
-            reservations = reservations.filter(
-                state=ApartmentReservationState.SOLD
-            )
+            reservations = reservations.filter(state=ApartmentReservationState.SOLD)
 
         self.reservations = reservations
         return reservations

@@ -44,7 +44,7 @@ urlpatterns = [
         name="project-detail-export-applicant",
     ),
     path(
-        "sales/projects/<uuid:project_uuid>/export_applicants_mailing_list/<str:export_type>",
+        "sales/projects/<uuid:project_uuid>/export_applicants_mailing_list/<str:export_type>",  # noqa: E501
         ProjectExportApplicantsMailingListAPIView.as_view(),
         name="project-detail-export-applicant-mailing-list",
     ),
