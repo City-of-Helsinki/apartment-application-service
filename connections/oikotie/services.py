@@ -4,6 +4,7 @@ from typing import Optional, Tuple
 
 from django.conf import settings
 from django_oikotie.oikotie import create_apartments, create_housing_companies
+from django_oikotie.utils import validate_against_schema
 
 from apartment.elastic.documents import ApartmentDocument
 from connections.enums import ApartmentStateOfSale
@@ -66,6 +67,15 @@ def create_xml_apartment_file(apartments: list) -> Optional[str]:
     try:
         ap_file = create_apartments(apartments, path)
         _logger.info(f"Created XML file for apartments in location {path}/{ap_file}")
+
+        valid = validate_against_schema(
+            settings.OIKOTIE_APARTMENTS_BATCH_SCHEMA,
+            os.path.join(path, ap_file)
+        )
+
+        if not valid:
+            raise Exception(f"File validation failed: {ap_file}")
+        
         return ap_file
     except Exception as e:
         _logger.error("Apartment XML not created:", {str(e)})
@@ -89,6 +99,15 @@ def create_xml_housing_company_file(housing_companies: list) -> Optional[str]:
         _logger.info(
             f"Created XML file for housing_companies in location {path}/{hc_file}"
         )
+
+        valid = validate_against_schema(
+            settings.OIKOTIE_HOUSINGCOMPANIES_BATCH_SCHEMA,
+            os.path.join(path, hc_file)
+        )
+
+        if not valid:
+            raise Exception(f"File validation failed: {hc_file}")
+
         return hc_file
     except Exception as e:
         _logger.error("Housing company XML not created:", {str(e)})
