@@ -27,6 +27,8 @@ def _get_reservation_cell_value(column_name, apartment=None, reservation=None):
         column_name
         in [
             "project_street_address",
+            "project_postal_code",
+            "project_city",
             "apartment_number",
             "apartment_structure",
             "living_area",
@@ -101,18 +103,26 @@ class ApplicantMailingListExportService(CSVExportService):
         ("Ensisijainen hakija sukunimi", "primary_profile.last_name"),
         ("Ensisijainen hakija sähköposti", "primary_profile.email"),
         ("Ensisijainen hakija osoite", "primary_profile.street_address"),
+        ("Ensisijainen hakija postinumero", "primary_profile.postal_code"),
+        ("Ensisijainen hakija postitoimipaikka", "primary_profile.city"),
         (
             "Ensisijainen hakija henkilötunnus",
             "primary_profile.national_identification_number",
         ),
+        ("Kanssahakija etunimi", "secondary_profile.first_name"),
+        ("Kanssahakija sukunimi", "secondary_profile.last_name"),
         ("Kanssahakija sähköposti", "secondary_profile.email"),
         ("Kanssahakija osoite", "secondary_profile.street_address"),
+        ("Kanssahakija postinumero", "secondary_profile.postal_code"),
+        ("Kanssahakija postitoimipaikka", "secondary_profile.city"),
         (
             "Kanssahakija henkilötunnus",
             "secondary_profile.national_identification_number",
         ),
         ("Lapsia", "has_children"),
         ("Kohteen osoite", "project_street_address"),
+        ("Kohteen postinumero", "project_postal_code"),
+        ("Kohteen postitoimipaikka", "project_city"),
         ("Huoneiston kokoonpano", "apartment_structure"),
         ("Asuinpinta-ala", "living_area"),
     ]
