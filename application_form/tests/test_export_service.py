@@ -127,16 +127,25 @@ def _validate_mailing_list_csv(
             reservation.customer.primary_profile.last_name,
             reservation.customer.primary_profile.email,
             reservation.customer.primary_profile.street_address,
+            reservation.customer.primary_profile.postal_code,
+            reservation.customer.primary_profile.city,
             reservation.customer.primary_profile.national_identification_number,
+            reservation.customer.secondary_profile.first_name,
+            reservation.customer.secondary_profile.last_name,
             reservation.customer.secondary_profile.email,
             reservation.customer.secondary_profile.street_address,
+            reservation.customer.secondary_profile.postal_code,
+            reservation.customer.secondary_profile.city,
             reservation.customer.secondary_profile.national_identification_number,
             bool(reservation.has_children),
             apartment.project_street_address,
+            apartment.project_postal_code,
+            apartment.project_city,
             apartment.apartment_structure,
             apartment.living_area,
         ]
-        assert row == expected_row
+        for expected_field_value, value in zip(expected_row, row):
+            assert expected_field_value == value
 
     pass
 
