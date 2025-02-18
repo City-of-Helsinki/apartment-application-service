@@ -1,19 +1,18 @@
-from datetime import date, datetime
+import csv
 import logging
-
-from django.conf import settings
-from django.core.management.base import BaseCommand
-
-from connections.utils import create_elastic_connection
-from django.db.models.manager import BaseManager
+import os
+from datetime import date, datetime
+from typing import List, Union
 
 import django
-from typing import List, Union
+from django.conf import settings
+from django.core.management.base import BaseCommand
+from django.db.models.manager import BaseManager
+
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import get_apartment
 from application_form.models import Application, ApplicationApartment
-import csv
-import os
+from connections.utils import create_elastic_connection
 
 _logger = logging.getLogger(__name__)
 
