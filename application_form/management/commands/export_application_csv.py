@@ -8,7 +8,7 @@ from connections.utils import create_elastic_connection
 from django.db.models.manager import BaseManager
 
 import django
-from typing import List
+from typing import List, Union
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import get_apartment
 from application_form.models import Application, ApplicationApartment
@@ -30,18 +30,18 @@ class Command(BaseCommand):
     date_string = datetime.now().strftime("%Y%m%d%H%M%S")
     default_file_name = f"{default_file_name_format}{date_string}.csv"
 
-    updated_at_start: date | None = None
-    updated_at_end: date | None = None
+    updated_at_start: Union[date, None] = None
+    updated_at_end: Union[date, None] = None
 
-    created_at_start: date | None = None
-    created_at_end: date | None = None
+    created_at_start: Union[date, None] = None
+    created_at_end: Union[date, None] = None
 
     def add_arguments(self, parser):
 
         parser.add_argument(
             "--filename",
             help=f"Filename for the export file. Default filename is in the format {self.default_file_name_format}YYYMMDDHHMMSS.csv",  # noqa:E501
-            default=self.default_file_name
+            default=self.default_file_name,
         )
 
         parser.add_argument(
@@ -67,42 +67,10 @@ class Command(BaseCommand):
         )
 
         parser.add_argument(
-            "--delimiter",
-            help="Delimiter to use in CSV, default is ';'",
-            default=";"
+            "--delimiter", help="Delimiter to use in CSV, default is ';'", default=";"
         )
 
     def handle(self, *args, **kwargs):
-
-        # updated_at_start: date|None = None
-        # updated_at_end: date|None  = None
-
-        # created_at_start: date|None  = None
-        # created_at_end: date|None  = None
-
-        # project_address: str = kwargs.get("project_address")
-
-        # filename:str = kwargs.get("filename", self.default_file_name)
-
-        # if kwargs.get("updated_at_start"):
-        #     updated_at_start = datetime.strptime(
-        #         kwargs["updated_at_start"], "%Y-%m-%d"
-        #     ).date()
-
-        # if kwargs.get("updated_at_end"):
-        #     updated_at_end = datetime.strptime(
-        #         kwargs["updated_at_end"], "%Y-%m-%d"
-        #     ).date()
-
-        # if kwargs.get("created_at_start"):
-        #     created_at_start = datetime.strptime(
-        #         kwargs["created_at_start"], "%Y-%m-%d"
-        #     ).date()
-
-        # if kwargs.get("created_at_end"):
-        #     created_at_end = datetime.strptime(
-        #         kwargs["created_at_end"], "%Y-%m-%d"
-        #     ).date()
 
         filename: str = kwargs.get("filename", self.default_file_name)
 
@@ -111,7 +79,7 @@ class Command(BaseCommand):
         rows = self.generate_rows(application_apartments)
 
         write_path = os.path.join(settings.APARTMENT_DATA_TRANSFER_PATH, filename)
-        with open(write_path, 'w', newline='') as csvfile:
+        with open(write_path, "w", newline="") as csvfile:
             writer = csv.writer(csvfile)
 
             for row in rows:
@@ -143,7 +111,9 @@ class Command(BaseCommand):
                 options["created_at_end"], "%Y-%m-%d"
             ).date()
 
-    def fetch_application_apartments(self, options) -> BaseManager[ApplicationApartment]:  # noqa: E501
+    def fetch_application_apartments(
+        self, options
+    ) -> BaseManager[ApplicationApartment]:  # noqa: E501
 
         self.get_options(options)
 
@@ -166,18 +136,24 @@ class Command(BaseCommand):
                 updated_at__gte=self.updated_at_start,
                 updated_at__lte=self.updated_at_end,
             ).distinct()
-        elif ((not self.updated_at_start and self.updated_at_end) or 
-              (self.updated_at_start and not self.updated_at_end)):
-            raise ValueError("--updated_at_start and --updated_at_end need to be both defined")
+        elif (not self.updated_at_start and self.updated_at_end) or (
+            self.updated_at_start and not self.updated_at_end
+        ):
+            raise ValueError(
+                "--updated_at_start and --updated_at_end need to be both defined"
+            )
 
         if self.created_at_start and self.created_at_end:
             applications = applications.filter(
                 created_at__gte=self.created_at_start,
                 created_at__lte=self.created_at_end,
             ).distinct()
-        elif ((not self.created_at_start and self.created_at_end) or 
-                (self.created_at_start and not self.created_at_end)):
-            raise ValueError("--created_at_start and --created_at_end need to be both defined")
+        elif (not self.created_at_start and self.created_at_end) or (
+            self.created_at_start and not self.created_at_end
+        ):
+            raise ValueError(
+                "--created_at_start and --created_at_end need to be both defined"
+            )
 
         if self.project_address:
             applications = applications.filter(
@@ -190,37 +166,42 @@ class Command(BaseCommand):
 
         return application_apartments
 
-
     def generate_rows(self, application_apartments):
 
-        rows: List[List] = [[
-            "Hakemus päivitetty",
-            "Kohteen osoite",
-            "Asunto",
-            "Ensisijainen hakija etunimi",
-            "Ensisijainen hakija sukunimi",
-            "Ensisijainen hakija syntymäaika",
-            "Ensisijainen hakija osoite",
-            "Ensisijainen hakija postinumero",
-            "Ensisijainen hakija postitoimipaikka",
-            "Ensisijainen hakija sähköposti",
-            "Kanssahakija etunimi",
-            "Kanssahakija sukunimi",
-            "Kanssahakija syntymäaika",
-            "Kanssahakija osoite",
-            "Kanssahakija postinumero",
-            "Kanssahakija postitoimipaikka",
-            "Kanssahakija sähköposti",
-        ]]
+        rows: List[List] = [
+            [
+                "Hakemus päivitetty",
+                "Kohteen osoite",
+                "Asunto",
+                "Ensisijainen hakija etunimi",
+                "Ensisijainen hakija sukunimi",
+                "Ensisijainen hakija syntymäaika",
+                "Ensisijainen hakija osoite",
+                "Ensisijainen hakija postinumero",
+                "Ensisijainen hakija postitoimipaikka",
+                "Ensisijainen hakija sähköposti",
+                "Kanssahakija etunimi",
+                "Kanssahakija sukunimi",
+                "Kanssahakija syntymäaika",
+                "Kanssahakija osoite",
+                "Kanssahakija postinumero",
+                "Kanssahakija postitoimipaikka",
+                "Kanssahakija sähköposti",
+            ]
+        ]
 
         for application_apartment in application_apartments:
             try:
-                apartment = get_apartment(application_apartment.apartment_uuid, include_project_fields=True)
+                apartment = get_apartment(
+                    application_apartment.apartment_uuid, include_project_fields=True
+                )
             except django.core.exceptions.ObjectDoesNotExist:
                 continue
 
             application = application_apartment.application
-            primary_applicant = [app for app in application.applicants.all() if app.is_primary_applicant][0]
+            primary_applicant = [
+                app for app in application.applicants.all() if app.is_primary_applicant
+            ][0]
             secondary_applicant = None
 
             row = [
@@ -237,7 +218,11 @@ class Command(BaseCommand):
             ]
 
             if application.applicants_count > 1:
-                secondary_applicant = [app for app in application.applicants.all() if not app.is_primary_applicant][0]
+                secondary_applicant = [
+                    app
+                    for app in application.applicants.all()
+                    if not app.is_primary_applicant
+                ][0]
                 row += [
                     secondary_applicant.first_name,
                     secondary_applicant.last_name,
@@ -249,5 +234,5 @@ class Command(BaseCommand):
                 ]
 
             rows.append(row)
-        
+
         return rows
