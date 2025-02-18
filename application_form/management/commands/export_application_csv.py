@@ -3,58 +3,67 @@ import logging
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
-from django_oikotie.oikotie import send_items
 
 from connections.utils import create_elastic_connection
+from django.db.models.manager import BaseManager
 
 import django
 from typing import List
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import get_apartment
-from application_form.models import *
+from application_form.models import Application, ApplicationApartment
 import csv
 import os
 
 _logger = logging.getLogger(__name__)
 
+
 class Command(BaseCommand):
+
     help = f"""Creates a list of applications with various filters
-            and generates a CSV file to the directory '{settings.APARTMENT_DATA_TRANSFER_PATH}'
+            and generates a CSV file to the directory
+            '{settings.APARTMENT_DATA_TRANSFER_PATH}'
             (defined at settings.APARTMENT_DATA_TRANSFER_PATH)"""
-    
+
     date_format_human_readable = "YYYY-MM-DD"
     default_file_name_format = "application_csv_export_"
     date_string = datetime.now().strftime("%Y%m%d%H%M%S")
     default_file_name = f"{default_file_name_format}{date_string}.csv"
 
+    updated_at_start: date | None = None
+    updated_at_end: date | None = None
+
+    created_at_start: date | None = None
+    created_at_end: date | None = None
+
     def add_arguments(self, parser):
 
         parser.add_argument(
             "--filename",
-            help=f"Filename for the export file. Default filename is in the format {self.default_file_name_format}YYYMMDDHHMMSS.csv",
+            help=f"Filename for the export file. Default filename is in the format {self.default_file_name_format}YYYMMDDHHMMSS.csv",  # noqa:E501
             default=self.default_file_name
         )
 
         parser.add_argument(
             "--updated_at_start",
-            help=f"Start date for when application was last updated ({self.date_format_human_readable})",
+            help=f"Start date for when application was last updated ({self.date_format_human_readable})",  # noqa:E501
         )
         parser.add_argument(
             "--updated_at_end",
-            help=f"End date for when application was last updated ({self.date_format_human_readable})",
+            help=f"End date for when application was last updated ({self.date_format_human_readable})",  # noqa:E501
         )
         parser.add_argument(
             "--created_at_start",
-            help=f"Start date for when application was created ({self.date_format_human_readable})",
+            help=f"Start date for when application was created ({self.date_format_human_readable})",  # noqa:E501
         )
         parser.add_argument(
             "--created_at_end",
-            help=f"End date for when application was created ({self.date_format_human_readable})",
+            help=f"End date for when application was created ({self.date_format_human_readable})",  # noqa:E501
         )
 
         parser.add_argument(
             "--project_address",
-            help="The address line of the project, e.g. 'Street road 123', wildcard search, case sensitive",
+            help="The address line of the project, e.g. 'Street road 123', wildcard search, case sensitive",  # noqa:E501
         )
 
         parser.add_argument(
@@ -65,66 +74,112 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
 
-        updated_at_start: date|None = None
-        updated_at_end: date|None  = None
+        # updated_at_start: date|None = None
+        # updated_at_end: date|None  = None
 
-        created_at_start: date|None  = None
-        created_at_end: date|None  = None
+        # created_at_start: date|None  = None
+        # created_at_end: date|None  = None
 
-        project_address: str = kwargs.get("project_address")
+        # project_address: str = kwargs.get("project_address")
 
-        filename:str = kwargs.get("filename", self.default_file_name)
+        # filename:str = kwargs.get("filename", self.default_file_name)
 
-        if kwargs.get("updated_at_start"):
-            updated_at_start = datetime.strptime(
-                kwargs["updated_at_start"], "%Y-%m-%d"
+        # if kwargs.get("updated_at_start"):
+        #     updated_at_start = datetime.strptime(
+        #         kwargs["updated_at_start"], "%Y-%m-%d"
+        #     ).date()
+
+        # if kwargs.get("updated_at_end"):
+        #     updated_at_end = datetime.strptime(
+        #         kwargs["updated_at_end"], "%Y-%m-%d"
+        #     ).date()
+
+        # if kwargs.get("created_at_start"):
+        #     created_at_start = datetime.strptime(
+        #         kwargs["created_at_start"], "%Y-%m-%d"
+        #     ).date()
+
+        # if kwargs.get("created_at_end"):
+        #     created_at_end = datetime.strptime(
+        #         kwargs["created_at_end"], "%Y-%m-%d"
+        #     ).date()
+
+        filename: str = kwargs.get("filename", self.default_file_name)
+
+        application_apartments = self.fetch_application_apartments(kwargs)
+
+        rows = self.generate_rows(application_apartments)
+
+        write_path = os.path.join(settings.APARTMENT_DATA_TRANSFER_PATH, filename)
+        with open(write_path, 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+
+            for row in rows:
+                writer.writerow(row)
+                pass
+
+        print(f"Exported {len(rows)} rows to {write_path}")
+        pass
+
+    def get_options(self, options):
+        self.project_address: str = options.get("project_address")
+        if options.get("updated_at_start"):
+            self.updated_at_start = datetime.strptime(
+                options["updated_at_start"], "%Y-%m-%d"
             ).date()
 
-        if kwargs.get("updated_at_end"):
-            updated_at_end = datetime.strptime(
-                kwargs["updated_at_end"], "%Y-%m-%d"
+        if options.get("updated_at_end"):
+            self.updated_at_end = datetime.strptime(
+                options["updated_at_end"], "%Y-%m-%d"
             ).date()
 
-        if kwargs.get("created_at_start"):
-            created_at_start = datetime.strptime(
-                kwargs["created_at_start"], "%Y-%m-%d"
+        if options.get("created_at_start"):
+            self.created_at_start = datetime.strptime(
+                options["created_at_start"], "%Y-%m-%d"
             ).date()
 
-        if kwargs.get("created_at_end"):
-            created_at_end = datetime.strptime(
-                kwargs["created_at_end"], "%Y-%m-%d"
+        if options.get("created_at_end"):
+            self.created_at_end = datetime.strptime(
+                options["created_at_end"], "%Y-%m-%d"
             ).date()
+
+    def fetch_application_apartments(self, options) -> BaseManager[ApplicationApartment]:  # noqa: E501
+
+        self.get_options(options)
 
         create_elastic_connection()
 
         apartments = ApartmentDocument.search()
-        if project_address:
-            apartments = apartments.query("wildcard",
-                apartment_address__keyword=f"*{project_address}*",
+        if self.project_address:
+            apartments = apartments.query(
+                "wildcard",
+                apartment_address__keyword=f"*{self.project_address}*",
             )
 
         apartments.execute()
-        apt_uuids =  [x.uuid for x in apartments.scan()]
+        apt_uuids = [x.uuid for x in apartments.scan()]
 
         applications = Application.objects.all()
 
-        if updated_at_start and updated_at_end:
+        if self.updated_at_start and self.updated_at_end:
             applications = applications.filter(
-                updated_at__gte=updated_at_start,
-                updated_at__lte=updated_at_end,
+                updated_at__gte=self.updated_at_start,
+                updated_at__lte=self.updated_at_end,
             ).distinct()
-        elif (not updated_at_start and updated_at_end) or (updated_at_start and not updated_at_end):
+        elif ((not self.updated_at_start and self.updated_at_end) or 
+              (self.updated_at_start and not self.updated_at_end)):
             raise ValueError("--updated_at_start and --updated_at_end need to be both defined")
 
-        if created_at_start and created_at_end:
+        if self.created_at_start and self.created_at_end:
             applications = applications.filter(
-                created_at__gte=created_at_start,
-                created_at__lte=created_at_end,
+                created_at__gte=self.created_at_start,
+                created_at__lte=self.created_at_end,
             ).distinct()
-        elif (not created_at_start and created_at_end) or (created_at_start and not created_at_end):
+        elif ((not self.created_at_start and self.created_at_end) or 
+                (self.created_at_start and not self.created_at_end)):
             raise ValueError("--created_at_start and --created_at_end need to be both defined")
 
-        if project_address:
+        if self.project_address:
             applications = applications.filter(
                 application_apartments__apartment_uuid__in=apt_uuids,
             )
@@ -133,7 +188,12 @@ class Command(BaseCommand):
             application__in=applications
         ).order_by("apartment_uuid")
 
-        rows:List[List] = [[
+        return application_apartments
+
+
+    def generate_rows(self, application_apartments):
+
+        rows: List[List] = [[
             "Hakemus päivitetty",
             "Kohteen osoite",
             "Asunto",
@@ -189,15 +249,5 @@ class Command(BaseCommand):
                 ]
 
             rows.append(row)
-
-
-        write_path = os.path.join(settings.APARTMENT_DATA_TRANSFER_PATH, filename)
-        with open(write_path, 'w', newline='') as csvfile:
-            writer = csv.writer(csvfile)
-
-            for row in rows:
-                writer.writerow(row)
-                pass
-
-        print(f"Exported {applications.count()} applications ({len(rows)-1} rows) to {write_path}")
-        pass
+        
+        return rows
