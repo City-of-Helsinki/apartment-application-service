@@ -244,6 +244,12 @@ class ApartmentReservationViewSet(
         queue_position = state_change_event_serializer.validated_data.get(
             "queue_position", None
         )
+        if (
+            queue_position is None
+            and reservation.queue_position_before_cancelation is not None
+        ):
+            queue_position = reservation.queue_position_before_cancelation
+
         new_state = state_change_event_serializer.validated_data.get("state")
 
         if (
