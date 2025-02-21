@@ -159,9 +159,9 @@ class ApplicationSerializer(ApplicationSerializerBase):
         validated_data["sender_names"] = self._get_senders_name_from_applicants_data(
             validated_data
         )
-        validated_data["method_of_arrival"] = (
-            ApplicationArrivalMethod.ELECTRONICAL_SYSTEM
-        )
+        validated_data[
+            "method_of_arrival"
+        ] = ApplicationArrivalMethod.ELECTRONICAL_SYSTEM
         return super().prepare_metadata(validated_data)
 
     def validate_ssn_suffix(self, value):
