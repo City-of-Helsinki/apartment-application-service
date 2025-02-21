@@ -105,11 +105,15 @@ def remove_reservation_from_queue(
     of the application for this apartment will also be updated to "CANCELED".
     """
     if apartment_reservation.queue_position is not None:
-        apartment_reservation.queue_position_before_cancelation = apartment_reservation.queue_position
+        apartment_reservation.queue_position_before_cancelation = (
+            apartment_reservation.queue_position
+        )
 
     old_queue_position = apartment_reservation.queue_position
     apartment_reservation.queue_position = None
-    apartment_reservation.save(update_fields=["queue_position", "queue_position_before_cancelation"])
+    apartment_reservation.save(
+        update_fields=["queue_position", "queue_position_before_cancelation"]
+    )
     _remove_queue_position(apartment_reservation.apartment_uuid, old_queue_position)
     state_change_event = apartment_reservation.set_state(
         ApartmentReservationState.CANCELED,

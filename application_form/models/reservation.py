@@ -75,10 +75,8 @@ class ApartmentReservation(CommonApplicationData):
         verbose_name=_("position in queue"), null=True, blank=True
     )
     queue_position_before_cancelation = models.IntegerField(
-        verbose_name=_("position in queue before cancelation"),
-        null=True,
-        blank=True
-    )    
+        verbose_name=_("position in queue before cancelation"), null=True, blank=True
+    )
     list_position = models.IntegerField(_("position in list"))
     application_apartment = models.OneToOneField(
         ApplicationApartment,
