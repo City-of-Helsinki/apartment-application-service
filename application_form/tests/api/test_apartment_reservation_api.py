@@ -100,6 +100,7 @@ def test_root_apartment_reservation_detail(
         "installment_candidates": [],
         "apartment_uuid": reservation.apartment_uuid,
         "queue_position": 1,
+        "queue_position_before_cancelation": None,
         "state": reservation.state.value,
         "lottery_position": None,
         "priority_number": reservation.application_apartment.priority_number,
