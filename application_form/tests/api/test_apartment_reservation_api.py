@@ -695,6 +695,7 @@ def test_create_reservation(
         "installment_candidates": [],
         "lottery_position": None,
         "queue_position": 1,
+        "queue_position_before_cancelation": None,
         "priority_number": None,
         "state": "reserved",
         "offer": None,
