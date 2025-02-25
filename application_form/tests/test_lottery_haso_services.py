@@ -1,3 +1,7 @@
+import logging
+from apartment.enums import ApartmentState
+from apartment.utils import get_apartment_state_from_reserved_reservations
+from application_form.services.lottery.machine import distribute_apartments
 import pytest
 from django.db import transaction
 from pytest import fixture, mark
@@ -12,15 +16,18 @@ from application_form.enums import (
 from application_form.models.lottery import LotteryEvent, LotteryEventResult
 from application_form.models.reservation import ApartmentReservation
 from application_form.services.application import (
+    _find_winning_candidates,
     cancel_reservation,
     get_ordered_applications,
 )
 from application_form.services.lottery.haso import _distribute_haso_apartments
 from application_form.services.queue import add_application_to_queues
 from application_form.services.reservation import create_late_reservation
-from application_form.tests.factories import ApplicationFactory
+from application_form.tests.factories import ApplicationApartmentFactory, ApplicationFactory
 from customer.tests.factories import CustomerFactory
+from users.tests.factories import ProfileFactory
 
+_logger = logging.getLogger(__name__)
 
 @fixture(autouse=True)
 def check_latest_reservation_state_change_events_after_every_test(
@@ -534,3 +541,40 @@ def test_winning_does_not_cancel_higher_priority_applications(
     assert app_apt1.apartment_reservation.state == ApartmentReservationState.RESERVED
     assert app_apt2.apartment_reservation.state == ApartmentReservationState.SUBMITTED
     assert app_apt3.apartment_reservation.state == ApartmentReservationState.RESERVED
+
+@mark.django_db
+def test_multiple_reservations(elastic_haso_project_with_5_apartments):
+
+    project_uuid, apartments = elastic_haso_project_with_5_apartments
+    apartment_reservation_count = 5
+    apartment_uuid = apartments[0].uuid
+    for idx in range(apartment_reservation_count):
+        profile = ProfileFactory()
+        application = ApplicationFactory(customer=CustomerFactory(primary_profile=profile))
+
+        application_apartment = ApplicationApartmentFactory(
+            apartment_uuid=apartment_uuid, application=application, priority_number=1
+        )
+        ApartmentReservation.objects.create(
+            customer=application_apartment.application.customer,
+            queue_position=idx,
+            list_position=idx,
+            application_apartment=application_apartment,
+            apartment_uuid=apartment_uuid,
+        )
+
+    distribute_apartments(project_uuid)
+
+    sold_reservation = ApartmentReservation.objects.filter(apartment_uuid=apartments[0].uuid).last()
+
+    sold_reservation.set_state(
+        ApartmentReservationState.SOLD,
+        None,
+        "test",
+    )
+
+    reservations = ApartmentReservation.objects.filter(apartment_uuid=apartments[0].uuid).reserved()
+    apt_state = get_apartment_state_from_reserved_reservations(reservations)
+
+    assert apt_state != ApartmentState.REVIEW.value
+    pass
