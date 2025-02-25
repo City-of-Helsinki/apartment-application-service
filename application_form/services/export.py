@@ -169,6 +169,16 @@ class ApplicantMailingListExportService(CSVExportService):
             )
             row = self.get_row(reservation, apartment)
             rows.append(row)
+        
+        # need to group reservations by apartment_number attribute
+        sorted_content_rows = sorted(
+            rows[1:], 
+            key=lambda x: f"{x[0]}{x[1]}"
+        ) 
+
+        # don't sort header row, attach it later
+        rows = [ rows[0] ] + sorted_content_rows
+
         return rows
 
     def get_row(self, reservation, apartment):
