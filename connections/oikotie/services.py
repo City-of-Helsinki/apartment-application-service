@@ -69,8 +69,7 @@ def create_xml_apartment_file(apartments: list) -> Optional[str]:
         _logger.info(f"Created XML file for apartments in location {path}/{ap_file}")
 
         valid = validate_against_schema(
-            settings.OIKOTIE_APARTMENTS_BATCH_SCHEMA,
-            os.path.join(path, ap_file)
+            settings.OIKOTIE_APARTMENTS_BATCH_SCHEMA, os.path.join(path, ap_file)
         )
 
         if not valid:
@@ -101,8 +100,7 @@ def create_xml_housing_company_file(housing_companies: list) -> Optional[str]:
         )
 
         valid = validate_against_schema(
-            settings.OIKOTIE_HOUSINGCOMPANIES_BATCH_SCHEMA,
-            os.path.join(path, hc_file)
+            settings.OIKOTIE_HOUSINGCOMPANIES_BATCH_SCHEMA, os.path.join(path, hc_file)
         )
 
         if not valid:

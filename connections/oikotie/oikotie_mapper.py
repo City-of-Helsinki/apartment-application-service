@@ -51,6 +51,7 @@ from connections.oikotie.field_mapper import (
     SITE_MAPPING,
 )
 from connections.utils import convert_price_from_cents_to_eur
+
 _logger = logging.getLogger(__name__)
 
 
@@ -104,7 +105,7 @@ def map_apartment_pictures(
     if main_image_url:
         pictures.append(
             ApartmentPicture(
-                index=len(pictures)+1,
+                index=len(pictures) + 1,
                 is_floor_plan=False,
                 url=main_image_url,
             )
@@ -115,8 +116,9 @@ def map_apartment_pictures(
         for idx, picture_url in enumerate(image_urls):
 
             pictures.append(
-                ApartmentPicture(index=len(pictures)+1, is_floor_plan=False,
-                                 url=picture_url)
+                ApartmentPicture(
+                    index=len(pictures) + 1, is_floor_plan=False, url=picture_url
+                )
             )
     floor_plan_image = getattr(elastic_apartment, "floor_plan_image", None)
 
@@ -124,7 +126,7 @@ def map_apartment_pictures(
 
         pictures.append(
             ApartmentPicture(
-                index=len(pictures)+1,
+                index=len(pictures) + 1,
                 is_floor_plan=True,
                 url=floor_plan_image,
             )
