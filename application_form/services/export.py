@@ -1,8 +1,8 @@
 import csv
 import operator
+import re
 from abc import abstractmethod
 from io import StringIO
-import re
 
 from django.db.models import Max, QuerySet
 
@@ -150,7 +150,7 @@ class ApplicantMailingListExportService(CSVExportService):
 
         # in case the apartment number is something like "AB12"
         letter_value = sum([ord(let) for let in letter])
-        return letter_value+int(number)
+        return letter_value + int(number)
 
     def filter_reservations(self):
         if self.export_type not in self.allowed_apartment_export_types:
