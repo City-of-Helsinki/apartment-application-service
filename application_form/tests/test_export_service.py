@@ -1,6 +1,5 @@
 from datetime import timedelta
 from typing import List
-import string
 
 import pytest
 from _pytest.fixtures import fixture
@@ -104,7 +103,7 @@ def reservations(elastic_project_with_5_apartments):
                 apartment_uuid=apartment.uuid,
                 application_apartment=application_apartment,
                 customer=customer,
-                queue_position=i+1,
+                queue_position=i + 1,
             )
         )
 
@@ -120,7 +119,7 @@ def _validate_mailing_list_csv(
     content_rows = csv_rows[1:]
 
     reservations = sorted(
-        reservations, key=lambda x:get_apartment(x.apartment_uuid).apartment_number
+        reservations, key=lambda x: get_apartment(x.apartment_uuid).apartment_number
     )
 
     for i, row in enumerate(content_rows):
