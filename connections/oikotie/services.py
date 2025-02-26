@@ -75,7 +75,7 @@ def create_xml_apartment_file(apartments: list) -> Optional[str]:
 
         if not valid:
             raise Exception(f"File validation failed: {ap_file}")
-        
+
         return ap_file
     except Exception as e:
         _logger.error("Apartment XML not created:", {str(e)})

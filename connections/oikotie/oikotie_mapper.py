@@ -53,6 +53,7 @@ from connections.oikotie.field_mapper import (
 from connections.utils import convert_price_from_cents_to_eur
 _logger = logging.getLogger(__name__)
 
+
 def map_apartment_type(elastic_apartment: ElasticApartment) -> ApartmentType:
     project_building_type = getattr(elastic_apartment, "project_building_type", None)
     if project_building_type in APARTMENT_TYPE_MAPPING.keys():
@@ -114,7 +115,8 @@ def map_apartment_pictures(
         for idx, picture_url in enumerate(image_urls):
 
             pictures.append(
-                ApartmentPicture(index=len(pictures)+1, is_floor_plan=False, url=picture_url)
+                ApartmentPicture(index=len(pictures)+1, is_floor_plan=False,
+                                 url=picture_url)
             )
     floor_plan_image = getattr(elastic_apartment, "floor_plan_image", None)
 
