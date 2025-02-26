@@ -64,6 +64,7 @@ def applicant_export_service_with_additional_applicant(
     )
     application = ApplicationFactory(customer=customer)
     reservations = []
+
     for i, apartment in enumerate(apartments):
         application_apartment = ApplicationApartmentFactory(
             apartment_uuid=apartment.uuid,
@@ -102,6 +103,7 @@ def reservations(elastic_project_with_5_apartments):
                 apartment_uuid=apartment.uuid,
                 application_apartment=application_apartment,
                 customer=customer,
+                queue_position=i + 1,
             )
         )
 
@@ -114,7 +116,14 @@ def _validate_mailing_list_csv(
     for idx, header in enumerate(csv_rows[0]):
         assert header == ApplicantMailingListExportService.COLUMNS[idx][0]
 
-    for i, row in enumerate(csv_rows[1:]):
+    content_rows = csv_rows[1:]
+
+    reservations = sorted(
+        reservations, key=lambda x: get_apartment(x.apartment_uuid).apartment_number
+    )
+
+    for i, row in enumerate(content_rows):
+
         reservation = reservations[i]
         apartment = get_apartment(
             reservation.apartment_uuid, include_project_fields=True
