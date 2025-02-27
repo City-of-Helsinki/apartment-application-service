@@ -230,6 +230,10 @@ class ApartmentReservationSerializerBase(serializers.ModelSerializer):
     )
     offer = ReservationOfferSerializer(read_only=True)
 
+    queue_position_before_cancelation = serializers.IntegerField(
+        allow_null=True, required=False, read_only=True, default=None
+    )
+
     class Meta:
         model = ApartmentReservation
         fields = (
@@ -237,6 +241,7 @@ class ApartmentReservationSerializerBase(serializers.ModelSerializer):
             "apartment_uuid",
             "lottery_position",
             "queue_position",
+            "queue_position_before_cancelation",
             "priority_number",
             "state",
             "offer",
@@ -262,6 +267,12 @@ class ApartmentReservationSerializerBase(serializers.ModelSerializer):
             "is_right_of_occupancy_housing_changer",
             "submitted_late",
         )
+
+        def to_representation(self, instance):
+            data = super().to_representation(instance)
+            if instance.queue_position_before_cancelation is None:
+                data["queue_position_before_cancelation"] = None
+            return data
 
 
 class ApartmentReservationSerializer(ApartmentReservationSerializerBase):

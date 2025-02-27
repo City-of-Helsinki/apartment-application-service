@@ -1,3 +1,5 @@
+import random
+import string
 import uuid
 from datetime import timedelta
 from unittest.mock import Mock
@@ -103,8 +105,17 @@ def elastic_project_with_5_apartments(elasticsearch):
     apartment = ApartmentDocumentFactory()
     apartments.append(apartment)
 
-    for _ in range(4):
-        apartments.append(ApartmentDocumentFactory(project_uuid=apartment.project_uuid))
+    # generate random staircase letter A-Z
+    staircase_letter = random.choice(string.ascii_uppercase)
+
+    for idx in range(4):
+        apartment_number = f"{staircase_letter}{idx+1}"
+
+        apartments.append(
+            ApartmentDocumentFactory(
+                project_uuid=apartment.project_uuid, apartment_number=apartment_number
+            )
+        )
     yield apartment.project_uuid, apartments
 
     for apartment in apartments:

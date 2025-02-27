@@ -1,9 +1,10 @@
 import csv
 import operator
+import re
 from abc import abstractmethod
 from io import StringIO
 
-from django.db.models import Max
+from django.db.models import Max, QuerySet
 
 from apartment.elastic.queries import (
     get_apartment,
@@ -13,6 +14,7 @@ from apartment.elastic.queries import (
 )
 from apartment.enums import ApartmentState
 from apartment.utils import get_apartment_state_from_apartment_uuid
+from application_form.enums import ApartmentReservationState
 from application_form.models import ApartmentReservation, LotteryEvent
 from application_form.utils import get_apartment_number_sort_tuple
 
@@ -20,11 +22,14 @@ from application_form.utils import get_apartment_number_sort_tuple
 def _get_reservation_cell_value(column_name, apartment=None, reservation=None):
     if not reservation:
         return ""
+
     # Apartment fields
     if (
         column_name
         in [
             "project_street_address",
+            "project_postal_code",
+            "project_city",
             "apartment_number",
             "apartment_structure",
             "living_area",
@@ -89,6 +94,108 @@ class CSVExportService:
             csv_writer.writerow(line)
 
         return io.getvalue()
+
+
+class ApplicantMailingListExportService(CSVExportService):
+    COLUMNS = [
+        ("Asunnon numero", "apartment_number"),
+        ("Sijainti jonossa", "queue_position"),
+        ("Ensisijainen hakija etunimi", "primary_profile.first_name"),
+        ("Ensisijainen hakija sukunimi", "primary_profile.last_name"),
+        ("Ensisijainen hakija sähköposti", "primary_profile.email"),
+        ("Ensisijainen hakija osoite", "primary_profile.street_address"),
+        ("Ensisijainen hakija postinumero", "primary_profile.postal_code"),
+        ("Ensisijainen hakija postitoimipaikka", "primary_profile.city"),
+        (
+            "Ensisijainen hakija henkilötunnus",
+            "primary_profile.national_identification_number",
+        ),
+        ("Kanssahakija etunimi", "secondary_profile.first_name"),
+        ("Kanssahakija sukunimi", "secondary_profile.last_name"),
+        ("Kanssahakija sähköposti", "secondary_profile.email"),
+        ("Kanssahakija osoite", "secondary_profile.street_address"),
+        ("Kanssahakija postinumero", "secondary_profile.postal_code"),
+        ("Kanssahakija postitoimipaikka", "secondary_profile.city"),
+        (
+            "Kanssahakija henkilötunnus",
+            "secondary_profile.national_identification_number",
+        ),
+        ("Lapsia", "has_children"),
+        ("Kohteen osoite", "project_street_address"),
+        ("Kohteen postinumero", "project_postal_code"),
+        ("Kohteen postitoimipaikka", "project_city"),
+        ("Huoneiston kokoonpano", "apartment_structure"),
+        ("Asuinpinta-ala", "living_area"),
+    ]
+
+    ORDER_BY = ["apartment_uuid", "queue_position"]
+
+    export_first_in_queue = "first_in_queue"
+
+    allowed_apartment_export_types = [
+        ApartmentReservationState.RESERVED.value,  # export all reservers
+        ApartmentReservationState.SOLD.value,  # export all who have bought
+        export_first_in_queue,  # export reservers who are first in queue
+    ]
+
+    def __init__(self, reservations: QuerySet, export_type: str):
+        self.reservations: QuerySet = reservations
+        self.export_type = export_type
+
+    def get_order_key(self, row):
+        # turn letter-number combo into numeric values for comparison
+        # this is because sorting A1, A2, A13 alphabetically returns A1, A13, A2
+        apartment_number = row[0]
+        letter, number = re.findall(r"(\w+?)(\d+)", apartment_number)[0]
+
+        # in case the apartment number is something like "AB12"
+        letter_value = sum([ord(let) for let in letter])
+        return letter_value + int(number)
+
+    def filter_reservations(self):
+        if self.export_type not in self.allowed_apartment_export_types:
+            raise ValueError(f"Invalid export type '{self.export_type}'")
+
+        reservations = self.reservations.exclude(
+            state=ApartmentReservationState.CANCELED
+        )
+
+        if self.export_type == self.export_first_in_queue:
+            reservations = reservations.filter(queue_position=1)
+        elif self.export_type == ApartmentReservationState.SOLD.value:
+            reservations = reservations.filter(state=ApartmentReservationState.SOLD)
+
+        reservations = reservations.order_by(*self.ORDER_BY)
+
+        self.reservations = reservations
+        return reservations
+
+    def get_rows(self):
+        self.filter_reservations()
+        rows = [self._get_header_row()]
+
+        for reservation in self.reservations:
+            apartment = get_apartment(
+                reservation.apartment_uuid, include_project_fields=True
+            )
+            row = self.get_row(reservation, apartment)
+            rows.append(row)
+
+        # need to group reservations by apartment_number attribute
+        sorted_content_rows = sorted(rows[1:], key=self.get_order_key)
+
+        # don't sort header row, attach it later
+        rows = [rows[0]] + sorted_content_rows
+
+        return rows
+
+    def get_row(self, reservation, apartment):
+        line = []
+
+        for column in self.COLUMNS:
+            cell_value = _get_reservation_cell_value(column[1], apartment, reservation)
+            line.append(cell_value)
+        return line
 
 
 class ApplicantExportService(CSVExportService):

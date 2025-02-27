@@ -33,6 +33,7 @@ from application_form.models import (
 )
 from application_form.services.export import (
     ApplicantExportService,
+    ApplicantMailingListExportService,
     ProjectLotteryResultExportService,
     SaleReportExportService,
 )
@@ -93,6 +94,41 @@ class ProjectExportApplicantsAPIView(APIView):
             apartment_uuid__in=apartment_uuids
         )
         export_services = ApplicantExportService(reservations)
+        csv_file = export_services.get_csv_string()
+        file_name = format_lazy(
+            _("[Project {title}] Applicants information"),
+            title=project.project_street_address,
+        ).replace(" ", "_")
+        response = HttpResponse(csv_file, content_type="text/csv; charset=utf-8-sig")
+        response["Content-Disposition"] = "attachment; filename={file_name}.csv".format(
+            file_name=file_name
+        )
+        return response
+
+
+class ProjectExportApplicantsMailingListAPIView(APIView):
+    export_first_in_queue = "first_in_queue"
+
+    allowed_apartment_export_types = [
+        ApartmentReservationState.RESERVED.value,  # export all reservers
+        ApartmentReservationState.SOLD.value,  # export all who have bought
+        export_first_in_queue,  # export reservers who are first in queue
+    ]
+
+    http_method_names = ["get"]
+
+    def get(self, request, project_uuid, export_type):
+        try:
+            apartment_uuids = get_apartment_uuids(project_uuid)
+            project = get_project(project_uuid)
+        except ObjectDoesNotExist:
+            raise NotFound()
+
+        reservations = ApartmentReservation.objects.filter(
+            apartment_uuid__in=apartment_uuids,
+        )
+
+        export_services = ApplicantMailingListExportService(reservations, export_type)
         csv_file = export_services.get_csv_string()
         file_name = format_lazy(
             _("[Project {title}] Applicants information"),
