@@ -241,7 +241,8 @@ def map_maintenance_fee(
 
 
 def map_water_fee(elastic_apartment: ElasticApartment) -> Optional[WaterFee]:
-    if elastic_apartment.water_fee is not None:
+
+    if elastic_apartment.water_fee is not None and elastic_apartment.water_fee > 0:
         return WaterFee(
             value=convert_price_from_cents_to_eur(elastic_apartment.water_fee),
             unit=Unit.EUR_KK.value,
