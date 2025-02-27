@@ -1,4 +1,3 @@
-import random
 import string
 import uuid
 from datetime import timedelta
@@ -37,6 +36,9 @@ from users.tests.conftest import (  # noqa: F401
 )
 
 faker.config.DEFAULT_LOCALE = "fi_FI"
+import logging
+
+_logger = logging.getLogger()
 
 
 def setup_elasticsearch():
@@ -100,23 +102,65 @@ def elastic_single_project_with_apartments(elasticsearch):
 
 @fixture
 def elastic_project_with_5_apartments(elasticsearch):
+    apartments = next(elastic_project_with_n_apartments(elasticsearch, 5))
+    yield apartments[0].project_uuid, apartments
+
+
+@fixture
+def elastic_project_with_24_apartments(elasticsearch):
+    """
+    24 apartments, A, B, C, D staircases, apartment numbers from A1-F4
+    """
+    apartments = next(elastic_project_with_n_apartments(elasticsearch, 24))
+
+    apartments_in_staircase = 4
+    letter_index = 0
+    apartment_number = 0
+    for idx, apartment in enumerate(apartments):
+        apartment_number += 1
+
+        if idx > 0 and idx % apartments_in_staircase == 0:
+            letter_index += 1
+            apartment_number = 1
+
+        staircase_letter = string.ascii_uppercase[letter_index]
+
+        apartment.apartment_number = f"{staircase_letter}{apartment_number}"
+        pass
+
+    yield apartments[0].project_uuid, apartments
+
+
+# @fixture
+def elastic_project_with_n_apartments(elasticsearch, apartment_count: int):
+    """
+    Parametrizable to get more/less test apartments
+    """
     apartments = []
 
     apartment = ApartmentDocumentFactory()
-    apartments.append(apartment)
 
-    # generate random staircase letter A-Z
-    staircase_letter = random.choice(string.ascii_uppercase)
+    apartments_in_staircase = 4
+    letter_index = 0
+    apartment_index = 0
+    for idx in range(apartment_count + 1):
 
-    for idx in range(4):
-        apartment_number = f"{staircase_letter}{idx+1}"
+        apartment_index += 1
+
+        staircase_letter = string.ascii_uppercase[letter_index]
+        apartment_number = f"{staircase_letter}{apartment_index}"
 
         apartments.append(
             ApartmentDocumentFactory(
                 project_uuid=apartment.project_uuid, apartment_number=apartment_number
             )
         )
-    yield apartment.project_uuid, apartments
+
+        if idx > 0 and idx % apartments_in_staircase == 0:
+            letter_index += 1
+            apartment_index = 0
+
+    yield apartments
 
     for apartment in apartments:
         apartment.delete(refresh=True)

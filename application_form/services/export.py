@@ -145,12 +145,8 @@ class ApplicantMailingListExportService(CSVExportService):
     def get_order_key(self, row):
         # turn letter-number combo into numeric values for comparison
         # this is because sorting A1, A2, A13 alphabetically returns A1, A13, A2
-        apartment_number = row[0]
-        letter, number = re.findall(r"(\w+?)(\d+)", apartment_number)[0]
-
-        # in case the apartment number is something like "AB12"
-        letter_value = sum([ord(let) for let in letter])
-        return letter_value + int(number)
+        convert = lambda text: int(text) if text.isdigit() else text  # noqa: E731
+        return [convert(c) for c in re.split("([0-9]+)", row[0])]
 
     def filter_reservations(self):
         if self.export_type not in self.allowed_apartment_export_types:
