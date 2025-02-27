@@ -532,12 +532,12 @@ def map_address(elastic_apartment: ElasticApartment) -> Address:
 
 
 def map_coordinates(elastic_apartment: ElasticApartment) -> Optional[Coordinates]:
-    latitude = elastic_apartment.project_coordinate_lat
-    longitude = elastic_apartment.project_coordinate_lon
-    if latitude is not None and longitude is not None:
+    x = elastic_apartment.project_coordinate_lat
+    y = elastic_apartment.project_coordinate_lon
+    if x is not None and y is not None:
         return Coordinates(
-            x=latitude,
-            y=longitude,
+            x=x,
+            y=y,
         )
     else:
         return None
