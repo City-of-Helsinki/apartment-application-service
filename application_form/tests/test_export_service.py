@@ -188,7 +188,6 @@ def test_sorting_function(reservations):
 @pytest.mark.django_db
 def test_export_applicants_mailing_list_all(reservations):
     """Assert that getting all applicants except for state = 'CANCELED' works"""
-
     # convert list to queryset
     reservation_queryset = ApartmentReservation.objects.filter(
         apartment_uuid__in=[res.apartment_uuid for res in reservations]
@@ -206,8 +205,8 @@ def test_export_applicants_mailing_list_all(reservations):
     filtered_reservations = applicant_mailing_list_export_service.filter_reservations()
     csv_lines = applicant_mailing_list_export_service.get_rows()
 
-    assert len(filtered_reservations) == 24
-    assert len(csv_lines) == 25
+    assert len(filtered_reservations) == 23
+    assert len(csv_lines) == 24
     _validate_mailing_list_csv(csv_lines, filtered_reservations)
 
 

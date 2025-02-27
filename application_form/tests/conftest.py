@@ -1,3 +1,4 @@
+import logging
 import string
 import uuid
 from datetime import timedelta
@@ -36,7 +37,7 @@ from users.tests.conftest import (  # noqa: F401
 )
 
 faker.config.DEFAULT_LOCALE = "fi_FI"
-import logging
+
 
 _logger = logging.getLogger()
 
@@ -143,7 +144,7 @@ def elastic_project_with_n_apartments(elasticsearch, apartment_count: int):
     apartments_in_staircase = 4
     letter_index = 0
     apartment_index = 0
-    for idx in range(apartment_count + 1):
+    for idx in range(apartment_count):
 
         apartment_index += 1
 

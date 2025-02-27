@@ -146,7 +146,7 @@ class ApplicantMailingListExportService(CSVExportService):
         # turn letter-number combo into numeric values for comparison
         # this is because sorting A1, A2, A13 alphabetically returns A1, A13, A2
         convert = lambda text: int(text) if text.isdigit() else text  # noqa: E731
-        return [convert(c) for c in re.split("([0-9]+)", row[0])]
+        return [convert(c) for c in re.split(r"(\d+)", row[0])]
 
     def filter_reservations(self):
         if self.export_type not in self.allowed_apartment_export_types:
