@@ -19,6 +19,7 @@ env:
   ELASTICSEARCH_HOST: localhost
   ELASTICSEARCH_URL: http://localhost
   APARTMENT_INDEX_NAME: test-apartment
+  APARTMENT_DATA_TRANSFER_PATH: test_files
   PUBLIC_PGP_KEY: |
     -----BEGIN PGP PUBLIC KEY BLOCK-----
 
