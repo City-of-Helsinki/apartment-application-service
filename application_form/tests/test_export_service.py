@@ -82,8 +82,9 @@ def applicant_export_service_with_additional_applicant(
 
 
 @fixture
-def reservations(elastic_project_with_5_apartments):
-    project_uuid, apartments = elastic_project_with_5_apartments
+def reservations(elastic_project_with_24_apartments):
+    project_uuid, apartments = elastic_project_with_24_apartments
+
     profile = ProfileFactory()
     profile_secondary = ProfileFactory()
     customer = CustomerFactory(
@@ -153,6 +154,7 @@ def _validate_mailing_list_csv(
             apartment.apartment_structure,
             apartment.living_area,
         ]
+
         for expected_field_value, value in zip(expected_row, row):
             assert expected_field_value == value
 
@@ -160,9 +162,32 @@ def _validate_mailing_list_csv(
 
 
 @pytest.mark.django_db
+def test_sorting_function(reservations):
+    """
+    Assert that the rows get sorted naturally, e.g.
+    ["A1", "A2", "A10"] and not ["A1", "A10", "A2"]
+    https://blog.codinghorror.com/sorting-for-humans-natural-sort-order/
+    """
+    reservation_queryset = ApartmentReservation.objects.filter(
+        apartment_uuid__in=[res.apartment_uuid for res in reservations]
+    )
+    applicant_mailing_list_export_service = ApplicantMailingListExportService(
+        reservation_queryset,
+        export_type=ApartmentReservationState.RESERVED.value,
+    )
+
+    _sorted = sorted(
+        ["A1", "A2", "A3", "A10"],
+        key=applicant_mailing_list_export_service.get_order_key,
+    )
+
+    assert _sorted == ["A1", "A2", "A3", "A10"]
+    pass
+
+
+@pytest.mark.django_db
 def test_export_applicants_mailing_list_all(reservations):
     """Assert that getting all applicants except for state = 'CANCELED' works"""
-
     # convert list to queryset
     reservation_queryset = ApartmentReservation.objects.filter(
         apartment_uuid__in=[res.apartment_uuid for res in reservations]
@@ -180,8 +205,8 @@ def test_export_applicants_mailing_list_all(reservations):
     filtered_reservations = applicant_mailing_list_export_service.filter_reservations()
     csv_lines = applicant_mailing_list_export_service.get_rows()
 
-    assert len(filtered_reservations) == 4
-    assert len(csv_lines) == 5
+    assert len(filtered_reservations) == 23
+    assert len(csv_lines) == 24
     _validate_mailing_list_csv(csv_lines, filtered_reservations)
 
 
