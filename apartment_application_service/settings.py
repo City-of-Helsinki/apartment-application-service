@@ -126,6 +126,9 @@ SECRET_KEY = env.str("SECRET_KEY")
 if DEBUG and not SECRET_KEY:
     SECRET_KEY = "xxx"
 
+# if running automated tests. Can be overridden by tests
+IS_TEST = False
+
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
 USE_X_FORWARDED_HOST = env.bool("USE_X_FORWARDED_HOST")
 
