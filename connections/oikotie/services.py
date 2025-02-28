@@ -68,6 +68,7 @@ def create_xml_apartment_file(apartments: list) -> Optional[str]:
         ap_file = create_apartments(apartments, path)
         _logger.info(f"Created XML file for apartments in location {path}/{ap_file}")
 
+        _logger.debug("os.listdir(os.path.join(path, ap_file)) %s", os.listdir(os.path.join(path, ap_file)))
         valid = validate_against_schema(
             settings.OIKOTIE_APARTMENTS_BATCH_SCHEMA, os.path.join(path, ap_file)
         )
