@@ -108,7 +108,8 @@ def create_xml_housing_company_file(housing_companies: list) -> Optional[str]:
         # tests don't have real schemas
         if not settings.IS_TEST:
             valid = validate_against_schema(
-                settings.OIKOTIE_HOUSINGCOMPANIES_BATCH_SCHEMA, os.path.join(path, hc_file)
+                settings.OIKOTIE_HOUSINGCOMPANIES_BATCH_SCHEMA,
+                os.path.join(path, hc_file),
             )
         else:
             valid = True
