@@ -15,7 +15,7 @@ env:
   SECRET_KEY: topsecret123
   DATABASE_URL: postgres://postgres:postgres@localhost/apartment-application
   OIKOTIE_VENDOR_ID: test
-  OIKOTIE_SCHEMA_DIR: integration_schemas
+  OIKOTIE_SCHEMA_DIR: tests/schemas
   OIKOTIE_APARTMENTS_BATCH_SCHEMA_URL: "foo.bar/oikotie-apartments-batch.rng"
   OIKOTIE_APARTMENTS_UPDATE_SCHEMA_URL: "foo.bar/oikotie-apartments-update.rng"
   OIKOTIE_HOUSINGCOMPANIES_BATCH_SCHEMA_URL: "foo.bar/oikotie-housingcompanies-batch.rng"
