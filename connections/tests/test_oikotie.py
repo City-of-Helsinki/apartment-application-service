@@ -289,7 +289,6 @@ class TestApartmentFetchingFromElasticAndMapping:
 
     @pytest.mark.usefixtures("elastic_apartments")
     def test_apartments_for_sale_fetched_to_XML(self):
-
         expected_ap = get_elastic_apartments_for_sale_published_on_oikotie_uuids()
         expected_hc = get_elastic_apartments_for_sale_project_uuids()
 
