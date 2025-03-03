@@ -33,7 +33,9 @@ coverage==7.3.2
     #   -r requirements-dev.in
     #   pytest-cov
 decorator==5.1.1
-    # via ipython
+    # via
+    #   ipdb
+    #   ipython
 dill==0.3.7
     # via pylint
 distlib==0.3.7
@@ -68,8 +70,12 @@ importlib-metadata==6.8.0
     # via build
 iniconfig==2.0.0
     # via pytest
-ipython==8.12.3
+ipdb==0.13.13
     # via -r requirements-dev.in
+ipython==8.12.3
+    # via
+    #   -r requirements-dev.in
+    #   ipdb
 isort==5.12.0
     # via
     #   -r requirements-dev.in
@@ -182,6 +188,7 @@ tomli==2.0.1
     #   black
     #   build
     #   coverage
+    #   ipdb
     #   pip-tools
     #   pylint
     #   pyproject-hooks
