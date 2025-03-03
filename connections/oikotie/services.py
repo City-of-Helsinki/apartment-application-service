@@ -70,7 +70,9 @@ def create_xml_apartment_file(apartments: list) -> Optional[str]:
 
         _logger.debug("settings.IS_TEST: %s", settings.IS_TEST)
 
-        valid = validate_against_schema( settings.OIKOTIE_APARTMENTS_BATCH_SCHEMA, os.path.join(path, ap_file) )
+        valid = validate_against_schema(
+            settings.OIKOTIE_APARTMENTS_BATCH_SCHEMA, os.path.join(path, ap_file)
+        )
 
         if not valid:
             raise Exception(f"File validation failed: {ap_file}")

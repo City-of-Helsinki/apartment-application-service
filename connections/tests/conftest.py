@@ -1,15 +1,13 @@
 import os
 import shutil
-from unittest.mock import MagicMock, patch
 
 from django.conf import settings
-import connections
 from elasticsearch.helpers.test import get_test_client
 from elasticsearch_dsl.connections import add_connection
 from pytest import fixture
 from rest_framework.test import APIClient
-import django_oikotie
 
+import connections
 from connections.enums import ApartmentStateOfSale
 from connections.tests.factories import ApartmentMinimalFactory
 
@@ -110,17 +108,18 @@ def validate_against_schema_true(monkeypatch):
     """
     Patch `django_oikotie.utils.validate_against_schema()` to return `True`.
 
-    CI/CD runner can't be given the secret schema URLs. 
+    CI/CD runner can't be given the secret schema URLs.
     This means it can't validate XMLs.
-    
+
     Do note that this only patches it when its being imported in
     `connections.oikotie.services`. Not the smartest solution but it works for
     the current use cases.
     """
     # raise Exception("validate_against_schema_true raised this")
     monkeypatch.setattr(
-        connections.oikotie.services, "validate_against_schema", lambda x,y: True
+        connections.oikotie.services, "validate_against_schema", lambda x, y: True
     )
+
 
 @fixture
 def validate_against_schema_false(monkeypatch):
@@ -129,9 +128,8 @@ def validate_against_schema_false(monkeypatch):
     """
 
     monkeypatch.setattr(
-        connections.oikotie.services, "validate_against_schema", lambda x,y: False
+        connections.oikotie.services, "validate_against_schema", lambda x, y: False
     )
-
 
 
 @fixture(scope="session", autouse=True)

@@ -1,12 +1,11 @@
 import os
+
 from uuid import UUID
 
 import pytest
 from django.conf import settings
 from django.core.management import call_command
 from django_etuovi.utils.testing import check_dataclass_typing
-from unittest.mock import MagicMock, patch
-import django_oikotie
 
 from apartment.tests.factories import ApartmentDocumentFactory
 from connections.models import MappedApartment
@@ -333,7 +332,9 @@ class TestApartmentFetchingFromElasticAndMapping:
         assert elastic_oikotie_ap != apartments
         assert expected_ap == apartments
 
-    @pytest.mark.usefixtures("not_sending_oikotie_ftp", "elastic_apartments", "validate_against_schema_true")
+    @pytest.mark.usefixtures(
+        "not_sending_oikotie_ftp", "elastic_apartments", "validate_against_schema_true"
+    )
     def test_mapped_oikotie_saved_to_database_with_publish_updated(self):
         call_command("send_oikotie_xml_file")
         oikotie_mapped = MappedApartment.objects.filter(
@@ -414,7 +415,9 @@ class TestSendOikotieXMLFileCommand:
     Tests for django command send_oikotie_xml_file with different parameters
     """
 
-    @pytest.mark.usefixtures("not_sending_oikotie_ftp", "elastic_apartments", "validate_against_schema_true")
+    @pytest.mark.usefixtures(
+        "not_sending_oikotie_ftp", "elastic_apartments", "validate_against_schema_true"
+    )
     def test_send_oikotie_xml_file_only_create_files(self, test_folder):
         """
         Test that after calling send_oikotie_xml_file --only_create_files
@@ -434,7 +437,9 @@ class TestSendOikotieXMLFileCommand:
         for f in files:
             os.remove(os.path.join(test_folder, f))
 
-    @pytest.mark.usefixtures("not_sending_oikotie_ftp", "elastic_apartments", "validate_against_schema_true")
+    @pytest.mark.usefixtures(
+        "not_sending_oikotie_ftp", "elastic_apartments", "validate_against_schema_true"
+    )
     def test_send_oikotie_xml_file_send_only_type_1(self, test_folder):
         """
         Test that after calling send_oikotie_xml_file --send_only_type 1
@@ -452,7 +457,9 @@ class TestSendOikotieXMLFileCommand:
         for f in files:
             os.remove(os.path.join(test_folder, f))
 
-    @pytest.mark.usefixtures("not_sending_oikotie_ftp", "elastic_apartments", "validate_against_schema_true")
+    @pytest.mark.usefixtures(
+        "not_sending_oikotie_ftp", "elastic_apartments", "validate_against_schema_true"
+    )
     def test_send_oikotie_xml_file_send_only_type_2(self, test_folder):
         """
         Test that after calling send_oikotie_xml_file --send_only_type 2
@@ -501,7 +508,9 @@ class TestSendOikotieXMLFileCommand:
         for f in files:
             os.remove(os.path.join(test_folder, f))
 
-    @pytest.mark.usefixtures("not_sending_oikotie_ftp", "elastic_apartments", "validate_against_schema_true")
+    @pytest.mark.usefixtures(
+        "not_sending_oikotie_ftp", "elastic_apartments", "validate_against_schema_true"
+    )
     def test_send_oikotie_xml_no_arguments(self, test_folder):
         """
         Test that after calling send_oikotie_xml_file without arguments
@@ -526,7 +535,9 @@ class TestSendOikotieXMLFileCommand:
         for f in files:
             os.remove(os.path.join(test_folder, f))
 
-    @pytest.mark.usefixtures("not_sending_oikotie_ftp", "elastic_apartments", "validate_against_schema_true")
+    @pytest.mark.usefixtures(
+        "not_sending_oikotie_ftp", "elastic_apartments", "validate_against_schema_true"
+    )
     def test_send_oikotie_xml_no_apartments(self, test_folder):
         """
         Test that after calling send_oikotie_xml_file with no apartments to map,
