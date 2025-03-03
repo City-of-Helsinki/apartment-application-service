@@ -1,3 +1,4 @@
+from unittest.mock import patch
 import faker.config
 from django.conf import settings
 from elasticsearch.helpers.test import get_test_client

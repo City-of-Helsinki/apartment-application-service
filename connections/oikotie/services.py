@@ -70,13 +70,7 @@ def create_xml_apartment_file(apartments: list) -> Optional[str]:
 
         _logger.debug("settings.IS_TEST: %s", settings.IS_TEST)
 
-        # tests don't have real schemas
-        if not settings.IS_TEST:
-            valid = validate_against_schema(
-                settings.OIKOTIE_APARTMENTS_BATCH_SCHEMA, os.path.join(path, ap_file)
-            )
-        else:
-            valid = True
+        valid = validate_against_schema( settings.OIKOTIE_APARTMENTS_BATCH_SCHEMA, os.path.join(path, ap_file) )
 
         if not valid:
             raise Exception(f"File validation failed: {ap_file}")
@@ -105,14 +99,10 @@ def create_xml_housing_company_file(housing_companies: list) -> Optional[str]:
             f"Created XML file for housing_companies in location {path}/{hc_file}"
         )
 
-        # tests don't have real schemas
-        if not settings.IS_TEST:
-            valid = validate_against_schema(
-                settings.OIKOTIE_HOUSINGCOMPANIES_BATCH_SCHEMA,
-                os.path.join(path, hc_file),
-            )
-        else:
-            valid = True
+        valid = validate_against_schema(
+            settings.OIKOTIE_HOUSINGCOMPANIES_BATCH_SCHEMA,
+            os.path.join(path, hc_file),
+        )
 
         if not valid:
             raise Exception(f"File validation failed: {hc_file}")
