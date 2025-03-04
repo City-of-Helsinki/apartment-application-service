@@ -20,9 +20,7 @@ def _get_payer_name_and_address(customer: Customer) -> str:
     payer_names = primary_profile.full_name
     if secondary_profile := customer.secondary_profile:
         payer_names = (
-            f"{primary_profile.full_name}"
-            + _("and")
-            + f" {secondary_profile.full_name}"
+            f"{primary_profile.full_name} {_('and')} {secondary_profile.full_name}"
         )
     return (
         f"{payer_names}\n\n{primary_profile.street_address}\n"
