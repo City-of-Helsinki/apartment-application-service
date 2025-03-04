@@ -19,5 +19,3 @@ def test_pdf_payer_name_address_correct():
         f"{customer.primary_profile.postal_code} {customer.primary_profile.city}"
     )
     assert payer_name_address == expected_payer_name_address
-
-
