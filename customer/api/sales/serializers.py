@@ -205,6 +205,7 @@ class CustomerListSerializer(serializers.ModelSerializer):
             "primary_phone_number",
             "secondary_first_name",
             "secondary_last_name",
+            "right_of_residence",
         ]
 
     def get_secondary_first_name(self, obj):
