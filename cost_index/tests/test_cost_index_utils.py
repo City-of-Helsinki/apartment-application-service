@@ -10,7 +10,31 @@ from application_form.enums import ApartmentReservationState
 from application_form.tests.factories import ApartmentReservationFactory
 from cost_index.models import CostIndex
 from cost_index.tests.factories import ApartmentRevaluationFactory
-from cost_index.utils import calculate_end_value
+from cost_index.utils import adjust_value, calculate_end_value, determine_date_index
+
+@mark.django_db
+def test_cost_index_no_price_decrease():
+    """
+    Assert that the price of an apartment doesn't go down if the price index has
+    gone down from original purchase date.
+
+    e.g. Cost index at 7.3.2024 is 100.0 and on 7.3.2025 its 90
+    """
+    start_cost_index = CostIndex.objects.create(
+        valid_from=date(2024, 7, 3),
+        value=100
+    )
+    end_cost_index = CostIndex.objects.create(
+        valid_from=date(2025, 7, 3),
+        value=90
+    )
+    original_value = 10_000
+    assert adjust_value(
+        original_value, 
+        start_index=start_cost_index.value,
+        end_index=end_cost_index.value,
+    ) >= original_value
+    pass
 
 
 @mark.django_db

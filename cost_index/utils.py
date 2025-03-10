@@ -20,12 +20,16 @@ def calculate_end_value(start_value: Decimal, start_date: date, end_date: date):
 
 def determine_date_index(dt: date):
     index = CostIndex.objects.filter(valid_from__lte=dt).order_by("-valid_from").first()
+
     if index:
         return index.value
     return None
 
 
 def adjust_value(value: Decimal, start_index: Decimal, end_index: Decimal):
+    if end_index < start_index:
+        end_index = start_index    
+
     adjusted_value = value / start_index * end_index
     return Decimal(adjusted_value).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
