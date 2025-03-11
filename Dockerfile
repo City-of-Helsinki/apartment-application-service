@@ -50,6 +50,7 @@ RUN chmod -R g+w /app/locale && chgrp -R root /app/locale
 
 USER 1001
 
+RUN echo "Download schemas to ${OIKOTIE_SCHEMA_DIR}"
 ADD --chown=root:root --chmod=755 ${OIKOTIE_APARTMENTS_BATCH_SCHEMA_URL} ${OIKOTIE_SCHEMA_DIR}
 ADD --chown=root:root --chmod=755 ${OIKOTIE_APARTMENTS_UPDATE_SCHEMA_URL} ${OIKOTIE_SCHEMA_DIR}
 ADD --chown=root:root --chmod=755 ${OIKOTIE_HOUSINGCOMPANIES_BATCH_SCHEMA_URL}  ${OIKOTIE_SCHEMA_DIR}
