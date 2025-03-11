@@ -10,7 +10,7 @@ from application_form.enums import ApartmentReservationState
 from application_form.tests.factories import ApartmentReservationFactory
 from cost_index.models import CostIndex
 from cost_index.tests.factories import ApartmentRevaluationFactory
-from cost_index.utils import adjust_value, calculate_end_value, determine_date_index
+from cost_index.utils import adjust_value, calculate_end_value
 
 
 @mark.django_db
