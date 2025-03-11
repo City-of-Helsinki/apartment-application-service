@@ -145,7 +145,6 @@ class ApartmentDocumentFactory(ElasticFactory):
     condition = "Uusi"
     kitchen_appliances = fuzzy.FuzzyText()
     has_yard = True
-    has_terrace = True
     has_balcony = True
     balcony_description = fuzzy.FuzzyText()
     bathroom_appliances = fuzzy.FuzzyText()

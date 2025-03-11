@@ -1,3 +1,4 @@
+import logging
 from datetime import date, timedelta
 from typing import List, Optional
 
@@ -51,6 +52,8 @@ from connections.oikotie.field_mapper import (
 )
 from connections.utils import convert_price_from_cents_to_eur
 
+_logger = logging.getLogger(__name__)
+
 
 def map_apartment_type(elastic_apartment: ElasticApartment) -> ApartmentType:
     project_building_type = getattr(elastic_apartment, "project_building_type", None)
@@ -102,7 +105,7 @@ def map_apartment_pictures(
     if main_image_url:
         pictures.append(
             ApartmentPicture(
-                index=1,
+                index=len(pictures) + 1,
                 is_floor_plan=False,
                 url=main_image_url,
             )
@@ -111,14 +114,19 @@ def map_apartment_pictures(
     image_urls = getattr(elastic_apartment, "image_urls", None)
     if image_urls:
         for idx, picture_url in enumerate(image_urls):
+
             pictures.append(
-                ApartmentPicture(index=idx + 2, is_floor_plan=False, url=picture_url)
+                ApartmentPicture(
+                    index=len(pictures) + 1, is_floor_plan=False, url=picture_url
+                )
             )
     floor_plan_image = getattr(elastic_apartment, "floor_plan_image", None)
+
     if floor_plan_image:
+
         pictures.append(
             ApartmentPicture(
-                index=1,
+                index=len(pictures) + 1,
                 is_floor_plan=True,
                 url=floor_plan_image,
             )
@@ -233,7 +241,8 @@ def map_maintenance_fee(
 
 
 def map_water_fee(elastic_apartment: ElasticApartment) -> Optional[WaterFee]:
-    if elastic_apartment.water_fee is not None:
+
+    if elastic_apartment.water_fee is not None and elastic_apartment.water_fee > 0:
         return WaterFee(
             value=convert_price_from_cents_to_eur(elastic_apartment.water_fee),
             unit=Unit.EUR_KK.value,
@@ -414,7 +423,6 @@ def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:
         "number_of_rooms": getattr(elastic_apartment, "room_count", None),
         "room_types": getattr(elastic_apartment, "apartment_structure", None),
         "balcony": map_balcony(elastic_apartment),
-        "has_terrace": getattr(elastic_apartment, "has_terrace", None),
         "view": getattr(elastic_apartment, "view_description", None),
         "living_area": map_living_area(elastic_apartment),
         "real_estate_id": getattr(elastic_apartment, "project_realty_id", None),
@@ -525,12 +533,12 @@ def map_address(elastic_apartment: ElasticApartment) -> Address:
 
 
 def map_coordinates(elastic_apartment: ElasticApartment) -> Optional[Coordinates]:
-    latitude = elastic_apartment.project_coordinate_lat
-    longitude = elastic_apartment.project_coordinate_lon
-    if latitude is not None and longitude is not None:
+    x = elastic_apartment.project_coordinate_lat
+    y = elastic_apartment.project_coordinate_lon
+    if x is not None and y is not None:
         return Coordinates(
-            latitude=latitude,
-            longitude=longitude,
+            x=x,
+            y=y,
         )
     else:
         return None
