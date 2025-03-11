@@ -27,8 +27,10 @@ def determine_date_index(dt: date):
 
 
 def adjust_value(value: Decimal, start_index: Decimal, end_index: Decimal):
+
+    # don't adjust value downwards
     if end_index < start_index:
-        end_index = start_index    
+        end_index = start_index
 
     adjusted_value = value / start_index * end_index
     return Decimal(adjusted_value).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)

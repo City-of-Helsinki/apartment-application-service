@@ -12,6 +12,7 @@ from cost_index.models import CostIndex
 from cost_index.tests.factories import ApartmentRevaluationFactory
 from cost_index.utils import adjust_value, calculate_end_value, determine_date_index
 
+
 @mark.django_db
 def test_cost_index_no_price_decrease():
     """
@@ -20,20 +21,24 @@ def test_cost_index_no_price_decrease():
 
     e.g. Cost index at 7.3.2024 is 100.0 and on 7.3.2025 its 90
     """
-    start_cost_index = CostIndex.objects.create(
-        valid_from=date(2024, 7, 3),
-        value=100
-    )
-    end_cost_index = CostIndex.objects.create(
-        valid_from=date(2025, 7, 3),
-        value=90
-    )
     original_value = 10_000
-    assert adjust_value(
-        original_value, 
-        start_index=start_cost_index.value,
-        end_index=end_cost_index.value,
-    ) >= original_value
+    assert (
+        adjust_value(
+            original_value,
+            start_index=Decimal("100.00"),
+            end_index=Decimal("90.00"),
+        )
+        >= original_value
+    )
+    assert (
+        adjust_value(
+            original_value,
+            start_index=Decimal("100.00"),
+            end_index=Decimal("110.00"),
+        )
+        == 11_000
+    )
+
     pass
 
 
@@ -43,6 +48,7 @@ def test_cost_index_utils_correct():
         {"value": Decimal("99.998"), "valid_from": date(2022, 11, 23)},
         {"value": Decimal("50.00"), "valid_from": date(2022, 11, 24)},
         {"value": Decimal("200.00"), "valid_from": date(2022, 11, 25)},
+        {"value": Decimal("200.998"), "valid_from": date(2022, 11, 26)},
     ]
     cost_index_objs = [CostIndex(**data) for data in cost_index_data]
     CostIndex.objects.bulk_create(cost_index_objs)
@@ -53,7 +59,9 @@ def test_cost_index_utils_correct():
     ) == Decimal("99.99")
     assert calculate_end_value(
         Decimal("100.00"), date(2022, 11, 23), date(2022, 11, 24)
-    ) == Decimal("50.00")
+    ) == Decimal(
+        "100.00"
+    )  # value shouldn't be adjusted downwards
     assert calculate_end_value(
         Decimal("100.00"), date(2022, 11, 23), date(2022, 11, 25)
     ) == Decimal("200.00")
@@ -63,8 +71,8 @@ def test_cost_index_utils_correct():
 
     # Test rounding behaviour
     assert calculate_end_value(
-        Decimal("100.01"), date(2022, 11, 23), date(2022, 11, 24)
-    ) == Decimal("50.01")
+        Decimal("100.01"), date(2022, 11, 23), date(2022, 11, 26)
+    ) == Decimal("201.02")
 
     with pytest.raises(ValueError):
         calculate_end_value(Decimal("100.00"), date(1988, 11, 22), date(2022, 11, 23))
