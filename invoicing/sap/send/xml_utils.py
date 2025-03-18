@@ -43,11 +43,11 @@ def get_installment_type_text(installment_type: InstallmentType) -> str:  # noqa
         result = "Laskutettava"
     elif installment_type is InstallmentType.LATE_PAYMENT_INTEREST:
         result = "Viivästyskorko"
-    elif installment_type is InstallmentType.REFUND:
+    elif installment_type is InstallmentType.REFUND_1:
         result = "Hyvitys"
     elif installment_type is InstallmentType.RESERVATION_FEE:
         result = "Varausmaksu"
-    elif installment_type is InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT:
+    elif installment_type is InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_1:
         result = "AO-maksu"
     else:
         raise ValueError("installment_type '{installment_type}' is not defined.")

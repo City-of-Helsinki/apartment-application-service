@@ -35,7 +35,7 @@ class InstallmentType(Enum):
         REFUND = _("refund")
         DOWN_PAYMENT = _("down payment")
         LATE_PAYMENT_INTEREST = _("late payment interest")
-        RIGHT_OF_OCCUPANCY_PAYMENT = _("right of occupancy payment")
+        RIGHT_OF_OCCUPANCY_PAYMENT_1 = _("right of occupancy payment 1")
         FOR_INVOICING = _("for invoicing")
         DEPOSIT = _("deposit")
         RESERVATION_FEE = _("reservation fee")
@@ -54,13 +54,13 @@ class InstallmentPercentageSpecifier(Enum):
     SALES_PRICE = "SALES_PRICE"
     DEBT_FREE_SALES_PRICE = "DEBT_FREE_SALES_PRICE"
     SALES_PRICE_FLEXIBLE = "SALES_PRICE_FLEXIBLE"
-    RIGHT_OF_OCCUPANCY_PAYMENT = "RIGHT_OF_OCCUPANCY_PAYMENT"
+    RIGHT_OF_OCCUPANCY_PAYMENT_1 = "RIGHT_OF_OCCUPANCY_PAYMENT_1"
 
     class Labels:
         SALES_PRICE = _("sales price")
         DEBT_FREE_SALES_PRICE = _("debt free sales price")
         SALES_PRICE_FLEXIBLE = _("sales price flexible")
-        RIGHT_OF_OCCUPANCY_PAYMENT = _("right of occupancy payment")
+        RIGHT_OF_OCCUPANCY_PAYMENT_1 = _("right of occupancy payment 1")
 
 
 class PaymentStatus(Enum):

@@ -139,7 +139,7 @@ def test_root_apartment_reservation_detail_installment_candidates(
     reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
     installment_template_1 = ProjectInstallmentTemplateFactory(
         project_uuid=project_uuid,
-        type=InstallmentType.REFUND,
+        type=InstallmentType.REFUND_1,
         value=Decimal("100.50"),
         unit=InstallmentUnit.EURO,
         due_date=date(2022, 1, 10),
@@ -171,10 +171,10 @@ def test_root_apartment_reservation_detail_installment_candidates(
 
     installment_template_5 = ProjectInstallmentTemplateFactory(
         project_uuid=project_uuid,
-        type=InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT,
+        type=InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_1,
         value=Decimal("15.00"),
         unit=InstallmentUnit.PERCENT,
-        percentage_specifier=InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT,  # noqa: E501
+        percentage_specifier=InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT_1,  # noqa: E501
         due_date=None,
     )
 

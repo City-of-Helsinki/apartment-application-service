@@ -41,7 +41,7 @@ def reservation_with_installments():
     ApartmentInstallmentFactory(
         apartment_reservation=reservation,
         **{
-            "type": InstallmentType.REFUND,
+            "type": InstallmentType.REFUND_1,
             "value": "100.55",
             "account_number": "123123123-123",
             "reference_number": "REFERENCE-321",
@@ -89,7 +89,7 @@ def test_project_detail_installments_field_and_endpoint_data_unauthorized(
     ProjectInstallmentTemplateFactory(
         project_uuid=project_uuid,
         **{
-            "type": InstallmentType.REFUND,
+            "type": InstallmentType.REFUND_1,
             "value": "100.00",
             "unit": InstallmentUnit.EURO,
             "account_number": "123123123-123",
@@ -136,7 +136,7 @@ def test_project_detail_installments_field_and_installments_endpoint_data(
     ProjectInstallmentTemplateFactory(
         project_uuid=project_uuid,
         **{
-            "type": InstallmentType.REFUND,
+            "type": InstallmentType.REFUND_1,
             "value": "100.00",
             "unit": InstallmentUnit.EURO,
             "account_number": "123123123-123",
@@ -169,7 +169,7 @@ def test_project_detail_installments_field_and_installments_endpoint_data(
             "due_date": "2022-02-19",
         },
         {
-            "type": "REFUND",
+            "type": "REFUND_1",
             "amount": 10000,
             "account_number": "123123123-123",
             "due_date": None,
@@ -189,7 +189,7 @@ def test_set_project_installments_unauthorized(apartment_document, user_api_clie
             "due_date": "2022-02-19",
         },
         {
-            "type": "REFUND",
+            "type": "REFUND_1",
             "amount": 10000,
             "account_number": "123123123-123",
             "due_date": None,
@@ -232,7 +232,7 @@ def test_set_project_installments(
             "due_date": "2022-02-19",
         },
         {
-            "type": "REFUND",
+            "type": "REFUND_1",
             "amount": 10000,
             "account_number": "123123123-123",
             "due_date": None,
@@ -288,7 +288,7 @@ def test_set_project_installments(
     assert installment_2.account_number == "123123123-123"
     assert installment_2.due_date == datetime.date(2022, 2, 19)
 
-    assert installment_3.type == InstallmentType.REFUND
+    assert installment_3.type == InstallmentType.REFUND_1
     assert installment_3.value == Decimal("100.00")
     assert installment_3.unit == InstallmentUnit.EURO
     assert installment_3.percentage_specifier is None
@@ -357,13 +357,13 @@ def test_set_project_installments_percentage_specifier_required_for_percentages(
         ),
         (
             {
-                "type": "RIGHT_OF_OCCUPANCY_PAYMENT",
+                "type": "RIGHT_OF_OCCUPANCY_PAYMENT_1",
                 "percentage": "53.5",
                 "account_number": "123123123-123",
                 "due_date": "2022-02-19",
-                "percentage_specifier": "RIGHT_OF_OCCUPANCY_PAYMENT",
+                "percentage_specifier": "RIGHT_OF_OCCUPANCY_PAYMENT_1",
             },
-            "Cannot select RIGHT_OF_OCCUPANCY_PAYMENT as unit specifier in "
+            "Cannot select RIGHT_OF_OCCUPANCY_PAYMENT_1 as unit specifier in "
             "HITAS payment template",
         ),
         (
@@ -381,7 +381,7 @@ def test_set_project_installments_percentage_specifier_required_for_percentages(
 def test_set_project_installments_errors(
     apartment_document, sales_ui_salesperson_api_client, input, expected_error
 ):
-    if input.get("percentage_specifier") == "RIGHT_OF_OCCUPANCY_PAYMENT":
+    if input.get("percentage_specifier") == "RIGHT_OF_OCCUPANCY_PAYMENT_1":
         apartment_document = ApartmentDocumentFactory(
             uuid=uuid.uuid4(), project_ownership_type="Hitas"
         )
@@ -422,7 +422,7 @@ def test_apartment_installments_endpoint_unauthorized(
     ApartmentInstallmentFactory(
         apartment_reservation=reservation,
         **{
-            "type": InstallmentType.REFUND,
+            "type": InstallmentType.REFUND_1,
             "value": "100.55",
             "account_number": "123123123-123",
             "due_date": None,
@@ -462,7 +462,7 @@ def test_apartment_installments_endpoint_data(
     ApartmentInstallmentFactory(
         apartment_reservation=reservation,
         **{
-            "type": InstallmentType.REFUND,
+            "type": InstallmentType.REFUND_1,
             "value": "100.55",
             "account_number": "123123123-123",
             "due_date": None,
@@ -497,7 +497,7 @@ def test_apartment_installments_endpoint_data(
             ],
         },
         {
-            "type": "REFUND",
+            "type": "REFUND_1",
             "amount": 10055,
             "account_number": "123123123-123",
             "due_date": None,
@@ -529,7 +529,7 @@ def test_set_apartment_installments(
             "added_to_be_sent_to_sap_at": timezone.now(),
         },
         {
-            "type": "REFUND",
+            "type": "REFUND_1",
             "amount": 0,
             "account_number": "123123123-123",
             "due_date": None,
@@ -583,7 +583,7 @@ def test_set_apartment_installments(
     assert installment_1.account_number == "123123123-123"
     assert installment_1.due_date == datetime.date(2022, 2, 19)
 
-    assert installment_2.type == InstallmentType.REFUND
+    assert installment_2.type == InstallmentType.REFUND_1
     assert installment_2.value == Decimal("0")
     assert installment_2.account_number == "123123123-123"
     assert installment_2.due_date is None
@@ -837,7 +837,7 @@ def test_apartment_installment_invoice_pdf_filtering(
     one_installment_invoice = response.content
 
     response = sales_ui_salesperson_api_client.get(
-        base_url + "?types=PAYMENT_1,REFUND",
+        base_url + "?types=PAYMENT_1,REFUND_1",
         format="json",
     )
     assert response.status_code == 200
@@ -959,7 +959,7 @@ def test_set_apartment_installments_generate_metadata(
             "added_to_be_sent_to_sap_at": timezone.now(),
         },
         {
-            "type": "REFUND",
+            "type": "REFUND_1",
             "amount": 0,
             "account_number": "123123123-123",
             "due_date": None,
@@ -968,14 +968,7 @@ def test_set_apartment_installments_generate_metadata(
         },
     ]
 
-    response = sales_ui_salesperson_api_client.post(
-        reverse(
-            "application_form:apartment-installment-list",
-            kwargs={"apartment_reservation_id": reservation.id},
-        ),
-        data=data,
-        format="json",
-    )
+    response = sales_ui_salesperson_api_client.post( reverse( "application_form:apartment-installment-list", kwargs={"apartment_reservation_id": reservation.id}, ), data=data, format="json", )
     assert response.status_code == 201
     installments = ApartmentInstallment.objects.all()
     assert len(installments) == 2
@@ -993,7 +986,7 @@ def test_apartment_installment_refund_value_cannot_be_positive(
 
     data = [
         {
-            "type": "REFUND",
+            "type": "REFUND_1",
             "amount": 1,  # illegal positive value
             "account_number": "123123123-123",
             "due_date": None,

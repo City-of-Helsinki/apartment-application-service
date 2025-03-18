@@ -151,7 +151,7 @@ def get_haso_contract_pdf_data(
 
     first_payment = SafeAttributeObject(
         reservation.apartment_installments.filter(
-            type=InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT
+            type=InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_1
         ).first()
     )
 
