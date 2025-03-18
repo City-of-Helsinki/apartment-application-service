@@ -143,6 +143,26 @@ def test_project_detail_installments_field_and_installments_endpoint_data(
             "due_date": None,
         },
     )
+    ProjectInstallmentTemplateFactory(
+        project_uuid=project_uuid,
+        **{
+            "type": InstallmentType.REFUND_2,
+            "value": "100.00",
+            "unit": InstallmentUnit.EURO,
+            "account_number": "123123123-123",
+            "due_date": None,
+        },
+    )
+    ProjectInstallmentTemplateFactory(
+        project_uuid=project_uuid,
+        **{
+            "type": InstallmentType.REFUND_3,
+            "value": "100.00",
+            "unit": InstallmentUnit.EURO,
+            "account_number": "123123123-123",
+            "due_date": None,
+        },
+    )
 
     if target == "field":
         url = reverse("apartment:project-detail", kwargs={"project_uuid": project_uuid})
@@ -170,6 +190,18 @@ def test_project_detail_installments_field_and_installments_endpoint_data(
         },
         {
             "type": "REFUND_1",
+            "amount": 10000,
+            "account_number": "123123123-123",
+            "due_date": None,
+        },
+        {
+            "type": "REFUND_2",
+            "amount": 10000,
+            "account_number": "123123123-123",
+            "due_date": None,
+        },
+        {
+            "type": "REFUND_3",
             "amount": 10000,
             "account_number": "123123123-123",
             "due_date": None,
@@ -368,6 +400,28 @@ def test_set_project_installments_percentage_specifier_required_for_percentages(
         ),
         (
             {
+                "type": "RIGHT_OF_OCCUPANCY_PAYMENT_2",
+                "percentage": "53.5",
+                "account_number": "123123123-123",
+                "due_date": "2022-02-19",
+                "percentage_specifier": "RIGHT_OF_OCCUPANCY_PAYMENT_2",
+            },
+            "Cannot select RIGHT_OF_OCCUPANCY_PAYMENT_2 as unit specifier in "
+            "HITAS payment template",
+        ),
+        (
+            {
+                "type": "RIGHT_OF_OCCUPANCY_PAYMENT_3",
+                "percentage": "53.5",
+                "account_number": "123123123-123",
+                "due_date": "2022-02-19",
+                "percentage_specifier": "RIGHT_OF_OCCUPANCY_PAYMENT_3",
+            },
+            "Cannot select RIGHT_OF_OCCUPANCY_PAYMENT_3 as unit specifier in "
+            "HITAS payment template",
+        ),
+        (
+            {
                 "type": "PAYMENT_1",
                 "percentage": "53.5",
                 "account_number": "123123123-123",
@@ -381,7 +435,7 @@ def test_set_project_installments_percentage_specifier_required_for_percentages(
 def test_set_project_installments_errors(
     apartment_document, sales_ui_salesperson_api_client, input, expected_error
 ):
-    if input.get("percentage_specifier") == "RIGHT_OF_OCCUPANCY_PAYMENT_1":
+    if "RIGHT_OF_OCCUPANCY_PAYMENT" in input.get("percentage_specifier", ""):
         apartment_document = ApartmentDocumentFactory(
             uuid=uuid.uuid4(), project_ownership_type="Hitas"
         )
@@ -400,6 +454,7 @@ def test_set_project_installments_errors(
         data=data,
         format="json",
     )
+    # import ipdb;ipdb.set_trace()
     assert response.status_code == 400
     assert expected_error in str(response.data)
 

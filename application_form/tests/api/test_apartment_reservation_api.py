@@ -177,6 +177,22 @@ def test_root_apartment_reservation_detail_installment_candidates(
         percentage_specifier=InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT_1,  # noqa: E501
         due_date=None,
     )
+    installment_template_5 = ProjectInstallmentTemplateFactory(
+        project_uuid=project_uuid,
+        type=InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_2,
+        value=Decimal("15.00"),
+        unit=InstallmentUnit.PERCENT,
+        percentage_specifier=InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT_2,  # noqa: E501
+        due_date=None,
+    )
+    installment_template_5 = ProjectInstallmentTemplateFactory(
+        project_uuid=project_uuid,
+        type=InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_3,
+        value=Decimal("15.00"),
+        unit=InstallmentUnit.PERCENT,
+        percentage_specifier=InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT_3,  # noqa: E501
+        due_date=None,
+    )
 
     # another project
     ProjectInstallmentTemplateFactory(

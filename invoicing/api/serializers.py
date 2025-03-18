@@ -216,7 +216,9 @@ class ProjectInstallmentTemplateSerializer(InstallmentSerializerBase):
             if (
                 project.project_ownership_type.lower() in ["hitas", "puolihitas"]
                 and percentage_specifier
-                == InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT_1
+                in [InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT_1,
+                InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT_2,
+                InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT_3]
             ):
                 raise exceptions.ValidationError(
                     f"Cannot select {percentage_specifier.name} as "
