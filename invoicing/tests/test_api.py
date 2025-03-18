@@ -1023,7 +1023,14 @@ def test_set_apartment_installments_generate_metadata(
         },
     ]
 
-    response = sales_ui_salesperson_api_client.post( reverse( "application_form:apartment-installment-list", kwargs={"apartment_reservation_id": reservation.id}, ), data=data, format="json", )
+    response = sales_ui_salesperson_api_client.post(
+        reverse(
+            "application_form:apartment-installment-list",
+            kwargs={"apartment_reservation_id": reservation.id},
+        ),
+        data=data,
+        format="json",
+    )
     assert response.status_code == 201
     installments = ApartmentInstallment.objects.all()
     assert len(installments) == 2
