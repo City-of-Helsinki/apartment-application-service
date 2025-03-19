@@ -583,8 +583,8 @@ def test_set_apartment_installments(
             "reference_number": "REFERENCE-123",
             "added_to_be_sent_to_sap_at": timezone.now(),
         },
-        {
-            "type": "REFUND_1",
+        {  # Test DB isn't cleared between test cases, use REFUND_2 to avoid collisions until then  # noqa: E501
+            "type": "REFUND_2",
             "amount": 0,
             "account_number": "123123123-123",
             "due_date": None,
@@ -623,6 +623,7 @@ def test_set_apartment_installments(
     response_data[0].pop("payments")
     response_data[1].pop("payment_state")
     response_data[1].pop("payments")
+
     assert response_data == data
 
     assert ApartmentInstallment.objects.count() == 3
@@ -638,7 +639,7 @@ def test_set_apartment_installments(
     assert installment_1.account_number == "123123123-123"
     assert installment_1.due_date == datetime.date(2022, 2, 19)
 
-    assert installment_2.type == InstallmentType.REFUND_1
+    assert installment_2.type == InstallmentType.REFUND_2
     assert installment_2.value == Decimal("0")
     assert installment_2.account_number == "123123123-123"
     assert installment_2.due_date is None
