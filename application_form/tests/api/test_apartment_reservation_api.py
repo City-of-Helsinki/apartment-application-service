@@ -204,9 +204,15 @@ def test_root_apartment_reservation_detail_installment_candidates(
         unit=InstallmentUnit.EURO,
         due_date=None,
     )
-    url = reverse( "application_form:sales-apartment-reservation-detail", kwargs={"pk": reservation.id}, )
+    url = reverse(
+        "application_form:sales-apartment-reservation-detail",
+        kwargs={"pk": reservation.id},
+    )
 
-    response = sales_ui_salesperson_api_client.get( url, format="json", ) 
+    response = sales_ui_salesperson_api_client.get(
+        url,
+        format="json",
+    )
     assert response.status_code == 200
 
     installment_candidates = response.data["installment_candidates"]
@@ -244,6 +250,18 @@ def test_root_apartment_reservation_detail_installment_candidates(
 
     assert installment_candidates[4] == {
         "type": installment_template_5.type.value,
+        "amount": 300000,  # 15% of 20000,00e in cents
+        "account_number": installment_template_5.account_number,
+        "due_date": None,
+    }
+    assert installment_candidates[5] == {
+        "type": installment_template_6.type.value,
+        "amount": 300000,  # 15% of 20000,00e in cents
+        "account_number": installment_template_5.account_number,
+        "due_date": None,
+    }
+    assert installment_candidates[6] == {
+        "type": installment_template_7.type.value,
         "amount": 300000,  # 15% of 20000,00e in cents
         "account_number": installment_template_5.account_number,
         "due_date": None,
