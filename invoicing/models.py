@@ -224,7 +224,6 @@ class ProjectInstallmentTemplate(InstallmentBase):
         self, apartment_data
     ) -> ApartmentInstallment:
         apartment_installment = ApartmentInstallment()
-
         field_names = [
             f.name for f in InstallmentBase._meta.get_fields() if f.name != "created_at"
         ]
@@ -251,7 +250,11 @@ class ProjectInstallmentTemplate(InstallmentBase):
             price_in_cents = apartment_data["sales_price"]
         elif ps == InstallmentPercentageSpecifier.DEBT_FREE_SALES_PRICE:
             price_in_cents = apartment_data["debt_free_sales_price"]
-        elif ps == InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT_1:
+        elif ps in [
+            InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT_1, 
+            InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT_2,
+            InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT_3
+         ]:
             price_in_cents = apartment_data["right_of_occupancy_payment"]
         else:
             assert_never(ps)

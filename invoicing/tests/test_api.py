@@ -13,6 +13,7 @@ from ..enums import InstallmentPercentageSpecifier, InstallmentType, Installment
 from ..models import ApartmentInstallment, ProjectInstallmentTemplate
 from .factories import (
     ApartmentInstallmentFactory,
+    InstallmentBaseFactory,
     PaymentFactory,
     ProjectInstallmentTemplateFactory,
 )
@@ -211,6 +212,13 @@ def test_project_detail_installments_field_and_installments_endpoint_data(
 
 @pytest.mark.django_db
 def test_set_project_installments_unauthorized(apartment_document, user_api_client):
+    # InstallmentBaseFactory uses a sequence to cycle through Installment types
+    # This sequence number doesn't reset after each test case which leads to
+    # tests dependent on generated installments having a certain type failing
+    # when new calls to InstallmentBaseFactory subclasses are added (or removed).
+    # Resetting the sequence number here helps keep the types consistent
+    InstallmentBaseFactory.reset_sequence(0)
+
     project_uuid = apartment_document.project_uuid
     data = [
         {
@@ -572,6 +580,7 @@ def test_apartment_installments_endpoint_data(
 def test_set_apartment_installments(
     sales_ui_salesperson_api_client, has_old_installments
 ):
+    InstallmentBaseFactory.reset_sequence(0)
     reservation = ApartmentReservationFactory()
 
     data = [
@@ -584,7 +593,7 @@ def test_set_apartment_installments(
             "added_to_be_sent_to_sap_at": timezone.now(),
         },
         {  # Test DB isn't cleared between test cases, use REFUND_2 to avoid collisions until then  # noqa: E501
-            "type": "REFUND_2",
+            "type": "REFUND_1",
             "amount": 0,
             "account_number": "123123123-123",
             "due_date": None,
@@ -639,7 +648,7 @@ def test_set_apartment_installments(
     assert installment_1.account_number == "123123123-123"
     assert installment_1.due_date == datetime.date(2022, 2, 19)
 
-    assert installment_2.type == InstallmentType.REFUND_2
+    assert installment_2.type == InstallmentType.REFUND_1
     assert installment_2.value == Decimal("0")
     assert installment_2.account_number == "123123123-123"
     assert installment_2.due_date is None

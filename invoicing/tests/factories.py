@@ -17,6 +17,9 @@ unique_number_faker = faker.Faker()
 
 class InstallmentBaseFactory(factory.django.DjangoModelFactory):
     # Faker("random_element") cannot be used because it could generate non-unique values
+    # Might be necessary to call InstallmentBaseFactory.reset_sequence(0)
+    # at the start of test cases
+    # if you are running into issues with tests only failing when ran alongside other tests  # noqa: E501
     type = factory.Sequence(
         lambda n: list(InstallmentType)[n % len(list(InstallmentType))]
     )
@@ -30,6 +33,7 @@ class InstallmentBaseFactory(factory.django.DjangoModelFactory):
 
 
 class ProjectInstallmentTemplateFactory(InstallmentBaseFactory):
+
     project_uuid = factory.Faker("uuid4")
     unit = factory.Faker("random_element", elements=list(InstallmentUnit))
     percentage_specifier = factory.Faker(
