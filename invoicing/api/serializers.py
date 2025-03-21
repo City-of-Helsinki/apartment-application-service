@@ -213,11 +213,14 @@ class ProjectInstallmentTemplateSerializer(InstallmentSerializerBase):
                     "percentage_specifier is required when providing percentage."
                 )
 
-            if (
-                project.project_ownership_type.lower() in ["hitas", "puolihitas"]
-                and percentage_specifier
-                == InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT
-            ):
+            if project.project_ownership_type.lower() in [
+                "hitas",
+                "puolihitas",
+            ] and percentage_specifier in [
+                InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT_1,
+                InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT_2,
+                InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT_3,
+            ]:
                 raise exceptions.ValidationError(
                     f"Cannot select {percentage_specifier.name} as "
                     "unit specifier in HITAS payment template"
@@ -333,7 +336,7 @@ class ApartmentInstallmentSerializer(ApartmentInstallmentSerializerBase):
 
     def validate(self, validated_data):
         if (
-            validated_data["type"] == InstallmentType.REFUND
+            validated_data["type"] == InstallmentType.REFUND_1
             and validated_data["value"] > 0
         ):
             raise exceptions.ValidationError("Refund cannot have a positive value.")
