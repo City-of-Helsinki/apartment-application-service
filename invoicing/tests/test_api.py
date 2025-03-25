@@ -1,4 +1,5 @@
 import datetime
+import logging
 import uuid
 from decimal import Decimal
 
@@ -17,6 +18,8 @@ from .factories import (
     PaymentFactory,
     ProjectInstallmentTemplateFactory,
 )
+
+_logger = logging.getLogger()
 
 
 @pytest.fixture
@@ -62,6 +65,69 @@ def test_project_list_does_not_include_installments(
     )
     assert response.status_code == 200
     assert "installment_templates" not in response.data[0]
+
+
+@pytest.mark.django_db
+def test_project_detail_installments_percentage_specifier_refund_right_of_occupancy(
+    apartment_document, sales_ui_salesperson_api_client
+):
+    project_uuid = apartment_document.project_uuid
+
+    url = reverse(
+        "apartment:project-installment-template-list",
+        kwargs={"project_uuid": project_uuid},
+    )
+
+    # use variable to keep line length short and the linter happy
+    percentage_specifier = InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT
+    data = [
+        {
+            "type": "REFUND_1",
+            "amount": 20,
+            "account_number": "123123123-123",
+            "due_date": None,
+            "percentage_specifier": percentage_specifier.value,
+        },
+        {
+            "type": "REFUND_2",
+            "amount": 20,
+            "account_number": "123123123-123",
+            "due_date": None,
+            "percentage_specifier": percentage_specifier.value,
+        },
+        {
+            "type": "REFUND_3",
+            "amount": 20,
+            "account_number": "123123123-123",
+            "due_date": None,
+            "percentage_specifier": percentage_specifier.value,
+        },
+        {
+            "type": "RIGHT_OF_OCCUPANCY_PAYMENT_1",
+            "amount": 20,
+            "account_number": "123123123-123",
+            "due_date": None,
+            "percentage_specifier": percentage_specifier.value,
+        },
+        {
+            "type": "RIGHT_OF_OCCUPANCY_PAYMENT_2",
+            "amount": 20,
+            "account_number": "123123123-123",
+            "due_date": None,
+            "percentage_specifier": percentage_specifier.value,
+        },
+        {
+            "type": "RIGHT_OF_OCCUPANCY_PAYMENT_3",
+            "amount": 20,
+            "account_number": "123123123-123",
+            "due_date": None,
+            "percentage_specifier": percentage_specifier.value,
+        },
+    ]
+
+    response = sales_ui_salesperson_api_client.post(url, data=data, format="json")
+    assert len(response.json()) == 6
+    pass
 
 
 @pytest.mark.django_db
@@ -401,9 +467,9 @@ def test_set_project_installments_percentage_specifier_required_for_percentages(
                 "percentage": "53.5",
                 "account_number": "123123123-123",
                 "due_date": "2022-02-19",
-                "percentage_specifier": "RIGHT_OF_OCCUPANCY_PAYMENT_1",
+                "percentage_specifier": "RIGHT_OF_OCCUPANCY_PAYMENT",
             },
-            "Cannot select RIGHT_OF_OCCUPANCY_PAYMENT_1 as unit specifier in "
+            "Cannot select RIGHT_OF_OCCUPANCY_PAYMENT as unit specifier in "
             "HITAS payment template",
         ),
         (
@@ -412,9 +478,9 @@ def test_set_project_installments_percentage_specifier_required_for_percentages(
                 "percentage": "53.5",
                 "account_number": "123123123-123",
                 "due_date": "2022-02-19",
-                "percentage_specifier": "RIGHT_OF_OCCUPANCY_PAYMENT_2",
+                "percentage_specifier": "RIGHT_OF_OCCUPANCY_PAYMENT",
             },
-            "Cannot select RIGHT_OF_OCCUPANCY_PAYMENT_2 as unit specifier in "
+            "Cannot select RIGHT_OF_OCCUPANCY_PAYMENT as unit specifier in "
             "HITAS payment template",
         ),
         (
@@ -423,9 +489,9 @@ def test_set_project_installments_percentage_specifier_required_for_percentages(
                 "percentage": "53.5",
                 "account_number": "123123123-123",
                 "due_date": "2022-02-19",
-                "percentage_specifier": "RIGHT_OF_OCCUPANCY_PAYMENT_3",
+                "percentage_specifier": "RIGHT_OF_OCCUPANCY_PAYMENT",
             },
-            "Cannot select RIGHT_OF_OCCUPANCY_PAYMENT_3 as unit specifier in "
+            "Cannot select RIGHT_OF_OCCUPANCY_PAYMENT as unit specifier in "
             "HITAS payment template",
         ),
         (
