@@ -213,14 +213,15 @@ class ProjectInstallmentTemplateSerializer(InstallmentSerializerBase):
                     "percentage_specifier is required when providing percentage."
                 )
 
-            if project.project_ownership_type.lower() in [
-                "hitas",
-                "puolihitas",
-            ] and percentage_specifier in [
-                InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT_1,
-                InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT_2,
-                InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT_3,
-            ]:
+            if (
+                project.project_ownership_type.lower()
+                in [
+                    "hitas",
+                    "puolihitas",
+                ]
+                and percentage_specifier
+                == InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT
+            ):
                 raise exceptions.ValidationError(
                     f"Cannot select {percentage_specifier.name} as "
                     "unit specifier in HITAS payment template"
