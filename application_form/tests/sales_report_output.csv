@@ -1,0 +1,18 @@
+Project address,Apartments total,Sold HITAS apartments,Sold HASO apartments,Unsold apartments
+Testikatu 123,10,,3,7
+Huoneisto,Myyntihinta,Velaton hinta,Luovutushinta,Kaupantekopäivä
+A10,,,24500,1.3.2025
+A22,,,42000,6.3.2025
+A45,,,38000,15.3.2025
+Yhteensä,,,104500,
+,,,,
+Testitie 321,10,3,,7
+A1,56000,170000,,
+A9,68000,185000,,
+C54,45000,150000,,
+Yhteensä,169000,505000,,
+,,,,
+,,,,
+,,,,
+Kaupat lukumäärä yhteensä,,3,3,14
+Kauppahinnat yhteensä,169000,505000,104500,
