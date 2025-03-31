@@ -10,6 +10,7 @@ from application_form.api.sales.views import (
 )
 from application_form.api.views import (
     ApplicationViewSet,
+    delete_application_view,
     LatestApplicantInfo,
     ListProjectReservations,
 )
@@ -48,6 +49,11 @@ public_urlpatterns = [
 ]
 
 urlpatterns = [
+    path(
+        r"applications/delete/<uuid:application_uuid>/",
+        delete_application_view,
+        name="application-delete",
+    ),
     path(
         r"sales/execute_lottery_for_project/",
         execute_lottery_for_project,

@@ -1,5 +1,11 @@
-from rest_framework import permissions
+from rest_framework import permissions, status
+from rest_framework.decorators import (
+    api_view,
+    authentication_classes,
+    permission_classes,
+)
 from rest_framework.generics import GenericAPIView
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
@@ -10,6 +16,7 @@ from application_form.api.serializers import (
     ApplicationSerializer,
 )
 from application_form.models import ApartmentReservation, Application
+from application_form.services.application import delete_application
 from audit_log.viewsets import AuditLoggingModelViewSet
 
 
@@ -66,3 +73,28 @@ class LatestApplicantInfo(GenericAPIView):
                 return Response(serializer.data)
 
         return Response({})
+
+
+@api_view(["POST"])
+@authentication_classes([JWTAuthentication])
+@permission_classes([IsAuthenticated])
+def delete_application_view(request, application_uuid):
+    applications = Application.objects.filter(external_uuid=application_uuid)
+
+    if not applications.exists():
+        return Response(
+            {"detail": "Application not found."}, status=status.HTTP_404_NOT_FOUND
+        )
+
+    applications = applications.filter(customer__primary_profile__user=request.user)
+
+    if not applications.exists():
+        return Response(
+            {"detail": "You do not have permission to delete this application."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    application = applications.order_by("-created_at").first()
+
+    delete_application(application)
+    return Response(status=status.HTTP_204_NO_CONTENT)
