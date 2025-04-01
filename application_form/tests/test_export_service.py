@@ -395,6 +395,7 @@ def test_export_sale_report_new(
         projects.append(
             get_project(project_uuid)
         )
+    projects = sorted(projects, lambda x: x.project_street_address)
 
     # Now sold some apartment
     for project in projects:
@@ -426,6 +427,7 @@ def test_export_sale_report_new(
     def get_sale_timestamp(apt: ApartmentDocument): 
         event = state_events.get(reservation__apartment_uuid=apt.uuid)
         return event.timestamp.strftime("%d.%m.%Y")
+
 
     expected_rows = [
         [ "Project address", "Apartments total", "Sold HITAS apartments", "Sold HASO apartments", "Unsold apartments", ],
@@ -490,23 +492,6 @@ def test_export_sale_report_new(
     ]
     
     assert export_rows == expected_rows
-
-    
-    # assert state_events.count() == 2
-    # export_service = SaleReportExportService(state_events)
-    # csv_lines = export_service.get_rows()
-
-    # assert len(csv_lines) == 4
-    # for idx, header in enumerate(csv_lines[0]):
-    #     assert header == SaleReportExportService.COLUMNS[idx][0]
-    # assert (csv_lines[1][1] == "" and csv_lines[1][2] == 1) or (
-    #     csv_lines[1][1] == 1 and csv_lines[1][2] == ""
-    # )
-    # assert (csv_lines[2][1] == "" and csv_lines[2][2] == 1) or (
-    #     csv_lines[2][1] == 1 and csv_lines[2][2] == ""
-    # )
-    # assert csv_lines[3][:3] == ["Total", 1, 1]
-
 
 
 @pytest.mark.django_db

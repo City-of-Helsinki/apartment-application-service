@@ -350,7 +350,7 @@ class XlsxSalesReportExportService(XlsxExportService):
 
     def __init__(self, sold_events):
         self.sold_events = sold_events
-        self.project_uuids = self._get_project_uuids()
+        self.projects = self._get_projects()
 
     def get_rows(self):
         apartments = []
@@ -359,10 +359,9 @@ class XlsxSalesReportExportService(XlsxExportService):
         project_rows = []
         first = True
 
-        for project_uuid in sorted(self.project_uuids):
-            project = get_project(project_uuid)
-            project_apartments = get_apartments(project_uuid)
-            
+        for project in self.projects:
+            project_apartments = get_apartments(project.project_uuid)
+
             apartments += project_apartments
             project_rows += self._get_project_rows(
                 project, project_apartments, first=first
@@ -506,14 +505,15 @@ class XlsxSalesReportExportService(XlsxExportService):
 
         return state_change_event.timestamp.strftime("%d.%m.%Y")
 
-    def _get_project_uuids(self):
-        project_uuids = set()
+    def _get_projects(self):
+        projects = []
         for e in self.sold_events:
             project_uuid = get_apartment_project_uuid(
                 e.reservation.apartment_uuid
             ).project_uuid
-            project_uuids.add(project_uuid)
-        return project_uuids
+            projects.append(get_project(project_uuid))
+
+        return sorted(projects, lambda x: x.project_street_address)
     
 
 
