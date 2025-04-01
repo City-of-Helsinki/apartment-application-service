@@ -1,6 +1,8 @@
 from datetime import timedelta
 from typing import List
 
+from apartment.elastic.documents import ApartmentDocument
+from apartment.enums import OwnershipType
 from application_form.tests.conftest import elastic_project_with_n_apartments
 import pytest
 from _pytest.fixtures import fixture
@@ -389,13 +391,13 @@ def test_export_sale_report_new(
             add_application_to_queues(apt_app[0].application)
             add_application_to_queues(apt_app[1].application)
         distribute_apartments(project_uuid)
+
         projects.append(
             get_project(project_uuid)
         )
 
     # Now sold some apartment
-    # Sort projects to assure order and avoid flaky test
-    for project in sorted(projects, key=lambda x: x.project_uuid):
+    for project in projects:
         # 1 apartment sold per project
         apartments = get_apartments(project.project_uuid)
         reservation = (
@@ -411,6 +413,7 @@ def test_export_sale_report_new(
     state_events = ApartmentReservationStateChangeEvent.objects.filter(
         state=ApartmentReservationState.SOLD, timestamp__range=[start, end]
     )
+
     export_service = XlsxSalesReportExportService(state_events)
     export_rows = export_service.get_rows()
 
@@ -420,9 +423,13 @@ def test_export_sale_report_new(
     haso_project = projects[1]
     haso_apartments = projects_apartments[haso_project.project_uuid]
 
+    def get_sale_timestamp(apt: ApartmentDocument): 
+        event = state_events.get(reservation__apartment_uuid=apt.uuid)
+        return event.timestamp.strftime("%d.%m.%Y")
+
     expected_rows = [
         [ "Project address", "Apartments total", "Sold HITAS apartments", "Sold HASO apartments", "Unsold apartments", ],
-        [ 
+        [
             hitas_project.project_street_address,
             5,
             1,
@@ -435,7 +442,7 @@ def test_export_sale_report_new(
             hitas_apartments[0].sales_price,
             hitas_apartments[0].debt_free_sales_price,
             "",
-            state_events.get(reservation__apartment_uuid=hitas_apartments[0].uuid).timestamp,
+            get_sale_timestamp(hitas_apartments[0])
         ],
         [
             "Yhteensä",
@@ -456,7 +463,7 @@ def test_export_sale_report_new(
             "",
             "",
             haso_apartments[0].right_of_occupancy_payment,
-            state_events.get(reservation__apartment_uuid=haso_apartments[0].uuid).timestamp,
+            get_sale_timestamp(haso_apartments[0]),
         ],
         [
             "Yhteensä",

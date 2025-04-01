@@ -358,6 +358,7 @@ class XlsxSalesReportExportService(XlsxExportService):
 
         project_rows = []
         first = True
+
         for project_uuid in sorted(self.project_uuids):
             project = get_project(project_uuid)
             project_apartments = get_apartments(project_uuid)
@@ -384,14 +385,7 @@ class XlsxSalesReportExportService(XlsxExportService):
              "Sold HASO apartments", 
              "Unsold apartments", ],
         ]
-        # reported_sold = len(
-        #     [
-        #         e
-        #         for e in self.sold_events
-        #         if str(e.reservation.apartment_uuid) in apartment_uuids
-        #     ]
-        # )
-        # import ipdb;ipdb.set_trace()
+
         sum_rows = [
             [""],
             [""],
@@ -510,7 +504,7 @@ class XlsxSalesReportExportService(XlsxExportService):
             state=ApartmentReservationState.SOLD,
         ).order_by("-id").first()
 
-        return state_change_event.timestamp
+        return state_change_event.timestamp.strftime("%d.%m.%Y")
 
     def _get_project_uuids(self):
         project_uuids = set()
