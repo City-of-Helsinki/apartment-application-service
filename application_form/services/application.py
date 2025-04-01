@@ -380,3 +380,15 @@ def _find_winning_candidates(applications: QuerySet) -> QuerySet:
         right_of_residence=first_app_right_of_residence,
         right_of_residence_is_old_batch=first_app_right_of_residence_is_old_batch,
     )
+
+
+def delete_application(application: Application):
+    for application_apartment in application.application_apartments.all():
+        ApartmentReservation.objects.filter(
+            application_apartment=application_apartment
+        ).delete()
+        application_apartment.delete()
+
+    application.applicants.all().delete()
+
+    application.delete()
