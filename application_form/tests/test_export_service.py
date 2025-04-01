@@ -1,11 +1,12 @@
 from datetime import timedelta
 from typing import List
 
+from application_form.tests.conftest import elastic_project_with_n_apartments
 import pytest
 from _pytest.fixtures import fixture
 from django.utils import timezone
 
-from apartment.elastic.queries import get_apartment, get_apartment_uuids, get_project
+from apartment.elastic.queries import get_apartment, get_apartment_uuids, get_apartments, get_project
 from application_form.enums import ApartmentReservationState
 from application_form.models import (
     ApartmentReservation,
@@ -16,6 +17,7 @@ from application_form.services.export import (
     ApplicantMailingListExportService,
     ProjectLotteryResultExportService,
     SaleReportExportService,
+    XlsxSalesReportExportService,
 )
 from application_form.services.lottery.machine import distribute_apartments
 from application_form.services.queue import add_application_to_queues
@@ -365,12 +367,15 @@ def test_export_project_lottery_result(
         None,
     )
 
+
 @pytest.mark.django_db
 def test_export_sale_report_new(
     elastic_hitas_project_with_5_apartments,
     elastic_haso_project_with_5_apartments,
 ):
-    project_uuids = []
+    projects = []
+    projects_apartments = {}
+
     for i in range(2):
         if i % 2 == 0:
             project_uuid, _ = elastic_hitas_project_with_5_apartments
@@ -384,38 +389,101 @@ def test_export_sale_report_new(
             add_application_to_queues(apt_app[0].application)
             add_application_to_queues(apt_app[1].application)
         distribute_apartments(project_uuid)
-        project_uuids.append(project_uuid)
+        projects.append(
+            get_project(project_uuid)
+        )
 
     # Now sold some apartment
-    for project_uuid in project_uuids:
+    # Sort projects to assure order and avoid flaky test
+    for project in sorted(projects, key=lambda x: x.project_uuid):
         # 1 apartment sold per project
-        apartment_uuids = get_apartment_uuids(project_uuid)
+        apartments = get_apartments(project.project_uuid)
         reservation = (
-            ApartmentReservation.objects.filter(apartment_uuid=apartment_uuids[0])
+            ApartmentReservation.objects.filter(apartment_uuid=apartments[0].uuid)
             .reserved()
             .first()
         )
         reservation.set_state(ApartmentReservationState.SOLD)
+        projects_apartments[project.project_uuid] = apartments
 
     start = timezone.now() - timedelta(days=7)
     end = timezone.now() + timedelta(days=7)
     state_events = ApartmentReservationStateChangeEvent.objects.filter(
         state=ApartmentReservationState.SOLD, timestamp__range=[start, end]
     )
-    assert state_events.count() == 2
-    export_service = SaleReportExportService(state_events)
-    csv_lines = export_service.get_rows()
+    export_service = XlsxSalesReportExportService(state_events)
+    export_rows = export_service.get_rows()
 
-    assert len(csv_lines) == 4
-    for idx, header in enumerate(csv_lines[0]):
-        assert header == SaleReportExportService.COLUMNS[idx][0]
-    assert (csv_lines[1][1] == "" and csv_lines[1][2] == 1) or (
-        csv_lines[1][1] == 1 and csv_lines[1][2] == ""
-    )
-    assert (csv_lines[2][1] == "" and csv_lines[2][2] == 1) or (
-        csv_lines[2][1] == 1 and csv_lines[2][2] == ""
-    )
-    assert csv_lines[3][:3] == ["Total", 1, 1]
+    hitas_project = projects[0]
+    hitas_apartments = projects_apartments[hitas_project.project_uuid]
+
+    haso_project = projects[1]
+    haso_apartments = projects_apartments[haso_project.project_uuid]
+
+    expected_rows = [
+        [ "Project address", "Apartments total", "Sold HITAS apartments", "Sold HASO apartments", "Unsold apartments", ],
+        [ 
+            hitas_project.project_street_address,
+            5,
+            1,
+            "",
+            4
+        ],
+        ["Huoneisto", "Myyntihinta", "Velaton hinta", "Luovutushinta", "Kaupantekopäivä"],
+        [
+            hitas_apartments[0].apartment_number,
+            hitas_apartments[0].sales_price,
+            hitas_apartments[0].debt_free_sales_price,
+            "",
+            state_events.get(reservation__apartment_uuid=hitas_apartments[0].uuid).timestamp,
+        ],
+        [
+            "Yhteensä",
+            hitas_apartments[0].sales_price,
+            hitas_apartments[0].debt_free_sales_price,
+            "",
+        ],
+        [""*5],
+        [ 
+            haso_project.project_street_address,
+            5,
+            "",
+            1,
+            4
+        ],
+        [
+            haso_apartments[0].apartment_number,
+            "",
+            "",
+            haso_apartments[0].right_of_occupancy_payment,
+            state_events.get(reservation__apartment_uuid=haso_apartments[0].uuid).timestamp,
+        ],
+        [
+            "Yhteensä",
+            "",
+            "",
+            haso_apartments[0].right_of_occupancy_payment,
+        ],
+        [""]
+    ]
+    
+    assert export_rows == expected_rows
+
+    
+    # assert state_events.count() == 2
+    # export_service = SaleReportExportService(state_events)
+    # csv_lines = export_service.get_rows()
+
+    # assert len(csv_lines) == 4
+    # for idx, header in enumerate(csv_lines[0]):
+    #     assert header == SaleReportExportService.COLUMNS[idx][0]
+    # assert (csv_lines[1][1] == "" and csv_lines[1][2] == 1) or (
+    #     csv_lines[1][1] == 1 and csv_lines[1][2] == ""
+    # )
+    # assert (csv_lines[2][1] == "" and csv_lines[2][2] == 1) or (
+    #     csv_lines[2][1] == 1 and csv_lines[2][2] == ""
+    # )
+    # assert csv_lines[3][:3] == ["Total", 1, 1]
 
 
 

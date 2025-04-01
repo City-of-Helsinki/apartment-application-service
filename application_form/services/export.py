@@ -1,22 +1,29 @@
 import csv
+from datetime import datetime
 import operator
 import re
 from abc import abstractmethod
 from io import StringIO
+import os
+from typing import List
 
 from django.db.models import Max, QuerySet
 
+from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import (
     get_apartment,
     get_apartment_project_uuid,
     get_apartment_uuids,
+    get_apartments,
     get_project,
 )
-from apartment.enums import ApartmentState
+from apartment.enums import ApartmentState, OwnershipType
 from apartment.utils import get_apartment_state_from_apartment_uuid
 from application_form.enums import ApartmentReservationState
 from application_form.models import ApartmentReservation, LotteryEvent
+from application_form.models.reservation import ApartmentReservationStateChangeEvent
 from application_form.utils import get_apartment_number_sort_tuple
+import xlsxwriter
 
 
 def _get_reservation_cell_value(column_name, apartment=None, reservation=None):
@@ -57,6 +64,28 @@ def _get_reservation_cell_value(column_name, apartment=None, reservation=None):
         return reservation.right_of_residence
     return ""
 
+class XlsxExportService:
+    @abstractmethod
+    def get_rows(self):
+        pass
+
+    def write_xlsx_file(self, path):
+        workbook = xlsxwriter.Workbook(path, {"in_memory": True})
+        self._make_xlsx(workbook)
+        workbook.close()
+        return workbook
+        pass
+
+    def _make_xlsx(self, workbook):
+        worksheet = workbook.add_worksheet()
+
+        for i, row in enumerate(self.get_rows()):
+            for j, cell in enumerate(row):
+                worksheet.write(i, j, cell)
+                pass
+            pass
+        pass
+    pass
 
 class CSVExportService:
     CSV_DELIMITER = ";"
@@ -316,6 +345,169 @@ class ProjectLotteryResultExportService(CSVExportService):
             cell_value = _get_reservation_cell_value(column[1], apartment, reservation)
             line.append(cell_value)
         return line
+
+class XlsxSalesReportExportService(XlsxExportService):
+
+    def __init__(self, sold_events):
+        self.sold_events = sold_events
+        self.project_uuids = self._get_project_uuids()
+
+    def get_rows(self):
+        apartments = []
+        rows = []
+
+        project_rows = []
+        first = True
+        for project_uuid in sorted(self.project_uuids):
+            project = get_project(project_uuid)
+            project_apartments = get_apartments(project_uuid)
+            
+            apartments += project_apartments
+            project_rows += self._get_project_rows(
+                project, project_apartments, first=first
+            )
+            first = False
+
+        all_sold_apartments = self._get_sold_apartments(apartments)
+
+
+        hitas_sold = len(self._get_hitas_apartments(all_sold_apartments))
+        haso_sold = len(self._get_haso_apartments(all_sold_apartments))
+
+        header_rows = [
+            [ "Project address", 
+             "Apartments total", 
+             "Sold HITAS apartments", 
+             "Sold HASO apartments", 
+             "Unsold apartments", ],
+        ]
+        # reported_sold = len(
+        #     [
+        #         e
+        #         for e in self.sold_events
+        #         if str(e.reservation.apartment_uuid) in apartment_uuids
+        #     ]
+        # )
+        # import ipdb;ipdb.set_trace()
+        sum_rows = [[
+            "",
+            len(apartments),
+            hitas_sold,
+            haso_sold,
+            len(apartments)-hitas_sold-haso_sold
+        ]]
+
+        rows += header_rows
+        rows += project_rows
+        # rows += sum_rows
+        return rows
+        
+    
+    def _get_project_rows(
+            self, 
+            project: ApartmentDocument,
+            apartments: List[ApartmentDocument],
+            first,
+        ) -> List[List]:
+        """Generates the per-project rows. 
+
+        Args:
+            project (ApartmentDocument): Project
+            apartments (List[ApartmentDocument]): List of apartments for the project. 
+            Passed as an argument to reduce calls to `get_apartments()`
+            first (bool): Is it the first project to be handled?
+        """
+        sold_apartments = self._get_sold_apartments(apartments)
+        sold_apartments_count = len(sold_apartments)
+        apartments_count = len(apartments)
+        is_haso = project.project_ownership_type.lower() == OwnershipType.HASO.value
+        is_hitas = project.project_ownership_type.lower() == OwnershipType.HITAS.value
+
+        rows = [
+            [
+                project.project_street_address,
+                apartments_count,
+                len(self._get_hitas_apartments(sold_apartments)) if is_hitas else "",
+                len(self._get_haso_apartments(sold_apartments)) if is_haso else "",
+                apartments_count-sold_apartments_count
+            ],
+        ]
+
+        if first:
+            rows.append([
+                "Huoneisto",
+                "Myyntihinta",
+                "Velaton hinta",
+                "Luovutushinta",
+                "Kaupantekopäivä"
+            ])
+
+        for apartment in sold_apartments:
+            row = [
+                apartment.apartment_number,
+                apartment.sales_price if is_hitas else "",
+                apartment.debt_free_sales_price if is_hitas else "",
+                apartment.right_of_occupancy_payment if is_haso else "",
+                self._get_apartment_date_of_sale(apartment)
+            ]
+            rows.append(row)
+
+        totals_row = [
+            "Yhteensä",
+            sum(x.sales_price for x in sold_apartments) if is_hitas else "",
+            sum(x.debt_free_sales_price for x in sold_apartments) if is_hitas else "",
+            sum(x.right_of_occupancy_payment for x in sold_apartments) if is_haso else "",
+        ]
+        rows.append(totals_row)
+        rows.append([""])
+
+        return rows
+
+    def _get_sold_apartments(self, apartments):
+        return [
+            apartment
+            for apartment in apartments
+            if get_apartment_state_from_apartment_uuid(apartment.uuid)
+            == ApartmentState.SOLD.value
+        ]
+
+    def _get_hitas_apartments(self, apartments: List[ApartmentDocument]):
+        return [
+                apartment
+                for apartment in apartments
+                if apartment.project_ownership_type.lower() == OwnershipType.HITAS.value
+        ]
+
+    def _get_haso_apartments(self, apartments: List[ApartmentDocument]):
+        return [
+                apartment
+                for apartment in apartments
+                if apartment.project_ownership_type.lower() == OwnershipType.HASO.value
+            ]
+        
+    def _get_apartment_date_of_sale(self, apartment: ApartmentDocument) -> datetime:
+        """Get the date of sale for the apartment.
+        TODO: optimize!!
+
+        Args:
+            apartment (ApartmentDocument):
+        """
+        state_change_event = self.sold_events.filter(
+            reservation__apartment_uuid=apartment.uuid,
+            state=ApartmentReservationState.SOLD,
+        ).order_by("-id").first()
+
+        return state_change_event.timestamp
+
+    def _get_project_uuids(self):
+        project_uuids = set()
+        for e in self.sold_events:
+            project_uuid = get_apartment_project_uuid(
+                e.reservation.apartment_uuid
+            ).project_uuid
+            project_uuids.add(project_uuid)
+        return project_uuids
+    
 
 
 class SaleReportExportService(CSVExportService):
