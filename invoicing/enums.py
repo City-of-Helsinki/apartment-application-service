@@ -12,7 +12,7 @@ class InstallmentType(Enum):
     PAYMENT_5 = "PAYMENT_5"  # Erä 5.
     PAYMENT_6 = "PAYMENT_6"  # Erä 6.
     PAYMENT_7 = "PAYMENT_7"  # Erä 7.
-    REFUND = "REFUND" # Hyvitys 1
+    REFUND = "REFUND"  # Hyvitys 1
     REFUND_2 = "REFUND_2"  # Hyvitys 2
     REFUND_3 = "REFUND_3"  # Hyvitys 3
     DOWN_PAYMENT = "DOWN_PAYMENT"  # Käsiraha
