@@ -7,6 +7,7 @@ from rest_framework.decorators import (
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from apartment.elastic.queries import get_apartment_uuids
@@ -75,26 +76,27 @@ class LatestApplicantInfo(GenericAPIView):
         return Response({})
 
 
-@api_view(["DELETE"])
-@authentication_classes([JWTAuthentication])
-@permission_classes([IsAuthenticated])
-def delete_application_view(request, application_uuid):
-    applications = Application.objects.filter(external_uuid=application_uuid)
+class DeleteApplicationView(APIView):
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [IsAuthenticated]
 
-    if not applications.exists():
-        return Response(
-            {"detail": "Application not found."}, status=status.HTTP_404_NOT_FOUND
-        )
+    def delete(self, request, application_uuid):
+        applications = Application.objects.filter(external_uuid=application_uuid)
 
-    applications = applications.filter(customer__primary_profile__user=request.user)
+        if not applications.exists():
+            return Response(
+                {"detail": "Application not found."}, status=status.HTTP_404_NOT_FOUND
+            )
 
-    if not applications.exists():
-        return Response(
-            {"detail": "You do not have permission to delete this application."},
-            status=status.HTTP_403_FORBIDDEN,
-        )
+        applications = applications.filter(customer__primary_profile__user=request.user)
 
-    application = applications.order_by("-created_at").first()
+        if not applications.exists():
+            return Response(
+                {"detail": "You do not have permission to delete this application."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
-    delete_application(application)
-    return Response(status=status.HTTP_204_NO_CONTENT)
+        application = applications.order_by("-created_at").first()
+
+        delete_application(application)
+        return Response(status=status.HTTP_204_NO_CONTENT)
