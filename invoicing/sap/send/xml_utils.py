@@ -43,7 +43,7 @@ def get_installment_type_text(installment_type: InstallmentType) -> str:  # noqa
         result = "Laskutettava"
     elif installment_type is InstallmentType.LATE_PAYMENT_INTEREST:
         result = "Viivästyskorko"
-    elif installment_type is InstallmentType.REFUND_1:
+    elif installment_type is InstallmentType.REFUND:
         result = "Hyvitys"
     elif installment_type is InstallmentType.RESERVATION_FEE:
         result = "Varausmaksu"
