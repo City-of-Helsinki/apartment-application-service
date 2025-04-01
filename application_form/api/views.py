@@ -75,7 +75,7 @@ class LatestApplicantInfo(GenericAPIView):
         return Response({})
 
 
-@api_view(["POST"])
+@api_view(["DELETE"])
 @authentication_classes([JWTAuthentication])
 @permission_classes([IsAuthenticated])
 def delete_application_view(request, application_uuid):
