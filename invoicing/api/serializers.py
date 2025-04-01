@@ -337,7 +337,12 @@ class ApartmentInstallmentSerializer(ApartmentInstallmentSerializerBase):
 
     def validate(self, validated_data):
         if (
-            validated_data["type"] == InstallmentType.REFUND_1
+            validated_data["type"]
+            in [
+                InstallmentType.REFUND,
+                InstallmentType.REFUND_2,
+                InstallmentType.REFUND_3,
+            ]
             and validated_data["value"] > 0
         ):
             raise exceptions.ValidationError("Refund cannot have a positive value.")

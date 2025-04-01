@@ -141,7 +141,7 @@ def test_root_apartment_reservation_detail_installment_candidates(
 
     installment_template_1 = ProjectInstallmentTemplateFactory(
         project_uuid=project_uuid,
-        type=InstallmentType.REFUND_1,
+        type=InstallmentType.REFUND,
         value=Decimal("100.50"),
         unit=InstallmentUnit.EURO,
         due_date=date(2022, 1, 10),
