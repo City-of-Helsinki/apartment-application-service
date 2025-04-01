@@ -371,8 +371,11 @@ class XlsxSalesReportExportService(XlsxExportService):
         all_sold_apartments = self._get_sold_apartments(apartments)
 
 
-        hitas_sold = len(self._get_hitas_apartments(all_sold_apartments))
-        haso_sold = len(self._get_haso_apartments(all_sold_apartments))
+        hitas_sold = self._get_hitas_apartments(all_sold_apartments)
+        hitas_sold_count = len(hitas_sold)
+
+        haso_sold = self._get_haso_apartments(all_sold_apartments)
+        haso_sold_count = len(haso_sold)
 
         header_rows = [
             [ "Project address", 
@@ -389,17 +392,27 @@ class XlsxSalesReportExportService(XlsxExportService):
         #     ]
         # )
         # import ipdb;ipdb.set_trace()
-        sum_rows = [[
-            "",
-            len(apartments),
-            hitas_sold,
-            haso_sold,
-            len(apartments)-hitas_sold-haso_sold
-        ]]
+        sum_rows = [
+            [""],
+            [""],
+            [
+                "Kaupat lukumäärä yhteensä",
+                "",
+                hitas_sold_count,
+                haso_sold_count,
+                len(apartments)-hitas_sold_count-haso_sold_count
+            ],
+            [
+                "Kauppahinnat yhteensä",
+                sum(x.sales_price for x in hitas_sold),
+                sum(x.debt_free_sales_price for x in hitas_sold),
+                sum(x.right_of_occupancy_payment for x in haso_sold),
+            ]
+        ]
 
         rows += header_rows
         rows += project_rows
-        # rows += sum_rows
+        rows += sum_rows
         return rows
         
     

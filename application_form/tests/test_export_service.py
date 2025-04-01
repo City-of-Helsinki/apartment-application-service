@@ -464,7 +464,22 @@ def test_export_sale_report_new(
             "",
             haso_apartments[0].right_of_occupancy_payment,
         ],
-        [""]
+        [""],
+        [""],
+        [""],
+        [
+            "Kaupat lukumäärä yhteensä", 
+            "",
+            1,
+            1,
+            8
+        ],
+        [
+            "Kauppahinnat yhteensä",
+            hitas_apartments[0].sales_price,
+            hitas_apartments[0].debt_free_sales_price,
+            haso_apartments[0].right_of_occupancy_payment
+        ]
     ]
     
     assert export_rows == expected_rows
