@@ -130,6 +130,7 @@ def test_root_apartment_reservation_detail_installment_candidates(
     sales_ui_salesperson_api_client,
 ):
     sales_price = 12345679
+
     apartment = ApartmentDocumentFactory(
         sales_price=sales_price,
         debt_free_sales_price=9876543,  # 123456,79e and 98765,43e,
@@ -137,6 +138,7 @@ def test_root_apartment_reservation_detail_installment_candidates(
     )
     project_uuid = apartment.project_uuid
     reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
+
     installment_template_1 = ProjectInstallmentTemplateFactory(
         project_uuid=project_uuid,
         type=InstallmentType.REFUND,
@@ -171,7 +173,23 @@ def test_root_apartment_reservation_detail_installment_candidates(
 
     installment_template_5 = ProjectInstallmentTemplateFactory(
         project_uuid=project_uuid,
-        type=InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT,
+        type=InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_1,
+        value=Decimal("15.00"),
+        unit=InstallmentUnit.PERCENT,
+        percentage_specifier=InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT,  # noqa: E501
+        due_date=None,
+    )
+    installment_template_6 = ProjectInstallmentTemplateFactory(
+        project_uuid=project_uuid,
+        type=InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_2,
+        value=Decimal("15.00"),
+        unit=InstallmentUnit.PERCENT,
+        percentage_specifier=InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT,  # noqa: E501
+        due_date=None,
+    )
+    installment_template_7 = ProjectInstallmentTemplateFactory(
+        project_uuid=project_uuid,
+        type=InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_3,
         value=Decimal("15.00"),
         unit=InstallmentUnit.PERCENT,
         percentage_specifier=InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT,  # noqa: E501
@@ -186,18 +204,20 @@ def test_root_apartment_reservation_detail_installment_candidates(
         unit=InstallmentUnit.EURO,
         due_date=None,
     )
+    url = reverse(
+        "application_form:sales-apartment-reservation-detail",
+        kwargs={"pk": reservation.id},
+    )
 
     response = sales_ui_salesperson_api_client.get(
-        reverse(
-            "application_form:sales-apartment-reservation-detail",
-            kwargs={"pk": reservation.id},
-        ),
+        url,
         format="json",
     )
     assert response.status_code == 200
 
     installment_candidates = response.data["installment_candidates"]
-    assert len(installment_candidates) == 5
+
+    assert len(installment_candidates) == 7
 
     assert installment_candidates[0] == {
         "type": installment_template_1.type.value,
@@ -232,6 +252,19 @@ def test_root_apartment_reservation_detail_installment_candidates(
         "type": installment_template_5.type.value,
         "amount": 300000,  # 15% of 20000,00e in cents
         "account_number": installment_template_5.account_number,
+        "due_date": None,
+    }
+
+    assert installment_candidates[5] == {
+        "type": installment_template_6.type.value,
+        "amount": 300000,  # 15% of 20000,00e in cents
+        "account_number": installment_template_6.account_number,
+        "due_date": None,
+    }
+    assert installment_candidates[6] == {
+        "type": installment_template_7.type.value,
+        "amount": 300000,  # 15% of 20000,00e in cents
+        "account_number": installment_template_7.account_number,
         "due_date": None,
     }
 

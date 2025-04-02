@@ -214,7 +214,11 @@ class ProjectInstallmentTemplateSerializer(InstallmentSerializerBase):
                 )
 
             if (
-                project.project_ownership_type.lower() in ["hitas", "puolihitas"]
+                project.project_ownership_type.lower()
+                in [
+                    "hitas",
+                    "puolihitas",
+                ]
                 and percentage_specifier
                 == InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT
             ):
@@ -333,7 +337,12 @@ class ApartmentInstallmentSerializer(ApartmentInstallmentSerializerBase):
 
     def validate(self, validated_data):
         if (
-            validated_data["type"] == InstallmentType.REFUND
+            validated_data["type"]
+            in [
+                InstallmentType.REFUND,
+                InstallmentType.REFUND_2,
+                InstallmentType.REFUND_3,
+            ]
             and validated_data["value"] > 0
         ):
             raise exceptions.ValidationError("Refund cannot have a positive value.")

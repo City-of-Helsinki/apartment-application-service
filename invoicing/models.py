@@ -224,7 +224,6 @@ class ProjectInstallmentTemplate(InstallmentBase):
         self, apartment_data
     ) -> ApartmentInstallment:
         apartment_installment = ApartmentInstallment()
-
         field_names = [
             f.name for f in InstallmentBase._meta.get_fields() if f.name != "created_at"
         ]

@@ -1,4 +1,5 @@
 import datetime
+import logging
 import uuid
 from decimal import Decimal
 
@@ -13,9 +14,12 @@ from ..enums import InstallmentPercentageSpecifier, InstallmentType, Installment
 from ..models import ApartmentInstallment, ProjectInstallmentTemplate
 from .factories import (
     ApartmentInstallmentFactory,
+    InstallmentBaseFactory,
     PaymentFactory,
     ProjectInstallmentTemplateFactory,
 )
+
+_logger = logging.getLogger()
 
 
 @pytest.fixture
@@ -61,6 +65,69 @@ def test_project_list_does_not_include_installments(
     )
     assert response.status_code == 200
     assert "installment_templates" not in response.data[0]
+
+
+@pytest.mark.django_db
+def test_project_detail_installments_percentage_specifier_refund_right_of_occupancy(
+    apartment_document, sales_ui_salesperson_api_client
+):
+    project_uuid = apartment_document.project_uuid
+
+    url = reverse(
+        "apartment:project-installment-template-list",
+        kwargs={"project_uuid": project_uuid},
+    )
+
+    # use variable to keep line length short and the linter happy
+    percentage_specifier = InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT
+    data = [
+        {
+            "type": "REFUND",
+            "amount": 20,
+            "account_number": "123123123-123",
+            "due_date": None,
+            "percentage_specifier": percentage_specifier.value,
+        },
+        {
+            "type": "REFUND_2",
+            "amount": 20,
+            "account_number": "123123123-123",
+            "due_date": None,
+            "percentage_specifier": percentage_specifier.value,
+        },
+        {
+            "type": "REFUND_3",
+            "amount": 20,
+            "account_number": "123123123-123",
+            "due_date": None,
+            "percentage_specifier": percentage_specifier.value,
+        },
+        {
+            "type": "RIGHT_OF_OCCUPANCY_PAYMENT_1",
+            "amount": 20,
+            "account_number": "123123123-123",
+            "due_date": None,
+            "percentage_specifier": percentage_specifier.value,
+        },
+        {
+            "type": "RIGHT_OF_OCCUPANCY_PAYMENT_2",
+            "amount": 20,
+            "account_number": "123123123-123",
+            "due_date": None,
+            "percentage_specifier": percentage_specifier.value,
+        },
+        {
+            "type": "RIGHT_OF_OCCUPANCY_PAYMENT_3",
+            "amount": 20,
+            "account_number": "123123123-123",
+            "due_date": None,
+            "percentage_specifier": percentage_specifier.value,
+        },
+    ]
+
+    response = sales_ui_salesperson_api_client.post(url, data=data, format="json")
+    assert len(response.json()) == 6
+    pass
 
 
 @pytest.mark.django_db
@@ -143,6 +210,26 @@ def test_project_detail_installments_field_and_installments_endpoint_data(
             "due_date": None,
         },
     )
+    ProjectInstallmentTemplateFactory(
+        project_uuid=project_uuid,
+        **{
+            "type": InstallmentType.REFUND_2,
+            "value": "100.00",
+            "unit": InstallmentUnit.EURO,
+            "account_number": "123123123-123",
+            "due_date": None,
+        },
+    )
+    ProjectInstallmentTemplateFactory(
+        project_uuid=project_uuid,
+        **{
+            "type": InstallmentType.REFUND_3,
+            "value": "100.00",
+            "unit": InstallmentUnit.EURO,
+            "account_number": "123123123-123",
+            "due_date": None,
+        },
+    )
 
     if target == "field":
         url = reverse("apartment:project-detail", kwargs={"project_uuid": project_uuid})
@@ -174,11 +261,30 @@ def test_project_detail_installments_field_and_installments_endpoint_data(
             "account_number": "123123123-123",
             "due_date": None,
         },
+        {
+            "type": "REFUND_2",
+            "amount": 10000,
+            "account_number": "123123123-123",
+            "due_date": None,
+        },
+        {
+            "type": "REFUND_3",
+            "amount": 10000,
+            "account_number": "123123123-123",
+            "due_date": None,
+        },
     ]
 
 
 @pytest.mark.django_db
 def test_set_project_installments_unauthorized(apartment_document, user_api_client):
+    # InstallmentBaseFactory uses a sequence to cycle through Installment types
+    # This sequence number doesn't reset after each test case which leads to
+    # tests dependent on generated installments having a certain type failing
+    # when new calls to InstallmentBaseFactory subclasses are added (or removed).
+    # Resetting the sequence number here helps keep the types consistent
+    InstallmentBaseFactory.reset_sequence(0)
+
     project_uuid = apartment_document.project_uuid
     data = [
         {
@@ -357,7 +463,29 @@ def test_set_project_installments_percentage_specifier_required_for_percentages(
         ),
         (
             {
-                "type": "RIGHT_OF_OCCUPANCY_PAYMENT",
+                "type": "RIGHT_OF_OCCUPANCY_PAYMENT_1",
+                "percentage": "53.5",
+                "account_number": "123123123-123",
+                "due_date": "2022-02-19",
+                "percentage_specifier": "RIGHT_OF_OCCUPANCY_PAYMENT",
+            },
+            "Cannot select RIGHT_OF_OCCUPANCY_PAYMENT as unit specifier in "
+            "HITAS payment template",
+        ),
+        (
+            {
+                "type": "RIGHT_OF_OCCUPANCY_PAYMENT_2",
+                "percentage": "53.5",
+                "account_number": "123123123-123",
+                "due_date": "2022-02-19",
+                "percentage_specifier": "RIGHT_OF_OCCUPANCY_PAYMENT",
+            },
+            "Cannot select RIGHT_OF_OCCUPANCY_PAYMENT as unit specifier in "
+            "HITAS payment template",
+        ),
+        (
+            {
+                "type": "RIGHT_OF_OCCUPANCY_PAYMENT_3",
                 "percentage": "53.5",
                 "account_number": "123123123-123",
                 "due_date": "2022-02-19",
@@ -381,7 +509,7 @@ def test_set_project_installments_percentage_specifier_required_for_percentages(
 def test_set_project_installments_errors(
     apartment_document, sales_ui_salesperson_api_client, input, expected_error
 ):
-    if input.get("percentage_specifier") == "RIGHT_OF_OCCUPANCY_PAYMENT":
+    if "RIGHT_OF_OCCUPANCY_PAYMENT" in input.get("percentage_specifier", ""):
         apartment_document = ApartmentDocumentFactory(
             uuid=uuid.uuid4(), project_ownership_type="Hitas"
         )
@@ -400,6 +528,7 @@ def test_set_project_installments_errors(
         data=data,
         format="json",
     )
+    # import ipdb;ipdb.set_trace()
     assert response.status_code == 400
     assert expected_error in str(response.data)
 
@@ -517,6 +646,7 @@ def test_apartment_installments_endpoint_data(
 def test_set_apartment_installments(
     sales_ui_salesperson_api_client, has_old_installments
 ):
+    InstallmentBaseFactory.reset_sequence(0)
     reservation = ApartmentReservationFactory()
 
     data = [
@@ -528,7 +658,7 @@ def test_set_apartment_installments(
             "reference_number": "REFERENCE-123",
             "added_to_be_sent_to_sap_at": timezone.now(),
         },
-        {
+        {  # Test DB isn't cleared between test cases, use REFUND_2 to avoid collisions until then  # noqa: E501
             "type": "REFUND",
             "amount": 0,
             "account_number": "123123123-123",
@@ -568,6 +698,7 @@ def test_set_apartment_installments(
     response_data[0].pop("payments")
     response_data[1].pop("payment_state")
     response_data[1].pop("payments")
+
     assert response_data == data
 
     assert ApartmentInstallment.objects.count() == 3
