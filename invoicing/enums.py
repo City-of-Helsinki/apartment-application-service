@@ -17,7 +17,7 @@ class InstallmentType(Enum):
     REFUND_3 = "REFUND_3"  # Hyvitys 3
     DOWN_PAYMENT = "DOWN_PAYMENT"  # Käsiraha
     LATE_PAYMENT_INTEREST = "LATE_PAYMENT_INTEREST"  # Viivästyskorko
-    RIGHT_OF_OCCUPANCY_PAYMENT_1 = "RIGHT_OF_OCCUPANCY_PAYMENT_1"  # AO-maksu1
+    RIGHT_OF_OCCUPANCY_PAYMENT = "RIGHT_OF_OCCUPANCY_PAYMENT"  # AO-maksu1
     RIGHT_OF_OCCUPANCY_PAYMENT_2 = "RIGHT_OF_OCCUPANCY_PAYMENT_2"  # AO-maksu2
     RIGHT_OF_OCCUPANCY_PAYMENT_3 = "RIGHT_OF_OCCUPANCY_PAYMENT_3"  # AO-maksu3
     FOR_INVOICING = "FOR_INVOICING"  # Laskutettava
@@ -38,7 +38,7 @@ class InstallmentType(Enum):
         REFUND_3 = _("refund 3")
         DOWN_PAYMENT = _("down payment")
         LATE_PAYMENT_INTEREST = _("late payment interest")
-        RIGHT_OF_OCCUPANCY_PAYMENT_1 = _("right of occupancy payment 1")
+        RIGHT_OF_OCCUPANCY_PAYMENT = _("right of occupancy payment 1")
         RIGHT_OF_OCCUPANCY_PAYMENT_2 = _("right of occupancy payment 2")
         RIGHT_OF_OCCUPANCY_PAYMENT_3 = _("right of occupancy payment 3")
         FOR_INVOICING = _("for invoicing")
