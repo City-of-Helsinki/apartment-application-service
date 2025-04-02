@@ -35,6 +35,7 @@ class ApartmentDocument(ReadOnlyDocument):
     project_district = Keyword(required=True)
     project_realty_id = Keyword(required=True)
     project_construction_year = Keyword()
+    project_completion_date = Keyword()
     project_new_development_status = Keyword(required=True)
     project_new_housing = Boolean(required=True)
     project_apartment_count = Long(required=True)
