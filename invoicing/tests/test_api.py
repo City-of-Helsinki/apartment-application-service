@@ -103,7 +103,7 @@ def test_project_detail_installments_percentage_specifier_refund_right_of_occupa
             "percentage_specifier": percentage_specifier.value,
         },
         {
-            "type": "RIGHT_OF_OCCUPANCY_PAYMENT_1",
+            "type": "RIGHT_OF_OCCUPANCY_PAYMENT",
             "amount": 20,
             "account_number": "123123123-123",
             "due_date": None,
@@ -463,7 +463,7 @@ def test_set_project_installments_percentage_specifier_required_for_percentages(
         ),
         (
             {
-                "type": "RIGHT_OF_OCCUPANCY_PAYMENT_1",
+                "type": "RIGHT_OF_OCCUPANCY_PAYMENT",
                 "percentage": "53.5",
                 "account_number": "123123123-123",
                 "due_date": "2022-02-19",
@@ -528,7 +528,7 @@ def test_set_project_installments_errors(
         data=data,
         format="json",
     )
-    # import ipdb;ipdb.set_trace()
+
     assert response.status_code == 400
     assert expected_error in str(response.data)
 
