@@ -4,7 +4,6 @@ from typing import List, Optional, Tuple, Union
 
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
-from apartment.enums import OwnershipType
 from django_etuovi.enums import (
     Condition,
     Country,
@@ -22,6 +21,7 @@ from django_etuovi.items import Coordinate, ExtraLink, Image, Item, Scontact, Te
 from elasticsearch_dsl.utils import AttrList
 
 from apartment.elastic.documents import ApartmentDocument
+from apartment.enums import OwnershipType
 from connections.enums import Currency, Unit
 from connections.etuovi.field_mapper import (
     CONDITION_MAPPING,
