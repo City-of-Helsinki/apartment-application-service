@@ -3,7 +3,7 @@ from datetime import datetime
 import operator
 import re
 from abc import abstractmethod
-from io import StringIO
+from io import StringIO, BytesIO
 import os
 from typing import List
 
@@ -69,12 +69,12 @@ class XlsxExportService:
     def get_rows(self):
         pass
 
-    def write_xlsx_file(self, path):
-        workbook = xlsxwriter.Workbook(path, {"in_memory": True})
+    def write_xlsx_file(self):
+        output = BytesIO()
+        workbook = xlsxwriter.Workbook(output, {"in_memory": True})
         self._make_xlsx(workbook)
         workbook.close()
         return workbook
-        pass
 
     def _make_xlsx(self, workbook):
         worksheet = workbook.add_worksheet()
@@ -360,7 +360,10 @@ class XlsxSalesReportExportService(XlsxExportService):
         first = True
 
         for project in self.projects:
-            project_apartments = get_apartments(project.project_uuid)
+            project_apartments = get_apartments(
+                project.project_uuid, 
+                include_project_fields=True
+            )
 
             apartments += project_apartments
             project_rows += self._get_project_rows(
@@ -424,20 +427,13 @@ class XlsxSalesReportExportService(XlsxExportService):
             first (bool): Is it the first project to be handled?
         """
         sold_apartments = self._get_sold_apartments(apartments)
-        sold_apartments_count = len(sold_apartments)
-        apartments_count = len(apartments)
         is_haso = project.project_ownership_type.lower() == OwnershipType.HASO.value
         is_hitas = project.project_ownership_type.lower() == OwnershipType.HITAS.value
 
-        rows = [
-            [
-                project.project_street_address,
-                apartments_count,
-                len(self._get_hitas_apartments(sold_apartments)) if is_hitas else "",
-                len(self._get_haso_apartments(sold_apartments)) if is_haso else "",
-                apartments_count-sold_apartments_count
-            ],
-        ]
+        rows = []
+        rows.append(
+            self._get_project_apartment_count_row(project, apartments)
+        )
 
         if first:
             rows.append([
@@ -449,14 +445,7 @@ class XlsxSalesReportExportService(XlsxExportService):
             ])
 
         for apartment in sold_apartments:
-            row = [
-                apartment.apartment_number,
-                apartment.sales_price if is_hitas else "",
-                apartment.debt_free_sales_price if is_hitas else "",
-                apartment.right_of_occupancy_payment if is_haso else "",
-                self._get_apartment_date_of_sale(apartment)
-            ]
-            rows.append(row)
+            rows.append(self._get_apartment_row(apartment))
 
         totals_row = [
             "Yhteensä",
@@ -468,6 +457,39 @@ class XlsxSalesReportExportService(XlsxExportService):
         rows.append([""])
 
         return rows
+
+    def _get_project_apartment_count_row(
+            self,
+            project: ApartmentDocument,
+            apartments: List[ApartmentDocument]
+    ) -> List:
+        sold_apartments = self._get_sold_apartments(apartments)
+        is_haso = self._is_haso(project)
+        is_hitas = self._is_hitas(project)
+
+        row = [
+            project.project_street_address,
+            len(apartments),
+            len(self._get_hitas_apartments(sold_apartments)) if is_hitas else "",
+            len(self._get_haso_apartments(sold_apartments)) if is_haso else "",
+            len(apartments)-len(sold_apartments)
+        ]
+
+        return row
+
+    def _get_apartment_row(self, apartment: ApartmentDocument) -> List:
+        is_haso = self._is_haso(apartment)
+        is_hitas = self._is_hitas(apartment)
+
+        row = [
+            apartment.apartment_number,
+            apartment.sales_price if is_hitas else "",
+            apartment.debt_free_sales_price if is_hitas else "",
+            apartment.right_of_occupancy_payment if is_haso else "",
+            self._get_apartment_date_of_sale(apartment)
+        ]
+        return row
+        pass
 
     def _get_sold_apartments(self, apartments):
         return [
@@ -481,14 +503,14 @@ class XlsxSalesReportExportService(XlsxExportService):
         return [
                 apartment
                 for apartment in apartments
-                if apartment.project_ownership_type.lower() == OwnershipType.HITAS.value
+                if self._is_hitas(apartment)
         ]
 
     def _get_haso_apartments(self, apartments: List[ApartmentDocument]):
         return [
                 apartment
                 for apartment in apartments
-                if apartment.project_ownership_type.lower() == OwnershipType.HASO.value
+                if self._is_haso(apartment)
             ]
         
     def _get_apartment_date_of_sale(self, apartment: ApartmentDocument) -> datetime:
@@ -505,6 +527,12 @@ class XlsxSalesReportExportService(XlsxExportService):
 
         return state_change_event.timestamp.strftime("%d.%m.%Y")
 
+    def _is_haso(self, project: ApartmentDocument):
+        return project.project_ownership_type.lower() == OwnershipType.HASO.value
+
+    def _is_hitas(self, project: ApartmentDocument):
+        return project.project_ownership_type.lower() == OwnershipType.HITAS.value    
+
     def _get_projects(self):
         projects = []
         for e in self.sold_events:
@@ -513,7 +541,7 @@ class XlsxSalesReportExportService(XlsxExportService):
             ).project_uuid
             projects.append(get_project(project_uuid))
 
-        return sorted(projects, lambda x: x.project_street_address)
+        return sorted(projects, key=lambda x: x.project_street_address)
     
 
 

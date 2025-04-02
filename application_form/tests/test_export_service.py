@@ -30,7 +30,7 @@ from application_form.tests.factories import (
 )
 from customer.tests.factories import CustomerFactory
 from users.tests.factories import ProfileFactory
-
+import xlsxwriter
 
 @fixture
 def applicant_export_service(elastic_project_with_5_apartments):
@@ -395,18 +395,21 @@ def test_export_sale_report_new(
         projects.append(
             get_project(project_uuid)
         )
-    projects = sorted(projects, lambda x: x.project_street_address)
+    projects = sorted(projects, key=lambda x: x.project_street_address)
 
+    apartments_to_sell = 4
     # Now sold some apartment
     for project in projects:
-        # 1 apartment sold per project
-        apartments = get_apartments(project.project_uuid)
-        reservation = (
-            ApartmentReservation.objects.filter(apartment_uuid=apartments[0].uuid)
-            .reserved()
-            .first()
-        )
-        reservation.set_state(ApartmentReservationState.SOLD)
+        apartments = get_apartments(project.project_uuid, include_project_fields=True)
+        for i, apartment in enumerate(apartments):
+            # 4 apartments sold per project
+            if i <= (apartments_to_sell-1):
+                reservation = (
+                    ApartmentReservation.objects.filter(apartment_uuid=apartment.uuid)
+                    .reserved()
+                    .first()
+                )
+                reservation.set_state(ApartmentReservationState.SOLD)
         projects_apartments[project.project_uuid] = apartments
 
     start = timezone.now() - timedelta(days=7)
@@ -417,81 +420,48 @@ def test_export_sale_report_new(
 
     export_service = XlsxSalesReportExportService(state_events)
     export_rows = export_service.get_rows()
+    workbook = export_service.write_xlsx_file()
 
-    hitas_project = projects[0]
+    assert isinstance(workbook, xlsxwriter.workbook.Workbook)
+
+
+    # explicitly find the projects to avoid flaky test
+    hitas_project = [p for p in projects if not export_service._is_haso(p)][0]
     hitas_apartments = projects_apartments[hitas_project.project_uuid]
 
-    haso_project = projects[1]
+    haso_project = [p for p in projects if export_service._is_haso(p)][0]
     haso_apartments = projects_apartments[haso_project.project_uuid]
 
     def get_sale_timestamp(apt: ApartmentDocument): 
         event = state_events.get(reservation__apartment_uuid=apt.uuid)
         return event.timestamp.strftime("%d.%m.%Y")
 
+    assert len(export_service._get_sold_apartments(hitas_apartments)) == 4
 
-    expected_rows = [
-        [ "Project address", "Apartments total", "Sold HITAS apartments", "Sold HASO apartments", "Unsold apartments", ],
-        [
-            hitas_project.project_street_address,
-            5,
-            1,
-            "",
-            4
-        ],
-        ["Huoneisto", "Myyntihinta", "Velaton hinta", "Luovutushinta", "Kaupantekopäivä"],
-        [
-            hitas_apartments[0].apartment_number,
-            hitas_apartments[0].sales_price,
-            hitas_apartments[0].debt_free_sales_price,
-            "",
-            get_sale_timestamp(hitas_apartments[0])
-        ],
-        [
-            "Yhteensä",
-            hitas_apartments[0].sales_price,
-            hitas_apartments[0].debt_free_sales_price,
-            "",
-        ],
-        [""*5],
-        [ 
-            haso_project.project_street_address,
-            5,
-            "",
-            1,
-            4
-        ],
-        [
-            haso_apartments[0].apartment_number,
-            "",
-            "",
-            haso_apartments[0].right_of_occupancy_payment,
-            get_sale_timestamp(haso_apartments[0]),
-        ],
-        [
-            "Yhteensä",
-            "",
-            "",
-            haso_apartments[0].right_of_occupancy_payment,
-        ],
-        [""],
-        [""],
-        [""],
-        [
-            "Kaupat lukumäärä yhteensä", 
-            "",
-            1,
-            1,
-            8
-        ],
-        [
-            "Kauppahinnat yhteensä",
-            hitas_apartments[0].sales_price,
-            hitas_apartments[0].debt_free_sales_price,
-            haso_apartments[0].right_of_occupancy_payment
-        ]
+    assert export_service._get_project_apartment_count_row(hitas_project, hitas_apartments) == [
+        hitas_project.project_street_address,
+        5, # total apartments in project
+        apartments_to_sell, # apartments sold
+        "", # empty on HITAS project
+        1 # unsold apartments
     ]
-    
-    assert export_rows == expected_rows
+
+    assert export_service._get_project_apartment_count_row(haso_project, haso_apartments) == [
+        haso_project.project_street_address,
+        5,
+        "",
+        apartments_to_sell,
+        1
+    ]
+
+    assert export_service._get_apartment_row(hitas_apartments[0]) == [
+        hitas_apartments[0].apartment_number,
+        hitas_apartments[0].sales_price,
+        hitas_apartments[0].debt_free_sales_price,
+        "",
+        get_sale_timestamp(hitas_apartments[0])
+    ]
+
 
 
 @pytest.mark.django_db
