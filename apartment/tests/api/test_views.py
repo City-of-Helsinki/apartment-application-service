@@ -661,9 +661,9 @@ def test_export_sale_report(
     response = sales_ui_salesperson_api_client.get(
         _build_url_with_query_params(base_url, query_params), format="json"
     )
-    assert response.headers["Content-Type"] == "text/csv; charset=utf-8-sig"
+    assert response.headers["Content-Type"] == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"  # noqa: E501
     assert response.status_code == 200
-
+    assert f"{query_params['start_date']}_-_{query_params['end_date']}.xlsx" in response.get("Content-Disposition")
 
 def _build_url_with_query_params(base_url, query_params):
     return "{}?{}".format(base_url, urlencode(query_params))

@@ -1,4 +1,5 @@
 from datetime import timedelta
+from io import BytesIO
 from typing import List
 
 from apartment.elastic.documents import ApartmentDocument
@@ -419,11 +420,11 @@ def test_export_sale_report_new(
     )
 
     export_service = XlsxSalesReportExportService(state_events)
-    export_rows = export_service.get_rows()
+
+
     workbook = export_service.write_xlsx_file()
 
-    assert isinstance(workbook, xlsxwriter.workbook.Workbook)
-
+    assert isinstance(workbook, BytesIO)
 
     # explicitly find the projects to avoid flaky test
     hitas_project = [p for p in projects if not export_service._is_haso(p)][0]
@@ -469,6 +470,13 @@ def test_export_sale_report_new(
         haso_apartments[0].right_of_occupancy_payment,
         get_sale_timestamp(haso_apartments[0])
     ]
+
+    # assert that color formatting works
+    # find rows starting with certain terms and check if the last index has a colour hex
+    export_rows = export_service.get_rows()
+    assert [r for r in export_rows if "Project address" in r[0]][0][-1] == "#E8E8E8"
+    assert [r for r in export_rows if "Kaupat lukumäärä yhteensä" in r[0]][0][-1] == "#E8E8E8"
+    assert [r for r in export_rows if "Kauppahinnat yhteensä" in r[0]][0][-1] == "#E8E8E8"
 
 
 

@@ -36,6 +36,7 @@ from application_form.services.export import (
     ApplicantMailingListExportService,
     ProjectLotteryResultExportService,
     SaleReportExportService,
+    XlsxSalesReportExportService,
 )
 
 
@@ -192,17 +193,23 @@ class SaleReportAPIView(APIView):
             timestamp__range=[start_date_obj, end_date_obj],
             state=ApartmentReservationState.SOLD,
         )
-        export_services = SaleReportExportService(state_events)
-        csv_file = export_services.get_csv_string()
+        export_services = XlsxSalesReportExportService(state_events)
+        xlsx_file = export_services.write_xlsx_file()
         file_name = format_lazy(
             _("Sale report {start_date} - {end_date}"),
             start_date=start_date,
             end_date=end_date,
         ).replace(" ", "_")
-        response = HttpResponse(csv_file, content_type="text/csv; charset=utf-8-sig")
-        response["Content-Disposition"] = "attachment; filename={file_name}.csv".format(
+
+        response_content = xlsx_file.read()
+        response = HttpResponse(
+            response_content,
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        response["Content-Disposition"] = "attachment; filename={file_name}.xlsx".format(
             file_name=file_name
         )
+        # returns "Myyntiraportti...csv" for some reason
         return response
 
 

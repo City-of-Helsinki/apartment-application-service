@@ -1,5 +1,6 @@
 import csv
 from datetime import datetime
+import logging
 import operator
 import re
 from abc import abstractmethod
@@ -65,27 +66,48 @@ def _get_reservation_cell_value(column_name, apartment=None, reservation=None):
     return ""
 
 class XlsxExportService:
+    COL_WIDTH = 4
+
     @abstractmethod
     def get_rows(self):
         pass
 
-    def write_xlsx_file(self):
+    def write_xlsx_file(self) -> BytesIO:
         output = BytesIO()
         workbook = xlsxwriter.Workbook(output, {"in_memory": True})
         self._make_xlsx(workbook)
         workbook.close()
-        return workbook
+        output.seek(0)
+        return output
 
-    def _make_xlsx(self, workbook):
+    def _make_xlsx(
+            self, workbook: xlsxwriter.workbook.Workbook
+        ) -> xlsxwriter.workbook.Workbook:
         worksheet = workbook.add_worksheet()
+        rows = self.get_rows()
+        last_column_idx = max(len(r) for r in rows)
+        row_color = None
+        cell_format_default = workbook.add_format()
+        rows_formats = []
 
-        for i, row in enumerate(self.get_rows()):
+        for i, row in enumerate(rows):
+            # if the last item in the row is a hex representation of a color
+            # use it as the row's background. Not the smartest way to do this            
+            if str(row[-1]).startswith("#"):
+                cell_format = workbook.add_format({"bg_color": row.pop()})
+
             for j, cell in enumerate(row):
-                worksheet.write(i, j, cell)
-                pass
-            pass
-        pass
-    pass
+                worksheet.write(i, j, cell, cell_format)
+
+            if cell_format.bg_color != False:
+                # color rows to the same width regardless of content
+                for k in range(j, last_column_idx):
+                    worksheet.write(i, k, "", cell_format)
+
+            cell_format = cell_format_default
+
+        worksheet.set_column(0, last_column_idx, self.COL_WIDTH)
+
 
 class CSVExportService:
     CSV_DELIMITER = ";"
@@ -347,6 +369,8 @@ class ProjectLotteryResultExportService(CSVExportService):
         return line
 
 class XlsxSalesReportExportService(XlsxExportService):
+    COL_WIDTH = 26
+    HIGHLIGHT_COLOR = "#E8E8E8"
 
     def __init__(self, sold_events):
         self.sold_events = sold_events
@@ -381,11 +405,14 @@ class XlsxSalesReportExportService(XlsxExportService):
         haso_sold_count = len(haso_sold)
 
         header_rows = [
-            [ "Project address", 
-             "Apartments total", 
-             "Sold HITAS apartments", 
-             "Sold HASO apartments", 
-             "Unsold apartments", ],
+            [
+                "Project address",
+                "Apartments total",
+                "Sold HITAS apartments",
+                "Sold HASO apartments",
+                "Unsold apartments",
+                self.HIGHLIGHT_COLOR
+            ],
         ]
 
         sum_rows = [
@@ -396,13 +423,15 @@ class XlsxSalesReportExportService(XlsxExportService):
                 "",
                 hitas_sold_count,
                 haso_sold_count,
-                len(apartments)-hitas_sold_count-haso_sold_count
+                len(apartments)-hitas_sold_count-haso_sold_count,
+                self.HIGHLIGHT_COLOR
             ],
             [
                 "Kauppahinnat yhteensä",
                 sum(x.sales_price for x in hitas_sold),
                 sum(x.debt_free_sales_price for x in hitas_sold),
                 sum(x.right_of_occupancy_payment for x in haso_sold),
+                self.HIGHLIGHT_COLOR
             ]
         ]
 
@@ -441,7 +470,8 @@ class XlsxSalesReportExportService(XlsxExportService):
                 "Myyntihinta",
                 "Velaton hinta",
                 "Luovutushinta",
-                "Kaupantekopäivä"
+                "Kaupantekopäivä",
+                self.HIGHLIGHT_COLOR
             ])
 
         for apartment in sold_apartments:
@@ -452,6 +482,7 @@ class XlsxSalesReportExportService(XlsxExportService):
             sum(x.sales_price for x in sold_apartments) if is_hitas else "",
             sum(x.debt_free_sales_price for x in sold_apartments) if is_hitas else "",
             sum(x.right_of_occupancy_payment for x in sold_apartments) if is_haso else "",
+            self.HIGHLIGHT_COLOR
         ]
         rows.append(totals_row)
         rows.append([""])
@@ -488,8 +519,8 @@ class XlsxSalesReportExportService(XlsxExportService):
             apartment.right_of_occupancy_payment if is_haso else "",
             self._get_apartment_date_of_sale(apartment)
         ]
+
         return row
-        pass
 
     def _get_sold_apartments(self, apartments):
         return [
