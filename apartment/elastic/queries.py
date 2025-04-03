@@ -1,3 +1,4 @@
+import elasticsearch_dsl
 from django.core.exceptions import ObjectDoesNotExist
 
 from apartment.elastic.documents import ApartmentDocument
@@ -37,15 +38,16 @@ def get_apartment_project_uuid(apartment_uuid):
     return apartment
 
 
-def get_apartments(project_uuid=None):
+def get_apartments(project_uuid=None, include_project_fields=False):
     search = ApartmentDocument.search()
 
     # Filters
     if project_uuid:
         search = search.filter("term", project_uuid__keyword=project_uuid)
 
-    # Exclude project fields
-    search = search.source(excludes=["project_*"])
+    # Exclude project fields if necessary
+    if not include_project_fields:
+        search = search.source(excludes=["project_*"])
 
     # Get all items
     count = search.count()

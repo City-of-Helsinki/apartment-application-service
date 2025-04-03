@@ -462,6 +462,14 @@ def test_export_sale_report_new(
         get_sale_timestamp(hitas_apartments[0])
     ]
 
+    assert export_service._get_apartment_row(haso_apartments[0]) == [
+        haso_apartments[0].apartment_number,
+        "",
+        "",
+        haso_apartments[0].right_of_occupancy_payment,
+        get_sale_timestamp(haso_apartments[0])
+    ]
+
 
 
 @pytest.mark.django_db
