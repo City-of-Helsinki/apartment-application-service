@@ -1,13 +1,12 @@
 import csv
-from datetime import datetime
-import logging
 import operator
 import re
 from abc import abstractmethod
-from io import StringIO, BytesIO
-import os
+from datetime import datetime
+from io import BytesIO, StringIO
 from typing import List
 
+import xlsxwriter
 from django.db.models import Max, QuerySet
 
 from apartment.elastic.documents import ApartmentDocument
@@ -22,9 +21,7 @@ from apartment.enums import ApartmentState, OwnershipType
 from apartment.utils import get_apartment_state_from_apartment_uuid
 from application_form.enums import ApartmentReservationState
 from application_form.models import ApartmentReservation, LotteryEvent
-from application_form.models.reservation import ApartmentReservationStateChangeEvent
 from application_form.utils import get_apartment_number_sort_tuple
-import xlsxwriter
 
 
 def _get_reservation_cell_value(column_name, apartment=None, reservation=None):
@@ -65,6 +62,7 @@ def _get_reservation_cell_value(column_name, apartment=None, reservation=None):
         return reservation.right_of_residence
     return ""
 
+
 class XlsxExportService:
     COL_WIDTH = 4
 
@@ -81,25 +79,25 @@ class XlsxExportService:
         return output
 
     def _make_xlsx(
-            self, workbook: xlsxwriter.workbook.Workbook
-        ) -> xlsxwriter.workbook.Workbook:
+        self, workbook: xlsxwriter.workbook.Workbook
+    ) -> xlsxwriter.workbook.Workbook:
         worksheet = workbook.add_worksheet()
+
         rows = self.get_rows()
         last_column_idx = max(len(r) for r in rows)
-        row_color = None
+
         cell_format_default = workbook.add_format()
-        rows_formats = []
 
         for i, row in enumerate(rows):
             # if the last item in the row is a hex representation of a color
-            # use it as the row's background. Not the smartest way to do this            
+            # use it as the row's background. Not the smartest way to do this
             if str(row[-1]).startswith("#"):
                 cell_format = workbook.add_format({"bg_color": row.pop()})
 
             for j, cell in enumerate(row):
                 worksheet.write(i, j, cell, cell_format)
 
-            if cell_format.bg_color != False:
+            if cell_format.bg_color is not False:
                 # color rows to the same width regardless of content
                 for k in range(j, last_column_idx):
                     worksheet.write(i, k, "", cell_format)
@@ -368,6 +366,7 @@ class ProjectLotteryResultExportService(CSVExportService):
             line.append(cell_value)
         return line
 
+
 class XlsxSalesReportExportService(XlsxExportService):
     COL_WIDTH = 26
     HIGHLIGHT_COLOR = "#E8E8E8"
@@ -385,8 +384,7 @@ class XlsxSalesReportExportService(XlsxExportService):
 
         for project in self.projects:
             project_apartments = get_apartments(
-                project.project_uuid, 
-                include_project_fields=True
+                project.project_uuid, include_project_fields=True
             )
 
             apartments += project_apartments
@@ -396,7 +394,6 @@ class XlsxSalesReportExportService(XlsxExportService):
             first = False
 
         all_sold_apartments = self._get_sold_apartments(apartments)
-
 
         hitas_sold = self._get_hitas_apartments(all_sold_apartments)
         hitas_sold_count = len(hitas_sold)
@@ -411,7 +408,7 @@ class XlsxSalesReportExportService(XlsxExportService):
                 "Sold HITAS apartments",
                 "Sold HASO apartments",
                 "Unsold apartments",
-                self.HIGHLIGHT_COLOR
+                self.HIGHLIGHT_COLOR,
             ],
         ]
 
@@ -423,35 +420,34 @@ class XlsxSalesReportExportService(XlsxExportService):
                 "",
                 hitas_sold_count,
                 haso_sold_count,
-                len(apartments)-hitas_sold_count-haso_sold_count,
-                self.HIGHLIGHT_COLOR
+                len(apartments) - hitas_sold_count - haso_sold_count,
+                self.HIGHLIGHT_COLOR,
             ],
             [
                 "Kauppahinnat yhteensä",
                 sum(x.sales_price for x in hitas_sold),
                 sum(x.debt_free_sales_price for x in hitas_sold),
                 sum(x.right_of_occupancy_payment for x in haso_sold),
-                self.HIGHLIGHT_COLOR
-            ]
+                self.HIGHLIGHT_COLOR,
+            ],
         ]
 
         rows += header_rows
         rows += project_rows
         rows += sum_rows
         return rows
-        
-    
+
     def _get_project_rows(
-            self, 
-            project: ApartmentDocument,
-            apartments: List[ApartmentDocument],
-            first,
-        ) -> List[List]:
-        """Generates the per-project rows. 
+        self,
+        project: ApartmentDocument,
+        apartments: List[ApartmentDocument],
+        first,
+    ) -> List[List]:
+        """Generates the per-project rows.
 
         Args:
             project (ApartmentDocument): Project
-            apartments (List[ApartmentDocument]): List of apartments for the project. 
+            apartments (List[ApartmentDocument]): List of apartments for the project.
             Passed as an argument to reduce calls to `get_apartments()`
             first (bool): Is it the first project to be handled?
         """
@@ -460,19 +456,19 @@ class XlsxSalesReportExportService(XlsxExportService):
         is_hitas = project.project_ownership_type.lower() == OwnershipType.HITAS.value
 
         rows = []
-        rows.append(
-            self._get_project_apartment_count_row(project, apartments)
-        )
+        rows.append(self._get_project_apartment_count_row(project, apartments))
 
         if first:
-            rows.append([
-                "Huoneisto",
-                "Myyntihinta",
-                "Velaton hinta",
-                "Luovutushinta",
-                "Kaupantekopäivä",
-                self.HIGHLIGHT_COLOR
-            ])
+            rows.append(
+                [
+                    "Huoneisto",
+                    "Myyntihinta",
+                    "Velaton hinta",
+                    "Luovutushinta",
+                    "Kaupantekopäivä",
+                    self.HIGHLIGHT_COLOR,
+                ]
+            )
 
         for apartment in sold_apartments:
             rows.append(self._get_apartment_row(apartment))
@@ -481,8 +477,10 @@ class XlsxSalesReportExportService(XlsxExportService):
             "Yhteensä",
             sum(x.sales_price for x in sold_apartments) if is_hitas else "",
             sum(x.debt_free_sales_price for x in sold_apartments) if is_hitas else "",
-            sum(x.right_of_occupancy_payment for x in sold_apartments) if is_haso else "",
-            self.HIGHLIGHT_COLOR
+            sum(x.right_of_occupancy_payment for x in sold_apartments)
+            if is_haso
+            else "",
+            self.HIGHLIGHT_COLOR,
         ]
         rows.append(totals_row)
         rows.append([""])
@@ -490,9 +488,7 @@ class XlsxSalesReportExportService(XlsxExportService):
         return rows
 
     def _get_project_apartment_count_row(
-            self,
-            project: ApartmentDocument,
-            apartments: List[ApartmentDocument]
+        self, project: ApartmentDocument, apartments: List[ApartmentDocument]
     ) -> List:
         sold_apartments = self._get_sold_apartments(apartments)
         is_haso = self._is_haso(project)
@@ -503,7 +499,7 @@ class XlsxSalesReportExportService(XlsxExportService):
             len(apartments),
             len(self._get_hitas_apartments(sold_apartments)) if is_hitas else "",
             len(self._get_haso_apartments(sold_apartments)) if is_haso else "",
-            len(apartments)-len(sold_apartments)
+            len(apartments) - len(sold_apartments),
         ]
 
         return row
@@ -517,7 +513,7 @@ class XlsxSalesReportExportService(XlsxExportService):
             apartment.sales_price if is_hitas else "",
             apartment.debt_free_sales_price if is_hitas else "",
             apartment.right_of_occupancy_payment if is_haso else "",
-            self._get_apartment_date_of_sale(apartment)
+            self._get_apartment_date_of_sale(apartment),
         ]
 
         return row
@@ -531,19 +527,11 @@ class XlsxSalesReportExportService(XlsxExportService):
         ]
 
     def _get_hitas_apartments(self, apartments: List[ApartmentDocument]):
-        return [
-                apartment
-                for apartment in apartments
-                if self._is_hitas(apartment)
-        ]
+        return [apartment for apartment in apartments if self._is_hitas(apartment)]
 
     def _get_haso_apartments(self, apartments: List[ApartmentDocument]):
-        return [
-                apartment
-                for apartment in apartments
-                if self._is_haso(apartment)
-            ]
-        
+        return [apartment for apartment in apartments if self._is_haso(apartment)]
+
     def _get_apartment_date_of_sale(self, apartment: ApartmentDocument) -> datetime:
         """Get the date of sale for the apartment.
         TODO: optimize!!
@@ -551,10 +539,14 @@ class XlsxSalesReportExportService(XlsxExportService):
         Args:
             apartment (ApartmentDocument):
         """
-        state_change_event = self.sold_events.filter(
-            reservation__apartment_uuid=apartment.uuid,
-            state=ApartmentReservationState.SOLD,
-        ).order_by("-id").first()
+        state_change_event = (
+            self.sold_events.filter(
+                reservation__apartment_uuid=apartment.uuid,
+                state=ApartmentReservationState.SOLD,
+            )
+            .order_by("-id")
+            .first()
+        )
 
         return state_change_event.timestamp.strftime("%d.%m.%Y")
 
@@ -562,7 +554,7 @@ class XlsxSalesReportExportService(XlsxExportService):
         return project.project_ownership_type.lower() == OwnershipType.HASO.value
 
     def _is_hitas(self, project: ApartmentDocument):
-        return project.project_ownership_type.lower() == OwnershipType.HITAS.value    
+        return project.project_ownership_type.lower() == OwnershipType.HITAS.value
 
     def _get_projects(self):
         projects = []
@@ -573,7 +565,6 @@ class XlsxSalesReportExportService(XlsxExportService):
             projects.append(get_project(project_uuid))
 
         return sorted(projects, key=lambda x: x.project_street_address)
-    
 
 
 class SaleReportExportService(CSVExportService):

@@ -1,3 +1,5 @@
+import itertools
+
 from dateutil import parser
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import Http404, HttpResponse
@@ -35,7 +37,6 @@ from application_form.services.export import (
     ApplicantExportService,
     ApplicantMailingListExportService,
     ProjectLotteryResultExportService,
-    SaleReportExportService,
     XlsxSalesReportExportService,
 )
 
@@ -172,6 +173,8 @@ class SaleReportAPIView(APIView):
     def get(self, request):
         start_date = request.query_params.get("start_date")
         end_date = request.query_params.get("end_date")
+        project_uuids = request.query_params.get("project_uuids")
+
         if start_date is None or end_date is None:
             raise ValidationError("Missing start date or end date")
         try:
@@ -189,10 +192,23 @@ class SaleReportAPIView(APIView):
             start_date_obj = start_date_obj.replace(tzinfo=tz)
         if not end_date_obj.tzinfo:
             end_date_obj = end_date_obj.replace(tzinfo=tz)
+
         state_events = ApartmentReservationStateChangeEvent.objects.filter(
             timestamp__range=[start_date_obj, end_date_obj],
             state=ApartmentReservationState.SOLD,
         )
+
+        if project_uuids:
+            project_uuids = project_uuids.split(",")
+            # not the most efficient way, but good enough for the low user counts
+            # use itertools to flatten the list of lists to a single one
+            apartment_uuids = itertools.chain.from_iterable(
+                get_apartment_uuids(uuid) for uuid in project_uuids
+            )
+            state_events = state_events.filter(
+                reservation__apartment_uuid__in=apartment_uuids
+            )
+
         export_services = XlsxSalesReportExportService(state_events)
         xlsx_file = export_services.write_xlsx_file()
         file_name = format_lazy(
@@ -204,12 +220,12 @@ class SaleReportAPIView(APIView):
         response_content = xlsx_file.read()
         response = HttpResponse(
             response_content,
-            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",  # noqa:E501
         )
-        response["Content-Disposition"] = "attachment; filename={file_name}.xlsx".format(
-            file_name=file_name
-        )
-        # returns "Myyntiraportti...csv" for some reason
+        response[
+            "Content-Disposition"
+        ] = "attachment; filename={file_name}.xlsx".format(file_name=file_name)
+
         return response
 
 
