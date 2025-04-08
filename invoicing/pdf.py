@@ -2,9 +2,9 @@ import dataclasses
 from datetime import date
 from decimal import Decimal
 from functools import lru_cache
-from typing import ClassVar, Dict
+from typing import ClassVar, Dict, List, Union
 from uuid import UUID
-
+from django.db.models import QuerySet
 from django.utils.translation import gettext_lazy as _
 
 from apartment.elastic.documents import ApartmentDocument
@@ -12,6 +12,7 @@ from apartment.elastic.queries import get_apartment, get_project
 from apartment_application_service.pdf import create_pdf, PDFData
 from customer.models import Customer
 
+from invoicing.models import ApartmentInstallment
 INVOICE_PDF_TEMPLATE_FILE_NAME = "invoice_template.pdf"
 
 
