@@ -168,7 +168,6 @@ class ApartmentQueueChangeEvent(models.Model):
     comment = models.CharField(_("comment"), max_length=255)
     timestamp = models.DateTimeField(auto_now_add=True)
 
-
 class ApartmentReservationStateChangeEvent(models.Model):
     reservation = models.ForeignKey(
         ApartmentReservation, models.CASCADE, related_name="state_change_events"

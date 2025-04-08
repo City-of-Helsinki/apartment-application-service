@@ -1,4 +1,5 @@
 import csv
+import logging
 import operator
 import re
 from abc import abstractmethod
@@ -22,6 +23,7 @@ from apartment.utils import get_apartment_state_from_apartment_uuid
 from application_form.enums import ApartmentReservationState
 from application_form.models import ApartmentReservation, LotteryEvent
 from application_form.utils import get_apartment_number_sort_tuple
+_logger = logging.getLogger(__name__)
 
 
 def _get_reservation_cell_value(column_name, apartment=None, reservation=None):
@@ -451,9 +453,14 @@ class XlsxSalesReportExportService(XlsxExportService):
             Passed as an argument to reduce calls to `get_apartments()`
             first (bool): Is it the first project to be handled?
         """
+        _logger.debug("PROJECT %s", project.project_uuid)
+
         sold_apartments = self._get_sold_apartments(apartments)
         is_haso = project.project_ownership_type.lower() == OwnershipType.HASO.value
         is_hitas = project.project_ownership_type.lower() == OwnershipType.HITAS.value
+
+        if len(sold_apartments) <= 0:
+            return []
 
         rows = []
         rows.append(self._get_project_apartment_count_row(project, apartments))
@@ -558,11 +565,14 @@ class XlsxSalesReportExportService(XlsxExportService):
 
     def _get_projects(self):
         projects = []
+        uuids = []
         for e in self.sold_events:
             project_uuid = get_apartment_project_uuid(
                 e.reservation.apartment_uuid
             ).project_uuid
-            projects.append(get_project(project_uuid))
+            if project_uuid not in uuids:
+                projects.append(get_project(project_uuid))
+                uuids.append(project_uuid)
 
         return sorted(projects, key=lambda x: x.project_street_address)
 

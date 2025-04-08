@@ -39,6 +39,8 @@ from application_form.services.export import (
     ProjectLotteryResultExportService,
     XlsxSalesReportExportService,
 )
+from users.enums import UserKeyValueKeys
+from users.models import UserKeyValue
 
 
 class ApartmentAPIView(APIView):
@@ -167,6 +169,29 @@ class ProjectExportLotteryResultsAPIView(APIView):
         return response
 
 
+class SaleReportSelectedProjectsAPIView(APIView):
+    http_method_names = ["get"]
+
+    def get(self, request):
+        # get included projects
+        included_project_uuids = UserKeyValue.objects.user_key_values(
+            user=request.user,
+            key=UserKeyValueKeys.INCLUDE_SALES_REPORT_PROJECT_UUID.value
+        ).values_list("value", flat=True)
+        # return all projects until the user saves some
+        if included_project_uuids.count() == 0:
+            project_data = get_projects()
+        else:
+            # filter projects
+            project_data = [
+                project for project in get_projects()
+                if project.project_uuid in included_project_uuids
+            ]
+
+        serializer = ProjectDocumentListSerializer(project_data, many=True)
+        return Response(serializer.data)
+
+
 class SaleReportAPIView(APIView):
     http_method_names = ["get"]
 
@@ -199,7 +224,7 @@ class SaleReportAPIView(APIView):
         )
 
         if project_uuids:
-            project_uuids = project_uuids.split(",")
+            project_uuids = set(project_uuids.split(","))
             # not the most efficient way, but good enough for the low user counts
             # use itertools to flatten the list of lists to a single one
             apartment_uuids = itertools.chain.from_iterable(
@@ -208,6 +233,30 @@ class SaleReportAPIView(APIView):
             state_events = state_events.filter(
                 reservation__apartment_uuid__in=apartment_uuids
             )
+
+            # update list of sales report project uuids 
+            key_values = [
+                    UserKeyValue(
+                        user=request.user,
+                        key=UserKeyValueKeys.INCLUDE_SALES_REPORT_PROJECT_UUID.value,
+                        value=project_uuid
+                    )
+                    for project_uuid
+                    in project_uuids
+            ]
+
+            # use ignore_conflicts to "filter out" duplicate project_uuids when creating
+            created = UserKeyValue.objects.bulk_create(key_values, ignore_conflicts=True)
+
+            to_delete = set(
+                p.project_uuid for p in get_projects()
+            ).difference(project_uuids)
+
+            # delete project uuids that werent selected
+            UserKeyValue.objects.user_key_values(
+                user=request.user, key=UserKeyValueKeys.INCLUDE_SALES_REPORT_PROJECT_UUID.value
+            ).filter(value__in=to_delete).delete()
+
 
         export_services = XlsxSalesReportExportService(state_events)
         xlsx_file = export_services.write_xlsx_file()

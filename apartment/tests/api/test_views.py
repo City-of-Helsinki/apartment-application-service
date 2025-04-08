@@ -5,7 +5,7 @@ from urllib.parse import urlencode
 import pytest
 from django.urls import reverse
 
-from apartment.elastic.queries import get_project
+from apartment.elastic.queries import get_project, get_projects
 from apartment.models import ProjectExtraData
 from apartment.tests.factories import ApartmentDocumentFactory
 from application_form.enums import (
@@ -24,7 +24,9 @@ from application_form.tests.factories import (
     LotteryEventFactory,
 )
 from customer.tests.factories import CustomerFactory
+from users.enums import UserKeyValueKeys
 from users.tests.utils import assert_customer_match_data
+from users.models import UserKeyValue
 
 
 @pytest.mark.django_db
@@ -82,6 +84,43 @@ def test_project_list_get(sales_ui_salesperson_api_client):
     )
     assert response.status_code == 200
     assert len(response.data) > 0
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("elastic_apartments")
+def test_selected_project_list_get_unauthorized(user_api_client):
+    response = user_api_client.get(reverse("apartment:report-selected-project-list"), format="json")
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("elastic_apartments")
+def test_selected_project_list_get(sales_ui_salesperson_api_client, 
+                                   elastic_project_with_5_apartments,
+    ):
+    project_uuid, apartments = elastic_project_with_5_apartments
+
+    all_projects = get_projects()
+    # should initially return all projects when there are no projects saved yet
+    response = sales_ui_salesperson_api_client.get(
+        reverse("apartment:report-selected-project-list"), format="json"
+    )
+    assert response.status_code == 200
+    assert len(response.data) == len(get_projects())
+
+    UserKeyValue.objects.create(
+        user=sales_ui_salesperson_api_client.user,
+        key=UserKeyValueKeys.INCLUDE_SALES_REPORT_PROJECT_UUID.value,
+        value=project_uuid
+    )
+
+    # should only return saved project_uuids
+    response = sales_ui_salesperson_api_client.get(
+        reverse("apartment:report-selected-project-list"), format="json" 
+    )
+    assert response.status_code == 200
+    assert project_uuid in [p["uuid"] for p in response.data]
+
 
 
 @pytest.mark.django_db
@@ -661,6 +700,7 @@ def test_export_sale_report(
         "end_date": (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d"),
         "project_uuids": export_project_uuid,
     }
+
     response = sales_ui_salesperson_api_client.get(
         _build_url_with_query_params(base_url, query_params), format="json"
     )
@@ -673,6 +713,30 @@ def test_export_sale_report(
         f"{query_params['start_date']}_-_{query_params['end_date']}.xlsx"
         in response.get("Content-Disposition")
     )
+
+    # all_project_uuids = [p.project_uuid for p in get_projects()]
+    # project_uuids_to_exclude = set(all_project_uuids).difference(set([export_project_uuid]))
+
+    # new UUID should have been added to sales report UUIDs
+    assert UserKeyValue.objects.user_key_values(
+        user=sales_ui_salesperson_api_client.user,
+        key=UserKeyValueKeys.INCLUDE_SALES_REPORT_PROJECT_UUID.value
+    ).filter(value=export_project_uuid).count() == 1
+
+    # UUID should be removed from sales report UUIDs if its not included in query params
+    query_params = {
+        "start_date": (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d"),
+        "end_date": (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d"),
+        "project_uuids": uuid.uuid4(),
+    }
+
+    response = sales_ui_salesperson_api_client.get(
+        _build_url_with_query_params(base_url, query_params), format="json"
+    )
+    assert UserKeyValue.objects.user_key_values(
+        user=sales_ui_salesperson_api_client.user,
+        key=UserKeyValueKeys.INCLUDE_SALES_REPORT_PROJECT_UUID.value
+    ).filter(value=export_project_uuid).count() == 0
 
 
 def _build_url_with_query_params(base_url, query_params):
