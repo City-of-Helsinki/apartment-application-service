@@ -173,7 +173,7 @@ class UserKeyValue(TimestampedModel):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["key", "value"], name='unique key-value pairs'
+                fields=["user", "key", "value"], name='unique key-value pairs'
             )
         ]
 
