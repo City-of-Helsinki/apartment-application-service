@@ -17,3 +17,4 @@ pytest-django
 pytest-sugar
 python-dateutil
 pytest-freezegun
+pypdf==5.4.0

@@ -1,9 +1,11 @@
+from io import BytesIO
+import itertools
 import re
 import subprocess
 from typing import List
 
 import pytest
-
+from pypdf import PdfReader
 
 def assert_pdf_has_text(pdf: bytes, text: str) -> bool:
     """
@@ -25,25 +27,35 @@ def get_cleaned_pdf_texts(pdf: bytes) -> List[str]:
 
 
 def get_pdf_text_lines(pdf: bytes) -> List[str]:
-    pdftotext = "pdftotext"
-    try:
-        retcode = subprocess.call([pdftotext, "-v"], stdout=subprocess.DEVNULL)
-    except FileNotFoundError:
-        return pytest.skip("pdftotext is not available")
-    if retcode != 0:
-        return pytest.skip("pdftotext not functioning")
-
-    process = subprocess.Popen(
-        [pdftotext, "-layout", "-", "-"],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+    reader = PdfReader(BytesIO(pdf))
+    # extract text from all pages as strings, split into lines, flatten into one list
+    return itertools.chain.from_iterable(
+        page.extract_text().splitlines()
+        for page in
+        reader.pages
     )
-    (stdout, stderr) = process.communicate(input=pdf)
-    if process.returncode != 0:
-        msg = f"pdftotext failed with code {process.returncode}: {stderr}"
-        raise RuntimeError(msg)
-    return stdout.decode("utf-8", errors="replace").splitlines()
+
+
+    pass
+    # pdftotext = "pdftotext"
+    # try:
+    #     retcode = subprocess.call([pdftotext, "-v"], stdout=subprocess.DEVNULL)
+    # except FileNotFoundError:
+    #     return pytest.skip("pdftotext is not available")
+    # if retcode != 0:
+    #     return pytest.skip("pdftotext not functioning")
+
+    # process = subprocess.Popen(
+    #     [pdftotext, "-layout", "-", "-"],
+    #     stdin=subprocess.PIPE,
+    #     stdout=subprocess.PIPE,
+    #     stderr=subprocess.PIPE,
+    # )
+    # (stdout, stderr) = process.communicate(input=pdf)
+    # if process.returncode != 0:
+    #     msg = f"pdftotext failed with code {process.returncode}: {stderr}"
+    #     raise RuntimeError(msg)
+    # return stdout.decode("utf-8", errors="replace").splitlines()
 
 
 def remove_pdf_id(pdf: bytes) -> bytes:

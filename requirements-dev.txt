@@ -139,6 +139,8 @@ pylint-django==2.5.3
     # via -r requirements-dev.in
 pylint-plugin-utils==0.8.2
     # via pylint-django
+pypdf==5.4.0
+    # via -r requirements-dev.in
 pyproject-hooks==1.0.0
     # via build
 pytest==7.4.2
@@ -208,6 +210,7 @@ typing-extensions==4.8.0
     #   django-test-migrations
     #   ipython
     #   pylint
+    #   pypdf
 virtualenv==20.24.5
     # via pre-commit
 wcwidth==0.2.8
