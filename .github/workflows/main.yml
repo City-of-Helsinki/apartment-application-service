@@ -89,7 +89,7 @@ env:
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   check:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         part: [requirements, style, lint, migrations]
@@ -134,7 +134,7 @@ jobs:
           ./manage.py makemigrations --no-input --check
 
   test:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         python: [3.8, 3.9]
