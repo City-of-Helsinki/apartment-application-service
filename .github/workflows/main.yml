@@ -27,7 +27,7 @@ env:
   APARTMENT_DATA_TRANSFER_PATH: test_files
   # poppler-utils package contains the pdftotext-program that is used in some tests
   # newer versions of the program parse PDF's differently causing the tests to fail
-  POPPLER_UTILS_VERSION: '0.86.1-0ubuntu1.5'
+  POPPLER_UTILS_VERSION: '24.08.0-1ubuntu0.2'
   PUBLIC_PGP_KEY: |
     -----BEGIN PGP PUBLIC KEY BLOCK-----
 
