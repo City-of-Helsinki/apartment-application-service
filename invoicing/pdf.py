@@ -8,12 +8,14 @@ from uuid import UUID
 
 from django.db.models import QuerySet
 from django.utils.translation import gettext_lazy as _
+from django.utils import translation
 
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import get_apartment, get_project
 from apartment_application_service.pdf import create_pdf, PDFData
 from customer.models import Customer
 from invoicing.models import ApartmentInstallment
+
 
 _logger = logging.getLogger(__name__)
 INVOICE_PDF_TEMPLATE_FILE_NAME = "invoice_template.pdf"
@@ -73,13 +75,17 @@ def create_invoice_pdf_from_installments(
         apartment = get_cached_apartment(reservation.apartment_uuid)
         project = get_cached_project(apartment.project_uuid)
 
-        apartment_text = (
-            _("Apartment")
-            + f" {apartment.apartment_number}\n\n{installment.type}"
-            + 20 * " "
-            + str(installment.value).replace(".", ",")
-            + " €"
-        )
+        # override language to Finnish, as the user's browser settings etc.
+        # shouldn't affect the printed out PDFs
+        with translation.override("fi"):
+            apartment_text = (
+                _("Apartment")
+                + f" {apartment.apartment_number}\n\n{installment.type}"
+                + 20 * " "
+                + str(installment.value).replace(".", ",")
+                + " €"
+            )
+            import ipdb;ipdb.set_trace()
 
         invoice_pdf_data = InvoicePDFData(
             recipient=project.project_housing_company,
