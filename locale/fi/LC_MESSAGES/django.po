@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-08 10:14+0300\n"
+"POT-Creation-Date: 2025-04-09 13:27+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -68,15 +68,15 @@ msgid ""
 "31.8.2023 or before."
 msgstr ""
 
-#: apartment_application_service/settings.py:171 users/models.py:64
+#: apartment_application_service/settings.py:172 users/models.py:64
 msgid "Finnish"
 msgstr ""
 
-#: apartment_application_service/settings.py:171 users/models.py:66
+#: apartment_application_service/settings.py:172 users/models.py:66
 msgid "English"
 msgstr ""
 
-#: apartment_application_service/settings.py:171 users/models.py:65
+#: apartment_application_service/settings.py:172 users/models.py:65
 msgid "Swedish"
 msgstr ""
 
@@ -335,10 +335,6 @@ msgid ""
 "profile."
 msgstr ""
 
-#: django-etuovi/django_etuovi/apps.py:7
-msgid "Etuovi"
-msgstr ""
-
 #: invoicing/api/serializers.py:52
 msgid "Value in cents."
 msgstr ""
@@ -384,17 +380,14 @@ msgid "7th payment"
 msgstr "7. Erä"
 
 #: invoicing/enums.py:35 invoicing/enums.py:36
-#| msgid "refund"
 msgid "refund 1"
 msgstr "Hyvitys 1"
 
 #: invoicing/enums.py:37
-#| msgid "refund 2"
 msgid "refund 2"
 msgstr "Hyvitys 2"
 
 #: invoicing/enums.py:38
-#| msgid "refund 3"
 msgid "refund 3"
 msgstr "Hyvitys 3"
 
@@ -407,17 +400,14 @@ msgid "late payment interest"
 msgstr "Viivästyskorko"
 
 #: invoicing/enums.py:41
-#| msgid "right of occupancy payment"
 msgid "right of occupancy payment 1"
 msgstr "AO-maksu 1"
 
 #: invoicing/enums.py:42
-#| msgid "right of occupancy payment 2"
 msgid "right of occupancy payment 2"
 msgstr "AO-maksu 2"
 
 #: invoicing/enums.py:43
-#| msgid "right of occupancy payment"
 msgid "right of occupancy payment 3"
 msgstr "AO-maksu 3"
 
@@ -565,7 +555,7 @@ msgstr "1. Erä"
 msgid "payments"
 msgstr "1. Erä"
 
-#: invoicing/pdf.py:72
+#: invoicing/pdf.py:82
 msgid "Apartment"
 msgstr "Huoneisto"
 
