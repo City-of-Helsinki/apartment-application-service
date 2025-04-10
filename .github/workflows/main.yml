@@ -204,6 +204,11 @@ jobs:
         run: |
           ./manage.py makemessages --all
 
+      - name: Compile messages
+        run: |
+          ./manage.py compilemessages
+
+
       - name: Run tests
         run: |
           pytest -ra -vvv --doctest-modules --cov=.
