@@ -8,10 +8,8 @@ import pytest
 from django.urls import reverse
 from django.utils import timezone
 
-from apartment.elastic.queries import get_apartment
 from apartment.tests.factories import ApartmentDocumentFactory
 from application_form.tests.factories import ApartmentReservationFactory
-from invoicing.pdf import INVOICE_PDF_TEMPLATE_FILE_NAME, InvoicePDFData
 
 from ..enums import InstallmentPercentageSpecifier, InstallmentType, InstallmentUnit
 from ..models import ApartmentInstallment, ProjectInstallmentTemplate
