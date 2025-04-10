@@ -78,13 +78,13 @@ class ApartmentInstallmentAPIView(InstallmentAPIViewBase):
 )
 class ApartmentInstallmentInvoiceAPIView(APIView):
     def get(self, request, **kwargs):
+
         reservation = get_object_or_404(
             ApartmentReservation, pk=kwargs["apartment_reservation_id"]
         )
         installments = ApartmentInstallment.objects.filter(
             apartment_reservation_id=reservation.id
         ).order_by("id")
-
         if type_params := request.query_params.get("types"):
             types = [e for e in InstallmentType if e.value in type_params.split(",")]
             installments = installments.filter(type__in=types)

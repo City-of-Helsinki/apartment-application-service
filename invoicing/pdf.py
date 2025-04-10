@@ -1,17 +1,22 @@
 import dataclasses
+import logging
 from datetime import date
 from decimal import Decimal
 from functools import lru_cache
-from typing import ClassVar, Dict
+from typing import ClassVar, Dict, List, Union
 from uuid import UUID
 
+from django.db.models import QuerySet
+from django.utils import translation
 from django.utils.translation import gettext_lazy as _
 
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import get_apartment, get_project
 from apartment_application_service.pdf import create_pdf, PDFData
 from customer.models import Customer
+from invoicing.models import ApartmentInstallment
 
+_logger = logging.getLogger(__name__)
 INVOICE_PDF_TEMPLATE_FILE_NAME = "invoice_template.pdf"
 
 
@@ -49,7 +54,9 @@ class InvoicePDFData(PDFData):
     }
 
 
-def create_invoice_pdf_from_installments(installments):
+def create_invoice_pdf_from_installments(
+    installments: Union[QuerySet, List[ApartmentInstallment]]
+):
     @lru_cache
     def get_cached_project(project_uuid: UUID):
         return get_project(project_uuid)
@@ -66,6 +73,18 @@ def create_invoice_pdf_from_installments(installments):
         )
         apartment = get_cached_apartment(reservation.apartment_uuid)
         project = get_cached_project(apartment.project_uuid)
+
+        # override language to Finnish, as the user's browser settings etc.
+        # shouldn't affect the printed out PDFs
+        with translation.override("fi"):
+            apartment_text = (
+                _("Apartment")
+                + f" {apartment.apartment_number}\n\n{installment.type}"
+                + 20 * " "
+                + str(installment.value).replace(".", ",")
+                + " €"
+            )
+
         invoice_pdf_data = InvoicePDFData(
             recipient=project.project_housing_company,
             recipient_account_number=f"{project.project_contract_rs_bank or ''} "
@@ -74,11 +93,7 @@ def create_invoice_pdf_from_installments(installments):
             reference_number=installment.reference_number,
             due_date=installment.due_date,
             amount=installment.value,
-            apartment=_("Apartment")
-            + f" {apartment.apartment_number}\n\n{installment.type}"
-            + 20 * " "
-            + str(installment.value).replace(".", ",")
-            + " €",
+            apartment=apartment_text,
         )
         invoice_pdf_data_list.append(invoice_pdf_data)
     return create_pdf(INVOICE_PDF_TEMPLATE_FILE_NAME, invoice_pdf_data_list)
