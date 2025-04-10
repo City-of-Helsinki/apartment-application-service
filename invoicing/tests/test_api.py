@@ -1,17 +1,17 @@
 import datetime
 import logging
-from unittest.mock import patch
 import uuid
 from decimal import Decimal
+from unittest.mock import patch
 
-from apartment.elastic.queries import get_apartment
-from invoicing.pdf import INVOICE_PDF_TEMPLATE_FILE_NAME, InvoicePDFData
 import pytest
 from django.urls import reverse
 from django.utils import timezone
 
+from apartment.elastic.queries import get_apartment
 from apartment.tests.factories import ApartmentDocumentFactory
 from application_form.tests.factories import ApartmentReservationFactory
+from invoicing.pdf import INVOICE_PDF_TEMPLATE_FILE_NAME, InvoicePDFData
 
 from ..enums import InstallmentPercentageSpecifier, InstallmentType, InstallmentUnit
 from ..models import ApartmentInstallment, ProjectInstallmentTemplate
@@ -951,20 +951,19 @@ def test_apartment_installment_invoice_pdf(
         in response.content
     )
 
+
 @patch("invoicing.pdf.InvoicePDFData")
 @pytest.mark.django_db
 def test_apartment_installment_invoice_pdf_use_finnish_always(
     InvoicePDFData,
-    sales_ui_salesperson_api_client, reservation_with_installments,
-
+    sales_ui_salesperson_api_client,
+    reservation_with_installments,
 ):
     """
     Should always use the Finnish language ("fi") translation in PDF's no matter\
     what either the language cookies or request.META["HTTP_ACCEPT_LANGUAGE"] say
     """
-    headers = {
-        "Accept-Language": "en-GB,en-US;q=0.9,en;q=0.8"
-    }
+    headers = {"Accept-Language": "en-GB,en-US;q=0.9,en;q=0.8"}
 
     response = sales_ui_salesperson_api_client.get(
         reverse(
@@ -972,9 +971,8 @@ def test_apartment_installment_invoice_pdf_use_finnish_always(
             kwargs={"apartment_reservation_id": reservation_with_installments.id},
         ),
         format="json",
-        headers=headers
+        headers=headers,
     )
-
 
     apartment_text = InvoicePDFData.call_args[1]["apartment"]
     assert "Huoneisto" in apartment_text

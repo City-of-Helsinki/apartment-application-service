@@ -7,15 +7,14 @@ from typing import ClassVar, Dict, List, Union
 from uuid import UUID
 
 from django.db.models import QuerySet
-from django.utils.translation import gettext_lazy as _
 from django.utils import translation
+from django.utils.translation import gettext_lazy as _
 
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import get_apartment, get_project
 from apartment_application_service.pdf import create_pdf, PDFData
 from customer.models import Customer
 from invoicing.models import ApartmentInstallment
-
 
 _logger = logging.getLogger(__name__)
 INVOICE_PDF_TEMPLATE_FILE_NAME = "invoice_template.pdf"
@@ -85,7 +84,6 @@ def create_invoice_pdf_from_installments(
                 + str(installment.value).replace(".", ",")
                 + " €"
             )
-            import ipdb;ipdb.set_trace()
 
         invoice_pdf_data = InvoicePDFData(
             recipient=project.project_housing_company,
