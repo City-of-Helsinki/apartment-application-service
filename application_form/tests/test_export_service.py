@@ -1,4 +1,5 @@
 from datetime import timedelta
+from decimal import Decimal
 from io import BytesIO
 from typing import List
 
@@ -457,8 +458,8 @@ def test_export_sale_report_new(
 
     assert export_service._get_apartment_row(hitas_apartments[0]) == [
         hitas_apartments[0].apartment_number,
-        hitas_apartments[0].sales_price,
-        hitas_apartments[0].debt_free_sales_price,
+        Decimal(hitas_apartments[0].sales_price)/100,
+        Decimal(hitas_apartments[0].debt_free_sales_price)/100,
         "",
         get_sale_timestamp(hitas_apartments[0])
     ]
@@ -467,7 +468,7 @@ def test_export_sale_report_new(
         haso_apartments[0].apartment_number,
         "",
         "",
-        haso_apartments[0].right_of_occupancy_payment,
+        Decimal(haso_apartments[0].right_of_occupancy_payment)/100,
         get_sale_timestamp(haso_apartments[0])
     ]
 
