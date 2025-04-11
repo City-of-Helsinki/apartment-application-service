@@ -24,7 +24,11 @@ urlpatterns = [
         name="apartment-detail-reservations-list",
     ),
     path("sales/report/", SaleReportAPIView.as_view(), name="sale-report"),
-    path("sales/report/projects", SaleReportSelectedProjectsAPIView.as_view(), name="report-selected-project-list"),
+    path(
+        "sales/report/projects",
+        SaleReportSelectedProjectsAPIView.as_view(),
+        name="report-selected-project-list",
+    ),
     path(
         "sales/projects/",
         ProjectAPIView.as_view(),

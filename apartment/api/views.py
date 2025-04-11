@@ -176,7 +176,7 @@ class SaleReportSelectedProjectsAPIView(APIView):
         # get included projects
         included_project_uuids = UserKeyValue.objects.user_key_values(
             user=request.user,
-            key=UserKeyValueKeys.INCLUDE_SALES_REPORT_PROJECT_UUID.value
+            key=UserKeyValueKeys.INCLUDE_SALES_REPORT_PROJECT_UUID.value,
         ).values_list("value", flat=True)
         # return all projects until the user saves some
         if included_project_uuids.count() == 0:
@@ -184,7 +184,8 @@ class SaleReportSelectedProjectsAPIView(APIView):
         else:
             # filter projects
             project_data = [
-                project for project in get_projects()
+                project
+                for project in get_projects()
                 if project.project_uuid in included_project_uuids
             ]
 
@@ -234,29 +235,30 @@ class SaleReportAPIView(APIView):
                 reservation__apartment_uuid__in=apartment_uuids
             )
 
-            # update list of sales report project uuids 
+            # update list of sales report project uuids
             key_values = [
-                    UserKeyValue(
-                        user=request.user,
-                        key=UserKeyValueKeys.INCLUDE_SALES_REPORT_PROJECT_UUID.value,
-                        value=project_uuid
-                    )
-                    for project_uuid
-                    in project_uuids
+                UserKeyValue(
+                    user=request.user,
+                    key=UserKeyValueKeys.INCLUDE_SALES_REPORT_PROJECT_UUID.value,
+                    value=project_uuid,
+                )
+                for project_uuid in project_uuids
             ]
 
             # use ignore_conflicts to "filter out" duplicate project_uuids when creating
-            created = UserKeyValue.objects.bulk_create(key_values, ignore_conflicts=True)
+            UserKeyValue.objects.bulk_create(
+                key_values, ignore_conflicts=True
+            )
 
-            to_delete = set(
-                p.project_uuid for p in get_projects()
-            ).difference(project_uuids)
+            to_delete = set(p.project_uuid for p in get_projects()).difference(
+                project_uuids
+            )
 
             # delete project uuids that werent selected
             UserKeyValue.objects.user_key_values(
-                user=request.user, key=UserKeyValueKeys.INCLUDE_SALES_REPORT_PROJECT_UUID.value
+                user=request.user,
+                key=UserKeyValueKeys.INCLUDE_SALES_REPORT_PROJECT_UUID.value,
             ).filter(value__in=to_delete).delete()
-
 
         export_services = XlsxSalesReportExportService(state_events)
         xlsx_file = export_services.write_xlsx_file()

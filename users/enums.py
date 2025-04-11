@@ -6,8 +6,9 @@ class Roles(Enum):
     DJANGO_SALESPERSON = "DJANGO_SALESPERSON"
     STAFF = "STAFF"
 
+
 class UserKeyValueKeys(Enum):
-    """Used to refer to keys in users.models.UserKeyValue. 
+    """Used to refer to keys in users.models.UserKeyValue.
     Saved here to avoid magic strings."""
 
     # project_uuid to exclude from sales report

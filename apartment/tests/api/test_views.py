@@ -25,8 +25,8 @@ from application_form.tests.factories import (
 )
 from customer.tests.factories import CustomerFactory
 from users.enums import UserKeyValueKeys
-from users.tests.utils import assert_customer_match_data
 from users.models import UserKeyValue
+from users.tests.utils import assert_customer_match_data
 
 
 @pytest.mark.django_db
@@ -89,18 +89,20 @@ def test_project_list_get(sales_ui_salesperson_api_client):
 @pytest.mark.django_db
 @pytest.mark.usefixtures("elastic_apartments")
 def test_selected_project_list_get_unauthorized(user_api_client):
-    response = user_api_client.get(reverse("apartment:report-selected-project-list"), format="json")
+    response = user_api_client.get(
+        reverse("apartment:report-selected-project-list"), format="json"
+    )
     assert response.status_code == 403
 
 
 @pytest.mark.django_db
 @pytest.mark.usefixtures("elastic_apartments")
-def test_selected_project_list_get(sales_ui_salesperson_api_client, 
-                                   elastic_project_with_5_apartments,
-    ):
+def test_selected_project_list_get(
+    sales_ui_salesperson_api_client,
+    elastic_project_with_5_apartments,
+):
     project_uuid, apartments = elastic_project_with_5_apartments
 
-    all_projects = get_projects()
     # should initially return all projects when there are no projects saved yet
     response = sales_ui_salesperson_api_client.get(
         reverse("apartment:report-selected-project-list"), format="json"
@@ -111,16 +113,15 @@ def test_selected_project_list_get(sales_ui_salesperson_api_client,
     UserKeyValue.objects.create(
         user=sales_ui_salesperson_api_client.user,
         key=UserKeyValueKeys.INCLUDE_SALES_REPORT_PROJECT_UUID.value,
-        value=project_uuid
+        value=project_uuid,
     )
 
     # should only return saved project_uuids
     response = sales_ui_salesperson_api_client.get(
-        reverse("apartment:report-selected-project-list"), format="json" 
+        reverse("apartment:report-selected-project-list"), format="json"
     )
     assert response.status_code == 200
     assert project_uuid in [p["uuid"] for p in response.data]
-
 
 
 @pytest.mark.django_db
@@ -714,14 +715,16 @@ def test_export_sale_report(
         in response.get("Content-Disposition")
     )
 
-    # all_project_uuids = [p.project_uuid for p in get_projects()]
-    # project_uuids_to_exclude = set(all_project_uuids).difference(set([export_project_uuid]))
-
     # new UUID should have been added to sales report UUIDs
-    assert UserKeyValue.objects.user_key_values(
-        user=sales_ui_salesperson_api_client.user,
-        key=UserKeyValueKeys.INCLUDE_SALES_REPORT_PROJECT_UUID.value
-    ).filter(value=export_project_uuid).count() == 1
+    assert (
+        UserKeyValue.objects.user_key_values(
+            user=sales_ui_salesperson_api_client.user,
+            key=UserKeyValueKeys.INCLUDE_SALES_REPORT_PROJECT_UUID.value,
+        )
+        .filter(value=export_project_uuid)
+        .count()
+        == 1
+    )
 
     # UUID should be removed from sales report UUIDs if its not included in query params
     query_params = {
@@ -733,10 +736,15 @@ def test_export_sale_report(
     response = sales_ui_salesperson_api_client.get(
         _build_url_with_query_params(base_url, query_params), format="json"
     )
-    assert UserKeyValue.objects.user_key_values(
-        user=sales_ui_salesperson_api_client.user,
-        key=UserKeyValueKeys.INCLUDE_SALES_REPORT_PROJECT_UUID.value
-    ).filter(value=export_project_uuid).count() == 0
+    assert (
+        UserKeyValue.objects.user_key_values(
+            user=sales_ui_salesperson_api_client.user,
+            key=UserKeyValueKeys.INCLUDE_SALES_REPORT_PROJECT_UUID.value,
+        )
+        .filter(value=export_project_uuid)
+        .count()
+        == 0
+    )
 
 
 def _build_url_with_query_params(base_url, query_params):

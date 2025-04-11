@@ -4,7 +4,7 @@ from uuid import uuid4
 from django.conf import settings
 from django.contrib import admin
 from django.db import models
-from django.db.models import UUIDField, QuerySet
+from django.db.models import QuerySet, UUIDField
 from django.utils.translation import gettext_lazy as _
 from helusers.models import AbstractUser
 from pgcrypto.fields import CharPGPPublicKeyField, DatePGPPublicKeyField
@@ -155,7 +155,7 @@ class Profile(TimestampedModel):
 class UserKeyValueManager(models.Manager):
     def user_values(self, user: User) -> QuerySet:
         return self.model.objects.filter(user=user)
-    
+
     def user_key_values(self, user: User, key: str) -> QuerySet:
         return self.user_values(user=user).filter(key=key)
 
@@ -164,6 +164,7 @@ class UserKeyValue(TimestampedModel):
     """
     Simple key-value storage for user specific settings etc.
     """
+
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     key = models.CharField(max_length=255)
     value = models.CharField(max_length=1000)
@@ -173,9 +174,10 @@ class UserKeyValue(TimestampedModel):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["user", "key", "value"], name='unique key-value pairs'
+                fields=["user", "key", "value"], name="unique key-value pairs"
             )
         ]
+
 
 """
 Proxy models to be used in Django-admin
