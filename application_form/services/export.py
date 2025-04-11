@@ -103,7 +103,11 @@ class XlsxExportService:
             if cell_format.bg_color is not False:
                 # color rows to the same width regardless of content
                 for k in range(j, last_column_idx):
-                    worksheet.write(i, k, "", cell_format)
+                    try:
+                        cell = rows[i][k]
+                    except IndexError:
+                        cell = ""
+                    worksheet.write(i, k, cell, cell_format)
 
             cell_format = cell_format_default
 
@@ -386,15 +390,22 @@ class XlsxSalesReportExportService(XlsxExportService):
         first = True
 
         for project in self.projects:
+
             project_apartments = get_apartments(
                 project.project_uuid, include_project_fields=True
             )
 
             apartments += project_apartments
-            project_rows += self._get_project_rows(
+            rows_for_project = self._get_project_rows(
                 project, project_apartments, first=first
             )
-            first = False
+            
+            # ensure the sub-header for projects is outputted even if the first
+            # project doesn't have any rows to output
+            if len(rows_for_project) > 0:
+                first = False
+
+            project_rows += rows_for_project
 
         all_sold_apartments = self._get_sold_apartments(apartments)
 
@@ -465,7 +476,6 @@ class XlsxSalesReportExportService(XlsxExportService):
 
         rows = []
         rows.append(self._get_project_apartment_count_row(project, apartments))
-
         if first:
             rows.append(
                 [
