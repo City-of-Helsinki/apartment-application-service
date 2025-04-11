@@ -1,4 +1,5 @@
 import csv
+from decimal import Decimal
 import logging
 import operator
 import re
@@ -427,9 +428,9 @@ class XlsxSalesReportExportService(XlsxExportService):
             ],
             [
                 "Kauppahinnat yhteensä",
-                sum(x.sales_price for x in hitas_sold),
-                sum(x.debt_free_sales_price for x in hitas_sold),
-                sum(x.right_of_occupancy_payment for x in haso_sold),
+                self._sum_cents(x.sales_price or 0 for x in hitas_sold),
+                self._sum_cents(x.debt_free_sales_price or 0 for x in hitas_sold),
+                self._sum_cents(x.right_of_occupancy_payment or 0 for x in haso_sold),
                 self.HIGHLIGHT_COLOR,
             ],
         ]
@@ -482,11 +483,9 @@ class XlsxSalesReportExportService(XlsxExportService):
 
         totals_row = [
             "Yhteensä",
-            sum(x.sales_price for x in sold_apartments) if is_hitas else "",
-            sum(x.debt_free_sales_price for x in sold_apartments) if is_hitas else "",
-            sum(x.right_of_occupancy_payment for x in sold_apartments)
-            if is_haso
-            else "",
+            self._sum_cents(x.sales_price or 0 for x in sold_apartments) if is_hitas else "",  # noqa: E501
+            self._sum_cents(x.debt_free_sales_price or 0 for x in sold_apartments) if is_hitas else "",  # noqa: E501
+            self._sum_cents(x.right_of_occupancy_payment or 0 for x in sold_apartments) if is_haso else "",  # noqa: E501
             self.HIGHLIGHT_COLOR,
         ]
         rows.append(totals_row)
@@ -517,21 +516,18 @@ class XlsxSalesReportExportService(XlsxExportService):
 
         row = [
             apartment.apartment_number,
-            apartment.sales_price if is_hitas else "",
-            apartment.debt_free_sales_price if is_hitas else "",
-            apartment.right_of_occupancy_payment if is_haso else "",
+            self._cents_to_eur(apartment.sales_price) if is_hitas else "",
+            self._cents_to_eur(apartment.debt_free_sales_price) if is_hitas else "",
+            self._cents_to_eur(apartment.right_of_occupancy_payment) if is_haso else "",
             self._get_apartment_date_of_sale(apartment),
         ]
 
         return row
 
     def _get_sold_apartments(self, apartments):
-        return [
-            apartment
-            for apartment in apartments
-            if get_apartment_state_from_apartment_uuid(apartment.uuid)
-            == ApartmentState.SOLD.value
-        ]
+        print([ apartment for apartment in apartments if get_apartment_state_from_apartment_uuid(apartment.uuid) == ApartmentState.SOLD.value ])
+
+        return [ apartment for apartment in apartments if get_apartment_state_from_apartment_uuid(apartment.uuid) == ApartmentState.SOLD.value ]
 
     def _get_hitas_apartments(self, apartments: List[ApartmentDocument]):
         return [apartment for apartment in apartments if self._is_hitas(apartment)]
@@ -576,6 +572,11 @@ class XlsxSalesReportExportService(XlsxExportService):
 
         return sorted(projects, key=lambda x: x.project_street_address)
 
+    def _sum_cents(self, cents: List[int]):
+        return sum(self._cents_to_eur(cent) for cent in cents)
+
+    def _cents_to_eur(self, cents: int) -> Decimal:
+        return Decimal(cents)/100
 
 class SaleReportExportService(CSVExportService):
     COLUMNS = [

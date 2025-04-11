@@ -528,7 +528,7 @@ def test_set_project_installments_errors(
         data=data,
         format="json",
     )
-    # import ipdb;ipdb.set_trace()
+
     assert response.status_code == 400
     assert expected_error in str(response.data)
 
