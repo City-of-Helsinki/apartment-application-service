@@ -246,9 +246,7 @@ class SaleReportAPIView(APIView):
             ]
 
             # use ignore_conflicts to "filter out" duplicate project_uuids when creating
-            UserKeyValue.objects.bulk_create(
-                key_values, ignore_conflicts=True
-            )
+            UserKeyValue.objects.bulk_create(key_values, ignore_conflicts=True)
 
             to_delete = set(p.project_uuid for p in get_projects()).difference(
                 project_uuids
