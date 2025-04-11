@@ -3,14 +3,17 @@ from decimal import Decimal
 from io import BytesIO
 from typing import List
 
-from apartment.elastic.documents import ApartmentDocument
-from apartment.enums import OwnershipType
-from application_form.tests.conftest import elastic_project_with_n_apartments
 import pytest
 from _pytest.fixtures import fixture
 from django.utils import timezone
 
-from apartment.elastic.queries import get_apartment, get_apartment_uuids, get_apartments, get_project
+from apartment.elastic.documents import ApartmentDocument
+from apartment.elastic.queries import (
+    get_apartment,
+    get_apartment_uuids,
+    get_apartments,
+    get_project,
+)
 from application_form.enums import ApartmentReservationState
 from application_form.models import (
     ApartmentReservation,
@@ -32,7 +35,7 @@ from application_form.tests.factories import (
 )
 from customer.tests.factories import CustomerFactory
 from users.tests.factories import ProfileFactory
-import xlsxwriter
+
 
 @fixture
 def applicant_export_service(elastic_project_with_5_apartments):
@@ -394,9 +397,7 @@ def test_export_sale_report_new(
             add_application_to_queues(apt_app[1].application)
         distribute_apartments(project_uuid)
 
-        projects.append(
-            get_project(project_uuid)
-        )
+        projects.append(get_project(project_uuid))
     projects = sorted(projects, key=lambda x: x.project_street_address)
 
     apartments_to_sell = 4
@@ -405,7 +406,7 @@ def test_export_sale_report_new(
         apartments = get_apartments(project.project_uuid, include_project_fields=True)
         for i, apartment in enumerate(apartments):
             # 4 apartments sold per project
-            if i <= (apartments_to_sell-1):
+            if i <= (apartments_to_sell - 1):
                 reservation = (
                     ApartmentReservation.objects.filter(apartment_uuid=apartment.uuid)
                     .reserved()
@@ -422,7 +423,6 @@ def test_export_sale_report_new(
 
     export_service = XlsxSalesReportExportService(state_events)
 
-
     workbook = export_service.write_xlsx_file()
 
     assert isinstance(workbook, BytesIO)
@@ -434,51 +434,52 @@ def test_export_sale_report_new(
     haso_project = [p for p in projects if export_service._is_haso(p)][0]
     haso_apartments = projects_apartments[haso_project.project_uuid]
 
-    def get_sale_timestamp(apt: ApartmentDocument): 
+    def get_sale_timestamp(apt: ApartmentDocument):
         event = state_events.get(reservation__apartment_uuid=apt.uuid)
         return event.timestamp.strftime("%d.%m.%Y")
 
     assert len(export_service._get_sold_apartments(hitas_apartments)) == 4
 
-    assert export_service._get_project_apartment_count_row(hitas_project, hitas_apartments) == [
+    assert export_service._get_project_apartment_count_row(
+        hitas_project, hitas_apartments
+    ) == [
         hitas_project.project_street_address,
-        5, # total apartments in project
-        apartments_to_sell, # apartments sold
-        "", # empty on HITAS project
-        1 # unsold apartments
+        5,  # total apartments in project
+        apartments_to_sell,  # apartments sold
+        "",  # empty on HITAS project
+        1,  # unsold apartments
     ]
 
-    assert export_service._get_project_apartment_count_row(haso_project, haso_apartments) == [
-        haso_project.project_street_address,
-        5,
-        "",
-        apartments_to_sell,
-        1
-    ]
+    assert export_service._get_project_apartment_count_row(
+        haso_project, haso_apartments
+    ) == [haso_project.project_street_address, 5, "", apartments_to_sell, 1]
 
     assert export_service._get_apartment_row(hitas_apartments[0]) == [
         hitas_apartments[0].apartment_number,
-        Decimal(hitas_apartments[0].sales_price)/100,
-        Decimal(hitas_apartments[0].debt_free_sales_price)/100,
+        Decimal(hitas_apartments[0].sales_price) / 100,
+        Decimal(hitas_apartments[0].debt_free_sales_price) / 100,
         "",
-        get_sale_timestamp(hitas_apartments[0])
+        get_sale_timestamp(hitas_apartments[0]),
     ]
 
     assert export_service._get_apartment_row(haso_apartments[0]) == [
         haso_apartments[0].apartment_number,
         "",
         "",
-        Decimal(haso_apartments[0].right_of_occupancy_payment)/100,
-        get_sale_timestamp(haso_apartments[0])
+        Decimal(haso_apartments[0].right_of_occupancy_payment) / 100,
+        get_sale_timestamp(haso_apartments[0]),
     ]
 
     # assert that color formatting works
     # find rows starting with certain terms and check if the last index has a colour hex
     export_rows = export_service.get_rows()
     assert [r for r in export_rows if "Project address" in r[0]][0][-1] == "#E8E8E8"
-    assert [r for r in export_rows if "Kaupat lukumäärä yhteensä" in r[0]][0][-1] == "#E8E8E8"
-    assert [r for r in export_rows if "Kauppahinnat yhteensä" in r[0]][0][-1] == "#E8E8E8"
-
+    assert [r for r in export_rows if "Kaupat lukumäärä yhteensä" in r[0]][0][
+        -1
+    ] == "#E8E8E8"
+    assert [r for r in export_rows if "Kauppahinnat yhteensä" in r[0]][0][
+        -1
+    ] == "#E8E8E8"
 
 
 @pytest.mark.django_db

@@ -1,10 +1,10 @@
 import csv
-from decimal import Decimal
 import logging
 import operator
 import re
 from abc import abstractmethod
 from datetime import datetime
+from decimal import Decimal
 from io import BytesIO, StringIO
 from typing import List
 
@@ -24,6 +24,7 @@ from apartment.utils import get_apartment_state_from_apartment_uuid
 from application_form.enums import ApartmentReservationState
 from application_form.models import ApartmentReservation, LotteryEvent
 from application_form.utils import get_apartment_number_sort_tuple
+
 _logger = logging.getLogger(__name__)
 
 
@@ -399,7 +400,7 @@ class XlsxSalesReportExportService(XlsxExportService):
             rows_for_project = self._get_project_rows(
                 project, project_apartments, first=first
             )
-            
+
             # ensure the sub-header for projects is outputted even if the first
             # project doesn't have any rows to output
             if len(rows_for_project) > 0:
@@ -493,9 +494,15 @@ class XlsxSalesReportExportService(XlsxExportService):
 
         totals_row = [
             "Yhteensä",
-            self._sum_cents(x.sales_price or 0 for x in sold_apartments) if is_hitas else "",  # noqa: E501
-            self._sum_cents(x.debt_free_sales_price or 0 for x in sold_apartments) if is_hitas else "",  # noqa: E501
-            self._sum_cents(x.right_of_occupancy_payment or 0 for x in sold_apartments) if is_haso else "",  # noqa: E501
+            self._sum_cents(x.sales_price or 0 for x in sold_apartments)
+            if is_hitas
+            else "",  # noqa: E501
+            self._sum_cents(x.debt_free_sales_price or 0 for x in sold_apartments)
+            if is_hitas
+            else "",  # noqa: E501
+            self._sum_cents(x.right_of_occupancy_payment or 0 for x in sold_apartments)
+            if is_haso
+            else "",  # noqa: E501
             self.HIGHLIGHT_COLOR,
         ]
         rows.append(totals_row)
@@ -535,9 +542,21 @@ class XlsxSalesReportExportService(XlsxExportService):
         return row
 
     def _get_sold_apartments(self, apartments):
-        print([ apartment for apartment in apartments if get_apartment_state_from_apartment_uuid(apartment.uuid) == ApartmentState.SOLD.value ])
+        print(
+            [
+                apartment
+                for apartment in apartments
+                if get_apartment_state_from_apartment_uuid(apartment.uuid)
+                == ApartmentState.SOLD.value
+            ]
+        )
 
-        return [ apartment for apartment in apartments if get_apartment_state_from_apartment_uuid(apartment.uuid) == ApartmentState.SOLD.value ]
+        return [
+            apartment
+            for apartment in apartments
+            if get_apartment_state_from_apartment_uuid(apartment.uuid)
+            == ApartmentState.SOLD.value
+        ]
 
     def _get_hitas_apartments(self, apartments: List[ApartmentDocument]):
         return [apartment for apartment in apartments if self._is_hitas(apartment)]
@@ -586,7 +605,8 @@ class XlsxSalesReportExportService(XlsxExportService):
         return sum(self._cents_to_eur(cent) for cent in cents)
 
     def _cents_to_eur(self, cents: int) -> Decimal:
-        return Decimal(cents)/100
+        return Decimal(cents) / 100
+
 
 class SaleReportExportService(CSVExportService):
     COLUMNS = [
