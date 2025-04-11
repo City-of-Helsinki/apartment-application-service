@@ -1,4 +1,3 @@
-import elasticsearch_dsl
 from django.core.exceptions import ObjectDoesNotExist
 
 from apartment.elastic.documents import ApartmentDocument
