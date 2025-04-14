@@ -204,5 +204,7 @@ urllib3==1.26.18
     #   sentry-sdk
 whitenoise==6.5.0
     # via -r requirements.in
+xlsxwriter==3.2.2
+    # via -r requirements.in
 zipp==3.20.2
     # via importlib-resources
