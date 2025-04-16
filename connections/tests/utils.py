@@ -8,7 +8,7 @@ from connections.enums import ApartmentStateOfSale
 
 def make_apartments_sold_in_elastic() -> None:
     s_obj = ApartmentDocument.search().filter(
-        "term", apartment_state_of_sale__keyword=ApartmentStateOfSale.FOR_SALE
+        "term", apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE
     )
     s_obj.delete()
 
@@ -24,8 +24,8 @@ def get_elastic_apartments_for_sale_published_on_etuovi_uuids(
     """
     s_obj = (
         ApartmentDocument.search()
-        .filter("term", _language__keyword="fi")
-        .filter("term", apartment_state_of_sale__keyword=ApartmentStateOfSale.FOR_SALE)
+        .filter("term", _language="fi")
+        .filter("term", apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE)
         .filter("term", publish_on_etuovi=True)
     )
     if only_etuovi_published:
@@ -48,8 +48,8 @@ def get_elastic_apartments_for_sale_published_on_oikotie_uuids(
     """
     s_obj = (
         ApartmentDocument.search()
-        .filter("term", _language__keyword="fi")
-        .filter("term", apartment_state_of_sale__keyword=ApartmentStateOfSale.FOR_SALE)
+        .filter("term", _language="fi")
+        .filter("term", apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE)
         .filter("term", publish_on_oikotie=True)
     )
     if only_oikotie_published:
@@ -69,8 +69,8 @@ def get_elastic_apartments_for_sale_published_uuids() -> list:
     """
     s_obj = (
         ApartmentDocument.search()
-        .filter("term", _language__keyword="fi")
-        .filter("term", apartment_state_of_sale__keyword=ApartmentStateOfSale.FOR_SALE)
+        .filter("term", _language="fi")
+        .filter("term", apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE)
         .filter("term", publish_on_etuovi=True)
         .filter("term", publish_on_oikotie=True)
     )
@@ -89,8 +89,8 @@ def get_elastic_apartments_for_sale_only_uuids() -> list:
     """
     s_obj = (
         ApartmentDocument.search()
-        .filter("term", _language__keyword="fi")
-        .filter("term", apartment_state_of_sale__keyword=ApartmentStateOfSale.FOR_SALE)
+        .filter("term", _language="fi")
+        .filter("term", apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE)
         .filter("term", publish_on_etuovi=False)
         .filter("term", publish_on_oikotie=False)
     )
@@ -111,7 +111,7 @@ def get_elastic_apartments_not_for_sale():
         ApartmentDocument.search()
         .filter("term", publish_on_oikotie=True)
         .filter("term", publish_on_etuovi=True)
-        .filter("term", apartment_state_of_sale__keyword=ApartmentStateOfSale.RESERVED)
+        .filter("term", apartment_state_of_sale=ApartmentStateOfSale.RESERVED)
     )
     s_obj.execute()
     scan = s_obj.scan()
@@ -125,8 +125,8 @@ def get_elastic_apartments_for_sale_project_uuids() -> list:
     """Used only in oikotie tests for fetching expected housing companies"""
     s_obj = (
         ApartmentDocument.search()
-        .filter("term", _language__keyword="fi")
-        .filter("term", apartment_state_of_sale__keyword=ApartmentStateOfSale.FOR_SALE)
+        .filter("term", _language="fi")
+        .filter("term", apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE)
         .filter("term", publish_on_oikotie=True)
     )
     s_obj.execute()
@@ -146,7 +146,7 @@ def publish_elastic_apartments(
     """
     u_obj = UpdateByQuery(
         index=settings.APARTMENT_INDEX_NAME,
-    ).filter("terms", uuid__keyword=uuids)
+    ).filter("terms", uuid=uuids)
 
     if publish_to_etuovi and publish_to_oikotie:
         u_obj = u_obj.script(
@@ -163,8 +163,8 @@ def publish_elastic_apartments(
 
     s_obj = (
         Search(index=settings.APARTMENT_INDEX_NAME)
-        .filter("term", _language__keyword="fi")
-        .filter("term", apartment_state_of_sale__keyword=ApartmentStateOfSale.FOR_SALE)
+        .filter("term", _language="fi")
+        .filter("term", apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE)
     )
     if publish_to_oikotie:
         s_obj = s_obj.filter("term", publish_on_oikotie=publish_to_oikotie)
@@ -185,7 +185,7 @@ def unpublish_elastic_oikotie_apartments(uuids: list) -> list:
     """
     u_obj = UpdateByQuery(
         index=settings.APARTMENT_INDEX_NAME,
-    ).filter("terms", uuid__keyword=uuids)
+    ).filter("terms", uuid=uuids)
 
     u_obj = u_obj.script(source="ctx._source.publish_on_oikotie=false")
     u_obj.execute()
