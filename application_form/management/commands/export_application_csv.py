@@ -122,7 +122,7 @@ class Command(BaseCommand):
         if self.project_address:
             apartments = apartments.query(
                 "wildcard",
-                apartment_address__keyword=f"*{self.project_address}*",
+                apartment_address=f"*{self.project_address}*",
             )
 
         apartments.execute()

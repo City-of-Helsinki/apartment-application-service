@@ -18,8 +18,8 @@ def fetch_apartments_for_sale() -> list:
     """
     s_obj = (
         ApartmentDocument.search()
-        .filter("term", _language__keyword="fi")
-        .filter("term", apartment_state_of_sale__keyword=ApartmentStateOfSale.FOR_SALE)
+        .filter("term", _language="fi")
+        .filter("term", apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE)
         .filter("term", publish_on_etuovi=True)
     )
     s_obj.execute()
