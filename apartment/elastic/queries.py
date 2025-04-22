@@ -1,13 +1,14 @@
 from django.core.exceptions import ObjectDoesNotExist
 
 from apartment.elastic.documents import ApartmentDocument
+from apartment.elastic.elastic_utils import resolve_es_field
 
 
 def get_apartment(apartment_uuid, include_project_fields=False):
     search = ApartmentDocument.search()
 
     # Filters
-    search = search.filter("term", uuid__keyword=apartment_uuid)
+    search = search.filter("term", **{resolve_es_field("uuid"): apartment_uuid})
 
     if not include_project_fields:
         search = search.source(excludes=["project_*"])
@@ -25,7 +26,7 @@ def get_apartment_project_uuid(apartment_uuid):
     search = ApartmentDocument.search()
 
     # Filters
-    search = search.filter("term", uuid__keyword=apartment_uuid)
+    search = search.filter("term", **{resolve_es_field("uuid"): apartment_uuid})
     search = search.source(includes=["project_uuid"])
 
     # Get item
@@ -42,7 +43,9 @@ def get_apartments(project_uuid=None, include_project_fields=False):
 
     # Filters
     if project_uuid:
-        search = search.filter("term", project_uuid__keyword=project_uuid)
+        search = search.filter(
+            "term", **{resolve_es_field("project_uuid"): project_uuid}
+        )
 
     # Exclude project fields if necessary
     if not include_project_fields:
@@ -59,7 +62,7 @@ def get_apartment_uuids(project_uuid):
     search = ApartmentDocument.search()
 
     # Filters
-    search = search.filter("term", project_uuid__keyword=project_uuid)
+    search = search.filter("term", **{resolve_es_field("project_uuid"): project_uuid})
 
     # Include only apartment uuid and project uuid
     search = search.source(includes=["uuid", "project_uuid"])
@@ -75,7 +78,9 @@ def get_project(project_uuid):
 
     # Filters
     if project_uuid:
-        search = search.filter("term", project_uuid__keyword=project_uuid)
+        search = search.filter(
+            "term", **{resolve_es_field("project_uuid"): project_uuid}
+        )
 
     # Project data needs to exist in apartment data
     search = search.filter("exists", field="project_id")
