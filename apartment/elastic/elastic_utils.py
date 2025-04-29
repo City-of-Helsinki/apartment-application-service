@@ -1,5 +1,6 @@
 # apartment/elastic/utils.py
 import functools
+
 from django.conf import settings
 from elasticsearch_dsl import connections
 
