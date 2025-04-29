@@ -1,6 +1,6 @@
 # apartment/elastic/utils.py
 import functools
-
+from django.conf import settings
 from elasticsearch_dsl import connections
 
 
@@ -11,6 +11,10 @@ def get_es_mapping(index_name="asuntotuotanto_apartment"):
 
 
 def resolve_es_field(field_name: str, index_name="asuntotuotanto_apartment") -> str:
+    # use test index when running tests
+    if settings.IS_TEST:
+        index_name = settings.TEST_APARTMENT_INDEX_NAME
+
     mapping = get_es_mapping(index_name)
     props = mapping[index_name]["mappings"]["properties"]
 
