@@ -242,6 +242,7 @@ class ProjectInstallmentTemplate(InstallmentBase):
 
     def _get_value_from_percentage(self, apartment_data) -> Decimal:
         ps: InstallmentPercentageSpecifier = self.percentage_specifier
+
         if ps == InstallmentPercentageSpecifier.SALES_PRICE_FLEXIBLE:
             # flexible payment's value will be populated later based on the other
             # installments of the same apartment
@@ -249,11 +250,11 @@ class ProjectInstallmentTemplate(InstallmentBase):
         elif ps == InstallmentPercentageSpecifier.SALES_PRICE:
             # hotfix for ASU-1752, use default value in case Elasticsearch returns None
             # for the attribute. This means its likely empty in Drupal too
-            price_in_cents = apartment_data.get("sales_price", 0)
+            price_in_cents = apartment_data.get("sales_price", Decimal(0))
         elif ps == InstallmentPercentageSpecifier.DEBT_FREE_SALES_PRICE:
-            price_in_cents = apartment_data.get("debt_free_sales_price", 0)
+            price_in_cents = apartment_data.get("debt_free_sales_price", Decimal(0))
         elif ps == InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT:
-            price_in_cents = apartment_data.get("right_of_occupancy_payment", 0)
+            price_in_cents = apartment_data.get("right_of_occupancy_payment", Decimal(0))
         else:
             assert_never(ps)
 
