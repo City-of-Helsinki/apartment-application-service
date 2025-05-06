@@ -254,7 +254,9 @@ class ProjectInstallmentTemplate(InstallmentBase):
         elif ps == InstallmentPercentageSpecifier.DEBT_FREE_SALES_PRICE:
             price_in_cents = apartment_data.get("debt_free_sales_price", Decimal(0))
         elif ps == InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT:
-            price_in_cents = apartment_data.get("right_of_occupancy_payment", Decimal(0))
+            price_in_cents = apartment_data.get(
+                "right_of_occupancy_payment", Decimal(0)
+            )
         else:
             assert_never(ps)
 
