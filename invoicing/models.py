@@ -247,11 +247,13 @@ class ProjectInstallmentTemplate(InstallmentBase):
             # installments of the same apartment
             return Decimal(0)
         elif ps == InstallmentPercentageSpecifier.SALES_PRICE:
-            price_in_cents = apartment_data["sales_price"]
+            # hotfix for ASU-1752, use default value in case Elasticsearch returns None
+            # for the attribute. This means its likely empty in Drupal too
+            price_in_cents = apartment_data.get("sales_price", 0)
         elif ps == InstallmentPercentageSpecifier.DEBT_FREE_SALES_PRICE:
-            price_in_cents = apartment_data["debt_free_sales_price"]
+            price_in_cents = apartment_data.get("debt_free_sales_price", 0)
         elif ps == InstallmentPercentageSpecifier.RIGHT_OF_OCCUPANCY_PAYMENT:
-            price_in_cents = apartment_data["right_of_occupancy_payment"]
+            price_in_cents = apartment_data.get("right_of_occupancy_payment", 0)
         else:
             assert_never(ps)
 
