@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from decimal import Decimal
 from io import BytesIO
 from typing import List
@@ -420,11 +420,10 @@ def test_export_sale_report_new(
     end = timezone.now() + timedelta(days=7)
 
     # add event with non-existing apartment
-    sce = ApartmentReservationStateChangeEventFactory(
+    ApartmentReservationStateChangeEventFactory(
         state=ApartmentReservationState.SOLD,
         timestamp=timezone.now(),
     )
-
 
     state_events = ApartmentReservationStateChangeEvent.objects.filter(
         state=ApartmentReservationState.SOLD, timestamp__range=[start, end]
