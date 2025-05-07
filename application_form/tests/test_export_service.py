@@ -431,6 +431,10 @@ def test_export_sale_report_new(
 
     export_service = XlsxSalesReportExportService(state_events)
 
+    # test that invalid money amounts are handled right
+    cent_sum = export_service._sum_cents([100, 100, None, 100])
+    assert cent_sum == Decimal(3)
+
     workbook = export_service.write_xlsx_file()
 
     assert isinstance(workbook, BytesIO)

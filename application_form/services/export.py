@@ -612,6 +612,8 @@ class XlsxSalesReportExportService(XlsxExportService):
         return sum(self._cents_to_eur(cent) for cent in cents)
 
     def _cents_to_eur(self, cents: int) -> Decimal:
+        if cents == None:
+            cents = Decimal(0.00)
         return Decimal(cents) / 100
 
 
