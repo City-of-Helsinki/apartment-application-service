@@ -226,6 +226,7 @@ class SaleReportAPIView(APIView):
 
         if project_uuids:
             project_uuids = set(project_uuids.split(","))
+
             # not the most efficient way, but good enough for the low user counts
             # use itertools to flatten the list of lists to a single one
             apartment_uuids = itertools.chain.from_iterable(

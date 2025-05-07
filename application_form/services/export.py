@@ -10,6 +10,7 @@ from typing import List
 
 import xlsxwriter
 from django.db.models import Max, QuerySet
+from django.core.exceptions import ObjectDoesNotExist
 
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import (
@@ -592,12 +593,17 @@ class XlsxSalesReportExportService(XlsxExportService):
         projects = []
         uuids = []
         for e in self.sold_events:
-            project_uuid = get_apartment_project_uuid(
-                e.reservation.apartment_uuid
-            ).project_uuid
-            if project_uuid not in uuids:
-                projects.append(get_project(project_uuid))
-                uuids.append(project_uuid)
+            try:
+                project_uuid = get_apartment_project_uuid(
+                    e.reservation.apartment_uuid
+                ).project_uuid
+                if project_uuid not in uuids:
+                    projects.append(get_project(project_uuid))
+                    uuids.append(project_uuid)
+            except ObjectDoesNotExist:
+                _logger.error(
+                    "Apartment %s does not exist in ElasticSearch", e.reservation.apartment_uuid
+                )
 
         return sorted(projects, key=lambda x: x.project_street_address)
 

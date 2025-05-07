@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 
 import pytest
@@ -19,6 +19,7 @@ from application_form.services.lottery.machine import distribute_apartments
 from application_form.services.queue import add_application_to_queues
 from application_form.tests.factories import (
     ApartmentReservationFactory,
+    ApartmentReservationStateChangeEventFactory,
     ApplicationApartmentFactory,
     ApplicationFactory,
     LotteryEventFactory,
