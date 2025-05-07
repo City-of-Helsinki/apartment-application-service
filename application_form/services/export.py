@@ -9,6 +9,7 @@ from io import BytesIO, StringIO
 from typing import List
 
 import xlsxwriter
+from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Max, QuerySet
 
 from apartment.elastic.documents import ApartmentDocument
@@ -592,12 +593,18 @@ class XlsxSalesReportExportService(XlsxExportService):
         projects = []
         uuids = []
         for e in self.sold_events:
-            project_uuid = get_apartment_project_uuid(
-                e.reservation.apartment_uuid
-            ).project_uuid
-            if project_uuid not in uuids:
-                projects.append(get_project(project_uuid))
-                uuids.append(project_uuid)
+            try:
+                project_uuid = get_apartment_project_uuid(
+                    e.reservation.apartment_uuid
+                ).project_uuid
+                if project_uuid not in uuids:
+                    projects.append(get_project(project_uuid))
+                    uuids.append(project_uuid)
+            except ObjectDoesNotExist:
+                _logger.error(
+                    "Apartment %s does not exist in ElasticSearch",
+                    e.reservation.apartment_uuid,
+                )
 
         return sorted(projects, key=lambda x: x.project_street_address)
 
@@ -605,6 +612,8 @@ class XlsxSalesReportExportService(XlsxExportService):
         return sum(self._cents_to_eur(cent) for cent in cents)
 
     def _cents_to_eur(self, cents: int) -> Decimal:
+        if cents is None:
+            cents = Decimal(0.00)
         return Decimal(cents) / 100
 
 

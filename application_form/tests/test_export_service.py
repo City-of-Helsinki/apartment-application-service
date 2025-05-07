@@ -30,6 +30,7 @@ from application_form.services.lottery.machine import distribute_apartments
 from application_form.services.queue import add_application_to_queues
 from application_form.tests.factories import (
     ApartmentReservationFactory,
+    ApartmentReservationStateChangeEventFactory,
     ApplicationApartmentFactory,
     ApplicationFactory,
 )
@@ -417,11 +418,22 @@ def test_export_sale_report_new(
 
     start = timezone.now() - timedelta(days=7)
     end = timezone.now() + timedelta(days=7)
+
+    # add event with non-existing apartment
+    ApartmentReservationStateChangeEventFactory(
+        state=ApartmentReservationState.SOLD,
+        timestamp=timezone.now(),
+    )
+
     state_events = ApartmentReservationStateChangeEvent.objects.filter(
         state=ApartmentReservationState.SOLD, timestamp__range=[start, end]
     )
 
     export_service = XlsxSalesReportExportService(state_events)
+
+    # test that invalid money amounts are handled right
+    cent_sum = export_service._sum_cents([100, 100, None, 100])
+    assert cent_sum == Decimal(3)
 
     workbook = export_service.write_xlsx_file()
 

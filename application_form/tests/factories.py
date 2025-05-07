@@ -154,6 +154,7 @@ class ApartmentReservationStateChangeEventFactory(factory.django.DjangoModelFact
     reservation = factory.SubFactory(ApartmentReservationFactory)
     state = fuzzy.FuzzyChoice(list(ApartmentReservationState))
     user = factory.SubFactory(UserFactory)
+    timestamp = fuzzy.FuzzyDateTime(timezone.now(), timezone.now() + timedelta(days=7))
 
 
 class OfferFactory(factory.django.DjangoModelFactory):
