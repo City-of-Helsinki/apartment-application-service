@@ -485,7 +485,7 @@ def test_export_sale_report_new(
     # assert that color formatting works
     # find rows starting with certain terms and check if the last index has a colour hex
     export_rows = export_service.get_rows()
-    assert [r for r in export_rows if "Project address" in r[0]][0][-1] == "#E8E8E8"
+    assert [r for r in export_rows if "Kohteen osoite" in r[0]][0][-1] == "#E8E8E8"
     assert [r for r in export_rows if "Kaupat lukumäärä yhteensä" in r[0]][0][
         -1
     ] == "#E8E8E8"
