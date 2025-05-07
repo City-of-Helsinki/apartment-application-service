@@ -1,6 +1,7 @@
 import os
 from uuid import UUID
 
+from apartment.enums import OwnershipType
 import pytest
 from django.conf import settings
 from django.core.management import call_command
@@ -20,8 +21,14 @@ from connections.tests.utils import (
 
 
 class TestEtuoviMapper:
-    def test_apartment_to_item_mapping_types(self):
-        apartment = ApartmentDocumentFactory()
+    @pytest.mark.parametrize("ownership_type", [
+            OwnershipType.HASO, OwnershipType.HITAS
+        ]
+    )
+    def test_apartment_to_item_mapping_types(self, ownership_type):
+        apartment = ApartmentDocumentFactory(
+            project_ownership_type=ownership_type.value
+        )
         item = map_apartment_to_item(apartment)
         check_dataclass_typing(item)
 

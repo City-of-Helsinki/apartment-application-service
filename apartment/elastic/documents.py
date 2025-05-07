@@ -146,6 +146,7 @@ class ApartmentDocument(ReadOnlyDocument):
     right_of_occupancy_payment = Long()
     right_of_occupancy_fee = Long()
     right_of_occupancy_deposit = Long()
+    release_payment = Long()
 
     # These two fields are synchronized by drupal
     # from ApartmentRevaluation model

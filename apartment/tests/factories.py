@@ -174,6 +174,7 @@ class ApartmentDocumentFactory(ElasticFactory):
     publish_on_oikotie = Faker("boolean")
     right_of_occupancy_payment = fuzzy.FuzzyInteger(0, 999)
     right_of_occupancy_fee = fuzzy.FuzzyInteger(0, 999)
+    release_payment = fuzzy.FuzzyInteger(0, 999)
     project_contract_apartment_completion_selection_1 = Faker("boolean")
     project_contract_apartment_completion_selection_1_date = fuzzy.FuzzyDate(
         start_date=timezone.localdate() - timedelta(days=7),
