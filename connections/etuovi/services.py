@@ -12,7 +12,7 @@ from connections.etuovi.etuovi_mapper import map_apartment_to_item
 _logger = logging.getLogger(__name__)
 
 
-def fetch_apartments_for_sale(verbose:bool = False) -> list:
+def fetch_apartments_for_sale(verbose: bool = False) -> list:
     """
     Fetch apartments for sale from elasticsearch and map them for Etuovi
     """
@@ -28,7 +28,6 @@ def fetch_apartments_for_sale(verbose:bool = False) -> list:
     items = []
 
     for hit in scan:
-        print("HIT", hit)
         try:
             items.append(map_apartment_to_item(hit))
         except ValueError as e:

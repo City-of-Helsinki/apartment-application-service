@@ -24,7 +24,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--verbose",
             action="store_true",
-            help="Print error messages etc. for debugging purposes"
+            help="Print error messages etc. for debugging purposes",
         )
 
     def handle(self, *args, **options):
