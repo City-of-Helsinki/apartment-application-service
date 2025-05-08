@@ -419,11 +419,11 @@ class XlsxSalesReportExportService(XlsxExportService):
 
         header_rows = [
             [
-                "Project address",
-                "Apartments total",
-                "Sold HITAS apartments",
-                "Sold HASO apartments",
-                "Unsold apartments",
+                "Kohteen osoite",
+                "Asuntoja yhteensä",
+                "Myydyt HITAS-asunnot",
+                "Myydyt HASO-asunnot",
+                "Myymättömät asunnot",
                 self.HIGHLIGHT_COLOR,
             ],
         ]
