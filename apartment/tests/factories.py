@@ -45,7 +45,7 @@ class ApartmentDocumentFactory(ElasticFactory):
     project_ownership_type = fuzzy.FuzzyChoice(["Haso", "Hitas", "Puolihitas"])
     project_housing_company = fuzzy.FuzzyText()
     project_holding_type = "RIGHT_OF_RESIDENCE_APARTMENT"
-    project_street_address = fuzzy.FuzzyText()
+    project_street_address = factory.Faker("street_address")
     project_postal_code = fuzzy.FuzzyText(length=6, chars=string.digits)
     project_city = "Helsinki"
     project_district = fuzzy.FuzzyText()
@@ -126,7 +126,7 @@ class ApartmentDocumentFactory(ElasticFactory):
 
     uuid = factory.Faker("uuid4")
 
-    apartment_address = fuzzy.FuzzyText()
+    apartment_address = factory.Faker("street_address")
     apartment_number = fuzzy.FuzzyText(
         length=3, chars=string.ascii_letters + string.digits
     )

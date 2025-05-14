@@ -2,6 +2,7 @@ import datetime
 import logging
 import uuid
 from decimal import Decimal
+from unittest.mock import patch
 
 import pytest
 from django.urls import reverse
@@ -947,6 +948,35 @@ def test_apartment_installment_invoice_pdf(
         )
         in response.content
     )
+
+
+@patch("invoicing.pdf.InvoicePDFData")
+@pytest.mark.django_db
+def test_apartment_installment_invoice_pdf_use_finnish_always(
+    InvoicePDFData,
+    sales_ui_salesperson_api_client,
+    reservation_with_installments,
+):
+    """
+    Should always use the Finnish language ("fi") translation in PDF's no matter\
+    what either the language cookies or request.META["HTTP_ACCEPT_LANGUAGE"] say
+    """
+    headers = {"Accept-Language": "en-GB,en-US;q=0.9,en;q=0.8"}
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse(
+            "application_form:apartment-installment-invoice",
+            kwargs={"apartment_reservation_id": reservation_with_installments.id},
+        ),
+        format="json",
+        headers=headers,
+    )
+
+    apartment_text = InvoicePDFData.call_args[1]["apartment"]
+    assert "Huoneisto" in apartment_text
+
+    assert response.status_code == 200
+    assert response["Content-Type"] == "application/pdf"
 
 
 @pytest.mark.django_db

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2022-09-01 18:00+0300\n"
+"POT-Creation-Date: 2025-04-09 13:27+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,22 +18,22 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: apartment/api/views.py:81
+#: apartment/api/views.py:99 apartment/api/views.py:134
 #, python-brace-format
 msgid "[Project {title}] Applicants information"
 msgstr ""
 
-#: apartment/api/views.py:105
+#: apartment/api/views.py:158
 #, python-brace-format
 msgid "[Project {title}] Lottery result"
 msgstr ""
 
-#: apartment/api/views.py:140
+#: apartment/api/views.py:198
 #, python-brace-format
 msgid "Sale report {start_date} - {end_date}"
 msgstr ""
 
-#: apartment/models.py:10 invoicing/models.py:169
+#: apartment/models.py:10 invoicing/models.py:200
 msgid "project UUID"
 msgstr "kohteen UUID"
 
@@ -45,119 +45,135 @@ msgstr ""
 msgid "offer message content"
 msgstr ""
 
-#: apartment_application_service/settings.py:136 users/models.py:31
-msgid "Finnish"
+#: apartment_application_service/models.py:20
+msgid "is right-of-occupancy housing changer"
 msgstr ""
 
-#: apartment_application_service/settings.py:136 users/models.py:33
-msgid "English"
+#: apartment_application_service/models.py:22
+msgid "has HITAS ownership"
 msgstr ""
 
-#: apartment_application_service/settings.py:136 users/models.py:32
-msgid "Swedish"
-msgstr ""
-
-#: application_form/models/application.py:26
-msgid "application identifier"
-msgstr ""
-
-#: application_form/models/application.py:28
-msgid "applicants count"
-msgstr ""
-
-#: application_form/models/application.py:30
-msgid "application type"
-msgstr ""
-
-#: application_form/models/application.py:33
-#: application_form/models/reservation.py:102 customer/models.py:55
+#: apartment_application_service/models.py:24
 msgid "right of residence number"
 msgstr ""
 
-#: application_form/models/application.py:35
-#: application_form/models/reservation.py:91 customer/models.py:44
-msgid "has children"
+#: apartment_application_service/models.py:28
+msgid "right of residence is old batch"
 msgstr ""
 
-#: application_form/models/application.py:37
+#: apartment_application_service/models.py:32
+msgid ""
+"Only used when `right_of_residence` is set. When in use the default value is "
+"`false`. Value `true` means the right of residence number is granted on "
+"31.8.2023 or before."
+msgstr ""
+
+#: apartment_application_service/settings.py:172 users/models.py:64
+msgid "Finnish"
+msgstr ""
+
+#: apartment_application_service/settings.py:172 users/models.py:66
+msgid "English"
+msgstr ""
+
+#: apartment_application_service/settings.py:172 users/models.py:65
+msgid "Swedish"
+msgstr ""
+
+#: application_form/models/application.py:17
 #: application_form/models/reservation.py:70
 msgid "customer"
 msgstr ""
 
-#: application_form/models/application.py:48
-#, fuzzy
-#| msgid "reference number"
+#: application_form/models/application.py:20
+msgid "application identifier"
+msgstr ""
+
+#: application_form/models/application.py:23
+msgid "applicants count"
+msgstr ""
+
+#: application_form/models/application.py:24
+msgid "application type"
+msgstr ""
+
+#: application_form/models/application.py:25
+#: application_form/models/reservation.py:94 customer/models.py:35
+msgid "has children"
+msgstr ""
+
+#: application_form/models/application.py:30
 msgid "process number"
 msgstr ""
 
-#: application_form/models/application.py:49
+#: application_form/models/application.py:31
 msgid "handler information"
 msgstr ""
 
-#: application_form/models/application.py:53
+#: application_form/models/application.py:35
 msgid "method of arrival"
 msgstr ""
 
-#: application_form/models/application.py:56
+#: application_form/models/application.py:38
 msgid "sender names"
 msgstr ""
 
-#: application_form/models/application.py:62 users/models.py:42
+#: application_form/models/application.py:44 users/models.py:75
 msgid "first name"
 msgstr ""
 
-#: application_form/models/application.py:63 users/models.py:46
+#: application_form/models/application.py:45 users/models.py:79
 msgid "last name"
 msgstr ""
 
-#: application_form/models/application.py:64
+#: application_form/models/application.py:46
 msgid "email"
 msgstr ""
 
-#: application_form/models/application.py:65 users/models.py:53
+#: application_form/models/application.py:47 users/models.py:86
 msgid "phone number"
 msgstr ""
 
-#: application_form/models/application.py:66 users/models.py:57
+#: application_form/models/application.py:48 users/models.py:90
 msgid "street address"
 msgstr ""
 
-#: application_form/models/application.py:67 users/models.py:65
+#: application_form/models/application.py:49 users/models.py:99
 msgid "city"
 msgstr ""
 
-#: application_form/models/application.py:68 users/models.py:66
+#: application_form/models/application.py:50 users/models.py:100
 msgid "postal code"
 msgstr ""
 
-#: application_form/models/application.py:69
+#: application_form/models/application.py:51
 msgid "age"
 msgstr ""
 
-#: application_form/models/application.py:70 users/models.py:58
+#: application_form/models/application.py:52 users/models.py:92
 msgid "date of birth"
 msgstr ""
 
-#: application_form/models/application.py:77 users/models.py:68
+#: application_form/models/application.py:59 users/models.py:102
 msgid "contact language"
 msgstr ""
 
-#: application_form/models/application.py:83
+#: application_form/models/application.py:64
 msgid "is primary applicant"
 msgstr ""
 
-#: application_form/models/application.py:95
+#: application_form/models/application.py:75
 #: application_form/models/lottery.py:12
 #: application_form/models/reservation.py:67
 msgid "apartment uuid"
 msgstr ""
 
-#: application_form/models/application.py:96
+#: application_form/models/application.py:76
 msgid "priority number"
 msgstr ""
 
 #: application_form/models/lottery.py:16 application_form/models/offer.py:41
-#: application_form/models/reservation.py:106 invoicing/models.py:90
+#: application_form/models/reservation.py:100 invoicing/models.py:115
 msgid "handler"
 msgstr ""
 
@@ -165,7 +181,7 @@ msgstr ""
 msgid "result position"
 msgstr ""
 
-#: application_form/models/offer.py:27 invoicing/models.py:74
+#: application_form/models/offer.py:27 invoicing/models.py:92
 msgid "apartment reservation"
 msgstr "huoneistovaraus"
 
@@ -191,27 +207,21 @@ msgstr ""
 msgid "position in queue"
 msgstr ""
 
-#: application_form/models/reservation.py:77
+#: application_form/models/reservation.py:78
+msgid "position in queue before cancelation"
+msgstr ""
+
+#: application_form/models/reservation.py:80
 msgid "position in list"
 msgstr ""
 
-#: application_form/models/reservation.py:89
+#: application_form/models/reservation.py:92
 #: application_form/models/reservation.py:179
 msgid "apartment reservation state"
 msgstr ""
 
-#: application_form/models/reservation.py:93 customer/models.py:46
-msgid "has hitas ownership"
-msgstr ""
-
-#: application_form/models/reservation.py:96 customer/models.py:49
+#: application_form/models/reservation.py:96 customer/models.py:36
 msgid "is age over 55"
-msgstr ""
-
-#: application_form/models/reservation.py:99 customer/models.py:52
-#, fuzzy
-#| msgid "right of occupancy payment"
-msgid "is right-of-occupancy housing changer"
 msgstr ""
 
 #: application_form/models/reservation.py:166
@@ -222,7 +232,7 @@ msgstr ""
 msgid "timestamp"
 msgstr ""
 
-#: application_form/models/reservation.py:184 users/models.py:18
+#: application_form/models/reservation.py:184 users/models.py:20
 msgid "user"
 msgstr ""
 
@@ -234,278 +244,366 @@ msgstr ""
 msgid "replaced by"
 msgstr ""
 
-#: application_form/services/lottery/machine.py:34
+#: application_form/services/lottery/machine.py:35
 #, python-brace-format
 msgid ""
 "The apartments of project cannot distribute by the given ownershiptype: {0}"
 msgstr ""
+
+#: audit_log/models.py:8
+msgid "sent at"
+msgstr ""
+
+#: audit_log/models.py:9 invoicing/models.py:43
+msgid "created at"
+msgstr "luontiaika"
 
 #: connections/elastic_mapper.py:14
 #, python-format
 msgid "Could not map the ownership_type %s"
 msgstr ""
 
-#: connections/etuovi/etuovi_mapper.py:152
+#: connections/etuovi/etuovi_mapper.py:153
 #, python-brace-format
 msgid "project_holding_type {holding_type} not found in HOLDING_TYPE_MAPPING"
 msgstr ""
 
-#: connections/etuovi/etuovi_mapper.py:191
+#: connections/etuovi/etuovi_mapper.py:192
 #, python-brace-format
 msgid "project_building_type {realty_type} not found in REALTY_TYPE_MAPPING"
 msgstr ""
 
-#: connections/etuovi/etuovi_mapper.py:206
+#: connections/etuovi/etuovi_mapper.py:207
 #, python-format
 msgid "project_holding_type %s not found in TRADE_TYPE_MAPPING"
 msgstr ""
 
-#: connections/oikotie/oikotie_mapper.py:60
+#: connections/oikotie/oikotie_mapper.py:64
 #, python-format
 msgid "could not map the project_building_type %s"
 msgstr ""
 
-#: connections/oikotie/oikotie_mapper.py:72
+#: connections/oikotie/oikotie_mapper.py:76
 #, python-format
 msgid "could not map the project_holding_type %s"
 msgstr ""
 
-#: connections/oikotie/oikotie_mapper.py:83
+#: connections/oikotie/oikotie_mapper.py:87
 #, python-format
 msgid "could not map the project_city %s"
 msgstr ""
 
-#: connections/oikotie/oikotie_mapper.py:366
+#: connections/oikotie/oikotie_mapper.py:376
 #, python-format
 msgid "could not map the project_new_development_status %s"
 msgstr ""
 
-#: connections/oikotie/oikotie_mapper.py:496
+#: connections/oikotie/oikotie_mapper.py:505
 #, python-format
 msgid "could not map the project_estate_agent_email %s"
 msgstr ""
 
-#: connections/oikotie/oikotie_mapper.py:523
+#: connections/oikotie/oikotie_mapper.py:532
 #, python-format
 msgid "could not map %s"
 msgstr ""
 
-#: connections/oikotie/oikotie_mapper.py:574
+#: connections/oikotie/oikotie_mapper.py:583
 #, python-format
 msgid "could not map the project_housing_company %s"
 msgstr ""
 
-#: customer/models.py:26
+#: customer/models.py:20
 msgid "primary profile"
 msgstr ""
 
-#: customer/models.py:32
+#: customer/models.py:26
 msgid "secondary profile"
 msgstr ""
 
-#: customer/models.py:39
+#: customer/models.py:33
 msgid "additional information"
 msgstr ""
 
-#: customer/models.py:42
+#: customer/models.py:34
 msgid "last contact date"
 msgstr ""
 
-#: customer/models.py:83
+#: customer/models.py:63
 msgid ""
 "There already exists a Customer which has the same primary and secondary "
 "profile."
 msgstr ""
 
-#: invoicing/api/serializers.py:144
-msgid "Value in cents. Either this or `percentage` is required."
-msgstr ""
-
-#: invoicing/api/serializers.py:151
-msgid "Either this or `amount` is required."
-msgstr ""
-
-#: invoicing/api/serializers.py:155
-msgid "This is required with `percentage`."
-msgstr ""
-
-#: invoicing/api/serializers.py:248
+#: invoicing/api/serializers.py:52
 msgid "Value in cents."
 msgstr ""
 
-#: invoicing/enums.py:22
+#: invoicing/api/serializers.py:155
+msgid "Value in cents. Either this or `percentage` is required."
+msgstr ""
+
+#: invoicing/api/serializers.py:162
+msgid "Either this or `amount` is required."
+msgstr ""
+
+#: invoicing/api/serializers.py:166
+msgid "This is required with `percentage`."
+msgstr ""
+
+#: invoicing/enums.py:28
 msgid "1st payment"
 msgstr "1. Erä"
 
-#: invoicing/enums.py:23
+#: invoicing/enums.py:29
 msgid "2nd payment"
 msgstr "2. Erä"
 
-#: invoicing/enums.py:24
+#: invoicing/enums.py:30
 msgid "3rd payment"
 msgstr "3. Erä"
 
-#: invoicing/enums.py:25
+#: invoicing/enums.py:31
 msgid "4th payment"
 msgstr "4. Erä"
 
-#: invoicing/enums.py:26
+#: invoicing/enums.py:32
 msgid "5th payment"
 msgstr "5. Erä"
 
-#: invoicing/enums.py:27
+#: invoicing/enums.py:33
 msgid "6th payment"
 msgstr "6. Erä"
 
-#: invoicing/enums.py:28
+#: invoicing/enums.py:34
 msgid "7th payment"
 msgstr "7. Erä"
 
-#: invoicing/enums.py:29
-msgid "refund"
-msgstr "Hyvitys"
+#: invoicing/enums.py:35 invoicing/enums.py:36
+msgid "refund 1"
+msgstr "Hyvitys 1"
 
-#: invoicing/enums.py:30
+#: invoicing/enums.py:37
+msgid "refund 2"
+msgstr "Hyvitys 2"
+
+#: invoicing/enums.py:38
+msgid "refund 3"
+msgstr "Hyvitys 3"
+
+#: invoicing/enums.py:39
 msgid "down payment"
 msgstr "Käsiraha"
 
-#: invoicing/enums.py:31
+#: invoicing/enums.py:40
 msgid "late payment interest"
 msgstr "Viivästyskorko"
 
-#: invoicing/enums.py:32 invoicing/enums.py:57
-msgid "right of occupancy payment"
-msgstr "AO-maksu"
+#: invoicing/enums.py:41
+msgid "right of occupancy payment 1"
+msgstr "AO-maksu 1"
 
-#: invoicing/enums.py:33
+#: invoicing/enums.py:42
+msgid "right of occupancy payment 2"
+msgstr "AO-maksu 2"
+
+#: invoicing/enums.py:43
+msgid "right of occupancy payment 3"
+msgstr "AO-maksu 3"
+
+#: invoicing/enums.py:44
 msgid "for invoicing"
 msgstr "Laskutettava"
 
-#: invoicing/enums.py:34
+#: invoicing/enums.py:45
 msgid "deposit"
 msgstr "Vakuusmaksu"
 
-#: invoicing/enums.py:35
+#: invoicing/enums.py:46
 msgid "reservation fee"
 msgstr "Varausmaksu"
 
-#: invoicing/enums.py:43
+#: invoicing/enums.py:54
 msgid "euro"
 msgstr "euro"
 
-#: invoicing/enums.py:44
+#: invoicing/enums.py:55
 msgid "percent"
 msgstr "prosentti"
 
-#: invoicing/enums.py:54
+#: invoicing/enums.py:65
 msgid "sales price"
 msgstr "myyntihinta"
 
-#: invoicing/enums.py:55
+#: invoicing/enums.py:66
 msgid "debt free sales price"
 msgstr "velaton hinta"
 
-#: invoicing/enums.py:56
-#, fuzzy
-#| msgid "debt free sales price flexible"
+#: invoicing/enums.py:67
 msgid "sales price flexible"
 msgstr ""
 
-#: invoicing/models.py:37
-msgid "created at"
-msgstr "luontiaika"
+#: invoicing/enums.py:68
+msgid "right of occupancy payment"
+msgstr "AO-maksu"
 
-#: invoicing/models.py:40
+#: invoicing/enums.py:78
+msgid "paid"
+msgstr ""
+
+#: invoicing/enums.py:79
+msgid "unpaid"
+msgstr ""
+
+#: invoicing/enums.py:80
+msgid "overpaid"
+msgstr ""
+
+#: invoicing/enums.py:81
+msgid "underpaid"
+msgstr ""
+
+#: invoicing/models.py:46
 #, fuzzy
 #| msgid "created at"
 msgid "updated at"
 msgstr "luontiaika"
 
-#: invoicing/models.py:43
+#: invoicing/models.py:49
 msgid "type"
 msgstr "tyyppi"
 
-#: invoicing/models.py:45
+#: invoicing/models.py:51
 msgid "value"
 msgstr "summa"
 
-#: invoicing/models.py:47
+#: invoicing/models.py:53
 msgid "account number"
 msgstr "tilinumero"
 
-#: invoicing/models.py:48
+#: invoicing/models.py:54
 msgid "due date"
 msgstr "eräpäivä"
 
-#: invoicing/models.py:78
-#, fuzzy
-#| msgid "reference number"
+#: invoicing/models.py:98
 msgid "invoice number"
 msgstr ""
 
-#: invoicing/models.py:80
+#: invoicing/models.py:106
 msgid "reference number"
 msgstr "viitenumero"
 
-#: invoicing/models.py:83
+#: invoicing/models.py:109
 msgid "added to be sent to SAP at"
 msgstr ""
 
-#: invoicing/models.py:86
+#: invoicing/models.py:112
 msgid "sent to SAP at"
 msgstr ""
 
-#: invoicing/models.py:170
+#: invoicing/models.py:201
 msgid "unit"
 msgstr ""
 
-#: invoicing/models.py:173
+#: invoicing/models.py:204
 msgid "percentage specifier"
 msgstr "yksikön täsmennys"
 
-#: invoicing/pdf.py:23
-msgid "and"
-msgstr "ja"
+#: invoicing/models.py:269
+msgid "Payment batch"
+msgstr ""
 
-#: invoicing/pdf.py:78
+#: invoicing/models.py:273
+msgid "payment batch"
+msgstr ""
+
+#: invoicing/models.py:274
+#, fuzzy
+#| msgid "late payment interest"
+msgid "payment batches"
+msgstr "Viivästyskorko"
+
+#: invoicing/models.py:284
+msgid "batch"
+msgstr ""
+
+#: invoicing/models.py:292
+#, fuzzy
+#| msgid "apartment reservation"
+msgid "apartment installment"
+msgstr "huoneistovaraus"
+
+#: invoicing/models.py:297
+msgid "amount"
+msgstr ""
+
+#: invoicing/models.py:299
+#, fuzzy
+#| msgid "1st payment"
+msgid "payment date"
+msgstr "1. Erä"
+
+#: invoicing/models.py:302
+#, fuzzy
+#| msgid "1st payment"
+msgid "payment"
+msgstr "1. Erä"
+
+#: invoicing/models.py:303
+#, fuzzy
+#| msgid "1st payment"
+msgid "payments"
+msgstr "1. Erä"
+
+#: invoicing/pdf.py:82
 msgid "Apartment"
 msgstr "Huoneisto"
 
-#: users/models.py:19
+#: users/admin.py:33
+msgid "Full name"
+msgstr ""
+
+#: users/models.py:21
 msgid "users"
 msgstr ""
 
-#: users/models.py:37
+#: users/models.py:70
 msgid "user identifier"
 msgstr ""
 
-#: users/models.py:44
+#: users/models.py:77
 msgid "middle name"
 msgstr ""
 
-#: users/models.py:48
+#: users/models.py:81
 msgid "calling name"
 msgstr ""
 
-#: users/models.py:51
+#: users/models.py:84
 msgid "email address"
 msgstr ""
 
-#: users/models.py:55
+#: users/models.py:88
 msgid "phone number nightly"
 msgstr ""
 
-#: users/models.py:60
+#: users/models.py:94
 msgid "national identification number"
 msgstr ""
 
-#: users/models.py:98
+#: users/models.py:147
 msgid "profile"
 msgstr ""
 
-#: users/models.py:99
+#: users/models.py:148
 msgid "profiles"
 msgstr ""
+
+#~ msgid "refund"
+#~ msgstr "Hyvitys"
+
+#~ msgid "and"
+#~ msgstr "ja"
 
 #, fuzzy
 #~| msgid "right of occupancy payment"

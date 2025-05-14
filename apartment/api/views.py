@@ -1,3 +1,5 @@
+import itertools
+
 from dateutil import parser
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import Http404, HttpResponse
@@ -35,8 +37,10 @@ from application_form.services.export import (
     ApplicantExportService,
     ApplicantMailingListExportService,
     ProjectLotteryResultExportService,
-    SaleReportExportService,
+    XlsxSalesReportExportService,
 )
+from users.enums import UserKeyValueKeys
+from users.models import UserKeyValue
 
 
 class ApartmentAPIView(APIView):
@@ -165,12 +169,38 @@ class ProjectExportLotteryResultsAPIView(APIView):
         return response
 
 
+class SaleReportSelectedProjectsAPIView(APIView):
+    http_method_names = ["get"]
+
+    def get(self, request):
+        # get included projects
+        included_project_uuids = UserKeyValue.objects.user_key_values(
+            user=request.user,
+            key=UserKeyValueKeys.INCLUDE_SALES_REPORT_PROJECT_UUID.value,
+        ).values_list("value", flat=True)
+        # return all projects until the user saves some
+        if included_project_uuids.count() == 0:
+            project_data = get_projects()
+        else:
+            # filter projects
+            project_data = [
+                project
+                for project in get_projects()
+                if project.project_uuid in included_project_uuids
+            ]
+
+        serializer = ProjectDocumentListSerializer(project_data, many=True)
+        return Response(serializer.data)
+
+
 class SaleReportAPIView(APIView):
     http_method_names = ["get"]
 
     def get(self, request):
         start_date = request.query_params.get("start_date")
         end_date = request.query_params.get("end_date")
+        project_uuids = request.query_params.get("project_uuids")
+
         if start_date is None or end_date is None:
             raise ValidationError("Missing start date or end date")
         try:
@@ -188,21 +218,63 @@ class SaleReportAPIView(APIView):
             start_date_obj = start_date_obj.replace(tzinfo=tz)
         if not end_date_obj.tzinfo:
             end_date_obj = end_date_obj.replace(tzinfo=tz)
+
         state_events = ApartmentReservationStateChangeEvent.objects.filter(
             timestamp__range=[start_date_obj, end_date_obj],
             state=ApartmentReservationState.SOLD,
         )
-        export_services = SaleReportExportService(state_events)
-        csv_file = export_services.get_csv_string()
+
+        if project_uuids:
+            project_uuids = set(project_uuids.split(","))
+            # not the most efficient way, but good enough for the low user counts
+            # use itertools to flatten the list of lists to a single one
+            apartment_uuids = itertools.chain.from_iterable(
+                get_apartment_uuids(uuid) for uuid in project_uuids
+            )
+            state_events = state_events.filter(
+                reservation__apartment_uuid__in=apartment_uuids
+            )
+
+            # update list of sales report project uuids
+            key_values = [
+                UserKeyValue(
+                    user=request.user,
+                    key=UserKeyValueKeys.INCLUDE_SALES_REPORT_PROJECT_UUID.value,
+                    value=project_uuid,
+                )
+                for project_uuid in project_uuids
+            ]
+
+            # use ignore_conflicts to "filter out" duplicate project_uuids when creating
+            UserKeyValue.objects.bulk_create(key_values, ignore_conflicts=True)
+
+            to_delete = set(p.project_uuid for p in get_projects()).difference(
+                project_uuids
+            )
+
+            # delete project uuids that werent selected
+            UserKeyValue.objects.user_key_values(
+                user=request.user,
+                key=UserKeyValueKeys.INCLUDE_SALES_REPORT_PROJECT_UUID.value,
+            ).filter(value__in=to_delete).delete()
+
+        export_services = XlsxSalesReportExportService(state_events)
+        xlsx_file = export_services.write_xlsx_file()
         file_name = format_lazy(
             _("Sale report {start_date} - {end_date}"),
             start_date=start_date,
             end_date=end_date,
         ).replace(" ", "_")
-        response = HttpResponse(csv_file, content_type="text/csv; charset=utf-8-sig")
-        response["Content-Disposition"] = "attachment; filename={file_name}.csv".format(
-            file_name=file_name
+
+        response_content = xlsx_file.read()
+        response = HttpResponse(
+            response_content,
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",  # noqa:E501
         )
+        response[
+            "Content-Disposition"
+        ] = "attachment; filename={file_name}.xlsx".format(file_name=file_name)
+
         return response
 
 

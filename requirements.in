@@ -24,3 +24,4 @@ whitenoise
 pikepdf
 num2words
 paramiko
+XlsxWriter==3.2.2

@@ -1,22 +1,31 @@
 import csv
+import logging
 import operator
 import re
 from abc import abstractmethod
-from io import StringIO
+from datetime import datetime
+from decimal import Decimal
+from io import BytesIO, StringIO
+from typing import List
 
+import xlsxwriter
 from django.db.models import Max, QuerySet
 
+from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import (
     get_apartment,
     get_apartment_project_uuid,
     get_apartment_uuids,
+    get_apartments,
     get_project,
 )
-from apartment.enums import ApartmentState
+from apartment.enums import ApartmentState, OwnershipType
 from apartment.utils import get_apartment_state_from_apartment_uuid
 from application_form.enums import ApartmentReservationState
 from application_form.models import ApartmentReservation, LotteryEvent
 from application_form.utils import get_apartment_number_sort_tuple
+
+_logger = logging.getLogger(__name__)
 
 
 def _get_reservation_cell_value(column_name, apartment=None, reservation=None):
@@ -56,6 +65,54 @@ def _get_reservation_cell_value(column_name, apartment=None, reservation=None):
     if column_name == "right_of_residence":
         return reservation.right_of_residence
     return ""
+
+
+class XlsxExportService:
+    COL_WIDTH = 4
+
+    @abstractmethod
+    def get_rows(self):
+        pass
+
+    def write_xlsx_file(self) -> BytesIO:
+        output = BytesIO()
+        workbook = xlsxwriter.Workbook(output, {"in_memory": True})
+        self._make_xlsx(workbook)
+        workbook.close()
+        output.seek(0)
+        return output
+
+    def _make_xlsx(
+        self, workbook: xlsxwriter.workbook.Workbook
+    ) -> xlsxwriter.workbook.Workbook:
+        worksheet = workbook.add_worksheet()
+
+        rows = self.get_rows()
+        last_column_idx = max(len(r) for r in rows)
+
+        cell_format_default = workbook.add_format()
+
+        for i, row in enumerate(rows):
+            # if the last item in the row is a hex representation of a color
+            # use it as the row's background. Not the smartest way to do this
+            if str(row[-1]).startswith("#"):
+                cell_format = workbook.add_format({"bg_color": row.pop()})
+
+            for j, cell in enumerate(row):
+                worksheet.write(i, j, cell, cell_format)
+
+            if cell_format.bg_color is not False:
+                # color rows to the same width regardless of content
+                for k in range(j, last_column_idx):
+                    try:
+                        cell = rows[i][k]
+                    except IndexError:
+                        cell = ""
+                    worksheet.write(i, k, cell, cell_format)
+
+            cell_format = cell_format_default
+
+        worksheet.set_column(0, last_column_idx, self.COL_WIDTH)
 
 
 class CSVExportService:
@@ -316,6 +373,239 @@ class ProjectLotteryResultExportService(CSVExportService):
             cell_value = _get_reservation_cell_value(column[1], apartment, reservation)
             line.append(cell_value)
         return line
+
+
+class XlsxSalesReportExportService(XlsxExportService):
+    COL_WIDTH = 26
+    HIGHLIGHT_COLOR = "#E8E8E8"
+
+    def __init__(self, sold_events):
+        self.sold_events = sold_events
+        self.projects = self._get_projects()
+
+    def get_rows(self):
+        apartments = []
+        rows = []
+
+        project_rows = []
+        first = True
+
+        for project in self.projects:
+
+            project_apartments = get_apartments(
+                project.project_uuid, include_project_fields=True
+            )
+
+            apartments += project_apartments
+            rows_for_project = self._get_project_rows(
+                project, project_apartments, first=first
+            )
+
+            # ensure the sub-header for projects is outputted even if the first
+            # project doesn't have any rows to output
+            if len(rows_for_project) > 0:
+                first = False
+
+            project_rows += rows_for_project
+
+        all_sold_apartments = self._get_sold_apartments(apartments)
+
+        hitas_sold = self._get_hitas_apartments(all_sold_apartments)
+        hitas_sold_count = len(hitas_sold)
+
+        haso_sold = self._get_haso_apartments(all_sold_apartments)
+        haso_sold_count = len(haso_sold)
+
+        header_rows = [
+            [
+                "Project address",
+                "Apartments total",
+                "Sold HITAS apartments",
+                "Sold HASO apartments",
+                "Unsold apartments",
+                self.HIGHLIGHT_COLOR,
+            ],
+        ]
+
+        sum_rows = [
+            [""],
+            [""],
+            [
+                "Kaupat lukumäärä yhteensä",
+                "",
+                hitas_sold_count,
+                haso_sold_count,
+                len(apartments) - hitas_sold_count - haso_sold_count,
+                self.HIGHLIGHT_COLOR,
+            ],
+            [
+                "Kauppahinnat yhteensä",
+                self._sum_cents(x.sales_price or 0 for x in hitas_sold),
+                self._sum_cents(x.debt_free_sales_price or 0 for x in hitas_sold),
+                self._sum_cents(x.right_of_occupancy_payment or 0 for x in haso_sold),
+                self.HIGHLIGHT_COLOR,
+            ],
+        ]
+
+        rows += header_rows
+        rows += project_rows
+        rows += sum_rows
+        return rows
+
+    def _get_project_rows(
+        self,
+        project: ApartmentDocument,
+        apartments: List[ApartmentDocument],
+        first,
+    ) -> List[List]:
+        """Generates the per-project rows.
+
+        Args:
+            project (ApartmentDocument): Project
+            apartments (List[ApartmentDocument]): List of apartments for the project.
+            Passed as an argument to reduce calls to `get_apartments()`
+            first (bool): Is it the first project to be handled?
+        """
+        _logger.debug("PROJECT %s", project.project_uuid)
+
+        sold_apartments = self._get_sold_apartments(apartments)
+        is_haso = project.project_ownership_type.lower() == OwnershipType.HASO.value
+        is_hitas = project.project_ownership_type.lower() == OwnershipType.HITAS.value
+
+        if len(sold_apartments) <= 0:
+            return []
+
+        rows = []
+        rows.append(self._get_project_apartment_count_row(project, apartments))
+        if first:
+            rows.append(
+                [
+                    "Huoneisto",
+                    "Myyntihinta",
+                    "Velaton hinta",
+                    "Luovutushinta",
+                    "Kaupantekopäivä",
+                    self.HIGHLIGHT_COLOR,
+                ]
+            )
+
+        for apartment in sold_apartments:
+            rows.append(self._get_apartment_row(apartment))
+
+        totals_row = [
+            "Yhteensä",
+            self._sum_cents(x.sales_price or 0 for x in sold_apartments)
+            if is_hitas
+            else "",  # noqa: E501
+            self._sum_cents(x.debt_free_sales_price or 0 for x in sold_apartments)
+            if is_hitas
+            else "",  # noqa: E501
+            self._sum_cents(x.right_of_occupancy_payment or 0 for x in sold_apartments)
+            if is_haso
+            else "",  # noqa: E501
+            self.HIGHLIGHT_COLOR,
+        ]
+        rows.append(totals_row)
+        rows.append([""])
+
+        return rows
+
+    def _get_project_apartment_count_row(
+        self, project: ApartmentDocument, apartments: List[ApartmentDocument]
+    ) -> List:
+        sold_apartments = self._get_sold_apartments(apartments)
+        is_haso = self._is_haso(project)
+        is_hitas = self._is_hitas(project)
+
+        row = [
+            project.project_street_address,
+            len(apartments),
+            len(self._get_hitas_apartments(sold_apartments)) if is_hitas else "",
+            len(self._get_haso_apartments(sold_apartments)) if is_haso else "",
+            len(apartments) - len(sold_apartments),
+        ]
+
+        return row
+
+    def _get_apartment_row(self, apartment: ApartmentDocument) -> List:
+        is_haso = self._is_haso(apartment)
+        is_hitas = self._is_hitas(apartment)
+
+        row = [
+            apartment.apartment_number,
+            self._cents_to_eur(apartment.sales_price) if is_hitas else "",
+            self._cents_to_eur(apartment.debt_free_sales_price) if is_hitas else "",
+            self._cents_to_eur(apartment.right_of_occupancy_payment) if is_haso else "",
+            self._get_apartment_date_of_sale(apartment),
+        ]
+
+        return row
+
+    def _get_sold_apartments(self, apartments):
+        print(
+            [
+                apartment
+                for apartment in apartments
+                if get_apartment_state_from_apartment_uuid(apartment.uuid)
+                == ApartmentState.SOLD.value
+            ]
+        )
+
+        return [
+            apartment
+            for apartment in apartments
+            if get_apartment_state_from_apartment_uuid(apartment.uuid)
+            == ApartmentState.SOLD.value
+        ]
+
+    def _get_hitas_apartments(self, apartments: List[ApartmentDocument]):
+        return [apartment for apartment in apartments if self._is_hitas(apartment)]
+
+    def _get_haso_apartments(self, apartments: List[ApartmentDocument]):
+        return [apartment for apartment in apartments if self._is_haso(apartment)]
+
+    def _get_apartment_date_of_sale(self, apartment: ApartmentDocument) -> datetime:
+        """Get the date of sale for the apartment.
+        TODO: optimize!!
+
+        Args:
+            apartment (ApartmentDocument):
+        """
+        state_change_event = (
+            self.sold_events.filter(
+                reservation__apartment_uuid=apartment.uuid,
+                state=ApartmentReservationState.SOLD,
+            )
+            .order_by("-id")
+            .first()
+        )
+
+        return state_change_event.timestamp.strftime("%d.%m.%Y")
+
+    def _is_haso(self, project: ApartmentDocument):
+        return project.project_ownership_type.lower() == OwnershipType.HASO.value
+
+    def _is_hitas(self, project: ApartmentDocument):
+        return project.project_ownership_type.lower() == OwnershipType.HITAS.value
+
+    def _get_projects(self):
+        projects = []
+        uuids = []
+        for e in self.sold_events:
+            project_uuid = get_apartment_project_uuid(
+                e.reservation.apartment_uuid
+            ).project_uuid
+            if project_uuid not in uuids:
+                projects.append(get_project(project_uuid))
+                uuids.append(project_uuid)
+
+        return sorted(projects, key=lambda x: x.project_street_address)
+
+    def _sum_cents(self, cents: List[int]):
+        return sum(self._cents_to_eur(cent) for cent in cents)
+
+    def _cents_to_eur(self, cents: int) -> Decimal:
+        return Decimal(cents) / 100
 
 
 class SaleReportExportService(CSVExportService):
