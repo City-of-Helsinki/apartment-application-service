@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import List, Optional, Tuple, Union
@@ -250,9 +251,14 @@ def map_scontacts(elastic_apartment: ApartmentDocument) -> Optional[List[Scontac
 
 def form_presentation(elastic_apartment):
     """
-    Fetch link to apartment presentation and add it to the end of project description
+    Fetch link to apartment presentation and add it to the end of project description.
+    Replace <br> and </p> with line breaks.
     """
+
     main_text = getattr(elastic_apartment, "project_description", None)
+    main_text = re.sub(r"<br.*?>", r"\n", main_text)
+    main_text = re.sub(r"<p>(.*?)</p>", r"\1\n", main_text)
+
     link = getattr(elastic_apartment, "url", None)
 
     if main_text or link:
