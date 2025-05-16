@@ -6,8 +6,9 @@ from abc import abstractmethod
 from datetime import datetime
 from decimal import Decimal
 from io import BytesIO, StringIO
-from typing import List
+from typing import List, Union
 
+from application_form.models.reservation import ApartmentReservationStateChangeEvent
 import xlsxwriter
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Max, QuerySet
@@ -382,6 +383,11 @@ class XlsxSalesReportExportService(XlsxExportService):
 
     def __init__(self, sold_events):
         self.sold_events = sold_events
+
+        # need to convert to str for comparison
+        self.sold_apartment_uuids = list(map(str, sold_events.values_list(
+            "reservation__apartment_uuid", flat=True
+        )))
         self.projects = self._get_projects()
 
     def get_rows(self):
@@ -543,20 +549,13 @@ class XlsxSalesReportExportService(XlsxExportService):
         return row
 
     def _get_sold_apartments(self, apartments):
-        print(
-            [
-                apartment
-                for apartment in apartments
-                if get_apartment_state_from_apartment_uuid(apartment.uuid)
-                == ApartmentState.SOLD.value
-            ]
-        )
 
         return [
             apartment
             for apartment in apartments
-            if get_apartment_state_from_apartment_uuid(apartment.uuid)
-            == ApartmentState.SOLD.value
+            if (get_apartment_state_from_apartment_uuid(apartment.uuid)
+                == ApartmentState.SOLD.value)
+                and apartment.uuid in self.sold_apartment_uuids                
         ]
 
     def _get_hitas_apartments(self, apartments: List[ApartmentDocument]):
@@ -565,22 +564,29 @@ class XlsxSalesReportExportService(XlsxExportService):
     def _get_haso_apartments(self, apartments: List[ApartmentDocument]):
         return [apartment for apartment in apartments if self._is_haso(apartment)]
 
-    def _get_apartment_date_of_sale(self, apartment: ApartmentDocument) -> datetime:
+    def _get_apartment_sold_event(
+            self, apartment: ApartmentDocument
+    ) -> Union[ApartmentReservationStateChangeEvent, None]:
+        return (
+            self.sold_events
+            .filter( 
+                reservation__apartment_uuid=apartment.uuid, 
+                state=ApartmentReservationState.SOLD, 
+            )
+            .order_by("-id").first()
+        )
+        pass
+
+    def _get_apartment_date_of_sale(self, apartment: ApartmentDocument) -> Union[datetime, None]:
         """Get the date of sale for the apartment.
         TODO: optimize!!
 
         Args:
             apartment (ApartmentDocument):
         """
-        state_change_event = (
-            self.sold_events.filter(
-                reservation__apartment_uuid=apartment.uuid,
-                state=ApartmentReservationState.SOLD,
-            )
-            .order_by("-id")
-            .first()
-        )
-
+        state_change_event = self._get_apartment_sold_event(apartment)
+        if not state_change_event:
+            return None
         return state_change_event.timestamp.strftime("%d.%m.%Y")
 
     def _is_haso(self, project: ApartmentDocument):

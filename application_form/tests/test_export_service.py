@@ -493,6 +493,24 @@ def test_export_sale_report_new(
         -1
     ] == "#E8E8E8"
 
+    # Should not fail if apartment is selected but it has no "SOLD"-events associated with it
+
+    excluded_apartment = haso_apartments[0]
+    # exclude one apartment's state events
+    state_events = ApartmentReservationStateChangeEvent.objects.filter(
+        state=ApartmentReservationState.SOLD, timestamp__range=[start, end]
+    ).exclude(
+        reservation__apartment_uuid=excluded_apartment.uuid
+    )
+    export_service = XlsxSalesReportExportService(state_events)
+    # should not have a row if sold event was not found
+    rows = export_service.get_rows()
+    apartment_row_that_should_not_exist = export_service._get_apartment_row(
+        excluded_apartment
+    )
+
+    assert apartment_row_that_should_not_exist not in rows
+
 
 @pytest.mark.django_db
 def test_export_sale_report(
