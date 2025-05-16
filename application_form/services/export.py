@@ -569,15 +569,10 @@ class XlsxSalesReportExportService(XlsxExportService):
     def _get_apartment_sold_event(
         self, apartment: ApartmentDocument
     ) -> Union[ApartmentReservationStateChangeEvent, None]:
-        return (
-            self.sold_events.filter(
+        return self.sold_events.filter(
                 reservation__apartment_uuid=apartment.uuid,
                 state=ApartmentReservationState.SOLD,
-            )
-            .order_by("-id")
-            .first()
-        )
-        pass
+            ).order_by("-id").first()
 
     def _get_apartment_date_of_sale(
         self, apartment: ApartmentDocument
