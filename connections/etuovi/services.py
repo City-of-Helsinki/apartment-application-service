@@ -12,14 +12,14 @@ from connections.etuovi.etuovi_mapper import map_apartment_to_item
 _logger = logging.getLogger(__name__)
 
 
-def fetch_apartments_for_sale() -> list:
+def fetch_apartments_for_sale(verbose: bool = False) -> list:
     """
     Fetch apartments for sale from elasticsearch and map them for Etuovi
     """
     s_obj = (
         ApartmentDocument.search()
-        .filter("term", _language__keyword="fi")
-        .filter("term", apartment_state_of_sale__keyword=ApartmentStateOfSale.FOR_SALE)
+        .filter("term", _language="fi")
+        .exclude("term", apartment_state_of_sale__keyword=ApartmentStateOfSale.SOLD)
         .filter("term", publish_on_etuovi=True)
     )
     s_obj.execute()
@@ -30,8 +30,9 @@ def fetch_apartments_for_sale() -> list:
     for hit in scan:
         try:
             items.append(map_apartment_to_item(hit))
-        except ValueError:
-            _logger.warning(f"Could not map apartment {hit.uuid}:", exc_info=True)
+        except ValueError as e:
+            print(e)
+            _logger.warning(f"Could not map apartment {hit.uuid}/{hit}:", exc_info=True)
     if not items:
         _logger.warning(
             "There were no apartments to map or could not map any apartments"

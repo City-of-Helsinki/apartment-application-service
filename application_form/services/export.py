@@ -6,9 +6,10 @@ from abc import abstractmethod
 from datetime import datetime
 from decimal import Decimal
 from io import BytesIO, StringIO
-from typing import List
+from typing import List, Union
 
 import xlsxwriter
+from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Max, QuerySet
 
 from apartment.elastic.documents import ApartmentDocument
@@ -23,6 +24,7 @@ from apartment.enums import ApartmentState, OwnershipType
 from apartment.utils import get_apartment_state_from_apartment_uuid
 from application_form.enums import ApartmentReservationState
 from application_form.models import ApartmentReservation, LotteryEvent
+from application_form.models.reservation import ApartmentReservationStateChangeEvent
 from application_form.utils import get_apartment_number_sort_tuple
 
 _logger = logging.getLogger(__name__)
@@ -381,6 +383,11 @@ class XlsxSalesReportExportService(XlsxExportService):
 
     def __init__(self, sold_events):
         self.sold_events = sold_events
+
+        # need to convert to str for comparison
+        self.sold_apartment_uuids = list(
+            map(str, sold_events.values_list("reservation__apartment_uuid", flat=True))
+        )
         self.projects = self._get_projects()
 
     def get_rows(self):
@@ -418,11 +425,11 @@ class XlsxSalesReportExportService(XlsxExportService):
 
         header_rows = [
             [
-                "Project address",
-                "Apartments total",
-                "Sold HITAS apartments",
-                "Sold HASO apartments",
-                "Unsold apartments",
+                "Kohteen osoite",
+                "Asuntoja yhteensä",
+                "Myydyt HITAS-asunnot",
+                "Myydyt HASO-asunnot",
+                "Myymättömät asunnot",
                 self.HIGHLIGHT_COLOR,
             ],
         ]
@@ -542,20 +549,15 @@ class XlsxSalesReportExportService(XlsxExportService):
         return row
 
     def _get_sold_apartments(self, apartments):
-        print(
-            [
-                apartment
-                for apartment in apartments
-                if get_apartment_state_from_apartment_uuid(apartment.uuid)
-                == ApartmentState.SOLD.value
-            ]
-        )
 
         return [
             apartment
             for apartment in apartments
-            if get_apartment_state_from_apartment_uuid(apartment.uuid)
-            == ApartmentState.SOLD.value
+            if (
+                get_apartment_state_from_apartment_uuid(apartment.uuid)
+                == ApartmentState.SOLD.value
+            )
+            and apartment.uuid in self.sold_apartment_uuids
         ]
 
     def _get_hitas_apartments(self, apartments: List[ApartmentDocument]):
@@ -564,14 +566,10 @@ class XlsxSalesReportExportService(XlsxExportService):
     def _get_haso_apartments(self, apartments: List[ApartmentDocument]):
         return [apartment for apartment in apartments if self._is_haso(apartment)]
 
-    def _get_apartment_date_of_sale(self, apartment: ApartmentDocument) -> datetime:
-        """Get the date of sale for the apartment.
-        TODO: optimize!!
-
-        Args:
-            apartment (ApartmentDocument):
-        """
-        state_change_event = (
+    def _get_apartment_sold_event(
+        self, apartment: ApartmentDocument
+    ) -> Union[ApartmentReservationStateChangeEvent, None]:
+        return (
             self.sold_events.filter(
                 reservation__apartment_uuid=apartment.uuid,
                 state=ApartmentReservationState.SOLD,
@@ -580,6 +578,18 @@ class XlsxSalesReportExportService(XlsxExportService):
             .first()
         )
 
+    def _get_apartment_date_of_sale(
+        self, apartment: ApartmentDocument
+    ) -> Union[datetime, None]:
+        """Get the date of sale for the apartment.
+        TODO: optimize!!
+
+        Args:
+            apartment (ApartmentDocument):
+        """
+        state_change_event = self._get_apartment_sold_event(apartment)
+        if not state_change_event:
+            return None
         return state_change_event.timestamp.strftime("%d.%m.%Y")
 
     def _is_haso(self, project: ApartmentDocument):
@@ -592,12 +602,18 @@ class XlsxSalesReportExportService(XlsxExportService):
         projects = []
         uuids = []
         for e in self.sold_events:
-            project_uuid = get_apartment_project_uuid(
-                e.reservation.apartment_uuid
-            ).project_uuid
-            if project_uuid not in uuids:
-                projects.append(get_project(project_uuid))
-                uuids.append(project_uuid)
+            try:
+                project_uuid = get_apartment_project_uuid(
+                    e.reservation.apartment_uuid
+                ).project_uuid
+                if project_uuid not in uuids:
+                    projects.append(get_project(project_uuid))
+                    uuids.append(project_uuid)
+            except ObjectDoesNotExist:
+                _logger.error(
+                    "Apartment %s does not exist in ElasticSearch",
+                    e.reservation.apartment_uuid,
+                )
 
         return sorted(projects, key=lambda x: x.project_street_address)
 
@@ -605,6 +621,8 @@ class XlsxSalesReportExportService(XlsxExportService):
         return sum(self._cents_to_eur(cent) for cent in cents)
 
     def _cents_to_eur(self, cents: int) -> Decimal:
+        if cents is None:
+            cents = Decimal(0.00)
         return Decimal(cents) / 100
 
 

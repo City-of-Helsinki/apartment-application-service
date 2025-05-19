@@ -43,6 +43,7 @@ class ApartmentMinimalFactory(ElasticFactory):
     room_count = fuzzy.FuzzyInteger(0, 99)
     sales_price = fuzzy.FuzzyInteger(0, 999)
     debt_free_sales_price = fuzzy.FuzzyInteger(0, 999)
+    release_payment = fuzzy.FuzzyInteger(0, 999)
     project_state_of_sale = fuzzy.FuzzyChoice(ProjectStateOfSale)
     apartment_state_of_sale = fuzzy.FuzzyChoice(ApartmentStateOfSale)
     project_description = fuzzy.FuzzyText(length=200)

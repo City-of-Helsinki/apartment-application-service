@@ -21,10 +21,15 @@ class Command(BaseCommand):
             action="store_true",
             help="Only create XML file without sending it via FTP",
         )
+        parser.add_argument(
+            "--verbose",
+            action="store_true",
+            help="Print error messages etc. for debugging purposes",
+        )
 
     def handle(self, *args, **options):
         path = settings.APARTMENT_DATA_TRANSFER_PATH
-        items = fetch_apartments_for_sale()
+        items = fetch_apartments_for_sale(verbose=options["verbose"])
         xml_file = create_xml(items)
 
         if options["only_create_file"]:

@@ -30,6 +30,7 @@ from application_form.services.lottery.machine import distribute_apartments
 from application_form.services.queue import add_application_to_queues
 from application_form.tests.factories import (
     ApartmentReservationFactory,
+    ApartmentReservationStateChangeEventFactory,
     ApplicationApartmentFactory,
     ApplicationFactory,
 )
@@ -417,11 +418,22 @@ def test_export_sale_report_new(
 
     start = timezone.now() - timedelta(days=7)
     end = timezone.now() + timedelta(days=7)
+
+    # add event with non-existing apartment
+    ApartmentReservationStateChangeEventFactory(
+        state=ApartmentReservationState.SOLD,
+        timestamp=timezone.now(),
+    )
+
     state_events = ApartmentReservationStateChangeEvent.objects.filter(
         state=ApartmentReservationState.SOLD, timestamp__range=[start, end]
     )
 
     export_service = XlsxSalesReportExportService(state_events)
+
+    # test that invalid money amounts are handled right
+    cent_sum = export_service._sum_cents([100, 100, None, 100])
+    assert cent_sum == Decimal(3)
 
     workbook = export_service.write_xlsx_file()
 
@@ -473,13 +485,30 @@ def test_export_sale_report_new(
     # assert that color formatting works
     # find rows starting with certain terms and check if the last index has a colour hex
     export_rows = export_service.get_rows()
-    assert [r for r in export_rows if "Project address" in r[0]][0][-1] == "#E8E8E8"
+    assert [r for r in export_rows if "Kohteen osoite" in r[0]][0][-1] == "#E8E8E8"
     assert [r for r in export_rows if "Kaupat lukumäärä yhteensä" in r[0]][0][
         -1
     ] == "#E8E8E8"
     assert [r for r in export_rows if "Kauppahinnat yhteensä" in r[0]][0][
         -1
     ] == "#E8E8E8"
+
+    # Should not fail if apartment is selected but it has
+    # no "SOLD"-events associated with it
+
+    excluded_apartment = haso_apartments[0]
+    # exclude one apartment's state events
+    state_events = ApartmentReservationStateChangeEvent.objects.filter(
+        state=ApartmentReservationState.SOLD, timestamp__range=[start, end]
+    ).exclude(reservation__apartment_uuid=excluded_apartment.uuid)
+    export_service = XlsxSalesReportExportService(state_events)
+    # should not have a row if sold event was not found
+    rows = export_service.get_rows()
+    apartment_row_that_should_not_exist = export_service._get_apartment_row(
+        excluded_apartment
+    )
+
+    assert apartment_row_that_should_not_exist not in rows
 
 
 @pytest.mark.django_db
