@@ -4,6 +4,7 @@ from decimal import Decimal
 from typing import List, Optional, Tuple, Union
 
 from django.conf import settings
+from django.utils.html import strip_tags
 from django.utils.translation import gettext_lazy as _
 from django_etuovi.enums import (
     Condition,
@@ -256,8 +257,7 @@ def form_presentation(elastic_apartment):
     """
 
     main_text = getattr(elastic_apartment, "project_description", None)
-    main_text = re.sub(r"<br.*?>", r"\n", main_text)
-    main_text = re.sub(r"<p>(.*?)</p>", r"\1\n", main_text)
+    main_text = strip_tags(main_text)
 
     link = getattr(elastic_apartment, "url", None)
 
@@ -275,7 +275,6 @@ def get_text_mapping(text_key: TextKey, text_value: str) -> Text:
         text_value=text_value,
         text_language=TextLanguage.FI,
     )
-
 
 def map_apartment_to_text_properties(
     elastic_apartment: ApartmentDocument,
@@ -338,7 +337,7 @@ def map_texts(elastic_apartment: ApartmentDocument) -> List[Text]:
         current_texts = []
         if field_value:
             for text_value in handle_field_value(field_value):
-                current_texts.append(str(text_value))
+                current_texts.append(strip_tags(str(text_value)))
             complete_text = ", ".join(current_texts)
             texts.append(get_text_mapping(text_key, complete_text))
     return texts
