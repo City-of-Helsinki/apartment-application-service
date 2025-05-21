@@ -14,6 +14,7 @@ from apartment.elastic.queries import (
     get_apartments,
     get_project,
 )
+from apartment.utils import get_apartment_state_from_apartment_uuid
 from application_form.enums import ApartmentReservationState
 from application_form.models import (
     ApartmentReservation,
@@ -509,6 +510,33 @@ def test_export_sale_report_new(
     )
 
     assert apartment_row_that_should_not_exist not in rows
+
+    # unsold count should not be affected by the given date range
+    # i.e. don't calculate it from state change events
+    # but from total apartments without 'sold' state
+
+    expected_unsold = len(
+        [
+            apt
+            for apt in hitas_apartments
+            if (
+                get_apartment_state_from_apartment_uuid(apt.uuid)
+                != ApartmentReservationState.SOLD.value
+            )
+        ]
+    )
+
+    state_events_no_hitas_project = ApartmentReservationStateChangeEvent.objects.filter(
+        state=ApartmentReservationState.SOLD, timestamp__range=[start, end]
+    ).exclude(reservation__apartment_uuid__in=[apt.uuid for apt in hitas_apartments])
+
+    export_service = XlsxSalesReportExportService(state_events_no_hitas_project)
+    assert (
+        export_service._get_project_apartment_count_row(
+            project=hitas_project, apartments=hitas_apartments
+        )[4]
+        == expected_unsold
+    )
 
 
 @pytest.mark.django_db
