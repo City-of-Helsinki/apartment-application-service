@@ -389,6 +389,11 @@ class XlsxSalesReportExportService(XlsxExportService):
             map(str, sold_events.values_list("reservation__apartment_uuid", flat=True))
         )
         self.projects = self._get_projects()
+        _logger.debug(
+            "Creating XlsxSalesReport with projects %s and sold_apartment_uuids %s",
+            self.projects,
+            self.sold_apartment_uuids,
+        )
 
     def get_rows(self):
         apartments = []
@@ -473,7 +478,7 @@ class XlsxSalesReportExportService(XlsxExportService):
             Passed as an argument to reduce calls to `get_apartments()`
             first (bool): Is it the first project to be handled?
         """
-        _logger.debug("PROJECT %s", project.project_uuid)
+        _logger.debug("Project %s", project.project_uuid)
 
         sold_apartments = self._get_sold_apartments(apartments)
         is_haso = project.project_ownership_type.lower() == OwnershipType.HASO.value
