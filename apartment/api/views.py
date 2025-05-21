@@ -1,3 +1,4 @@
+from datetime import datetime, time
 import itertools
 import logging
 
@@ -224,10 +225,12 @@ class SaleReportAPIView(APIView):
             end_date_obj = end_date_obj.replace(tzinfo=tz)
 
         state_events = ApartmentReservationStateChangeEvent.objects.filter(
-            timestamp__range=[start_date_obj, end_date_obj],
+            timestamp__range=[
+                datetime.combine(start_date_obj, time.min), 
+                datetime.combine(end_date_obj, time.max)
+            ],
             state=ApartmentReservationState.SOLD,
         )
-
         if project_uuids:
             project_uuids = set(project_uuids.split(","))
 
@@ -269,6 +272,7 @@ class SaleReportAPIView(APIView):
             request.query_params,
             state_events.count(),
         )
+
         export_services = XlsxSalesReportExportService(state_events)
         xlsx_file = export_services.write_xlsx_file()
         file_name = format_lazy(
