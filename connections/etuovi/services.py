@@ -28,11 +28,12 @@ def fetch_apartments_for_sale(verbose: bool = False) -> list:
     items = []
 
     for hit in scan:
+        _logger.info(f"Handling apartment {hit.apartment_address}({hit.uuid})/{hit}", exc_info=True)
         try:
             items.append(map_apartment_to_item(hit))
         except ValueError as e:
             print(e)
-            _logger.warning(f"Could not map apartment {hit.uuid}/{hit}:", exc_info=True)
+            _logger.warning(f"Could not map apartment {hit.apartment_address}({hit.uuid})/{hit}", exc_info=True)
     if not items:
         _logger.warning(
             "There were no apartments to map or could not map any apartments"
