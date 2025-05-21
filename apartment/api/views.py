@@ -1,4 +1,5 @@
 import itertools
+import logging
 
 from dateutil import parser
 from django.core.exceptions import ObjectDoesNotExist
@@ -41,6 +42,8 @@ from application_form.services.export import (
 )
 from users.enums import UserKeyValueKeys
 from users.models import UserKeyValue
+
+_logger = logging.getLogger(__name__)
 
 
 class ApartmentAPIView(APIView):
@@ -211,6 +214,7 @@ class SaleReportAPIView(APIView):
                 "Invalid datetime format, "
                 "the correct format is - `YYYY-MM-DD` or `YYYYMMDD`"
             )
+
         if start_date_obj > end_date_obj:
             raise ValidationError("Start date cannot be greater than end date")
         tz = timezone.get_default_timezone()
@@ -259,6 +263,12 @@ class SaleReportAPIView(APIView):
                 key=UserKeyValueKeys.INCLUDE_SALES_REPORT_PROJECT_UUID.value,
             ).filter(value__in=to_delete).delete()
 
+        _logger.debug(
+            "User %s creating salesreport with params %s. Found %s state events",
+            request.user,
+            request.query_params,
+            state_events.count(),
+        )
         export_services = XlsxSalesReportExportService(state_events)
         xlsx_file = export_services.write_xlsx_file()
         file_name = format_lazy(
