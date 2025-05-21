@@ -459,7 +459,6 @@ class XlsxSalesReportExportService(XlsxExportService):
         rows += sum_rows
         return rows
 
-
     def _get_project_rows(
         self,
         project: ApartmentDocument,
@@ -551,12 +550,12 @@ class XlsxSalesReportExportService(XlsxExportService):
         return row
 
     def _get_sold_apartments(
-            self, apartments: List[ApartmentDocument]
-        ) -> List[ApartmentDocument]:
-        """Gets sold apartments based on their state and 
+        self, apartments: List[ApartmentDocument]
+    ) -> List[ApartmentDocument]:
+        """Gets sold apartments based on their state and
         whether or not the `ApartmentReservationStateChangeEvent` with
         their apartment uuid and the state 'sold' was passed to the export service.
-        
+
         Args:
             apartments (List[ApartmentDocument]): unfiltered ApartmentDocument list
         Returns:
@@ -570,8 +569,8 @@ class XlsxSalesReportExportService(XlsxExportService):
         ]
 
     def _get_sold_apartments_based_on_state(
-            self, apartments: List[ApartmentDocument]
-        ) -> List[ApartmentDocument]:
+        self, apartments: List[ApartmentDocument]
+    ) -> List[ApartmentDocument]:
         """Gets sold apartments based on their state.
 
         Args:
@@ -587,7 +586,6 @@ class XlsxSalesReportExportService(XlsxExportService):
                 == ApartmentState.SOLD.value
             )
         ]
-
 
     def _get_hitas_apartments(self, apartments: List[ApartmentDocument]):
         return [apartment for apartment in apartments if self._is_hitas(apartment)]
