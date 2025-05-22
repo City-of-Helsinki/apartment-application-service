@@ -1,6 +1,6 @@
-from datetime import datetime, time
 import itertools
 import logging
+from datetime import datetime, time
 
 from dateutil import parser
 from django.core.exceptions import ObjectDoesNotExist
