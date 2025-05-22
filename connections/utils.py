@@ -18,7 +18,7 @@ def create_elastic_connection() -> None:
         port=settings.ELASTICSEARCH_PORT,
         http_auth=http_auth,
         # transfer to using ES via Openshift service, which uses self-signed certs
-        verify_certs=False
+        verify_certs=False,
     )
 
 
