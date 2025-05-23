@@ -1,6 +1,7 @@
 from datetime import timedelta
 from decimal import Decimal
 from io import BytesIO
+import itertools
 from typing import List
 
 import pytest
@@ -417,6 +418,10 @@ def test_export_sale_report_new(
                 reservation.set_state(ApartmentReservationState.SOLD)
         projects_apartments[project.project_uuid] = apartments
 
+    all_apartments = list(itertools.chain.from_iterable(
+        a for a in projects_apartments.values())
+    )
+
     start = timezone.now() - timedelta(days=7)
     end = timezone.now() + timedelta(days=7)
 
@@ -486,13 +491,14 @@ def test_export_sale_report_new(
     # assert that color formatting works
     # find rows starting with certain terms and check if the last index has a colour hex
     export_rows = export_service.get_rows()
+    total_sum_row = export_service._get_total_sold_row(all_apartments)
     assert [r for r in export_rows if "Kohteen osoite" in r[0]][0][-1] == "#E8E8E8"
-    assert [r for r in export_rows if "Kaupat lukumäärä yhteensä" in r[0]][0][
-        -1
-    ] == "#E8E8E8"
+    assert total_sum_row[-1] == "#E8E8E8"
     assert [r for r in export_rows if "Kauppahinnat yhteensä" in r[0]][0][
         -1
     ] == "#E8E8E8"
+
+
 
     # Should not fail if apartment is selected but it has
     # no "SOLD"-events associated with it
@@ -515,10 +521,10 @@ def test_export_sale_report_new(
     # i.e. don't calculate it from state change events
     # but from total apartments without 'sold' state
 
-    expected_unsold = len(
+    expected_unsold_count = len(
         [
             apt
-            for apt in hitas_apartments
+            for apt in all_apartments
             if (
                 get_apartment_state_from_apartment_uuid(apt.uuid)
                 != ApartmentReservationState.SOLD.value
@@ -531,12 +537,10 @@ def test_export_sale_report_new(
     ).exclude(reservation__apartment_uuid__in=[apt.uuid for apt in hitas_apartments])
 
     export_service = XlsxSalesReportExportService(state_events_no_hitas_project)
-    assert (
-        export_service._get_project_apartment_count_row(
-            project=hitas_project, apartments=hitas_apartments
-        )[4]
-        == expected_unsold
-    )
+
+    assert export_service._get_unsold_count(
+        all_apartments
+    ) == expected_unsold_count
 
 
 @pytest.mark.django_db
