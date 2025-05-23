@@ -1,7 +1,7 @@
+import itertools
 from datetime import timedelta
 from decimal import Decimal
 from io import BytesIO
-import itertools
 from typing import List
 
 import pytest
@@ -418,8 +418,8 @@ def test_export_sale_report_new(
                 reservation.set_state(ApartmentReservationState.SOLD)
         projects_apartments[project.project_uuid] = apartments
 
-    all_apartments = list(itertools.chain.from_iterable(
-        a for a in projects_apartments.values())
+    all_apartments = list(
+        itertools.chain.from_iterable(a for a in projects_apartments.values())
     )
 
     start = timezone.now() - timedelta(days=7)
@@ -498,8 +498,6 @@ def test_export_sale_report_new(
         -1
     ] == "#E8E8E8"
 
-
-
     # Should not fail if apartment is selected but it has
     # no "SOLD"-events associated with it
 
@@ -538,9 +536,7 @@ def test_export_sale_report_new(
 
     export_service = XlsxSalesReportExportService(state_events_no_hitas_project)
 
-    assert export_service._get_unsold_count(
-        all_apartments
-    ) == expected_unsold_count
+    assert export_service._get_unsold_count(all_apartments) == expected_unsold_count
 
 
 @pytest.mark.django_db

@@ -528,21 +528,20 @@ class XlsxSalesReportExportService(XlsxExportService):
         return row
 
     def _get_total_sold_row(
-            self, 
-            apartments: List[ApartmentDocument],
-
-        ) -> List[Union[str, Decimal]]:
+        self,
+        apartments: List[ApartmentDocument],
+    ) -> List[Union[str, Decimal]]:
 
         hitas_sold_count = len(self._get_sold_hitas_apartments(apartments))
         haso_sold_count = len(self._get_sold_haso_apartments(apartments))
 
         return [
-                "Kaupat lukumäärä yhteensä",
-                "",
-                hitas_sold_count,
-                haso_sold_count,
-                self._get_unsold_count(apartments),
-                self.HIGHLIGHT_COLOR,
+            "Kaupat lukumäärä yhteensä",
+            "",
+            hitas_sold_count,
+            haso_sold_count,
+            self._get_unsold_count(apartments),
+            self.HIGHLIGHT_COLOR,
         ]
 
     def _get_apartment_row(self, apartment: ApartmentDocument) -> List:
@@ -561,7 +560,7 @@ class XlsxSalesReportExportService(XlsxExportService):
 
     def _get_unsold_count(self, apartments: List[ApartmentDocument]):
         """Counts unsold apartments based on the apartment's state, disregarding
-        any 'sold'-events the apartment may have. 
+        any 'sold'-events the apartment may have.
 
         Args:
             apartments (List[ApartmentDocument]): Unfiltered list of apartments
@@ -610,8 +609,7 @@ class XlsxSalesReportExportService(XlsxExportService):
         ]
 
     def _get_sold_hitas_apartments(
-            self, 
-            apartments: List[ApartmentDocument]
+        self, apartments: List[ApartmentDocument]
     ) -> List[ApartmentDocument]:
         """Gets sold hitas-apartments from a list of unfiltered apartments based on the
         state and 'sold'-events
@@ -627,8 +625,7 @@ class XlsxSalesReportExportService(XlsxExportService):
         return sold_hitas_apartments
 
     def _get_sold_haso_apartments(
-            self, 
-            apartments: List[ApartmentDocument]
+        self, apartments: List[ApartmentDocument]
     ) -> List[ApartmentDocument]:
         """Gets sold haso-apartments from a list of unfiltered apartments based on the
         state and 'sold'-events
