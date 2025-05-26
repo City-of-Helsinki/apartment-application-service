@@ -5,7 +5,7 @@ from urllib.parse import urlencode
 import pytest
 from django.urls import reverse
 
-from apartment.elastic.queries import get_project, get_projects
+from apartment.elastic.queries import get_project
 from apartment.models import ProjectExtraData
 from apartment.tests.factories import ApartmentDocumentFactory
 from application_form.enums import (
