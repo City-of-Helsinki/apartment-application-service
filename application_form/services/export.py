@@ -381,14 +381,19 @@ class XlsxSalesReportExportService(XlsxExportService):
     COL_WIDTH = 26
     HIGHLIGHT_COLOR = "#E8E8E8"
 
-    def __init__(self, sold_events):
+    def __init__(
+            self,
+            sold_events: List[ApartmentReservationStateChangeEvent], 
+            project_uuids: List[str]
+        ):
         self.sold_events = sold_events
 
         # need to convert to str for comparison
         self.sold_apartment_uuids = list(
             map(str, sold_events.values_list("reservation__apartment_uuid", flat=True))
         )
-        self.projects = self._get_projects()
+
+        self.projects = self._get_projects(project_uuids)
         _logger.debug(
             "Creating XlsxSalesReport with projects %s and sold_apartment_uuids %s",
             self.projects,
@@ -469,11 +474,18 @@ class XlsxSalesReportExportService(XlsxExportService):
         _logger.debug("Project %s", project.project_uuid)
 
         sold_apartments = self._get_sold_apartments(apartments)
-        is_haso = project.project_ownership_type.lower() == OwnershipType.HASO.value
-        is_hitas = project.project_ownership_type.lower() == OwnershipType.HITAS.value
+        try:
+            is_haso = project.project_ownership_type.lower() == OwnershipType.HASO.value
+        except AttributeError:
+            is_haso = False
+        
+        try:
+            is_hitas = project.project_ownership_type.lower() == OwnershipType.HITAS.value
+        except AttributeError:
+            is_hitas = False
 
-        if len(sold_apartments) <= 0:
-            return []
+        # if len(sold_apartments) <= 0:
+        #     return []
 
         rows = []
         rows.append(self._get_project_apartment_count_row(project, apartments))
@@ -673,27 +685,22 @@ class XlsxSalesReportExportService(XlsxExportService):
         return state_change_event.timestamp.strftime("%d.%m.%Y")
 
     def _is_haso(self, project: ApartmentDocument):
+        if not getattr(project, "project_ownership_type"):
+            return False
         return project.project_ownership_type.lower() == OwnershipType.HASO.value
 
     def _is_hitas(self, project: ApartmentDocument):
+        if not getattr(project, "project_ownership_type"):
+            return False
         return project.project_ownership_type.lower() == OwnershipType.HITAS.value
 
-    def _get_projects(self):
+    def _get_projects(self, project_uuids: List[str]):
         projects = []
-        uuids = []
-        for e in self.sold_events:
+        for project_uuid in project_uuids:
             try:
-                project_uuid = get_apartment_project_uuid(
-                    e.reservation.apartment_uuid
-                ).project_uuid
-                if project_uuid not in uuids:
-                    projects.append(get_project(project_uuid))
-                    uuids.append(project_uuid)
+                projects.append(get_project(project_uuid))
             except ObjectDoesNotExist:
-                _logger.error(
-                    "Apartment %s does not exist in ElasticSearch",
-                    e.reservation.apartment_uuid,
-                )
+                _logger.warning("Tried to create sales report for non-existent project with uuid %s", project_uuid)  # noqa: E501
 
         return sorted(projects, key=lambda x: x.project_street_address)
 

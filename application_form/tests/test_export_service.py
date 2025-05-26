@@ -435,7 +435,9 @@ def test_export_sale_report_new(
         state=ApartmentReservationState.SOLD, timestamp__range=[start, end]
     )
 
-    export_service = XlsxSalesReportExportService(state_events)
+    export_service = XlsxSalesReportExportService(
+        state_events, [p.project_uuid for p in projects]
+    )
 
     # test that invalid money amounts are handled right
     cent_sum = export_service._sum_cents([100, 100, None, 100])
@@ -506,7 +508,9 @@ def test_export_sale_report_new(
     state_events = ApartmentReservationStateChangeEvent.objects.filter(
         state=ApartmentReservationState.SOLD, timestamp__range=[start, end]
     ).exclude(reservation__apartment_uuid=excluded_apartment.uuid)
-    export_service = XlsxSalesReportExportService(state_events)
+    export_service = XlsxSalesReportExportService(
+        state_events, [p.project_uuid for p in projects]
+    )
     # should not have a row if sold event was not found
     rows = export_service.get_rows()
     apartment_row_that_should_not_exist = export_service._get_apartment_row(
@@ -534,7 +538,10 @@ def test_export_sale_report_new(
         state=ApartmentReservationState.SOLD, timestamp__range=[start, end]
     ).exclude(reservation__apartment_uuid__in=[apt.uuid for apt in hitas_apartments])
 
-    export_service = XlsxSalesReportExportService(state_events_no_hitas_project)
+    export_service = XlsxSalesReportExportService(
+        state_events_no_hitas_project,
+        [p.project_uuid for p in projects]
+    )
 
     assert export_service._get_unsold_count(all_apartments) == expected_unsold_count
 
