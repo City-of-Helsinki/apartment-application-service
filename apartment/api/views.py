@@ -182,16 +182,13 @@ class SaleReportSelectedProjectsAPIView(APIView):
             user=request.user,
             key=UserKeyValueKeys.INCLUDE_SALES_REPORT_PROJECT_UUID.value,
         ).values_list("value", flat=True)
-        # return all projects until the user saves some
-        if included_project_uuids.count() == 0:
-            project_data = get_projects()
-        else:
-            # filter projects
-            project_data = [
-                project
-                for project in get_projects()
-                if project.project_uuid in included_project_uuids
-            ]
+
+        # filter projects
+        project_data = [
+            project
+            for project in get_projects()
+            if project.project_uuid in included_project_uuids
+        ]
 
         serializer = ProjectDocumentListSerializer(project_data, many=True)
         return Response(serializer.data)

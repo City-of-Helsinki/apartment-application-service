@@ -5,7 +5,7 @@ from urllib.parse import urlencode
 import pytest
 from django.urls import reverse
 
-from apartment.elastic.queries import get_project, get_projects
+from apartment.elastic.queries import get_project
 from apartment.models import ProjectExtraData
 from apartment.tests.factories import ApartmentDocumentFactory
 from application_form.enums import (
@@ -103,12 +103,12 @@ def test_selected_project_list_get(
 ):
     project_uuid, apartments = elastic_project_with_5_apartments
 
-    # should initially return all projects when there are no projects saved yet
+    # should initially return no projects when there are no projects saved yet
     response = sales_ui_salesperson_api_client.get(
         reverse("apartment:report-selected-project-list"), format="json"
     )
     assert response.status_code == 200
-    assert len(response.data) == len(get_projects())
+    assert len(response.data) == 0
 
     UserKeyValue.objects.create(
         user=sales_ui_salesperson_api_client.user,
