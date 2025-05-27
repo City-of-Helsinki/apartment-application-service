@@ -389,6 +389,11 @@ class XlsxSalesReportExportService(XlsxExportService):
             map(str, sold_events.values_list("reservation__apartment_uuid", flat=True))
         )
         self.projects = self._get_projects()
+        _logger.debug(
+            "Creating XlsxSalesReport with projects %s and sold_apartment_uuids %s",
+            self.projects,
+            self.sold_apartment_uuids,
+        )
 
     def get_rows(self):
         apartments = []
@@ -415,13 +420,8 @@ class XlsxSalesReportExportService(XlsxExportService):
 
             project_rows += rows_for_project
 
-        all_sold_apartments = self._get_sold_apartments(apartments)
-
-        hitas_sold = self._get_hitas_apartments(all_sold_apartments)
-        hitas_sold_count = len(hitas_sold)
-
-        haso_sold = self._get_haso_apartments(all_sold_apartments)
-        haso_sold_count = len(haso_sold)
+        hitas_sold = self._get_sold_hitas_apartments(apartments)
+        haso_sold = self._get_sold_haso_apartments(apartments)
 
         header_rows = [
             [
@@ -437,14 +437,7 @@ class XlsxSalesReportExportService(XlsxExportService):
         sum_rows = [
             [""],
             [""],
-            [
-                "Kaupat lukumäärä yhteensä",
-                "",
-                hitas_sold_count,
-                haso_sold_count,
-                len(apartments) - hitas_sold_count - haso_sold_count,
-                self.HIGHLIGHT_COLOR,
-            ],
+            self._get_total_sold_row(apartments),
             [
                 "Kauppahinnat yhteensä",
                 self._sum_cents(x.sales_price or 0 for x in hitas_sold),
@@ -473,7 +466,7 @@ class XlsxSalesReportExportService(XlsxExportService):
             Passed as an argument to reduce calls to `get_apartments()`
             first (bool): Is it the first project to be handled?
         """
-        _logger.debug("PROJECT %s", project.project_uuid)
+        _logger.debug("Project %s", project.project_uuid)
 
         sold_apartments = self._get_sold_apartments(apartments)
         is_haso = project.project_ownership_type.lower() == OwnershipType.HASO.value
@@ -529,10 +522,27 @@ class XlsxSalesReportExportService(XlsxExportService):
             len(apartments),
             len(self._get_hitas_apartments(sold_apartments)) if is_hitas else "",
             len(self._get_haso_apartments(sold_apartments)) if is_haso else "",
-            len(apartments) - len(sold_apartments),
+            self._get_unsold_count(apartments),
         ]
 
         return row
+
+    def _get_total_sold_row(
+        self,
+        apartments: List[ApartmentDocument],
+    ) -> List[Union[str, Decimal]]:
+
+        hitas_sold_count = len(self._get_sold_hitas_apartments(apartments))
+        haso_sold_count = len(self._get_sold_haso_apartments(apartments))
+
+        return [
+            "Kaupat lukumäärä yhteensä",
+            "",
+            hitas_sold_count,
+            haso_sold_count,
+            self._get_unsold_count(apartments),
+            self.HIGHLIGHT_COLOR,
+        ]
 
     def _get_apartment_row(self, apartment: ApartmentDocument) -> List:
         is_haso = self._is_haso(apartment)
@@ -548,8 +558,47 @@ class XlsxSalesReportExportService(XlsxExportService):
 
         return row
 
-    def _get_sold_apartments(self, apartments):
+    def _get_unsold_count(self, apartments: List[ApartmentDocument]):
+        """Counts unsold apartments based on the apartment's state, disregarding
+        any 'sold'-events the apartment may have.
 
+        Args:
+            apartments (List[ApartmentDocument]): Unfiltered list of apartments
+        """
+        sold_apartments = self._get_sold_apartments_based_on_state(apartments)
+
+        unsold_count = len(apartments) - len(sold_apartments)
+        return unsold_count
+
+    def _get_sold_apartments(
+        self, apartments: List[ApartmentDocument]
+    ) -> List[ApartmentDocument]:
+        """Gets sold apartments based on their state and
+        whether or not the `ApartmentReservationStateChangeEvent` with
+        their apartment uuid and the state 'sold' was passed to the export service.
+
+        Args:
+            apartments (List[ApartmentDocument]): unfiltered ApartmentDocument list
+        Returns:
+            List[ApartmentDocument]: filtered ApartmentDocument list
+        """
+
+        return [
+            apartment
+            for apartment in self._get_sold_apartments_based_on_state(apartments)
+            if apartment.uuid in self.sold_apartment_uuids
+        ]
+
+    def _get_sold_apartments_based_on_state(
+        self, apartments: List[ApartmentDocument]
+    ) -> List[ApartmentDocument]:
+        """Gets sold apartments based on their state.
+
+        Args:
+            apartments (List[ApartmentDocument]): unfiltered ApartmentDocument list
+        Returns:
+            List[ApartmentDocument]: filtered ApartmentDocument list
+        """
         return [
             apartment
             for apartment in apartments
@@ -557,8 +606,39 @@ class XlsxSalesReportExportService(XlsxExportService):
                 get_apartment_state_from_apartment_uuid(apartment.uuid)
                 == ApartmentState.SOLD.value
             )
-            and apartment.uuid in self.sold_apartment_uuids
         ]
+
+    def _get_sold_hitas_apartments(
+        self, apartments: List[ApartmentDocument]
+    ) -> List[ApartmentDocument]:
+        """Gets sold hitas-apartments from a list of unfiltered apartments based on the
+        state and 'sold'-events
+
+        Args:
+            apartments (List[ApartmentDocument]): unfiltered list of apartments
+
+        Returns:
+            List[ApartmentDocument]: filtered list of apartments
+        """
+        sold_apartments = self._get_sold_apartments(apartments)
+        sold_hitas_apartments = self._get_hitas_apartments(sold_apartments)
+        return sold_hitas_apartments
+
+    def _get_sold_haso_apartments(
+        self, apartments: List[ApartmentDocument]
+    ) -> List[ApartmentDocument]:
+        """Gets sold haso-apartments from a list of unfiltered apartments based on the
+        state and 'sold'-events
+
+        Args:
+            apartments (List[ApartmentDocument]): unfiltered list of apartments
+
+        Returns:
+            List[ApartmentDocument]: filtered list of apartments
+        """
+        sold_apartments = self._get_sold_apartments(apartments)
+        sold_haso_apartments = self._get_haso_apartments(sold_apartments)
+        return sold_haso_apartments
 
     def _get_hitas_apartments(self, apartments: List[ApartmentDocument]):
         return [apartment for apartment in apartments if self._is_hitas(apartment)]

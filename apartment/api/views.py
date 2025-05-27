@@ -1,4 +1,6 @@
 import itertools
+import logging
+from datetime import datetime, time
 
 from dateutil import parser
 from django.core.exceptions import ObjectDoesNotExist
@@ -41,6 +43,8 @@ from application_form.services.export import (
 )
 from users.enums import UserKeyValueKeys
 from users.models import UserKeyValue
+
+_logger = logging.getLogger(__name__)
 
 
 class ApartmentAPIView(APIView):
@@ -178,16 +182,13 @@ class SaleReportSelectedProjectsAPIView(APIView):
             user=request.user,
             key=UserKeyValueKeys.INCLUDE_SALES_REPORT_PROJECT_UUID.value,
         ).values_list("value", flat=True)
-        # return all projects until the user saves some
-        if included_project_uuids.count() == 0:
-            project_data = get_projects()
-        else:
-            # filter projects
-            project_data = [
-                project
-                for project in get_projects()
-                if project.project_uuid in included_project_uuids
-            ]
+
+        # filter projects
+        project_data = [
+            project
+            for project in get_projects()
+            if project.project_uuid in included_project_uuids
+        ]
 
         serializer = ProjectDocumentListSerializer(project_data, many=True)
         return Response(serializer.data)
@@ -211,6 +212,7 @@ class SaleReportAPIView(APIView):
                 "Invalid datetime format, "
                 "the correct format is - `YYYY-MM-DD` or `YYYYMMDD`"
             )
+
         if start_date_obj > end_date_obj:
             raise ValidationError("Start date cannot be greater than end date")
         tz = timezone.get_default_timezone()
@@ -220,10 +222,12 @@ class SaleReportAPIView(APIView):
             end_date_obj = end_date_obj.replace(tzinfo=tz)
 
         state_events = ApartmentReservationStateChangeEvent.objects.filter(
-            timestamp__range=[start_date_obj, end_date_obj],
+            timestamp__range=[
+                datetime.combine(start_date_obj, time.min),
+                datetime.combine(end_date_obj, time.max),
+            ],
             state=ApartmentReservationState.SOLD,
         )
-
         if project_uuids:
             project_uuids = set(project_uuids.split(","))
 
@@ -258,6 +262,13 @@ class SaleReportAPIView(APIView):
                 user=request.user,
                 key=UserKeyValueKeys.INCLUDE_SALES_REPORT_PROJECT_UUID.value,
             ).filter(value__in=to_delete).delete()
+
+        _logger.debug(
+            "User %s creating salesreport with params %s. Found %s state events",
+            request.user,
+            request.query_params,
+            state_events.count(),
+        )
 
         export_services = XlsxSalesReportExportService(state_events)
         xlsx_file = export_services.write_xlsx_file()
