@@ -20,6 +20,164 @@ from invoicing.utils import remove_exponent
 
 HITAS_CONTRACT_PDF_TEMPLATE_FILE_NAME = "hitas_contract_template.pdf"
 
+@dataclasses.dataclass
+class HitasCompleteApartmentContractPDFData(PDFData):
+    salesperson_phone_number: Union[str, None]
+    salesperson_email: Union[str, None]
+    occupant_1_name: Union[str, None]
+    occupant_1_share_of_ownership: Union[str, None]
+    occupant_1_address: Union[str, None]
+    occupant_1_phone_number: Union[str, None]
+    occupant_1_ssn_or_business_id: Union[str, None]
+    occupant_1_email: Union[str, None]
+    occupant_2_name: Union[str, None]
+    occupant_2_share_of_ownership: Union[str, None]
+    occupant_2_address: Union[str, None]
+    occupant_2_phone_number: Union[str, None]
+    occupant_2_ssn_or_business_id: Union[str, None]
+    occupant_2_email: Union[str, None]
+    occupant_3_name: Union[str, None]
+    occupant_3_share_of_ownership: Union[str, None]
+    occupant_3_address: Union[str, None]
+    occupant_3_phone_number: Union[str, None]
+    occupant_3_ssn_or_business_id: Union[str, None]
+    occupant_3_email: Union[str, None]
+    occupant_4_name: Union[str, None]
+    occupant_4_share_of_ownership: Union[str, None]
+    occupant_4_address: Union[str, None]
+    occupant_4_phone_number: Union[str, None]
+    occupant_4_ssn_or_business_id: Union[str, None]
+    occupant_4_email: Union[str, None]
+    project_housing_company: Union[str, None]
+    project_contract_business_id: Union[str, None]
+    project_address: Union[str, None]
+    project_realty_id: Union[str, None]
+    housing_type_ownership: Union[str, None]
+    housing_type_rental: Union[str, None]
+    occupant_numbers: Union[str, None]
+    apartment_number: Union[str, None]
+    apartment_street_address: Union[str, None]
+    floor: Union[str, None]
+    apartment_structure: Union[str, None]
+    living_area: Union[str, None]
+    other_space: Union[str, None]
+    other_space_area: Union[str, None]
+    right_of_redemption_false: Union[bool, None]
+    right_of_redemption_true: Union[bool, None]
+    right_of_redemption: Union[str, None]
+    sales_price: Union[str, None]
+    loan_share: Union[str, None]
+    loan_share_and_sales_price: Union[str, None]
+    bueyr_has_paid_down_payment: Union[str, None]
+    payment_terms_rest_of_price: Union[str, None]
+    payment_bank: Union[str, None]
+    payment_account_number: Union[str, None]
+    sales_price_x_0_02: Union[bool, None]
+    debt_free_price_x_0_014: Union[bool, None]
+    final_payment: Union[str, None]
+    seller_account_number: Union[str, None]
+    credit_interest: Union[str, None]
+    transfer_of_shares: Union[str, None]
+    transfer_of_posession: Union[str, None]
+    breach_of_contract_sanction_option_1: Union[bool, None]
+    breach_of_contract_sanction_option_2: Union[bool, None]
+    inability_to_pay_guarantee: Union[str, None]
+    guarantee: Union[str, None]
+    guarantee_attachment_exists: Union[bool, None]
+    guarantee_attachment_not_exists: Union[bool, None]
+    building_permit_applied_for: Union[str, None]
+    project_built_according_to_regulations: Union[str, None]
+    other_contract_terms: Union[str, None]
+    documents: Union[str, None]
+    place_and_time: Union[str, None]
+    salesperson_signature: Union[str, None]
+    occupants_signatures: Union[str, None]
+    sales_price_paid: Union[str, None]
+    sales_price_paid_place_and_time: Union[str, None]
+    sales_price_paid_salesperson_signature: Union[str, None]
+    transfer_of_shares_confirmed: Union[str, None]
+    transfer_of_shares_signature: Union[str, None]
+
+
+    FIELD_MAPPING: ClassVar[Dict[str, str]] = {
+        "salesperson_phone_number":"P1MyyjaPuhelin", # /TU: "Puhelin"
+        "salesperson_email":"P1MyyjaSahkoposti", # /TU: "Sähköposti"
+        "occupant_1_name":"P1Ostaja1Nimi", # /TU: "Ostajan nimi"
+        "occupant_1_share_of_ownership":"P1Ostaja1Omistusosuus", # /TU: "Omistusosuus osakkeista ostaja 1"
+        "occupant_1_address":"P1Ostaja1Osoite", # /TU: "Osoite ostaja 1"
+        "occupant_1_phone_number":"P1Ostaja1Puhelin", # /TU: "Puhelin ostaja 1"
+        "occupant_1_ssn_or_business_id":"P1Ostaja1Htunnus", # /TU: "Henkilötunnus tai Y-osoite ostaja 1"
+        "occupant_1_email":"P1Ostaja1Sahkoposti", # /TU: "Sähköposti ostaja 1"
+        "occupant_2_name":"P2Ostaja2Nimi", # /TU: "Ostajan nimi"
+        "occupant_2_share_of_ownership":"P2Ostaja2Omistusosuus", # /TU: "Omistusosuus osakkeista ostaja 2"
+        "occupant_2_address":"P2Ostaja2Osoite", # /TU: "Osoite ostaja 2"
+        "occupant_2_phone_number":"P2Ostaja2Puhelin", # /TU: "Puhelin ostaja 2"
+        "occupant_2_ssn_or_business_id":"P2Ostaja2Htunnus", # /TU: "Henkilötunnus tai Y-tunnus ostaja 2"
+        "occupant_2_email":"P2Ostaja2Sahkoposti", # /TU: "Sähköposti ostaja 2"
+        "occupant_3_name":"P2Ostaja3Nimi", # /TU: "Ostajan nimi ostaja 3"
+        "occupant_3_share_of_ownership":"P2Ostaja3Omistusosuus", # /TU: "Omistusosuus osakkeista ostaja 3"
+        "occupant_3_address":"P2Ostaja3Osoite", # /TU: "Osoite ostaja 3"
+        "occupant_3_phone_number":"P2Ostaja3Puhelin", # /TU: "Puhelin ostaja 3"
+        "occupant_3_ssn_or_business_id":"P2Ostaja3Htunnus", # /TU: "Henkilötunnus tai Y-tunnus ostaja 3"
+        "occupant_3_email":"P2Ostaja3Sahkoposti", # /TU: "Sähköposti ostaja 3"
+        "occupant_4_name":"P2Ostaja4Nimi", # /TU: "Ostajan nimi ostaja 4"
+        "occupant_4_share_of_ownership":"P2Ostaja4Omistusosuus", # /TU: "Omistusosuus osakkeista ostaja 4"
+        "occupant_4_address":"P2Ostaja4Osoite", # /TU: "Osoite ostaja 4"
+        "occupant_4_phone_number":"P2Ostaja4Puhelin", # /TU: "Puhelin ostaja 4"
+        "occupant_4_ssn_or_business_id":"P2Ostaja4Htunnus", # /TU: "Henkilötunnus tai Y-tunnus ostaja 4"
+        "occupant_4_email":"P2Ostaja4Sahkoposti", # /TU: "Sähköposti ostaja 4"
+        "project_housing_company":"P3Yhtionnimi", # /TU: "Yhtiön nimi"
+        "project_contract_business_id":"P3Ytunnus", # /TU: "Y-tunnus"
+        "project_address":"P3Yhtionosoite", # /TU: "Yhtiön osoite"
+        "project_realty_id":"P3Kiinteistotunnus", # /TU: "Kiinteistötunnus"
+        "housing_type_ownership":"P3Omistus", # /TU: "Omistus"
+        "housing_type_rental":"P3Vuokra", # /TU: "Vuokra"
+        "occupant_numbers":"P3Osakkaidennumerot", # /TU: "Osakkaiden numerot" #TODO: check what this is?
+        "apartment_number":"P3Asunnonnro", # /TU: "Asunnon numero"
+        "apartment_street_address":"P3Asunnonosoite", # /TU: "Asunnon osoite"
+        "floor":"P3Asunnonsijaintikerros", # /TU: "Asunnon sijaintikerros"
+        "apartment_structure":"P3Huoneistotyyppi", # /TU: "Huoneistotyyppi (huoneluku)"
+        "living_area":"P3Asuintilojenpintaala", # /TU: "Asuintilojen pinta-ala"
+        "other_space":"P3Muuttilat", # /TU: "Muut tilat"
+        "other_space_area":"P3Muidentilojenpintaala", # /TU: "Muiden tilojen pinta-ala"
+        "right_of_redemption_false":"P3Lunastusoikeuseiole", # /TU: "Ei ole"
+        "right_of_redemption_true":"P3Lunastusoikeuson", # /TU: "On"
+        "right_of_redemption":"P3Lunastusoikeus", # /TU: "Lunastusoikeus"
+        "sales_price":"P4Kauppahinta", # /TU: "Kauppahinta"
+        "loan_share":"P4Osuuslainoista", # /TU: "Myytyihin osakkeisiin kohdistuva osuus yhtiön lainoista"
+        "loan_share_and_sales_price":"P4Kauppahintajalainaosuus", # /TU: "Kauppahinta ja yhtiölainaosuus yhteensä velaton"
+        "bueyr_has_paid_down_payment":"P4Ostajamaksanutkasirahan", # /TU: "Ostaja on maksanut käsirahan tai varausmaksun"
+        "payment_terms_rest_of_price":"P4Loppukauppahinnanmaksuehdot", # /TU: "Loppukauppahinnan maksuehdot"
+        "payment_bank":"P4Pankki", # /TU: "Pankki ja konttori"
+        "payment_account_number":"P4Tilinnumero", # /TU: "Tilin numero"
+        "sales_price_x_0_02":"P4002kauppahinta", # /TU: "0,02 kerrottuna kauppahinnalla"
+        "debt_free_price_x_0_014":"P40014velatonhinta", # /TU: "0,014 kerrottuna velattomalla hinnalla"
+        "final_payment":"P4maksettavaviimeinenera", # /TU: "Viimeinen erä"
+        "seller_account_number":"P4Tilinnumero2", # /TU: "Myyjän tilinumero"
+        "credit_interest":"P4Hyvityskorko", # /TU: "Hyvityskorko"
+        "transfer_of_shares":"P5Osakekirjanluovutus", # /TU: "Osakekirjan luovutus"
+        "transfer_of_posession":"P5Huoneistonhallinta", # /TU: "Huoneiston hallinnan luovutus"
+        "breach_of_contract_sanction_option_1":"P6Vaihtoehto1", # /TU: "Vaihtoehto 1"
+        "breach_of_contract_sanction_option_2":"P6Vaihtoehto2", # /TU: "Vaihtoehto 2"
+        "inability_to_pay_guarantee":"P7Suorituskyvyttomyysvakuus", # /TU: "Suorituskyvyttömyysvakuus"
+        "guarantee":"P8Vakuus", # /TU: "Vakuus"
+        "guarantee_attachment_exists":"P8Liiteon", # /TU: "Liite on"
+        "guarantee_attachment_not_exists":"P8Liitettaeiole", # /TU: "Liitettä ei ole"
+        "building_permit_applied_for":"P8Haetturakennuslupaa", # /TU: "Yhtiölle on haettu rakennuslupaa"
+        "project_built_according_to_regulations":"P8Yhtiorakennettumukaisesti", # /TU: "Yhtiö on rakennettu säännösten mukaisesti"
+        "other_contract_terms":"P9Muutehdot", # /TU: "Muut ehdot ja lisätiedot"
+        "documents":"P10Asiakirjat", # /TU: "Asiakirjat"
+        "place_and_time":"P11Paikkajaaika", # /TU: "Paikka ja aika"
+        "salesperson_signature":"P11Myyjanallekirjoitus", # /TU: "Myyjän allekirjoitus"
+        "occupants_signatures":"P11Ostajanallekirjoitus", # /TU: "Ostajan tai ostajien allekirjoitus"
+        "sales_price_paid":"P11Kauppahintamaksettu", # /TU: "Kauppahinta tai loppuerä kuitataan maksetuksi"
+        "sales_price_paid_place_and_time":"P11Kauppahintapaikkajaaika", # /TU: "Paikka ja aika kauppahinta maksettu"
+        "sales_price_paid_salesperson_signature":"P11Kauppahintamyyjanallekirjoitus", # /TU: "Myyjän allekirjoitus kauppahinta maksettu"
+        "transfer_of_shares_confirmed":"P11Osakekirjapaikkajaaika", # /TU: "Paikka ja aika osakekirja kuitataan vastaanotetuksi"
+        "transfer_of_shares_signature":"P11Osakekirjaostajanallekirjoitus", # /TU: "Ostajan tai ostajien allekirjoitus osakeirja kuitataan vastaanotetuksi"
+    }
+
+    pass
 
 @dataclasses.dataclass
 class HitasContractPDFData(PDFData):
