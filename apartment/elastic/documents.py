@@ -32,6 +32,7 @@ class ApartmentDocument(ReadOnlyDocument):
     project_street_address = Keyword(required=True)
     project_postal_code = Keyword(required=True)
     project_city = Keyword(required=True)
+    project_contract_business_id = Keyword(required=True)
     project_district = Keyword(required=True)
     project_realty_id = Keyword(required=True)
     project_construction_year = Keyword()
@@ -72,6 +73,7 @@ class ApartmentDocument(ReadOnlyDocument):
     project_estimated_completion_date = Date()
     project_completion_date = Date()
     project_possession_transfer_date = Date()
+    project_transfer_of_shares_date = Date()
     project_published = Boolean()
     project_archived = Boolean()
 
@@ -80,6 +82,7 @@ class ApartmentDocument(ReadOnlyDocument):
     project_image_urls = Keyword(multi=True)
     project_virtual_presentation_url = Keyword()
     project_url = Keyword()
+    project_use_complete_contract = Boolean()
 
     project_acc_salesperson = Keyword()
     project_acc_financeofficer = Keyword()
@@ -179,6 +182,7 @@ class ApartmentDocument(ReadOnlyDocument):
     project_contract_default_collateral = Text()
     project_contract_construction_permit_requested = Date()
     project_contract_article_of_association = Text()
+    project_customer_document_handover = Text()
     project_documents_delivered = Text()
 
     class Index:
