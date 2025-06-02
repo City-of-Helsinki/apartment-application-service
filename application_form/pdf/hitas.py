@@ -132,7 +132,7 @@ class HitasCompleteApartmentContractPDFData(PDFData):
         "project_realty_id":"P3Kiinteistotunnus", # /TU: "Kiinteistötunnus"
         "housing_type_ownership":"P3Omistus", # /TU: "Omistus"
         "housing_type_rental":"P3Vuokra", # /TU: "Vuokra"
-        "occupant_numbers":"P3Osakkaidennumerot", # /TU: "Osakkaiden numerot" #TODO: check what this is?
+        "occupant_numbers":"P3Osakkaidennumerot", # /TU: "Osakkaiden numerot" 1-XX
         "apartment_number":"P3Asunnonnro", # /TU: "Asunnon numero"
         "apartment_street_address":"P3Asunnonosoite", # /TU: "Asunnon osoite"
         "floor":"P3Asunnonsijaintikerros", # /TU: "Asunnon sijaintikerros"
@@ -156,7 +156,7 @@ class HitasCompleteApartmentContractPDFData(PDFData):
         "seller_account_number":"P4Tilinnumero2", # /TU: "Myyjän tilinumero"
         "credit_interest":"P4Hyvityskorko", # /TU: "Hyvityskorko"
         "transfer_of_shares":"P5Osakekirjanluovutus", # /TU: "Osakekirjan luovutus"
-        "transfer_of_posession":"P5Huoneistonhallinta", # /TU: "Huoneiston hallinnan luovutus"
+        "transfer_of_posession":"P5Huoneistonhallinta", # /TU: "Huoneiston hallinnan luovutus" DATE
         "breach_of_contract_sanction_option_1":"P6Vaihtoehto1", # /TU: "Vaihtoehto 1"
         "breach_of_contract_sanction_option_2":"P6Vaihtoehto2", # /TU: "Vaihtoehto 2"
         "inability_to_pay_guarantee":"P7Suorituskyvyttomyysvakuus", # /TU: "Suorituskyvyttömyysvakuus"
