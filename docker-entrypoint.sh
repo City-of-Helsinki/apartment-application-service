@@ -42,6 +42,13 @@ fi
 echo "Compile messages to make translations work"
 ./manage.py compilemessages
 
+echo "Fetch schemas"
+
+(cd $OIKOTIE_SCHEMA_DIR \
+&& curl -O $OIKOTIE_APARTMENTS_BATCH_SCHEMA_URL \
+&& curl -O $OIKOTIE_APARTMENTS_UPDATE_SCHEMA_URL \
+&& curl -O $OIKOTIE_HOUSINGCOMPANIES_BATCH_SCHEMA_URL)
+
 # Start server
 if [[ ! -z "$@" ]]; then
     "$@"
