@@ -22,8 +22,8 @@ def fetch_apartments_for_sale() -> Tuple[list, list]:
     """
     s_obj = (
         ApartmentDocument.search()
-        .filter("term", _language__keyword="fi")
-        .filter("term", apartment_state_of_sale__keyword=ApartmentStateOfSale.FOR_SALE)
+        .filter("term", _language="fi")
+        .exclude("term", apartment_state_of_sale__keyword=ApartmentStateOfSale.SOLD)
         .filter("term", publish_on_oikotie=True)
     )
     s_obj.execute()
