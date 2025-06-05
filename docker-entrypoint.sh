@@ -43,7 +43,7 @@ echo "Compile messages to make translations work"
 ./manage.py compilemessages
 
 echo "Fetch schemas"
-
+mkdir $OIKOTIE_SCHEMA_DIR
 (cd $OIKOTIE_SCHEMA_DIR \
 && curl -O $OIKOTIE_APARTMENTS_BATCH_SCHEMA_URL \
 && curl -O $OIKOTIE_APARTMENTS_UPDATE_SCHEMA_URL \
