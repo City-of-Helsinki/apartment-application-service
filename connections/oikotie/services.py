@@ -3,6 +3,7 @@ import os
 from typing import Optional, Tuple
 
 from django.conf import settings
+from connections.utils import map_document
 from django_oikotie.oikotie import create_apartments, create_housing_companies
 from django_oikotie.utils import validate_against_schema
 
@@ -32,19 +33,12 @@ def fetch_apartments_for_sale() -> Tuple[list, list]:
     housing_companies = []
 
     for hit in scan:
-        try:
-            apartment = map_oikotie_apartment(hit)
-        except ValueError:
-            _logger.warning(f"Could not map apartment {hit.uuid}", exc_info=True)
-            continue
-        try:
-            housing = map_oikotie_housing_company(hit)
-        except ValueError:
-            _logger.warning(f"Could not map housing company {hit.uuid}")
-            continue
-
-        apartments.append(apartment)
-        housing_companies.append(housing)
+        apartment = map_document(hit, map_oikotie_apartment)
+        housing = map_document(hit, map_oikotie_housing_company)
+        if apartment:
+            apartments.append(apartment)
+        if housing:
+            housing_companies.append(housing)
 
     if not apartments:
         _logger.warning(
