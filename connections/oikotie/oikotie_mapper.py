@@ -515,6 +515,7 @@ def map_address(elastic_apartment: ElasticApartment) -> Address:
     postal_code = getattr(elastic_apartment, "project_postal_code", None)
     city = getattr(elastic_apartment, "project_city", None)
     region = getattr(elastic_apartment, "project_district", None)
+
     if street and postal_code and city:
         return Address(
             street=street,
