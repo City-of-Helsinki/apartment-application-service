@@ -140,7 +140,20 @@ def _set_pdf_fields(pdf: Pdf, data_dict: DataDict, idx: None) -> None:
                     continue
                 # NOTE: There is no universal value for a checked checkbox, so this
                 # will break if the template is updated to use a different value
-                pdf_value = Name("/On")
+
+                # https://stackoverflow.com/a/48412434/4558221
+                # Try to mitigate this by figuring out 
+                # what the value for the "checked" state is
+                # Its stored in the key "/AP" and its "/On", "/Yes" or "/1"
+                # 9.6.2025
+                checked_value = "/On"
+                annot_ap_keys = annot.AP["/D"].keys()
+
+                if "/Yes" in annot_ap_keys:
+                    checked_value = "/Yes"
+                elif "/1" in annot_ap_keys:
+                    checked_value = "/1"
+                pdf_value = Name(checked_value)
                 annot.AS = pdf_value
                 annot.V = pdf_value
             else:
