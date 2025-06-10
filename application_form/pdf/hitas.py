@@ -390,13 +390,9 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         get_apartment(reservation.apartment_uuid, include_project_fields=True)
     )
 
+    # use contract for complete apartment
     # can possibly be None, use bool() to convert to False in that case
     complete_apartment = bool(apartment.project_use_complete_contract)
-
-    contract_dataclass = HitasContractPDFData
-
-    if complete_apartment:
-        contract_dataclass = HitasCompleteApartmentContractPDFData
 
     (
         payment_1,
@@ -552,8 +548,48 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         )
     }
 
+    # full apartment contract data is mostly the same fields but with some changes
+    full_apartment_contract_data = {
+        **contract_data,
+        "building_permit_applied_for": "",
+        "buyer_has_paid_down_payment": "",
+        "credit_interest": "",
+        "debt_free_price_x_0_014": "",
+        "documents": "",
+        "final_payment": "",
+        "guarantee": "",
+        "guarantee_attachment_exists": "",
+        "guarantee_attachment_not_exists": "",
+        "inability_to_pay_guarantee": "",
+        "loan_share_and_sales_price": "",
+        "occupant_1_name": "",
+        "occupant_2_name": "",
+        "occupants_signatures": "",
+        "other_contract_terms": "",
+        "payment_terms_rest_of_price": "",
+        "project_built_according_to_regulations": "",
+        "project_contract_transfer_restriction": "",
+        "sales_price_paid": "",
+        "sales_price_paid_place_and_time": "",
+        "sales_price_paid_salesperson_signature": "",
+        "sales_price_x_0_02": "",
+        "salesperson_signature": "",
+        "transfer_of_posession": "",
+        "transfer_of_shares": "",
+        "transfer_of_shares_confirmed": "",
+        "transfer_of_shares_signature": ""
+    }
+
+    contract_dataclass = HitasContractPDFData
+    pdf_template_path = HITAS_CONTRACT_PDF_TEMPLATE_FILE_NAME
+
+    if complete_apartment:
+        contract_dataclass = HitasCompleteApartmentContractPDFData
+        contract_data = full_apartment_contract_data
+        pdf_template_path = HITAS_COMPLETE_APARTMENT_CONTRACT_PDF_TEMPLATE_FILE_NAME
+
     pdf_data = contract_dataclass(**contract_data)
-    return create_hitas_contract_pdf_from_data(pdf_data)
+    return create_hitas_contract_pdf_from_data(pdf_data, pdf_template_path)
 
 def create_hitas_complete_apartment_contract_pdf_from_data(
         pdf_data: HitasCompleteApartmentContractPDFData
@@ -563,8 +599,11 @@ def create_hitas_complete_apartment_contract_pdf_from_data(
         pdf_data
     )
 
-def create_hitas_contract_pdf_from_data(pdf_data: HitasContractPDFData) -> BytesIO:
-    return create_pdf(HITAS_CONTRACT_PDF_TEMPLATE_FILE_NAME, pdf_data)
+def create_hitas_contract_pdf_from_data(
+        pdf_data: Union[HitasContractPDFData, HitasCompleteApartmentContractPDFData],
+        template_path: str
+    ) -> BytesIO:
+    return create_pdf(template_path, pdf_data)
 
 
 def _get_numbered_installments(
