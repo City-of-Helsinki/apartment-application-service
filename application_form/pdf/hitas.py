@@ -38,32 +38,6 @@ class HitasCompleteApartmentContractPDFData(PDFData):
     occupant_2_ssn_or_business_id: Union[str, None]
     occupant_2_email: Union[str, None]
 
-    occupant_3_name: Union[str, None]
-    """Occupant 3 and 4 are currently not supported by database structure, 
-    field mappings are here just for completeness' sake"""
-    occupant_3_share_of_ownership: Union[str, None]
-    """Not autofilled"""
-    occupant_3_address: Union[str, None]
-    """Not autofilled"""
-    occupant_3_phone_number: Union[str, None]
-    """Not autofilled"""
-    occupant_3_ssn_or_business_id: Union[str, None]
-    """Not autofilled"""
-    occupant_3_email: Union[str, None]
-    """Not autofilled"""
-    occupant_4_name: Union[str, None]
-    """Not autofilled"""
-    occupant_4_share_of_ownership: Union[str, None]
-    """Not autofilled"""
-    occupant_4_address: Union[str, None]
-    """Not autofilled"""
-    occupant_4_phone_number: Union[str, None]
-    """Not autofilled"""
-    occupant_4_ssn_or_business_id: Union[str, None]
-    """Not autofilled"""
-    occupant_4_email: Union[str, None]
-    """Not autofilled"""
-
     project_housing_company: Union[str, None]
     project_contract_business_id: Union[str, None]
     project_address: Union[str, None]
@@ -79,25 +53,26 @@ class HitasCompleteApartmentContractPDFData(PDFData):
     living_area: Union[str, None]
     other_space: Union[str, None]
     other_space_area: Union[str, None]
-    right_of_redemption_false: Union[bool, None]
-    right_of_redemption_true: Union[bool, None]
-    right_of_redemption: Union[str, None]
+    project_contract_transfer_restriction_false: Union[bool, None]
+    project_contract_transfer_restriction_true: Union[bool, None]
+    project_contract_transfer_restriction: Union[str, None]
     sales_price: Union[str, None]
     loan_share: Union[str, None]
     loan_share_and_sales_price: Union[str, None]
     buyer_has_paid_down_payment: Union[str, None]
     payment_terms_rest_of_price: Union[str, None]
-    payment_bank: Union[str, None]
-    payment_account_number: Union[str, None]
+    payment_bank_1: Union[str, None]
+    payment_account_number_1: Union[str, None]
     sales_price_x_0_02: Union[bool, None]
     debt_free_price_x_0_014: Union[bool, None]
     final_payment: Union[str, None]
-    seller_account_number: Union[str, None]
+
+    payment_account_number_2: Union[str, None]
     credit_interest: Union[str, None]
     transfer_of_shares: Union[str, None]
     transfer_of_posession: Union[str, None]
-    breach_of_contract_sanction_option_1: Union[bool, None]
-    breach_of_contract_sanction_option_2: Union[bool, None]
+    breach_of_contract_option_1: Union[bool, None]
+    breach_of_contract_option_2: Union[bool, None]
     inability_to_pay_guarantee: Union[str, None]
     guarantee: Union[str, None]
     guarantee_attachment_exists: Union[bool, None]
@@ -106,7 +81,7 @@ class HitasCompleteApartmentContractPDFData(PDFData):
     project_built_according_to_regulations: Union[str, None]
     other_contract_terms: Union[str, None]
     documents: Union[str, None]
-    place_and_time: Union[str, None]
+    signing_place_and_time: Union[str, None]
     salesperson_signature: Union[str, None]
     occupants_signatures: Union[str, None]
     sales_price_paid: Union[str, None]
@@ -129,18 +104,6 @@ class HitasCompleteApartmentContractPDFData(PDFData):
         "occupant_2_phone_number": "P2Ostaja2Puhelin", # "Puhelin Ostaja 2",
         "occupant_2_ssn_or_business_id": "P2Ostaja2Htunnus", # "Henkilötunnus tai Y-tunnus Ostaja 2",
         "occupant_2_email": "P2Ostaja2Sahkoposti", # "Sähköposti Ostaja 2",
-        "occupant_3_name": "P2Ostaja3Nimi", # "Ostajan nimi Ostaja 3",
-        "occupant_3_share_of_ownership": "P2Ostaja3Omistusosuus", # "Omistusosuus osakkeista Ostaja 3",
-        "occupant_3_address": "P2Ostaja3Osoite", # "Osoite Ostaja 3",
-        "occupant_3_phone_number": "P2Ostaja3Puhelin", # "Puhelin Ostaja 3",
-        "occupant_3_ssn_or_business_id": "P2Ostaja3Htunnus", # "Henkilötunnus tai Y-tunnus Ostaja 3",
-        "occupant_3_email": "P2Ostaja3Sahkoposti", # "Sähköposti Ostaja 3",
-        "occupant_4_name": "P2Ostaja4Nimi", # "Ostajan nimi Ostaja 4",
-        "occupant_4_share_of_ownership": "P2Ostaja4Omistusosuus", # "Omistusosuus osakkeista Ostaja 4",
-        "occupant_4_address": "P2Ostaja4Osoite", # "Osoite Ostaja 4",
-        "occupant_4_phone_number": "P2Ostaja4Puhelin", # "Puhelin Ostaja 4",
-        "occupant_4_ssn_or_business_id": "P2Ostaja4Htunnus", # "Henkilötunnus tai Y-tunnus Ostaja 4",
-        "occupant_4_email": "P2Ostaja4Sahkoposti", # "Sähköposti Ostaja 4",
         "project_housing_company": "P3Yhtionnimi", # "Yhtiön nimi (jäljempänä yhtiö)",
         "project_contract_business_id": "P3Ytunnus", # "Y-tunnus",
         "project_address": "P3Yhtionosoite", # "Yhtiön osoite",
@@ -155,25 +118,25 @@ class HitasCompleteApartmentContractPDFData(PDFData):
         "living_area": "P3Asuintilojenpintaala", # "Asuintilojen pinta-ala",
         "other_space": "P3Muuttilat", # "Muut tilat (ei tarkoita yhtiön hallinnassa olevia tiloja)",
         "other_space_area": "P3Muidentilojenpintaala", # "Muiden tilojen pinta-ala",
-        "right_of_redemption_false": "P3Lunastusoikeuseiole", # "Ei ole",
-        "right_of_redemption_true": "P3Lunastusoikeuson", # "On",
-        "right_of_redemption": "P3Lunastusoikeus", # "Lunastusoikeus ja luovutusta koskevat rajoitteet",
+        "project_contract_transfer_restriction_false": "P3Lunastusoikeuseiole", # "Ei ole",
+        "project_contract_transfer_restriction_true": "P3Lunastusoikeuson", # "On",
+        "project_contract_transfer_restriction": "P3Lunastusoikeus", # "Lunastusoikeus ja luovutusta koskevat rajoitteet",
         "sales_price": "P4Kauppahinta", # "Kauppahinta (kirjaimin ja numeroin)",
         "loan_share": "P4Osuuslainoista", # "Myytyihin osakkeisiin kohdistuva osuus yhtiön lainoista",
         "loan_share_and_sales_price": "P4Kauppahintajalainaosuus", # "Kauppahinta ja yhtiölainaosuus yhteensä (velaton hinta)",
         "buyer_has_paid_down_payment": "P4Ostajamaksanutkasirahan", # "Ostaja on maksanut käsirahan tai varausmaksun, joka luetaan osaksi kauppahintaa",
         "payment_terms_rest_of_price": "P4Loppukauppahinnanmaksuehdot", # "Loppukauppahinnan maksuehdot",
-        "payment_bank": "P4Pankki", # "Pankki ja konttori",
-        "payment_account_number": "P4Tilinnumero", # "Tilin numero",
+        "payment_bank_1": "P4Pankki", # "Pankki ja konttori",
+        "payment_account_number_1": "P4Tilinnumero", # "Tilin numero",
         "sales_price_x_0_02": "P4002kauppahinta", # "0,02 kerrottuna kauppahinnalla",
         "debt_free_price_x_0_014": "P40014velatonhinta", # "0,014 kerrottuna velattomalla hinnalla",
         "final_payment": "P4Maksettavaviimeinenera", # "Maksettava viimeinen erä",
-        "seller_account_number": "P4Tilinnumero2", # "Myyjän tilin numero",
+        "payment_account_number_2": "P4Tilinnumero2", # "myyjän lukuun tilille nro ...",
         "credit_interest": "P5Hyvityskorko", # "Hyvityskorko",
         "transfer_of_shares": "P5Osakekirjanluovutus", # "Osakekirjan luovutus",
         "transfer_of_posession": "P5Huoneistonhallinta", # "Huoneiston hallinta",
-        "breach_of_contract_sanction_option_1": "P7Vaihtoehto1", # "Vaihtoehto 1",
-        "breach_of_contract_sanction_option_2": "P7Vaihtoehto2", # "Vaihtoehto 2",
+        "breach_of_contract_option_1": "P7Vaihtoehto1", # "Vaihtoehto 1",
+        "breach_of_contract_option_2": "P7Vaihtoehto2", # "Vaihtoehto 2",
         "inability_to_pay_guarantee": "P8Suorituskyvyttomyysvakuus", # "Suorituskyvyttömyysvakuus",
         "guarantee": "P8Vakuus", # "Vakuus",
         "guarantee_attachment_exists": "P8Liiteon", # "Liite on",
@@ -182,7 +145,7 @@ class HitasCompleteApartmentContractPDFData(PDFData):
         "project_built_according_to_regulations": "P9Yhtiorakennettumukaisesti", # "Yhtiö on rakennettu säännösten mukaisesti",
         "other_contract_terms": "P10Muutehdot", # "Muut ehdot ja lisätiedot",
         "documents": "P11Asiakirjat", # "Asiakirjat",
-        "place_and_time": "P12Paikkajaaika", # "Paikka ja aika",
+        "signing_place_and_time": "P12Paikkajaaika", # "Paikka ja aika",
         "salesperson_signature": "P12Myyjanallekirjoitus", # "Myyjän allekirjoitus",
         "occupants_signatures": "P12Ostajanallekirjoitus", # "Ostajan tai ostajien allekirjoitus",
         "sales_price_paid": "P12Kauppahintamaksettu", # "Kauppahinta tai kauppahinnan loppuerä kuitataan maksetuksi",
@@ -427,6 +390,14 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         get_apartment(reservation.apartment_uuid, include_project_fields=True)
     )
 
+    # can possibly be None, use bool() to convert to False in that case
+    complete_apartment = bool(apartment.project_use_complete_contract)
+
+    contract_dataclass = HitasContractPDFData
+
+    if complete_apartment:
+        contract_dataclass = HitasCompleteApartmentContractPDFData
+
     (
         payment_1,
         payment_2,
@@ -452,134 +423,136 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
             suffix=" €",
         )
 
-    pdf_data = HitasContractPDFData(
-        occupant_1=primary_profile.full_name,
-        occupant_1_share_of_ownership=None,
-        occupant_1_address=(
+    contract_data = {
+        "occupant_1":primary_profile.full_name,
+        "occupant_1_share_of_ownership":None,
+        "occupant_1_address":(
             (primary_profile.street_address or "")
             + ", "
             + (primary_profile.postal_code or "")
             + " "
             + (primary_profile.city or "")
         ).strip(),
-        occupant_1_phone_number=primary_profile.phone_number,
-        occupant_1_email=primary_profile.email,
-        occupant_1_ssn_or_business_id=primary_profile.national_identification_number,
-        occupant_2=secondary_profile.full_name,
-        occupant_2_share_of_ownership=None,
-        occupant_2_address=(
+        "occupant_1_phone_number":primary_profile.phone_number,
+        "occupant_1_email":primary_profile.email,
+        "occupant_1_ssn_or_business_id":primary_profile.national_identification_number,
+        "occupant_2":secondary_profile.full_name,
+        "occupant_2_share_of_ownership":None,
+        "occupant_2_address":(
             (secondary_profile.street_address or "")
             + ", "
             + (secondary_profile.postal_code or "")
             + " "
             + (secondary_profile.city or "")
         ).strip(),
-        occupant_2_phone_number=secondary_profile.phone_number,
-        occupant_2_email=secondary_profile.email,
-        occupant_2_ssn_or_business_id=secondary_profile.national_identification_number,
-        project_housing_company=apartment.project_housing_company,
-        project_contract_business_id=apartment.project_contract_business_id,
-        project_address="  ".join(
+        "occupant_2_phone_number":secondary_profile.phone_number,
+        "occupant_2_email":secondary_profile.email,
+        "occupant_2_ssn_or_business_id":secondary_profile.national_identification_number,
+        "project_housing_company":apartment.project_housing_company,
+        "project_contract_business_id":apartment.project_contract_business_id,
+        "project_address":"  ".join(
             [
                 apartment.project_street_address,
                 f"{apartment.project_postal_code} {apartment.project_city}",
             ]
         ),
-        project_realty_id=apartment.project_realty_id,
-        housing_type_ownership=False,
-        housing_type_rental=True,
-        housing_shares=f"{apartment.stock_start_number or ''} - {apartment.stock_end_number or ''}",  # noqa: E501
-        apartment_street_address=None,
-        apartment_structure=apartment.apartment_structure,
-        apartment_number=apartment.apartment_number,
-        floor=apartment.floor,
-        living_area=apartment.living_area,
-        other_space=None,
-        other_space_area=None,
-        project_contract_transfer_restriction_false=apartment.project_contract_transfer_restriction  # noqa E501
+        "project_realty_id":apartment.project_realty_id,
+        "housing_type_ownership":False,
+        "housing_type_rental":True,
+        "housing_shares": f"{apartment.stock_start_number or ''} - {apartment.stock_end_number or ''}",  # noqa": E501
+        "apartment_street_address":None,
+        "apartment_structure":apartment.apartment_structure,
+        "apartment_number":apartment.apartment_number,
+        "floor":apartment.floor,
+        "living_area":apartment.living_area,
+        "other_space":None,
+        "other_space_area":None,
+        "project_contract_transfer_restriction_false":apartment.project_contract_transfer_restriction  # noqa E501
         is False,
-        project_contract_transfer_restriction_true=apartment.project_contract_transfer_restriction,  # noqa E501
-        project_contract_transfer_restriction_text=apartment.project_contract_article_of_association,  # noqa E501
-        project_contract_material_selection_later_false=apartment.project_contract_material_selection_later  # noqa E501
+        "project_contract_transfer_restriction_true":apartment.project_contract_transfer_restriction,  # noqa E501
+        "project_contract_transfer_restriction_text":apartment.project_contract_article_of_association,  # noqa E501
+        "project_contract_material_selection_later_false":apartment.project_contract_material_selection_later  # noqa E501
         is False,
-        project_contract_material_selection_later_true=apartment.project_contract_material_selection_later,  # noqa E501
-        project_contract_material_selection_description=apartment.project_contract_material_selection_description,  # noqa E501
-        project_contract_material_selection_date=apartment.project_contract_material_selection_date,  # noqa E501
-        sales_price=hitas_price(apartment.sales_price),
-        loan_share=hitas_price(apartment.loan_share),
-        debt_free_sales_price=hitas_price(apartment.debt_free_sales_price),
-        payment_1_label=payment_1.type,
-        payment_1_amount=PDFCurrencyField(euros=payment_1.value),
-        payment_1_due_date=payment_1.due_date,
-        payment_1_percentage=payment_1._percentage,
-        payment_2_label=payment_2.type,
-        payment_2_amount=PDFCurrencyField(euros=payment_2.value),
-        payment_2_due_date=payment_2.due_date,
-        payment_2_percentage=payment_2._percentage,
-        payment_3_label=payment_3.type,
-        payment_3_amount=PDFCurrencyField(euros=payment_3.value),
-        payment_3_due_date=payment_3.due_date,
-        payment_3_percentage=payment_3._percentage,
-        payment_4_label=payment_4.type,
-        payment_4_amount=PDFCurrencyField(euros=payment_4.value),
-        payment_4_due_date=payment_4.due_date,
-        payment_4_percentage=payment_4._percentage,
-        payment_5_label=payment_5.type,
-        payment_5_amount=PDFCurrencyField(euros=payment_5.value),
-        payment_5_due_date=payment_5.due_date,
-        payment_5_percentage=payment_5._percentage,
-        second_last_payment_label="6",
-        second_last_payment_basis_sales_price=False,
-        second_last_payment_basis_debt_free_sales_price=True,
-        second_last_payment_dfsp_percentage=payment_6._percentage,
-        second_last_payment_dfsp_amount=PDFCurrencyField(euros=payment_6.value),
-        last_payment_label="7",
-        last_payment_basis_sales_price=False,
-        last_payment_basis_debt_free_sales_price=True,
-        last_payment_dfsp_percentage=payment_7._percentage,
-        last_payment_dfsp_amount=PDFCurrencyField(euros=payment_7.value),
-        payment_bank_1=apartment.project_contract_depositary,
-        payment_account_number_1=apartment.project_regular_bank_account,
-        payment_bank_2=apartment.project_contract_depositary,
-        payment_account_number_2=apartment.project_barred_bank_account,
-        down_payment_amount=PDFCurrencyField(
+        "project_contract_material_selection_later_true":apartment.project_contract_material_selection_later,  # noqa E501
+        "project_contract_material_selection_description":apartment.project_contract_material_selection_description,  # noqa E501
+        "project_contract_material_selection_date":apartment.project_contract_material_selection_date,  # noqa E501
+        "sales_price":hitas_price(apartment.sales_price),
+        "loan_share":hitas_price(apartment.loan_share),
+        "debt_free_sales_price":hitas_price(apartment.debt_free_sales_price),
+        "payment_1_label":payment_1.type,
+        "payment_1_amount":PDFCurrencyField(euros=payment_1.value),
+        "payment_1_due_date":payment_1.due_date,
+        "payment_1_percentage":payment_1._percentage,
+        "payment_2_label":payment_2.type,
+        "payment_2_amount":PDFCurrencyField(euros=payment_2.value),
+        "payment_2_due_date":payment_2.due_date,
+        "payment_2_percentage":payment_2._percentage,
+        "payment_3_label":payment_3.type,
+        "payment_3_amount":PDFCurrencyField(euros=payment_3.value),
+        "payment_3_due_date":payment_3.due_date,
+        "payment_3_percentage":payment_3._percentage,
+        "payment_4_label":payment_4.type,
+        "payment_4_amount":PDFCurrencyField(euros=payment_4.value),
+        "payment_4_due_date":payment_4.due_date,
+        "payment_4_percentage":payment_4._percentage,
+        "payment_5_label":payment_5.type,
+        "payment_5_amount":PDFCurrencyField(euros=payment_5.value),
+        "payment_5_due_date":payment_5.due_date,
+        "payment_5_percentage":payment_5._percentage,
+        "second_last_payment_label":"6",
+        "second_last_payment_basis_sales_price":False,
+        "second_last_payment_basis_debt_free_sales_price":True,
+        "second_last_payment_dfsp_percentage":payment_6._percentage,
+        "second_last_payment_dfsp_amount":PDFCurrencyField(euros=payment_6.value),
+        "last_payment_label":"7",
+        "last_payment_basis_sales_price":False,
+        "last_payment_basis_debt_free_sales_price":True,
+        "last_payment_dfsp_percentage":payment_7._percentage,
+        "last_payment_dfsp_amount":PDFCurrencyField(euros=payment_7.value),
+        "payment_bank_1":apartment.project_contract_depositary,
+        "payment_account_number_1":apartment.project_regular_bank_account,
+        "payment_bank_2":apartment.project_contract_depositary,
+        "payment_account_number_2":apartment.project_barred_bank_account,
+        "down_payment_amount":PDFCurrencyField(
             euros=down_payment.amount if down_payment.amount else Decimal(0),
             suffix=" €",
         ),
-        project_contract_apartment_completion_selection_1=apartment.project_contract_apartment_completion_selection_1,  # noqa E501
-        project_contract_apartment_completion_selection_1_date=apartment.project_contract_apartment_completion_selection_1_date,  # noqa E501
-        project_contract_apartment_completion_selection_2=apartment.project_contract_apartment_completion_selection_2,  # noqa E501
-        project_contract_apartment_completion_selection_2_start=apartment.project_contract_apartment_completion_selection_2_start,  # noqa E501
-        project_contract_apartment_completion_selection_2_end=apartment.project_contract_apartment_completion_selection_2_end,  # noqa E501
-        project_contract_apartment_completion_selection_3=apartment.project_contract_apartment_completion_selection_3,  # noqa E501
-        project_contract_apartment_completion_selection_3_date=apartment.project_contract_apartment_completion_selection_3_date,  # noqa E501
-        project_contract_depositary=apartment.project_contract_depositary,
-        project_contract_repository=apartment.project_contract_repository,
-        breach_of_contract_option_1=False,
-        breach_of_contract_option_2=True,
-        project_contract_collateral_type=apartment.project_contract_collateral_type,
-        project_contract_default_collateral=apartment.project_contract_default_collateral,  # noqa E501
-        project_contract_construction_permit_requested=(
-            (apartment.project_contract_construction_permit_requested)
-            if apartment.project_contract_construction_permit_requested
-            else None
-        ),
-        project_contract_other_terms=apartment.project_contract_combined_terms,
-        project_documents_delivered=apartment.project_documents_delivered,
-        signing_place_and_time="Helsinki",
-        salesperson=apartment.project_acc_salesperson,
-        signing_buyers=" & ".join(
+        "project_contract_apartment_completion_selection_1":apartment.project_contract_apartment_completion_selection_1,  # noqa E501
+        "project_contract_apartment_completion_selection_1_date":apartment.project_contract_apartment_completion_selection_1_date,  # noqa E501
+        "project_contract_apartment_completion_selection_2":apartment.project_contract_apartment_completion_selection_2,  # noqa E501
+        "project_contract_apartment_completion_selection_2_start":apartment.project_contract_apartment_completion_selection_2_start,  # noqa E501
+        "project_contract_apartment_completion_selection_2_end":apartment.project_contract_apartment_completion_selection_2_end,  # noqa E501
+        "project_contract_apartment_completion_selection_3":apartment.project_contract_apartment_completion_selection_3,  # noqa E501
+        "project_contract_apartment_completion_selection_3_date":apartment.project_contract_apartment_completion_selection_3_date,  # noqa E501
+        "project_contract_depositary":apartment.project_contract_depositary,
+        "project_contract_repository":apartment.project_contract_repository,
+        "breach_of_contract_option_1":False,
+        "breach_of_contract_option_2":True,
+        "project_contract_collateral_type":apartment.project_contract_collateral_type,
+        "project_contract_default_collateral":apartment.project_contract_default_collateral,  # noqa E501
+        "project_contract_construction_permit_requested":(
+            apartment.project_contract_construction_permit_requested
+        )
+        if apartment.project_contract_construction_permit_requested
+        else None,
+        "project_contract_other_terms":apartment.project_contract_combined_terms,
+        "project_documents_delivered":apartment.project_documents_delivered,
+        "signing_place_and_time":"Helsinki",
+        "salesperson":apartment.project_acc_salesperson,
+        "signing_buyers":" & ".join(
             name
             for name in [primary_profile.full_name, secondary_profile.full_name]
             if name
         ),
-        project_contract_collateral_bank_and_address="  ".join(
+        "project_contract_collateral_bank_and_address":"  ".join(
             [
                 apartment.project_contract_depositary or "",
                 apartment.project_contract_repository or "",
             ]
-        ),
-    )
+        )
+    }
+
+    pdf_data = contract_dataclass(**contract_data)
     return create_hitas_contract_pdf_from_data(pdf_data)
 
 def create_hitas_complete_apartment_contract_pdf_from_data(

@@ -80,6 +80,7 @@ class ApartmentDocument(ReadOnlyDocument):
     project_image_urls = Keyword(multi=True)
     project_virtual_presentation_url = Keyword()
     project_url = Keyword()
+    project_use_complete_contract = Boolean()
 
     project_acc_salesperson = Keyword()
     project_acc_financeofficer = Keyword()
