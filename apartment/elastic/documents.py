@@ -32,6 +32,7 @@ class ApartmentDocument(ReadOnlyDocument):
     project_street_address = Keyword(required=True)
     project_postal_code = Keyword(required=True)
     project_city = Keyword(required=True)
+    project_contract_business_id = Keyword(required=True)
     project_district = Keyword(required=True)
     project_realty_id = Keyword(required=True)
     project_construction_year = Keyword()

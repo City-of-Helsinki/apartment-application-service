@@ -21,17 +21,23 @@ from invoicing.utils import remove_exponent
 HITAS_CONTRACT_PDF_TEMPLATE_FILE_NAME = "hitas_contract_template.pdf"
 HITAS_COMPLETE_APARTMENT_CONTRACT_PDF_TEMPLATE_FILE_NAME = "hitas_complete_apartment_contract.pdf"  # noqa: E501
 
-@dataclasses.dataclass
+@dataclasses.dataclass(init=False)
 class HitasCompleteApartmentContractPDFData(PDFData):
+    def __init__(self, **kwargs):
+        names = set([f.name for f in dataclasses.fields(self)])
+        for k, v in kwargs.items():
+            if k in names:
+                setattr(self, k, v)
+
     # salesperson_phone_number: Union[str, None]
     # salesperson_email: Union[str, None]
-    occupant_1_name: Union[str, None]
+    occupant_1: Union[str, None]
     occupant_1_share_of_ownership: Union[str, None]
     occupant_1_address: Union[str, None]
     occupant_1_phone_number: Union[str, None]
     occupant_1_ssn_or_business_id: Union[str, None]
     occupant_1_email: Union[str, None]
-    occupant_2_name: Union[str, None]
+    occupant_2: Union[str, None]
     occupant_2_share_of_ownership: Union[str, None]
     occupant_2_address: Union[str, None]
     occupant_2_phone_number: Union[str, None]
@@ -65,7 +71,7 @@ class HitasCompleteApartmentContractPDFData(PDFData):
     payment_account_number_1: Union[str, None]
     sales_price_x_0_02: Union[bool, None]
     debt_free_price_x_0_014: Union[bool, None]
-    final_payment: Union[str, None]
+    last_payment_dfsp_amount: Union[str, None]
 
     payment_account_number_2: Union[str, None]
     credit_interest: Union[str, None]
@@ -73,8 +79,8 @@ class HitasCompleteApartmentContractPDFData(PDFData):
     transfer_of_posession: Union[str, None]
     breach_of_contract_option_1: Union[bool, None]
     breach_of_contract_option_2: Union[bool, None]
-    inability_to_pay_guarantee: Union[str, None]
-    guarantee: Union[str, None]
+    project_contract_collateral_type: Union[str, None]
+    project_contract_collateral_type: Union[str, None]
     guarantee_attachment_exists: Union[bool, None]
     guarantee_attachment_not_exists: Union[bool, None]
     building_permit_applied_for: Union[str, None]
@@ -92,13 +98,13 @@ class HitasCompleteApartmentContractPDFData(PDFData):
 
 
     FIELD_MAPPING: ClassVar[Dict[str, str]] = {
-        "occupant_1_name": "P1Ostaja1Nimi", # "Ostajan nimi Ostaja 1",
+        "occupant_1": "P1Ostaja1Nimi", # "Ostajan nimi Ostaja 1",
         "occupant_1_share_of_ownership": "P1Ostaja1Omistusosuus", # "Omistusosuus osakkeista Ostaja 1",
         "occupant_1_address": "P1Ostaja1Osoite", # "Osoite Ostaja 1",
         "occupant_1_phone_number": "P1Ostaja1Puhelin", # "Puhelin Ostaja 1",
         "occupant_1_ssn_or_business_id": "P1Ostaja1Htunnus", # "Henkilötunnus tai Y-tunnus Ostaja 1",
         "occupant_1_email": "P1Ostaja1Sahkoposti", # "Sähköposti Ostaja 1",
-        "occupant_2_name": "P2Ostaja2Nimi", # "Ostajan nimi Ostaja 2",
+        "occupant_2": "P2Ostaja2Nimi", # "Ostajan nimi Ostaja 2",
         "occupant_2_share_of_ownership": "P2Ostaja2Omistusosuus", # "Omistusosuus osakkeista Ostaja 2",
         "occupant_2_address": "P2Ostaja2Osoite", # "Osoite Ostaja 2",
         "occupant_2_phone_number": "P2Ostaja2Puhelin", # "Puhelin Ostaja 2",
@@ -130,15 +136,15 @@ class HitasCompleteApartmentContractPDFData(PDFData):
         "payment_account_number_1": "P4Tilinnumero", # "Tilin numero",
         "sales_price_x_0_02": "P4002kauppahinta", # "0,02 kerrottuna kauppahinnalla",
         "debt_free_price_x_0_014": "P40014velatonhinta", # "0,014 kerrottuna velattomalla hinnalla",
-        "final_payment": "P4Maksettavaviimeinenera", # "Maksettava viimeinen erä",
+        "last_payment_dfsp_amount": "P4Maksettavaviimeinenera", # "Maksettava viimeinen erä",
         "payment_account_number_2": "P4Tilinnumero2", # "myyjän lukuun tilille nro ...",
         "credit_interest": "P5Hyvityskorko", # "Hyvityskorko",
         "transfer_of_shares": "P5Osakekirjanluovutus", # "Osakekirjan luovutus",
         "transfer_of_posession": "P5Huoneistonhallinta", # "Huoneiston hallinta",
         "breach_of_contract_option_1": "P7Vaihtoehto1", # "Vaihtoehto 1",
         "breach_of_contract_option_2": "P7Vaihtoehto2", # "Vaihtoehto 2",
-        "inability_to_pay_guarantee": "P8Suorituskyvyttomyysvakuus", # "Suorituskyvyttömyysvakuus",
-        "guarantee": "P8Vakuus", # "Vakuus",
+        "project_contract_collateral_type": "P8Suorituskyvyttomyysvakuus", # "Suorituskyvyttömyysvakuus",
+        "project_contract_collateral_type": "P8Vakuus", # "Vakuus",
         "guarantee_attachment_exists": "P8Liiteon", # "Liite on",
         "guarantee_attachment_not_exists": "P8Liitettaeiole", # "Liitettä ei ole",
         "building_permit_applied_for": "P9Haetturakennuslupaa", # "Yhtiölle on haettu rakennuslupaa",
@@ -551,33 +557,33 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
     # full apartment contract data is mostly the same fields but with some changes
     full_apartment_contract_data = {
         **contract_data,
-        "building_permit_applied_for": "",
-        "buyer_has_paid_down_payment": "",
-        "credit_interest": "",
-        "debt_free_price_x_0_014": "",
-        "documents": "",
-        "final_payment": "",
-        "guarantee": "",
-        "guarantee_attachment_exists": "",
-        "guarantee_attachment_not_exists": "",
-        "inability_to_pay_guarantee": "",
-        "loan_share_and_sales_price": "",
-        "occupant_1_name": "",
-        "occupant_2_name": "",
-        "occupants_signatures": "",
-        "other_contract_terms": "",
-        "payment_terms_rest_of_price": "",
-        "project_built_according_to_regulations": "",
-        "project_contract_transfer_restriction": "",
-        "sales_price_paid": "",
-        "sales_price_paid_place_and_time": "",
-        "sales_price_paid_salesperson_signature": "",
-        "sales_price_x_0_02": "",
-        "salesperson_signature": "",
-        "transfer_of_posession": "",
-        "transfer_of_shares": "",
-        "transfer_of_shares_confirmed": "",
-        "transfer_of_shares_signature": ""
+        "building_permit_applied_for": "building_permit_applied_for",
+        "buyer_has_paid_down_payment": "buyer_has_paid_down_payment",
+        "credit_interest": "credit_interest",
+        "debt_free_price_x_0_014": False,
+        "documents": "documents",
+        "final_payment": "final_payment",
+        "guarantee": "guarantee",
+        "guarantee_attachment_exists": True,
+        "guarantee_attachment_not_exists": False,
+        "inability_to_pay_guarantee": "inability_to_pay_guarantee",
+        "loan_share_and_sales_price": "loan_share_and_sales_price",
+        "occupants_signatures": "occupants_signatures",
+        "other_contract_terms": "other_contract_terms",
+        "payment_terms_rest_of_price": "payment_terms_rest_of_price",
+        "project_built_according_to_regulations": "project_built_according_to_regulations",
+        "project_contract_transfer_restriction": "project_contract_transfer_restriction",
+        "sales_price_paid": "sales_price_paid",
+        "sales_price_paid_place_and_time": "sales_price_paid_place_and_time",
+        "sales_price_paid_salesperson_signature": "sales_price_paid_salesperson_signature",
+        "sales_price_x_0_02": True,
+        "other_space": "other space",
+        "other_space_area": "10.1",
+        "salesperson_signature": "salesperson_signature",
+        "transfer_of_posession": "transfer_of_posession",
+        "transfer_of_shares": "transfer_of_shares",
+        "transfer_of_shares_confirmed": "transfer_of_shares_confirmed",
+        "transfer_of_shares_signature": "transfer_of_shares_signature"
     }
 
     contract_dataclass = HitasContractPDFData

@@ -133,13 +133,13 @@ CONTRACT_PDF_DATA = HitasContractPDFData(
 )
 
 COMPLETE_CONTRACT_PDF_DATA = HitasCompleteApartmentContractPDFData(
-    occupant_1_name="Matti Meikäläinen",
+    occupant_1="Matti Meikäläinen",
     occupant_1_share_of_ownership="49%",
     occupant_1_address="Pöhkökatu 1 C 51",
     occupant_1_phone_number="040 123 4567",
     occupant_1_ssn_or_business_id="010101-1234",
     occupant_1_email="matti.meikalainen@meikä.fi",
-    occupant_2_name="Maija Meikäläinen",
+    occupant_2="Maija Meikäläinen",
     occupant_2_share_of_ownership="51%",
     occupant_2_address="Möhkälekatu 2 F 64",
     occupant_2_phone_number="050 987 6543",
