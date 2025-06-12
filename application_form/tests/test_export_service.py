@@ -1,8 +1,10 @@
+import collections
 import itertools
 from datetime import timedelta
 from decimal import Decimal
 from io import BytesIO
 from typing import List
+import uuid
 
 import pytest
 from _pytest.fixtures import fixture
@@ -430,12 +432,36 @@ def test_export_sale_report_new(
         state=ApartmentReservationState.SOLD,
         timestamp=timezone.now(),
     )
+    ApartmentReservationStateChangeEventFactory(
+        state=ApartmentReservationState.SOLD,
+        timestamp=timezone.now(),
+    )
+    
+    # add a duplicate SOLD-event for apartment
+    reservation = ApartmentReservation.objects.filter(
+        apartment_uuid=apartments[0].uuid
+    ).last()
+    
+    ApartmentReservationStateChangeEventFactory(
+        state=ApartmentReservationState.SOLD,
+        timestamp=timezone.now(),
+        reservation=reservation
+    )
 
     state_events = ApartmentReservationStateChangeEvent.objects.filter(
         state=ApartmentReservationState.SOLD, timestamp__range=[start, end]
     )
 
     export_service = XlsxSalesReportExportService(state_events)
+    
+    # check that duplicate uuids are cleaned out
+    duplicate_uuids = [
+        uuid 
+        for uuid, count in collections.Counter(export_service.sold_apartment_uuids).items() 
+        if count > 1
+    ]
+    # import ipdb;ipdb.set_trace()
+    assert len(duplicate_uuids) <= 0
 
     # test that invalid money amounts are handled right
     cent_sum = export_service._sum_cents([100, 100, None, 100])
