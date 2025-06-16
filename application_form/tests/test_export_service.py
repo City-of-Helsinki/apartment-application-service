@@ -3,12 +3,14 @@ import itertools
 from datetime import timedelta
 from decimal import Decimal
 from io import BytesIO
-from typing import List
+from typing import List, Union
 import uuid
 
+from application_form.tests.conftest import sell_apartments
 import pytest
 from _pytest.fixtures import fixture
 from django.utils import timezone
+from django.db.models import QuerySet
 
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import (
@@ -379,53 +381,51 @@ def test_export_project_lottery_result(
         None,
     )
 
+def get_sold_state_events(
+        start=timezone.now() - timedelta(days=7), 
+        end=timezone.now() + timedelta(days=7)
+    ) -> Union[QuerySet, List[ApartmentReservationStateChangeEvent]]:
+    """Fetches all ApartmentReservationStateChangeEvent objects with 
+
+    Args:
+        start (Datetime): Find state change events from this date onwards.
+        end (Datetime): Find state change events that are at the latest from this date
+
+    Returns:
+        Union[QuerySet, List[ApartmentReservationStateChangeEvent]]
+    """
+    return ApartmentReservationStateChangeEvent.objects.filter(
+        state=ApartmentReservationState.SOLD, timestamp__range=[start, end]
+    )
+    pass
+
+@pytest.mark.django_db
+def test_sale_report_invalid_money_amount():
+    """test that invalid money amounts are handled right"""
+
+    # QuerySet contents are irrelevant, just need to init the ExportService
+    sold_events = ApartmentReservationStateChangeEvent.objects.all()
+    cent_sum = XlsxSalesReportExportService(sold_events)._sum_cents(
+        [100, 100, None, 100]
+    )
+    assert cent_sum == Decimal(3)
 
 @pytest.mark.django_db
 def test_export_sale_report_new(
     elastic_hitas_project_with_5_apartments,
-    elastic_haso_project_with_5_apartments,
+    elastic_haso_project_with_5_apartments
 ):
-    projects = []
-    projects_apartments = {}
+    sold_apartments_count = 4
 
-    for i in range(2):
-        if i % 2 == 0:
-            project_uuid, _ = elastic_hitas_project_with_5_apartments
-        else:
-            project_uuid, _ = elastic_haso_project_with_5_apartments
-        apartment_uuids = get_apartment_uuids(project_uuid)
-        for apartment_uuid in apartment_uuids:
-            apt_app = ApplicationApartmentFactory.create_batch(
-                2, apartment_uuid=apartment_uuid
-            )
-            add_application_to_queues(apt_app[0].application)
-            add_application_to_queues(apt_app[1].application)
-        distribute_apartments(project_uuid)
-
-        projects.append(get_project(project_uuid))
-    projects = sorted(projects, key=lambda x: x.project_street_address)
-
-    apartments_to_sell = 4
-    # Now sold some apartment
-    for project in projects:
-        apartments = get_apartments(project.project_uuid, include_project_fields=True)
-        for i, apartment in enumerate(apartments):
-            # 4 apartments sold per project
-            if i <= (apartments_to_sell - 1):
-                reservation = (
-                    ApartmentReservation.objects.filter(apartment_uuid=apartment.uuid)
-                    .reserved()
-                    .first()
-                )
-                reservation.set_state(ApartmentReservationState.SOLD)
-        projects_apartments[project.project_uuid] = apartments
-
-    all_apartments = list(
-        itertools.chain.from_iterable(a for a in projects_apartments.values())
+    hitas_project, hitas_apartments = sell_apartments(
+        elastic_hitas_project_with_5_apartments[0], sold_apartments_count
     )
 
-    start = timezone.now() - timedelta(days=7)
-    end = timezone.now() + timedelta(days=7)
+    haso_project, haso_apartments = sell_apartments(
+        elastic_haso_project_with_5_apartments[0], sold_apartments_count
+    )
+
+    all_apartments = [*hitas_apartments, *haso_apartments]
 
     # add event with non-existing apartment
     ApartmentReservationStateChangeEventFactory(
@@ -438,19 +438,15 @@ def test_export_sale_report_new(
     )
     
     # add a duplicate SOLD-event for apartment
-    reservation = ApartmentReservation.objects.filter(
-        apartment_uuid=apartments[0].uuid
-    ).last()
-    
+    reservation = ApartmentReservation.objects.filter().last()
+
     ApartmentReservationStateChangeEventFactory(
         state=ApartmentReservationState.SOLD,
         timestamp=timezone.now(),
         reservation=reservation
     )
 
-    state_events = ApartmentReservationStateChangeEvent.objects.filter(
-        state=ApartmentReservationState.SOLD, timestamp__range=[start, end]
-    )
+    state_events = get_sold_state_events()
 
     export_service = XlsxSalesReportExportService(state_events)
     
@@ -463,20 +459,9 @@ def test_export_sale_report_new(
     # import ipdb;ipdb.set_trace()
     assert len(duplicate_uuids) <= 0
 
-    # test that invalid money amounts are handled right
-    cent_sum = export_service._sum_cents([100, 100, None, 100])
-    assert cent_sum == Decimal(3)
-
     workbook = export_service.write_xlsx_file()
 
     assert isinstance(workbook, BytesIO)
-
-    # explicitly find the projects to avoid flaky test
-    hitas_project = [p for p in projects if not export_service._is_haso(p)][0]
-    hitas_apartments = projects_apartments[hitas_project.project_uuid]
-
-    haso_project = [p for p in projects if export_service._is_haso(p)][0]
-    haso_apartments = projects_apartments[haso_project.project_uuid]
 
     def get_sale_timestamp(apt: ApartmentDocument):
         event = state_events.get(reservation__apartment_uuid=apt.uuid)
@@ -489,14 +474,14 @@ def test_export_sale_report_new(
     ) == [
         hitas_project.project_street_address,
         5,  # total apartments in project
-        apartments_to_sell,  # apartments sold
+        sold_apartments_count,  # apartments sold
         "",  # empty on HITAS project
         1,  # unsold apartments
     ]
 
     assert export_service._get_project_apartment_count_row(
         haso_project, haso_apartments
-    ) == [haso_project.project_street_address, 5, "", apartments_to_sell, 1]
+    ) == [haso_project.project_street_address, 5, "", sold_apartments_count, 1]
 
     assert export_service._get_apartment_row(hitas_apartments[0]) == [
         hitas_apartments[0].apartment_number,
@@ -529,9 +514,9 @@ def test_export_sale_report_new(
 
     excluded_apartment = haso_apartments[0]
     # exclude one apartment's state events
-    state_events = ApartmentReservationStateChangeEvent.objects.filter(
-        state=ApartmentReservationState.SOLD, timestamp__range=[start, end]
-    ).exclude(reservation__apartment_uuid=excluded_apartment.uuid)
+    state_events = get_sold_state_events().exclude(
+        reservation__apartment_uuid=excluded_apartment.uuid
+    )
     export_service = XlsxSalesReportExportService(state_events)
     # should not have a row if sold event was not found
     rows = export_service.get_rows()
@@ -556,9 +541,9 @@ def test_export_sale_report_new(
         ]
     )
 
-    state_events_no_hitas_project = ApartmentReservationStateChangeEvent.objects.filter(
-        state=ApartmentReservationState.SOLD, timestamp__range=[start, end]
-    ).exclude(reservation__apartment_uuid__in=[apt.uuid for apt in hitas_apartments])
+    state_events_no_hitas_project = get_sold_state_events().exclude(
+        reservation__apartment_uuid__in=[apt.uuid for apt in hitas_apartments]
+    )
 
     export_service = XlsxSalesReportExportService(state_events_no_hitas_project)
 
