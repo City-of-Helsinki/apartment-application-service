@@ -222,9 +222,9 @@ class SaleReportAPIView(APIView):
             end_date_obj = end_date_obj.replace(tzinfo=tz)
 
         state_events = ApartmentReservationStateChangeEvent.objects.filter(
-            timestamp__range=[
-                datetime.combine(start_date_obj, time.min),
-                datetime.combine(end_date_obj, time.max),
+            timestamp__date__range=[
+                start_date_obj,
+                end_date_obj,
             ],
             state=ApartmentReservationState.SOLD,
         )

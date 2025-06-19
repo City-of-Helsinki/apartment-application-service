@@ -386,7 +386,12 @@ class XlsxSalesReportExportService(XlsxExportService):
 
         # need to convert to str for comparison
         self.sold_apartment_uuids = list(
-            map(str, sold_events.values_list("reservation__apartment_uuid", flat=True))
+            map(str, 
+                sold_events
+                .order_by()
+                .distinct()
+                .values_list("reservation__apartment_uuid", flat=True)
+            )
         )
         self.projects = self._get_projects()
         _logger.debug(
@@ -394,6 +399,54 @@ class XlsxSalesReportExportService(XlsxExportService):
             self.projects,
             self.sold_apartment_uuids,
         )
+
+    def _get_project_totals(self, project:ApartmentDocument) -> dict:
+        """Groups total sold HITAS, sold HASO apartments, counts unsold apartments
+        and the total sales sums for a project.
+
+        Args:
+            project (ApartmentDocument): _description_
+
+        Returns:
+            dict: ```
+            {
+                "sold_haso_apartments": List[ApartmentDocument],
+                "sold_hitas_apartments": List[ApartmentDocument],
+                "unsold_apartments_count": int,
+                "sold_apartments_haso_sum": Decimal,
+                "sold_apartments_hitas_sum": Decimal
+            }
+            ```
+        """
+        project_apartments = get_apartments(
+            project.project_uuid, include_project_fields=True
+        )
+        sold_apartments = self._get_sold_apartments(project_apartments)
+        sold_hitas_apartments = self._get_hitas_apartments(sold_apartments)
+        sold_haso_apartments = self._get_haso_apartments(sold_apartments)
+
+        haso_sum = self._sum_cents(
+            x.right_of_occupancy_payment or 0 for x in sold_haso_apartments
+        )
+        hitas_sales_price_sum = self._sum_cents(
+            x.sales_price or 0 for x in sold_hitas_apartments
+        )
+        hitas_debt_free_sales_price_sum = self._sum_cents(
+            x.debt_free_sales_price or 0 for x in sold_hitas_apartments
+        )
+
+
+        unsold_count = self._get_unsold_count(project_apartments)
+
+        return {
+            "sold_haso_apartments": sold_hitas_apartments,
+            "sold_hitas_apartments": sold_haso_apartments,
+            "unsold_count": unsold_count,
+            "haso_sum": haso_sum,
+            "hitas_sales_price_sum": hitas_sales_price_sum,
+            "hitas_debt_free_sales_price_sum":hitas_debt_free_sales_price_sum
+        }
+        pass
 
     def get_rows(self):
         apartments = []
@@ -432,7 +485,7 @@ class XlsxSalesReportExportService(XlsxExportService):
                 "Myymättömät asunnot",
                 self.HIGHLIGHT_COLOR,
             ],
-        ]
+       ]
 
         sum_rows = [
             [""],
@@ -513,6 +566,7 @@ class XlsxSalesReportExportService(XlsxExportService):
     def _get_project_apartment_count_row(
         self, project: ApartmentDocument, apartments: List[ApartmentDocument]
     ) -> List:
+
         sold_apartments = self._get_sold_apartments(apartments)
         is_haso = self._is_haso(project)
         is_hitas = self._is_hitas(project)
@@ -558,7 +612,7 @@ class XlsxSalesReportExportService(XlsxExportService):
 
         return row
 
-    def _get_unsold_count(self, apartments: List[ApartmentDocument]):
+    def _get_unsold_count(self, apartments: List[ApartmentDocument]) -> int:
         """Counts unsold apartments based on the apartment's state, disregarding
         any 'sold'-events the apartment may have.
 
@@ -584,8 +638,7 @@ class XlsxSalesReportExportService(XlsxExportService):
         """
 
         return [
-            apartment
-            for apartment in self._get_sold_apartments_based_on_state(apartments)
+            apartment for apartment in self._get_sold_apartments_based_on_state(apartments)
             if apartment.uuid in self.sold_apartment_uuids
         ]
 
