@@ -270,7 +270,10 @@ class SaleReportAPIView(APIView):
             state_events.count(),
         )
 
-        export_services = XlsxSalesReportExportService(state_events)
+        export_services = XlsxSalesReportExportService(
+            state_events,
+            project_uuids
+        )
         xlsx_file = export_services.write_xlsx_file()
         file_name = format_lazy(
             _("Sale report {start_date} - {end_date}"),

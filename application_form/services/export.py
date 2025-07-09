@@ -381,8 +381,9 @@ class XlsxSalesReportExportService(XlsxExportService):
     COL_WIDTH = 26
     HIGHLIGHT_COLOR = "#E8E8E8"
 
-    def __init__(self, sold_events):
+    def __init__(self, sold_events, project_uuids):
         self.sold_events = sold_events
+        self.project_uuids = project_uuids
 
         # need to convert to str for comparison
         self.sold_apartment_uuids = list(
@@ -517,7 +518,7 @@ class XlsxSalesReportExportService(XlsxExportService):
             project (ApartmentDocument): Project
             apartments (List[ApartmentDocument]): List of apartments for the project.
             Passed as an argument to reduce calls to `get_apartments()`
-            first (bool): Is it the first project to be handled?
+            first (bool): if `True`, adds a header row before the other rows
         """
         _logger.debug("Project %s", project.project_uuid)
 
@@ -525,8 +526,6 @@ class XlsxSalesReportExportService(XlsxExportService):
         is_haso = project.project_ownership_type.lower() == OwnershipType.HASO.value
         is_hitas = project.project_ownership_type.lower() == OwnershipType.HITAS.value
 
-        if len(sold_apartments) <= 0:
-            return []
 
         rows = []
         rows.append(self._get_project_apartment_count_row(project, apartments))
@@ -734,18 +733,15 @@ class XlsxSalesReportExportService(XlsxExportService):
     def _get_projects(self):
         projects = []
         uuids = []
-        for e in self.sold_events:
+        for project_uuid in self.project_uuids:
             try:
-                project_uuid = get_apartment_project_uuid(
-                    e.reservation.apartment_uuid
-                ).project_uuid
                 if project_uuid not in uuids:
                     projects.append(get_project(project_uuid))
                     uuids.append(project_uuid)
             except ObjectDoesNotExist:
                 _logger.error(
-                    "Apartment %s does not exist in ElasticSearch",
-                    e.reservation.apartment_uuid,
+                    "Project %s does not exist in ElasticSearch",
+                    project_uuid,
                 )
 
         return sorted(projects, key=lambda x: x.project_street_address)
