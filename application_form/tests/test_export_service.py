@@ -389,7 +389,8 @@ def get_sold_state_events(
         start=timezone.now() - timedelta(days=7), 
         end=timezone.now() + timedelta(days=7)
     ) -> Union[QuerySet, List[ApartmentReservationStateChangeEvent]]:
-    """Fetches all ApartmentReservationStateChangeEvent objects with 
+    """Fetches all ApartmentReservationStateChangeEvent objects within the given
+    date range
 
     Args:
         start (Datetime): Find state change events from this date onwards.
@@ -409,10 +410,42 @@ def test_sale_report_invalid_money_amount():
 
     # QuerySet contents are irrelevant, just need to init the ExportService
     sold_events = ApartmentReservationStateChangeEvent.objects.all()
-    cent_sum = XlsxSalesReportExportService(sold_events)._sum_cents(
+    cent_sum = XlsxSalesReportExportService(sold_events, [])._sum_cents(
         [100, 100, None, 100]
     )
     assert cent_sum == Decimal(3)
+
+@pytest.mark.django_db
+def test_export_project_with_no_sales_shows_on_report():
+    apartments = []
+    apartment = ApartmentDocumentFactory(project_ownership_type="Hitas")
+    apartments.append(apartment)
+    for _ in range(2):
+        apartment = ApartmentDocumentFactory(
+            project_ownership_type="Hitas",
+            project_uuid=apartment.project_uuid
+        )
+        apartments.append(apartment)
+
+    sell_apartments(apartment.project_uuid, len(apartments))
+
+    # create apartment on a new project
+    unsold_apartment = ApartmentDocumentFactory(project_ownership_type="Hitas")
+    apartments.append(unsold_apartment)
+    sales_event = get_sold_state_events()
+
+    # get project uuids for test
+    project_uuids = list(set(str(a.project_uuid) for a in apartments))
+
+    export_service = XlsxSalesReportExportService(sales_event, project_uuids)
+    unsold_project_rows = export_service._get_project_rows(
+        get_project(unsold_apartment.project_uuid),
+        [unsold_apartment],
+        True
+    )
+
+    assert len(unsold_project_rows) > 0
+    pass
 
 @pytest.mark.django_db
 def test_export_canceled_sales_should_not_count():
@@ -431,21 +464,17 @@ def test_export_canceled_sales_should_not_count():
 
 
     # cancel the sale
-    reservations = ApartmentReservation.objects.filter( apartment_uuid=apartment_with_canceled_sale.uuid ).order_by("id")
-    timestamp = timezone.now().date()
-
-    import ipdb;ipdb.set_trace()
-    # TODO: add new reservation with state RESERVED here
+    reservations = ApartmentReservation.objects.filter(
+        apartment_uuid=apartment_with_canceled_sale.uuid 
+    ).order_by("id")
     reservations.last().set_state(ApartmentReservationState.RESERVED)
+    cancel_reservation( reservations.last(), user=get_user_model().objects.first(), )
 
-    cancel_event = cancel_reservation( reservations.last(), user=get_user_model().objects.first(), )
     # get state change events
     state_events = get_sold_state_events()
-    export_service = XlsxSalesReportExportService(state_events)
-
+    export_service = XlsxSalesReportExportService(state_events, [apartment.project_uuid])
 
     # we have one canceled sale so it shouldn't count as sold
-    # should it?
     assert len(export_service._get_sold_apartments(apartments)) != len(apartments)
 
 @pytest.mark.django_db
@@ -491,7 +520,13 @@ def test_export_sale_report_new(
 
     state_events = get_sold_state_events()
 
-    export_service = XlsxSalesReportExportService(state_events)
+    export_service = XlsxSalesReportExportService(
+        state_events, 
+        [
+            hitas_apartments[0].project_uuid, 
+            haso_apartments[0].project_uuid
+        ]
+    )
 
     # check that duplicate uuids are cleaned out
     duplicate_uuids = [
@@ -570,7 +605,10 @@ def test_export_sale_report_new(
     state_events = get_sold_state_events().exclude(
         reservation__apartment_uuid=excluded_apartment.uuid
     )
-    export_service = XlsxSalesReportExportService(state_events)
+    export_service = XlsxSalesReportExportService(state_events, [
+        haso_project.project_uuid,
+        hitas_project.project_uuid
+    ])
 
     export_service._get_project_apartment_count_row( haso_project, haso_apartments )
 
@@ -603,7 +641,10 @@ def test_export_sale_report_new(
         reservation__apartment_uuid__in=[apt.uuid for apt in hitas_apartments]
     )
 
-    export_service = XlsxSalesReportExportService(state_events_no_hitas_project)
+    export_service = XlsxSalesReportExportService(state_events_no_hitas_project, [
+        haso_project.project_uuid,
+        hitas_project.project_uuid
+    ])
 
     assert export_service._get_unsold_count(all_apartments) == expected_unsold_count
 
