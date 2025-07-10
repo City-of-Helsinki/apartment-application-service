@@ -8,9 +8,11 @@ from decimal import Decimal
 from io import BytesIO, StringIO
 from typing import List, Union
 
+from application_form.services.types import SalesReportProjectTotalsDict
 import xlsxwriter
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Max, QuerySet
+
 
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import (
@@ -387,11 +389,11 @@ class XlsxSalesReportExportService(XlsxExportService):
 
         # need to convert to str for comparison
         self.sold_apartment_uuids = list(
-            map(str, 
-                sold_events
-                .order_by()
+            map(
+                str,
+                sold_events.order_by()
                 .distinct()
-                .values_list("reservation__apartment_uuid", flat=True)
+                .values_list("reservation__apartment_uuid", flat=True),
             )
         )
         self.projects = self._get_projects()
@@ -401,7 +403,9 @@ class XlsxSalesReportExportService(XlsxExportService):
             self.sold_apartment_uuids,
         )
 
-    def _get_project_totals(self, project:ApartmentDocument) -> dict:
+    def _get_project_totals(
+        self, project: ApartmentDocument
+    ) -> SalesReportProjectTotalsDict:
         """Groups total sold HITAS, sold HASO apartments, counts unsold apartments
         and the total sales sums for a project.
 
@@ -411,11 +415,12 @@ class XlsxSalesReportExportService(XlsxExportService):
         Returns:
             dict: ```
             {
-                "sold_haso_apartments": List[ApartmentDocument],
-                "sold_hitas_apartments": List[ApartmentDocument],
-                "unsold_apartments_count": int,
-                "sold_apartments_haso_sum": Decimal,
-                "sold_apartments_hitas_sum": Decimal
+                "sold_haso_apartments_count": int
+                "sold_hitas_apartments_count": int
+                "unsold_apartments_count": int
+                "haso_right_of_occupancy_payment_sum": Decimal
+                "hitas_sales_price_sum": Decimal
+                "hitas_debt_free_sales_price_sum": Decimal
             }
             ```
         """
@@ -426,7 +431,7 @@ class XlsxSalesReportExportService(XlsxExportService):
         sold_hitas_apartments = self._get_hitas_apartments(sold_apartments)
         sold_haso_apartments = self._get_haso_apartments(sold_apartments)
 
-        haso_sum = self._sum_cents(
+        haso_right_of_occupancy_payment_sum = self._sum_cents(
             x.right_of_occupancy_payment or 0 for x in sold_haso_apartments
         )
         hitas_sales_price_sum = self._sum_cents(
@@ -436,18 +441,16 @@ class XlsxSalesReportExportService(XlsxExportService):
             x.debt_free_sales_price or 0 for x in sold_hitas_apartments
         )
 
-
-        unsold_count = self._get_unsold_count(project_apartments)
+        unsold_apartments_count = self._get_unsold_count(project_apartments)
 
         return {
-            "sold_haso_apartments": sold_hitas_apartments,
-            "sold_hitas_apartments": sold_haso_apartments,
-            "unsold_count": unsold_count,
-            "haso_sum": haso_sum,
+            "sold_haso_apartments_count": len(sold_hitas_apartments),
+            "sold_hitas_apartments_count": len(sold_haso_apartments),
+            "unsold_apartments_count": unsold_apartments_count,
+            "haso_right_of_occupancy_payment_sum": haso_right_of_occupancy_payment_sum,
             "hitas_sales_price_sum": hitas_sales_price_sum,
-            "hitas_debt_free_sales_price_sum":hitas_debt_free_sales_price_sum
+            "hitas_debt_free_sales_price_sum": hitas_debt_free_sales_price_sum,
         }
-        pass
 
     def get_rows(self):
         apartments = []
@@ -486,7 +489,7 @@ class XlsxSalesReportExportService(XlsxExportService):
                 "Myymättömät asunnot",
                 self.HIGHLIGHT_COLOR,
             ],
-       ]
+        ]
 
         sum_rows = [
             [""],
@@ -525,10 +528,20 @@ class XlsxSalesReportExportService(XlsxExportService):
         sold_apartments = self._get_sold_apartments(apartments)
         is_haso = project.project_ownership_type.lower() == OwnershipType.HASO.value
         is_hitas = project.project_ownership_type.lower() == OwnershipType.HITAS.value
-
+        totals = self._get_project_totals(project)
 
         rows = []
-        rows.append(self._get_project_apartment_count_row(project, apartments))
+        # rows.append(self._get_project_apartment_count_row(project, apartments))
+        rows.append(
+            [
+                project.project_street_address,
+                len(apartments),
+                totals["sold_hitas_apartments_count"],
+                totals["sold_haso_apartments_count"],
+                totals["unsold_apartments_count"],
+            ]
+        )
+
         if first:
             rows.append(
                 [
@@ -546,15 +559,9 @@ class XlsxSalesReportExportService(XlsxExportService):
 
         totals_row = [
             "Yhteensä",
-            self._sum_cents(x.sales_price or 0 for x in sold_apartments)
-            if is_hitas
-            else "",  # noqa: E501
-            self._sum_cents(x.debt_free_sales_price or 0 for x in sold_apartments)
-            if is_hitas
-            else "",  # noqa: E501
-            self._sum_cents(x.right_of_occupancy_payment or 0 for x in sold_apartments)
-            if is_haso
-            else "",  # noqa: E501
+            totals["haso_right_of_occupancy_payment_sum"] if is_hitas else "",  # noqa: E501
+            totals["hitas_debt_free_sales_price_sum"] if is_hitas else "",  # noqa: E501
+            totals["haso_right_of_occupancy_payment_sum"] if is_haso else "",  # noqa: E501
             self.HIGHLIGHT_COLOR,
         ]
         rows.append(totals_row)
@@ -637,7 +644,8 @@ class XlsxSalesReportExportService(XlsxExportService):
         """
 
         return [
-            apartment for apartment in self._get_sold_apartments_based_on_state(apartments)
+            apartment
+            for apartment in self._get_sold_apartments_based_on_state(apartments)
             if apartment.uuid in self.sold_apartment_uuids
         ]
 
