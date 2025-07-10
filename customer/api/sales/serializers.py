@@ -13,7 +13,7 @@ from application_form.api.serializers import (
 from application_form.enums import ApartmentReservationState
 from application_form.models import ApartmentReservation, LotteryEvent
 from application_form.utils import get_apartment_number_sort_tuple
-from customer.models import Customer
+from customer.models import Customer, CustomerComment
 from invoicing.api.serializers import ApartmentInstallmentSerializer
 from users.api.sales.serializers import ProfileSerializer
 from users.models import Profile
@@ -217,3 +217,12 @@ class CustomerListSerializer(serializers.ModelSerializer):
         if obj.secondary_profile:
             return obj.secondary_profile.last_name
         return None
+
+
+class CustomerCommentSerializer(serializers.ModelSerializer):
+    author = ProfileSerializer(read_only=True)
+
+    class Meta:
+        model = CustomerComment
+        fields = ("id", "customer", "author", "content", "created_at")
+        read_only_fields = ("id", "author", "created_at", "customer")

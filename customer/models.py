@@ -1,6 +1,7 @@
 """
 Customer models.
 """
+
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q, UniqueConstraint
@@ -68,3 +69,26 @@ class Customer(TimestampedModel, CommonApplicationData):
     def save(self, *args, **kwargs):
         self.clean()
         super().save(*args, **kwargs)
+
+
+class CustomerComment(models.Model):
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.CASCADE,
+        related_name="comments",
+        verbose_name=_("customer"),
+    )
+    author = models.ForeignKey(
+        Profile,
+        on_delete=models.PROTECT,
+        related_name="customer_comments",
+        verbose_name=_("author"),
+    )
+    content = models.TextField(_("comment content"))
+    created_at = models.DateTimeField(_("created at"), auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    def __str__(self):
+        return f"{self.customer} | {self.author}: {self.content[:20]}"
