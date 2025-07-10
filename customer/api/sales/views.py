@@ -8,7 +8,6 @@ from customer.api.sales.serializers import (
     CustomerSerializer,
 )
 from customer.models import Customer, CustomerComment
-from users.models import Profile
 
 
 class CustomerViewSet(AuditLoggingModelViewSet):
