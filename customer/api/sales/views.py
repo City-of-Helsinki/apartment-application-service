@@ -1,8 +1,13 @@
 from django.db.models import Q
+from rest_framework import mixins, permissions, viewsets
 
 from audit_log.viewsets import AuditLoggingModelViewSet
-from customer.api.sales.serializers import CustomerListSerializer, CustomerSerializer
-from customer.models import Customer
+from customer.api.sales.serializers import (
+    CustomerCommentSerializer,
+    CustomerListSerializer,
+    CustomerSerializer,
+)
+from customer.models import Customer, CustomerComment
 
 
 class CustomerViewSet(AuditLoggingModelViewSet):
@@ -60,3 +65,23 @@ class CustomerViewSet(AuditLoggingModelViewSet):
         if self.action == "list":
             return CustomerListSerializer
         return super().get_serializer_class()
+
+
+class CustomerCommentViewSet(
+    mixins.ListModelMixin,
+    mixins.CreateModelMixin,
+    viewsets.GenericViewSet,
+):
+    serializer_class = CustomerCommentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        customer_id = self.kwargs["customer_pk"]
+        return CustomerComment.objects.filter(customer_id=customer_id).select_related(
+            "author", "customer"
+        )
+
+    def perform_create(self, serializer):
+        customer = Customer.objects.get(pk=self.kwargs["customer_pk"])
+        profile = self.request.user.profile
+        serializer.save(customer=customer, author=profile)
