@@ -6,7 +6,7 @@ from datetime import timedelta
 from unittest.mock import Mock
 
 from apartment.elastic.documents import ApartmentDocument
-from apartment.elastic.queries import get_apartment_uuids, get_apartments, get_project
+from apartment.elastic.queries import get_apartments, get_project
 from application_form.services.lottery.machine import distribute_apartments
 from application_form.services.queue import add_application_to_queues
 import faker.config
@@ -24,9 +24,16 @@ from apartment_application_service.settings import (
     METADATA_HITAS_PROCESS_NUMBER,
 )
 from application_form.api.serializers import ApplicationSerializer
-from application_form.enums import ApartmentReservationState, ApplicationArrivalMethod, ApplicationType
+from application_form.enums import (
+    ApartmentReservationState,
+    ApplicationArrivalMethod,
+    ApplicationType,
+)
 from application_form.models import ApartmentReservation
-from application_form.tests.factories import ApplicantFactory, ApplicationApartmentFactory
+from application_form.tests.factories import (
+    ApplicantFactory,
+    ApplicationApartmentFactory,
+)
 from application_form.tests.utils import (
     calculate_ssn_suffix,
     get_elastic_apartments_uuids,
@@ -283,6 +290,7 @@ def elastic_hitas_project_application_end_time_finished(elasticsearch):
     yield apartment.project_uuid, apartment
     apartment.delete(refresh=True)
 
+
 @fixture
 def elastic_haso_project_application_end_time_finished(elasticsearch):
     apartment = ApartmentDocumentFactory(
@@ -292,10 +300,10 @@ def elastic_haso_project_application_end_time_finished(elasticsearch):
     yield apartment.project_uuid, apartment
     apartment.delete(refresh=True)
 
+
 def sell_apartments(
-        project_uuid: str,
-        sell_count: int
-    ) -> Tuple[ApartmentDocument, List[ApartmentDocument]]:
+    project_uuid: str, sell_count: int
+) -> Tuple[ApartmentDocument, List[ApartmentDocument]]:
     """Sets the state of apartments in the given project to SOLD and creates
     the necessary ApartmentReservationStateChangeEvent objects into test db.
 
@@ -336,21 +344,22 @@ def sell_apartments(
 
     return (project, apartments)
 
+
 @fixture
-def elastic_hitas_project_with_4_sold_apartments( 
-        elastic_hitas_project_with_5_apartments
-    ):
+def elastic_hitas_project_with_4_sold_apartments(
+    elastic_hitas_project_with_5_apartments,
+):
     hitas_project, hitas_apartments = sell_apartments(
         elastic_hitas_project_with_5_apartments[0], 4
     )
     yield hitas_project, hitas_apartments
 
+
 @fixture
-def elastic_haso_project_with_4_sold_apartments(
-        elastic_haso_project_with_5_apartments
-    ):
+def elastic_haso_project_with_4_sold_apartments(elastic_haso_project_with_5_apartments):
     project, apartments = elastic_haso_project_with_5_apartments
     yield project, apartments
+
 
 def create_application_data(
     profile, application_type=ApplicationType.HASO, num_applicants=2

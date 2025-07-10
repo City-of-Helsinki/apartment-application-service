@@ -1,6 +1,5 @@
 import itertools
 import logging
-from datetime import datetime, time
 
 from dateutil import parser
 from django.core.exceptions import ObjectDoesNotExist
@@ -270,10 +269,7 @@ class SaleReportAPIView(APIView):
             state_events.count(),
         )
 
-        export_services = XlsxSalesReportExportService(
-            state_events,
-            project_uuids
-        )
+        export_services = XlsxSalesReportExportService(state_events, project_uuids)
         xlsx_file = export_services.write_xlsx_file()
         file_name = format_lazy(
             _("Sale report {start_date} - {end_date}"),
