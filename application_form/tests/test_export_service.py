@@ -17,6 +17,7 @@ from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import (
     get_apartment,
     get_apartment_uuids,
+    get_apartments,
     get_project,
 )
 from apartment.utils import get_apartment_state_from_apartment_uuid
@@ -415,31 +416,58 @@ def test_sale_report_invalid_money_amount():
 
 @pytest.mark.django_db
 def test_export_project_with_no_sales_shows_on_report():
-    apartments = []
-    apartment = ApartmentDocumentFactory(project_ownership_type="Hitas")
-    apartments.append(apartment)
-    for _ in range(2):
+    """Projects with no sales should be still shown on report when selected"""
+    sold_apartments_project = ApartmentDocumentFactory(project_ownership_type="Hitas")
+    apartments = [sold_apartments_project]
+
+    sell_count = 2
+
+    for _ in range(4):
         apartment = ApartmentDocumentFactory(
-            project_ownership_type="Hitas", project_uuid=apartment.project_uuid
+            project_ownership_type="Hitas",
+            project_uuid=sold_apartments_project.project_uuid,
         )
         apartments.append(apartment)
 
-    sell_apartments(apartment.project_uuid, len(apartments))
+    sell_apartments(sold_apartments_project.project_uuid, sell_count)
 
     # create apartment on a new project
-    unsold_apartment = ApartmentDocumentFactory(project_ownership_type="Hitas")
-    apartments.append(unsold_apartment)
-    sales_event = get_sold_state_events()
+    unsold_apartments_project = ApartmentDocumentFactory(project_ownership_type="Hitas")
+    apartments.append(unsold_apartments_project)
 
-    # get project uuids for test
-    project_uuids = list(set(str(a.project_uuid) for a in apartments))
+    for _ in range(4):
+        unsold_apartment = ApartmentDocumentFactory(
+            project_ownership_type="Hitas",
+            project_uuid=unsold_apartments_project.project_uuid,
+        )
+        apartments.append(unsold_apartment)
 
-    export_service = XlsxSalesReportExportService(sales_event, project_uuids)
+    sales_events = get_sold_state_events()
+
+    project_uuids = [
+        sold_apartments_project.project_uuid,
+        unsold_apartments_project.project_uuid,
+    ]
+
+    export_service = XlsxSalesReportExportService(sales_events, project_uuids)
+    export_service.get_rows()
     unsold_project_rows = export_service._get_project_rows(
-        get_project(unsold_apartment.project_uuid), [unsold_apartment], True
+        get_project(unsold_apartment.project_uuid),
+        get_apartments(unsold_apartments_project.project_uuid, True),
+        True,
     )
 
     assert len(unsold_project_rows) > 0
+
+    # assert unsold apartments are calculated correctly
+    assert export_service._get_total_sold_row(apartments) == [
+        "Kaupat lukumäärä yhteensä",
+        "",
+        sell_count,
+        0,
+        len(apartments) - sell_count,
+        "#E8E8E8",
+    ]
     pass
 
 
@@ -545,29 +573,48 @@ def test_export_sale_report_new(
 
     assert len(export_service._get_sold_apartments(hitas_apartments)) == 4
 
-    assert export_service._get_project_apartment_count_row(
-        hitas_project, hitas_apartments
-    ) == [
-        hitas_project.project_street_address,
-        5,  # total apartments in project
-        sold_apartments_count,  # apartments sold
-        "",  # empty on HITAS project
-        1,  # unsold apartments
-    ]
+    # test project total calculations
+    hitas_project_totals = export_service._get_project_totals(hitas_project)
+    haso_project_totals = export_service._get_project_totals(haso_project)
 
-    assert export_service._get_project_apartment_count_row(
-        haso_project, haso_apartments
-    ) == [
-        haso_project.project_street_address,
-        5,  # total apartments in project
-        "",  # empty on HASO project
-        4,  # sold apartments
-        1,  # unsold apartments
-    ]
+    # hitas totals
+    assert hitas_project_totals["sold_haso_apartments_count"] == 0
+    assert hitas_project_totals["haso_right_of_occupancy_payment_sum"] == 0
+    assert hitas_project_totals["sold_hitas_apartments_count"] == sold_apartments_count
+    assert hitas_project_totals["unsold_apartments_count"] == (
+        len(hitas_apartments) - sold_apartments_count
+    )
+    assert hitas_project_totals["hitas_sales_price_sum"] == export_service._sum_cents(
+        [
+            apt.sales_price
+            for apt in export_service._get_sold_apartments(hitas_apartments)
+        ]
+    )
+    assert hitas_project_totals[
+        "hitas_debt_free_sales_price_sum"
+    ] == export_service._sum_cents(
+        [  # noqa: E501
+            apt.debt_free_sales_price
+            for apt in export_service._get_sold_apartments(hitas_apartments)
+        ]
+    )
 
-    assert export_service._get_project_apartment_count_row(
-        haso_project, haso_apartments
-    ) == [haso_project.project_street_address, 5, "", sold_apartments_count, 1]
+    # haso totals
+    assert haso_project_totals["sold_haso_apartments_count"] == sold_apartments_count
+    assert haso_project_totals[
+        "haso_right_of_occupancy_payment_sum"
+    ] == export_service._sum_cents(
+        [
+            apt.right_of_occupancy_payment
+            for apt in export_service._get_sold_apartments(haso_apartments)
+        ]
+    )
+    assert haso_project_totals["sold_hitas_apartments_count"] == 0
+    assert haso_project_totals["unsold_apartments_count"] == (
+        len(hitas_apartments) - sold_apartments_count
+    )
+    assert haso_project_totals["hitas_sales_price_sum"] == 0
+    assert haso_project_totals["hitas_debt_free_sales_price_sum"] == 0
 
     assert export_service._get_apartment_row(hitas_apartments[0]) == [
         hitas_apartments[0].apartment_number,
@@ -607,11 +654,7 @@ def test_export_sale_report_new(
         state_events, [haso_project.project_uuid, hitas_project.project_uuid]
     )
 
-    export_service._get_project_apartment_count_row(haso_project, haso_apartments)
-
-    export_service._get_project_apartment_count_row(hitas_project, hitas_apartments)
     # should not have a row if sold event was not found
-
     rows = export_service.get_rows()
     apartment_row_that_should_not_exist = export_service._get_apartment_row(
         excluded_apartment

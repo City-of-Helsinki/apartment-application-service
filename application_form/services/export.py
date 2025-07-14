@@ -11,7 +11,8 @@ from typing import List, Union
 from application_form.services.types import SalesReportProjectTotalsDict
 import xlsxwriter
 from django.core.exceptions import ObjectDoesNotExist
-from django.db.models import Max, QuerySet
+from django.db.models import Max, QuerySet, CharField
+from django.db.models.functions import Cast
 
 
 from apartment.elastic.documents import ApartmentDocument
@@ -387,15 +388,16 @@ class XlsxSalesReportExportService(XlsxExportService):
         self.sold_events = sold_events
         self.project_uuids = project_uuids
 
-        # need to convert to str for comparison
-        self.sold_apartment_uuids = list(
-            map(
-                str,
-                sold_events.order_by()
-                .distinct()
-                .values_list("reservation__apartment_uuid", flat=True),
+        # cast uuidfield to charfield for comparison
+        self.sold_apartment_uuids = (
+            sold_events.annotate(
+                auuid=Cast("reservation__apartment_uuid", output_field=CharField())
             )
+            .order_by()
+            .distinct()
+            .values_list("auuid", flat=True)
         )
+
         self.projects = self._get_projects()
         _logger.debug(
             "Creating XlsxSalesReport with projects %s and sold_apartment_uuids %s",
@@ -444,8 +446,8 @@ class XlsxSalesReportExportService(XlsxExportService):
         unsold_apartments_count = self._get_unsold_count(project_apartments)
 
         return {
-            "sold_haso_apartments_count": len(sold_hitas_apartments),
-            "sold_hitas_apartments_count": len(sold_haso_apartments),
+            "sold_haso_apartments_count": len(sold_haso_apartments),
+            "sold_hitas_apartments_count": len(sold_hitas_apartments),
             "unsold_apartments_count": unsold_apartments_count,
             "haso_right_of_occupancy_payment_sum": haso_right_of_occupancy_payment_sum,
             "hitas_sales_price_sum": hitas_sales_price_sum,
@@ -559,33 +561,17 @@ class XlsxSalesReportExportService(XlsxExportService):
 
         totals_row = [
             "Yhteensä",
-            totals["haso_right_of_occupancy_payment_sum"] if is_hitas else "",  # noqa: E501
+            totals["hitas_sales_price_sum"] if is_hitas else "",  # noqa: E501
             totals["hitas_debt_free_sales_price_sum"] if is_hitas else "",  # noqa: E501
-            totals["haso_right_of_occupancy_payment_sum"] if is_haso else "",  # noqa: E501
+            totals["haso_right_of_occupancy_payment_sum"]
+            if is_haso
+            else "",  # noqa: E501
             self.HIGHLIGHT_COLOR,
         ]
         rows.append(totals_row)
         rows.append([""])
 
         return rows
-
-    def _get_project_apartment_count_row(
-        self, project: ApartmentDocument, apartments: List[ApartmentDocument]
-    ) -> List:
-
-        sold_apartments = self._get_sold_apartments(apartments)
-        is_haso = self._is_haso(project)
-        is_hitas = self._is_hitas(project)
-
-        row = [
-            project.project_street_address,
-            len(apartments),
-            len(self._get_hitas_apartments(sold_apartments)) if is_hitas else "",
-            len(self._get_haso_apartments(sold_apartments)) if is_haso else "",
-            self._get_unsold_count(apartments),
-        ]
-
-        return row
 
     def _get_total_sold_row(
         self,
