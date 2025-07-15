@@ -142,13 +142,14 @@ def _set_pdf_fields(pdf: Pdf, data_dict: DataDict, idx: None) -> None:
                 # will break if the template is updated to use a different value
 
                 # https://stackoverflow.com/a/48412434/4558221
-                # Try to mitigate this by figuring out 
+                # Try to mitigate this by figuring out
                 # what the value for the "checked" state is
                 # Its stored in the key "/AP" and its "/On", "/Yes" or "/1"
                 # 9.6.2025
                 checked_value = "/On"
                 annot_ap_keys = annot.AP["/D"].keys()
 
+                # TODO: make less complex to appease flake8 linter
                 if "/Yes" in annot_ap_keys:
                     checked_value = "/Yes"
                 elif "/1" in annot_ap_keys:

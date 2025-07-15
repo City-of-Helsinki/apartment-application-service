@@ -5,7 +5,12 @@ from decimal import Decimal
 
 from apartment_application_service.pdf import PDFCurrencyField as CF
 
-from ..pdf.hitas import HitasCompleteApartmentContractPDFData, create_hitas_complete_apartment_contract_pdf_from_data, create_hitas_contract_pdf_from_data, HitasContractPDFData
+from ..pdf.hitas import (
+    HitasCompleteApartmentContractPDFData,
+    create_hitas_complete_apartment_contract_pdf_from_data,
+    create_hitas_contract_pdf_from_data,
+    HitasContractPDFData,
+)
 from .pdf_utils import get_cleaned_pdf_texts, remove_pdf_id
 
 # This variable should be normally False, but can be set temporarily to
@@ -198,21 +203,29 @@ COMPLETE_CONTRACT_PDF_DATA = HitasCompleteApartmentContractPDFData(
     transfer_of_shares_signature="Matti Myyjä",
 )
 
+
 class TesthitasCompleteApartmentContractPdfFromData(unittest.TestCase):
     def setUp(self) -> None:
-        pdf = create_hitas_complete_apartment_contract_pdf_from_data(COMPLETE_CONTRACT_PDF_DATA)
+        pdf = create_hitas_complete_apartment_contract_pdf_from_data(
+            COMPLETE_CONTRACT_PDF_DATA
+        )
         self.pdf_content = pdf.getvalue()
 
         if OVERRIDE_EXPECTED_TEST_RESULT_PDF_FILE:
-            write_file("hitas_complete_apartment_contract_test_result.pdf", self.pdf_content)
+            write_file(
+                "hitas_complete_apartment_contract_test_result.pdf", self.pdf_content
+            )
             assert False, "Not testing, because PDF file was overridden."
 
-        self.expected_pdf_content = read_file("hitas_complete_apartment_contract_test_result.pdf")
+        self.expected_pdf_content = read_file(
+            "hitas_complete_apartment_contract_test_result.pdf"
+        )
 
         return super().setUp()
 
     def test_pdf_content_is_not_empty(self):
         assert self.pdf_content
+
 
 class TesthitasContractPdfFromData(unittest.TestCase):
     def setUp(self) -> None:
