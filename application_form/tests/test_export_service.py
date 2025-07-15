@@ -3,6 +3,7 @@ from datetime import timedelta
 from decimal import Decimal
 from io import BytesIO
 from typing import List, Union
+from unittest.mock import patch
 
 import pytest
 from _pytest.fixtures import fixture
@@ -503,6 +504,25 @@ def test_export_canceled_sales_should_not_count():
 
     # we have one canceled sale so it shouldn't count as sold
     assert len(export_service._get_sold_apartments(apartments)) != len(apartments)
+
+@pytest.mark.django_db
+def test_export_sale_empty_ownership_type_should_not_crash():
+    """Some projects might have empty project_ownership_type"""
+
+    apartments = []
+    apartment = ApartmentDocumentFactory(project_ownership_type="Hitas")
+    # ApartmentDocumentFactory doesn't allow us to create an ApartmentDocument with
+    # an empty project_ownership_type so we'll need to set it manually
+    apartment.project_ownership_type = None
+    sold_events = get_sold_state_events()
+    
+    export_service = XlsxSalesReportExportService(sold_events, [apartment.project_uuid])
+
+    try:
+        export_service._is_haso(apartment)
+        export_service._is_hitas(apartment)
+    except AttributeError:
+        pytest.fail("project_ownership == None case not handled properly")
 
 
 @pytest.mark.django_db

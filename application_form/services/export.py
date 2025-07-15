@@ -527,12 +527,12 @@ class XlsxSalesReportExportService(XlsxExportService):
         _logger.debug("Project %s", project.project_uuid)
 
         sold_apartments = self._get_sold_apartments(apartments)
-        is_haso = project.project_ownership_type.lower() == OwnershipType.HASO.value
-        is_hitas = project.project_ownership_type.lower() == OwnershipType.HITAS.value
+        is_haso = self._is_haso(project)
+        is_hitas = self._is_hitas(project)
         totals = self._get_project_totals(project)
 
         rows = []
-        # rows.append(self._get_project_apartment_count_row(project, apartments))
+
         rows.append(
             [
                 project.project_street_address,
@@ -718,9 +718,15 @@ class XlsxSalesReportExportService(XlsxExportService):
         return state_change_event.timestamp.strftime("%d.%m.%Y")
 
     def _is_haso(self, project: ApartmentDocument):
+        if not project.project_ownership_type:
+            return False
+
         return project.project_ownership_type.lower() == OwnershipType.HASO.value
 
     def _is_hitas(self, project: ApartmentDocument):
+        if not project.project_ownership_type:
+            return False
+
         return project.project_ownership_type.lower() == OwnershipType.HITAS.value
 
     def _get_projects(self):
