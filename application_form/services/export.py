@@ -8,12 +8,10 @@ from decimal import Decimal
 from io import BytesIO, StringIO
 from typing import List, Union
 
-from application_form.services.types import SalesReportProjectTotalsDict
 import xlsxwriter
 from django.core.exceptions import ObjectDoesNotExist
-from django.db.models import Max, QuerySet, CharField
+from django.db.models import CharField, Max, QuerySet
 from django.db.models.functions import Cast
-
 
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import (
@@ -28,6 +26,7 @@ from apartment.utils import get_apartment_state_from_apartment_uuid
 from application_form.enums import ApartmentReservationState
 from application_form.models import ApartmentReservation, LotteryEvent
 from application_form.models.reservation import ApartmentReservationStateChangeEvent
+from application_form.services.types import SalesReportProjectTotalsDict
 from application_form.utils import get_apartment_number_sort_tuple
 
 _logger = logging.getLogger(__name__)

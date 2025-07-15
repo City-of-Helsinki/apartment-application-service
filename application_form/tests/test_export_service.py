@@ -4,14 +4,11 @@ from decimal import Decimal
 from io import BytesIO
 from typing import List, Union
 
-from apartment.tests.factories import ApartmentDocumentFactory
-from application_form.services.application import cancel_reservation
-from application_form.tests.conftest import sell_apartments
 import pytest
 from _pytest.fixtures import fixture
-from django.utils import timezone
-from django.db.models import QuerySet
 from django.contrib.auth import get_user_model
+from django.db.models import QuerySet
+from django.utils import timezone
 
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import (
@@ -20,12 +17,14 @@ from apartment.elastic.queries import (
     get_apartments,
     get_project,
 )
+from apartment.tests.factories import ApartmentDocumentFactory
 from apartment.utils import get_apartment_state_from_apartment_uuid
 from application_form.enums import ApartmentReservationState
 from application_form.models import (
     ApartmentReservation,
     ApartmentReservationStateChangeEvent,
 )
+from application_form.services.application import cancel_reservation
 from application_form.services.export import (
     ApplicantExportService,
     ApplicantMailingListExportService,
@@ -35,6 +34,7 @@ from application_form.services.export import (
 )
 from application_form.services.lottery.machine import distribute_apartments
 from application_form.services.queue import add_application_to_queues
+from application_form.tests.conftest import sell_apartments
 from application_form.tests.factories import (
     ApartmentReservationFactory,
     ApartmentReservationStateChangeEventFactory,

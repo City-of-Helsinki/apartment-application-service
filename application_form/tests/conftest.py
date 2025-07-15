@@ -1,14 +1,10 @@
 import logging
 import string
-from typing import List, Tuple
 import uuid
 from datetime import timedelta
+from typing import List, Tuple
 from unittest.mock import Mock
 
-from apartment.elastic.documents import ApartmentDocument
-from apartment.elastic.queries import get_apartments, get_project
-from application_form.services.lottery.machine import distribute_apartments
-from application_form.services.queue import add_application_to_queues
 import faker.config
 from django.conf import settings
 from django.utils import timezone
@@ -17,6 +13,8 @@ from elasticsearch_dsl.connections import add_connection
 from factory.faker import faker
 from pytest import fixture
 
+from apartment.elastic.documents import ApartmentDocument
+from apartment.elastic.queries import get_apartments, get_project
 from apartment.tests.factories import ApartmentDocumentFactory
 from apartment_application_service.settings import (
     METADATA_HANDLER_INFORMATION,
@@ -30,6 +28,8 @@ from application_form.enums import (
     ApplicationType,
 )
 from application_form.models import ApartmentReservation
+from application_form.services.lottery.machine import distribute_apartments
+from application_form.services.queue import add_application_to_queues
 from application_form.tests.factories import (
     ApplicantFactory,
     ApplicationApartmentFactory,
