@@ -29,6 +29,7 @@ class HitasCompleteApartmentContractPDFData(PDFData):
             if k in names:
                 setattr(self, k, v)
 
+
     # salesperson_phone_number: Union[str, None]
     # salesperson_email: Union[str, None]
     occupant_1: Union[str, None]
@@ -79,7 +80,6 @@ class HitasCompleteApartmentContractPDFData(PDFData):
     transfer_of_posession: Union[str, None]
     breach_of_contract_option_1: Union[bool, None]
     breach_of_contract_option_2: Union[bool, None]
-    project_contract_collateral_type: Union[str, None]
     project_contract_collateral_type: Union[str, None]
     guarantee_attachment_exists: Union[bool, None]
     guarantee_attachment_not_exists: Union[bool, None]
@@ -593,7 +593,7 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         contract_dataclass = HitasCompleteApartmentContractPDFData
         contract_data = full_apartment_contract_data
         pdf_template_path = HITAS_COMPLETE_APARTMENT_CONTRACT_PDF_TEMPLATE_FILE_NAME
-
+    
     pdf_data = contract_dataclass(**contract_data)
     return create_hitas_contract_pdf_from_data(pdf_data, pdf_template_path)
 
