@@ -1,9 +1,13 @@
+from dataclasses import dataclass
 import datetime
 import pathlib
 import unittest
 from decimal import Decimal
 
-from apartment_application_service.pdf import PDFCurrencyField as CF
+from apartment_application_service.pdf import (
+    PDFCurrencyField as CF,
+    _get_checkbox_checked_value,
+)
 
 from ..pdf.hitas import (
     HitasCompleteApartmentContractPDFData,
@@ -948,6 +952,25 @@ class TesthitasContractPdfFromData(unittest.TestCase):
             # Don't assert a == b, because the output is too long to be
             # printed in the test output.
             assert False, "Invalid PDF content"
+
+
+def test_get_checkbox_checked_value():
+
+    # NOTE: There is no universal value for a checked checkbox
+    # https://stackoverflow.com/a/48412434/4558221
+    # Try to mitigate this by figuring out
+    # what the value for the "checked" state is
+    # Its stored in the key "/AP" and its "/On", "/Yes" or "/1"
+
+    @dataclass
+    class Annotation:
+        AP: dict
+
+    assert _get_checkbox_checked_value(Annotation({"/D": {"/Yes": {}}})) == "/Yes"
+    assert _get_checkbox_checked_value(Annotation({"/D": {"/1": {}}})) == "/1"
+    assert _get_checkbox_checked_value(Annotation({"/D": {"foo": {}}})) == "/On"
+
+    pass
 
 
 def read_file(file_name: str) -> bytes:
