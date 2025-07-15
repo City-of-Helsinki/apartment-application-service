@@ -1,18 +1,16 @@
-from dataclasses import dataclass
 import datetime
 import pathlib
 import unittest
+from dataclasses import dataclass
 from decimal import Decimal
 
-from apartment_application_service.pdf import (
-    PDFCurrencyField as CF,
-    _get_checkbox_checked_value,
-)
+from apartment_application_service.pdf import _get_checkbox_checked_value
+from apartment_application_service.pdf import PDFCurrencyField as CF
 
 from ..pdf.hitas import (
-    HitasCompleteApartmentContractPDFData,
     create_hitas_complete_apartment_contract_pdf_from_data,
     create_hitas_contract_pdf_from_data,
+    HitasCompleteApartmentContractPDFData,
     HitasContractPDFData,
 )
 from .pdf_utils import get_cleaned_pdf_texts, remove_pdf_id
