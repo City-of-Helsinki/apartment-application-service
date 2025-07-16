@@ -8,6 +8,7 @@ from apartment_application_service.pdf import _get_checkbox_checked_value
 from apartment_application_service.pdf import PDFCurrencyField as CF
 
 from ..pdf.hitas import (
+    HITAS_CONTRACT_PDF_TEMPLATE_FILE_NAME,
     create_hitas_complete_apartment_contract_pdf_from_data,
     create_hitas_contract_pdf_from_data,
     HitasCompleteApartmentContractPDFData,
@@ -21,7 +22,7 @@ from .pdf_utils import get_cleaned_pdf_texts, remove_pdf_id
 # a new expected result PDF file needs to be generated.  Remember to
 # revert this variable back to False to ensure that the test is
 # actually testing the expected result.
-OVERRIDE_EXPECTED_TEST_RESULT_PDF_FILE = False
+OVERRIDE_EXPECTED_TEST_RESULT_PDF_FILE = True
 
 my_dir = pathlib.Path(__file__).parent
 
@@ -58,7 +59,7 @@ CONTRACT_PDF_DATA = HitasContractPDFData(
     other_space_area=None,
     project_contract_transfer_restriction_false=False,
     project_contract_transfer_restriction_true=True,
-    project_contract_transfer_restriction_text="ks. yhtiöjärjestyksen 9-13.",
+    project_contract_transfer_restriction_text="<Lunastusoikeus rajoitteet?>",
     project_contract_material_selection_later_false=True,
     project_contract_material_selection_later_true=False,
     project_contract_material_selection_description="myöhemmin",
@@ -182,8 +183,8 @@ COMPLETE_CONTRACT_PDF_DATA = HitasCompleteApartmentContractPDFData(
     final_payment=CF(euros=Decimal("17.30")),
     payment_account_number_2="FI21 1234 5600 0007 87",
     credit_interest="12",
-    transfer_of_shares="Testi osakkeiden luovutus",
-    transfer_of_posession="Testi hallinta luovutus",
+    transfer_of_shares="<luovutetaan kun?>",
+    transfer_of_posession="12.8.2025",
     breach_of_contract_option_1=True,
     breach_of_contract_option_2=False,
     project_contract_collateral_type="Kiinteistökiinnitys",
@@ -194,7 +195,7 @@ COMPLETE_CONTRACT_PDF_DATA = HitasCompleteApartmentContractPDFData(
     building_permit_applied_for="Haettu 10.11.2023",
     project_built_according_to_regulations="Rakennettu säännösten mukaan",
     other_contract_terms="Muut sopimusehdot",
-    documents="Ostava on perehtynyt seuraaviin asiakirjoihin",
+    documents="Ostaja on perehtynyt seuraaviin asiakirjoihin <lista asiakirjosita>",
     signing_place_and_time="22.1.2024 Helsinki",
     salesperson_signature="Markku Myyjä",
     occupants_signatures="Matti Meikäläinen",
@@ -202,14 +203,14 @@ COMPLETE_CONTRACT_PDF_DATA = HitasCompleteApartmentContractPDFData(
     sales_price_paid_place_and_time="Helsingissä 22.1.2024",
     sales_price_paid_salesperson_signature="Matti Myyjä",
     transfer_of_shares_confirmed="22.1.2024",
-    transfer_of_shares_signature="Matti Myyjä",
+    transfer_of_shares_signature="Matti Meikäläinen",
 )
 
 
 class TesthitasCompleteApartmentContractPdfFromData(unittest.TestCase):
     def setUp(self) -> None:
         pdf = create_hitas_complete_apartment_contract_pdf_from_data(
-            COMPLETE_CONTRACT_PDF_DATA
+            COMPLETE_CONTRACT_PDF_DATA,
         )
         self.pdf_content = pdf.getvalue()
 
@@ -231,7 +232,9 @@ class TesthitasCompleteApartmentContractPdfFromData(unittest.TestCase):
 
 class TesthitasContractPdfFromData(unittest.TestCase):
     def setUp(self) -> None:
-        pdf = create_hitas_contract_pdf_from_data(CONTRACT_PDF_DATA)
+        pdf = create_hitas_contract_pdf_from_data(
+            CONTRACT_PDF_DATA, HITAS_CONTRACT_PDF_TEMPLATE_FILE_NAME
+        )
         self.pdf_content = pdf.getvalue()
 
         if OVERRIDE_EXPECTED_TEST_RESULT_PDF_FILE:

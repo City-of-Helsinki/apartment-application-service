@@ -181,6 +181,7 @@ class ApartmentDocument(ReadOnlyDocument):
     project_contract_default_collateral = Text()
     project_contract_construction_permit_requested = Date()
     project_contract_article_of_association = Text()
+    project_customer_document_handover = Text()
     project_documents_delivered = Text()
 
     class Index:

@@ -32,8 +32,6 @@ class HitasCompleteApartmentContractPDFData(PDFData):
             if k in names:
                 setattr(self, k, v)
 
-    # salesperson_phone_number: Union[str, None]
-    # salesperson_email: Union[str, None]
     occupant_1: Union[str, None]
     occupant_1_share_of_ownership: Union[str, None]
     occupant_1_address: Union[str, None]
@@ -155,10 +153,10 @@ class HitasCompleteApartmentContractPDFData(PDFData):
         "salesperson_signature": "P12Myyjanallekirjoitus",  # "Myyjän allekirjoitus",
         "occupants_signatures": "P12Ostajanallekirjoitus",  # "Ostajan tai ostajien allekirjoitus",  # noqa: E501
         "sales_price_paid": "P12Kauppahintamaksettu",  # "Kauppahinta tai kauppahinnan loppuerä kuitataan maksetuksi",  # noqa: E501
-        "sales_price_paid_place_and_time": "P12Kauppahintapaikkajaaika",  # "Paikka ja aika kauppahinta kuitataan maksetuksi",  # noqa: E501
+        "sales_price_paid_place_and_time": "P12Kauppahintapaikkajaaika",  # "Paikka ja aika kauppahinta kuitataan maksetuksi aika ja paikka",  # noqa: E501
         "sales_price_paid_salesperson_signature": "P12Kauppahintamyyjanallekirjoitus",  # "Myyjän allekirjoitus kauppahinta kuitataan maksetuksi",  # noqa: E501
         "transfer_of_shares_confirmed": "P12Osakekirjapaikkajaaika",  # "Paikka ja aika osakekirja kuitataan vastaanotetuksi",  # noqa: E501
-        "transfer_of_shares_signature": "P12Osakekirjaostajanallekirjoitus",  # "Ostajan tai ostajien allekirj,oitus osakekirja kuitataan vastaanotetuksi"  # noqa: E501
+        "transfer_of_shares_signature": "P12Osakekirjaostajanallekirjoitus",  # "Ostajan tai ostajien allekirjoitus osakekirja kuitataan vastaanotetuksi"  # noqa: E501
     }
 
     pass
@@ -418,6 +416,23 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
     )
 
     def hitas_price(cents: Union[int, None]) -> Union[PDFCurrencyField, None]:
+        """Turns the price in cents to whole euros (division by 100). Outputs
+        a PDFCurrencyField prefilled with a string that has the euro sum
+        as words (in Finnish) and as numbers.
+
+        e.g.
+        12000 -> "tuhat kaksisataa 1200 €"
+
+        11000000 -> "satakymmenentuhatta 110000 €"
+
+        31115224 -> "kolmekymmentäyksimiljoonaa sataviisitoistatuhatta
+        kaksisataakaksikymmentäneljä 31115224 €"
+
+        Args:
+            cents (Union[int, None]): The sum in cents
+
+        Returns: Union[PDFCurrencyField, None]:
+        """
         if cents is None:
             return None
         return PDFCurrencyField(
@@ -534,10 +549,10 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         "project_contract_collateral_type": apartment.project_contract_collateral_type,
         "project_contract_default_collateral": apartment.project_contract_default_collateral,  # noqa E501
         "project_contract_construction_permit_requested": (
-            apartment.project_contract_construction_permit_requested
-        )
-        if apartment.project_contract_construction_permit_requested
-        else None,
+            (apartment.project_contract_construction_permit_requested)
+            if apartment.project_contract_construction_permit_requested
+            else None
+        ),
         "project_contract_other_terms": apartment.project_contract_combined_terms,
         "project_documents_delivered": apartment.project_documents_delivered,
         "signing_place_and_time": "Helsinki",
@@ -558,25 +573,25 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
     # full apartment contract data is mostly the same fields but with some changes
     full_apartment_contract_data = {
         **contract_data,
-        "building_permit_applied_for": "building_permit_applied_for",
+        "building_permit_applied_for": apartment.project_construction_permit_claim,
         "buyer_has_paid_down_payment": "buyer_has_paid_down_payment",
-        "credit_interest": "credit_interest",
-        "debt_free_price_x_0_014": False,
-        "documents": "documents",
+        "credit_interest": "0,00%",
+        "debt_free_price_x_0_014": True,
+        "documents": apartment.project_customer_document_handover,
         "final_payment": "final_payment",
         "guarantee": "guarantee",
         "guarantee_attachment_exists": True,
         "guarantee_attachment_not_exists": False,
-        "inability_to_pay_guarantee": "inability_to_pay_guarantee",
-        "loan_share_and_sales_price": "loan_share_and_sales_price",
-        "occupants_signatures": "occupants_signatures",
-        "other_contract_terms": "other_contract_terms",
-        "payment_terms_rest_of_price": "payment_terms_rest_of_price",
-        "project_built_according_to_regulations": "project_built_according_to_regulations",  # noqa: E501
-        "project_contract_transfer_restriction": "project_contract_transfer_restriction",  # noqa: E501
-        "sales_price_paid": "sales_price_paid",
-        "sales_price_paid_place_and_time": "sales_price_paid_place_and_time",
-        "sales_price_paid_salesperson_signature": "sales_price_paid_salesperson_signature",  # noqa: E501
+        "inability_to_pay_guarantee": apartment.project_default_collateral,
+        "loan_share_and_sales_price": apartment.debt_free_sales_price,
+        "occupants_signatures": contract_data["signing_buyers"],
+        "other_contract_terms": apartment.project_contract_combined_terms,
+        "payment_terms_rest_of_price": "",
+        "project_built_according_to_regulations": "",  # noqa: E501
+        "project_contract_transfer_restriction": apartment.project_article_of_association,  # noqa: E501
+        "sales_price_paid": "",  # TODO: To be added in a future task
+        "sales_price_paid_place_and_time": "",  # TODO: To be added in a future task
+        "sales_price_paid_salesperson_signature": "",  # TODO: To be added in a future task  # noqa: E501
         "sales_price_x_0_02": True,
         "other_space": "other space",
         "other_space_area": "10.1",

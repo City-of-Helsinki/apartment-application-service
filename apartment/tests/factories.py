@@ -9,8 +9,6 @@ from factory import Faker, fuzzy
 
 from apartment.elastic.documents import ApartmentDocument
 
-from .conftest import faker
-
 datetime_string_format = "%Y-%m-%dT%H:%M:%S%z"
 
 
