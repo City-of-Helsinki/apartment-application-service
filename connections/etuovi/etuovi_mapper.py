@@ -257,6 +257,10 @@ def form_presentation(elastic_apartment):
     """
 
     main_text = getattr(elastic_apartment, "project_description", None)
+
+    # ensure paragraph and line breaks still work even after stripping the HTML
+    main_text = re.sub(r"<br.*?>", r"\n", main_text)
+    main_text = re.sub(r"<p>(.*?)</p>", r"\1\n\n", main_text)
     main_text = strip_tags(main_text)
 
     link = getattr(elastic_apartment, "url", None)
