@@ -1,6 +1,7 @@
 """
 This module contains functionality for describing objects.
 """
+
 from django.db import models
 
 from apartment.elastic.queries import get_apartment, get_project

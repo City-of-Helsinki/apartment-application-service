@@ -1,6 +1,7 @@
 """
 Test cases for customer models.
 """
+
 import pytest
 from django.core.exceptions import ValidationError
 

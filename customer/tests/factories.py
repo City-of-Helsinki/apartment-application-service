@@ -1,6 +1,7 @@
 """
 Factory classes for test purposes.
 """
+
 from factory import django, Faker, SubFactory
 
 from customer.models import Customer

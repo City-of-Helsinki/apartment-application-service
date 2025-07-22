@@ -2,6 +2,7 @@ import logging
 import string
 import uuid
 from datetime import timedelta
+from typing import List, Tuple
 from unittest.mock import Mock
 
 import faker.config
@@ -12,6 +13,8 @@ from elasticsearch_dsl.connections import add_connection
 from factory.faker import faker
 from pytest import fixture
 
+from apartment.elastic.documents import ApartmentDocument
+from apartment.elastic.queries import get_apartments, get_project
 from apartment.tests.factories import ApartmentDocumentFactory
 from apartment_application_service.settings import (
     METADATA_HANDLER_INFORMATION,
@@ -19,9 +22,18 @@ from apartment_application_service.settings import (
     METADATA_HITAS_PROCESS_NUMBER,
 )
 from application_form.api.serializers import ApplicationSerializer
-from application_form.enums import ApplicationArrivalMethod, ApplicationType
+from application_form.enums import (
+    ApartmentReservationState,
+    ApplicationArrivalMethod,
+    ApplicationType,
+)
 from application_form.models import ApartmentReservation
-from application_form.tests.factories import ApplicantFactory
+from application_form.services.lottery.machine import distribute_apartments
+from application_form.services.queue import add_application_to_queues
+from application_form.tests.factories import (
+    ApplicantFactory,
+    ApplicationApartmentFactory,
+)
 from application_form.tests.utils import (
     calculate_ssn_suffix,
     get_elastic_apartments_uuids,
@@ -287,6 +299,66 @@ def elastic_haso_project_application_end_time_finished(elasticsearch):
     )
     yield apartment.project_uuid, apartment
     apartment.delete(refresh=True)
+
+
+def sell_apartments(
+    project_uuid: str, sell_count: int
+) -> Tuple[ApartmentDocument, List[ApartmentDocument]]:
+    """Sets the state of apartments in the given project to SOLD and creates
+    the necessary ApartmentReservationStateChangeEvent objects into test db.
+
+    Args:
+        project_uuid (str): The project UUID
+        sell_count (int): How many apartments to sell
+
+    Returns:
+        Tuple of the given project and apartments
+
+    Throws:
+        ValueError: If sell_count is higher than the amount of apartments
+    """
+    project = get_project(project_uuid)
+    apartments = get_apartments(project.project_uuid, True)
+    if sell_count > len(apartments):
+        raise ValueError(
+            f"sell_count is larger than the list of apartments on the project ({sell_count} > {len(apartments)})"  # noqa: E501
+        )
+
+    for apartment in apartments:
+        apt_app = ApplicationApartmentFactory.create_batch(
+            2, apartment_uuid=apartment.uuid
+        )
+        add_application_to_queues(apt_app[0].application)
+        add_application_to_queues(apt_app[1].application)
+    distribute_apartments(project.project_uuid)
+
+    for i, apartment in enumerate(apartments):
+        if i <= (sell_count - 1):
+
+            reservation = (
+                ApartmentReservation.objects.filter(apartment_uuid=apartment.uuid)
+                .reserved()
+                .first()
+            )
+            reservation.set_state(ApartmentReservationState.SOLD)
+
+    return (project, apartments)
+
+
+@fixture
+def elastic_hitas_project_with_4_sold_apartments(
+    elastic_hitas_project_with_5_apartments,
+):
+    hitas_project, hitas_apartments = sell_apartments(
+        elastic_hitas_project_with_5_apartments[0], 4
+    )
+    yield hitas_project, hitas_apartments
+
+
+@fixture
+def elastic_haso_project_with_4_sold_apartments(elastic_haso_project_with_5_apartments):
+    project, apartments = elastic_haso_project_with_5_apartments
+    yield project, apartments
 
 
 def create_application_data(
