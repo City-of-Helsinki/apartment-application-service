@@ -1,6 +1,7 @@
 """
 Import data from AsKo CSV files.
 """
+
 from django.core.management.base import BaseCommand
 
 from ...importer import run_asko_import

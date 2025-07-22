@@ -68,17 +68,19 @@ class InstallmentListSerializer(serializers.ListSerializer):
         }
 
         new_installments = [
-            self.child.create(
-                {**new_installment_data, **{"created_at": now, "updated_at": now}}
-            )
-            if not (
-                old_instance := old_installments_by_type.get(
-                    new_installment_data["type"]
+            (
+                self.child.create(
+                    {**new_installment_data, **{"created_at": now, "updated_at": now}}
                 )
-            )
-            else self.child.update(
-                old_instance,
-                {**new_installment_data, **{"updated_at": now}},
+                if not (
+                    old_instance := old_installments_by_type.get(
+                        new_installment_data["type"]
+                    )
+                )
+                else self.child.update(
+                    old_instance,
+                    {**new_installment_data, **{"updated_at": now}},
+                )
             )
             for new_installment_data in validated_data
         ]

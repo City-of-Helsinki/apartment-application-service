@@ -118,14 +118,18 @@ class ApartmentReservationFactory(factory.django.DjangoModelFactory):
     application_apartment = factory.SubFactory(ApplicationApartmentFactory)
     state = fuzzy.FuzzyChoice(list(ApartmentReservationState))
     right_of_residence = LazyAttribute(
-        lambda o: o.application_apartment.application.right_of_residence
-        if o.application_apartment
-        else o.customer.right_of_residence
+        lambda o: (
+            o.application_apartment.application.right_of_residence
+            if o.application_apartment
+            else o.customer.right_of_residence
+        )
     )
     right_of_residence_is_old_batch = LazyAttribute(
-        lambda o: o.application_apartment.application.right_of_residence_is_old_batch
-        if o.application_apartment
-        else o.customer.right_of_residence_is_old_batch
+        lambda o: (
+            o.application_apartment.application.right_of_residence_is_old_batch
+            if o.application_apartment
+            else o.customer.right_of_residence_is_old_batch
+        )
     )
     handler = factory.Faker("name")
 

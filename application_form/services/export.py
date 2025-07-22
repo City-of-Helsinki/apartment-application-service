@@ -562,9 +562,9 @@ class XlsxSalesReportExportService(XlsxExportService):
             "Yhteensä",
             totals["hitas_sales_price_sum"] if is_hitas else "",  # noqa: E501
             totals["hitas_debt_free_sales_price_sum"] if is_hitas else "",  # noqa: E501
-            totals["haso_right_of_occupancy_payment_sum"]
-            if is_haso
-            else "",  # noqa: E501
+            (
+                totals["haso_right_of_occupancy_payment_sum"] if is_haso else ""
+            ),  # noqa: E501
             self.HIGHLIGHT_COLOR,
         ]
         rows.append(totals_row)

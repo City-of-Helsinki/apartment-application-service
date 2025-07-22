@@ -439,9 +439,11 @@ def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:
         ),
         "lift": map_lift(elastic_apartment),
         "year_of_building": map_year_of_building(elastic_apartment),
-        "heating": ", ".join(elastic_apartment.project_heating_options)
-        if getattr(elastic_apartment, "project_heating_options", None)
-        else None,
+        "heating": (
+            ", ".join(elastic_apartment.project_heating_options)
+            if getattr(elastic_apartment, "project_heating_options", None)
+            else None
+        ),
         "general_condition": map_general_condition(elastic_apartment),
         "site": map_site(elastic_apartment),
         "site_area": map_site_area(elastic_apartment),
@@ -453,9 +455,11 @@ def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:
         ),
         "other_fees": getattr(elastic_apartment, "other_fees", None),
         "car_parking_charge": map_car_parking_charge(elastic_apartment),
-        "building_material": ", ".join(elastic_apartment.project_construction_materials)
-        if getattr(elastic_apartment, "project_construction_materials", None)
-        else None,
+        "building_material": (
+            ", ".join(elastic_apartment.project_construction_materials)
+            if getattr(elastic_apartment, "project_construction_materials", None)
+            else None
+        ),
         "roof_material": getattr(elastic_apartment, "project_roof_material", None),
         "kitchen_appliances": getattr(elastic_apartment, "kitchen_appliances", None),
         "sauna": map_sauna(elastic_apartment),

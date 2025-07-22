@@ -82,7 +82,7 @@ def decrypt_factory(
 
     def decrypt_reverse_factory(reverse=False) -> Callable:
         def decrypt_and_update_models(apps, schema_editor):
-            for (app_name, model_name, fields) in ops:
+            for app_name, model_name, fields in ops:
                 decrypt_and_update_generic(
                     apps.get_model(app_name, model_name),
                     fields,
