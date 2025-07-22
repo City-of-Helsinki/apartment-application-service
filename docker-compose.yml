@@ -25,14 +25,13 @@ services:
         build:
             context: .
             target: development
-            args:
-                OIKOTIE_SCHEMA_DIR: ${OIKOTIE_SCHEMA_DIR}
-                OIKOTIE_APARTMENTS_BATCH_SCHEMA_URL: ${OIKOTIE_APARTMENTS_BATCH_SCHEMA_URL}
-                OIKOTIE_APARTMENTS_UPDATE_SCHEMA_URL: ${OIKOTIE_APARTMENTS_UPDATE_SCHEMA_URL}
-                OIKOTIE_HOUSINGCOMPANIES_BATCH_SCHEMA_URL: ${OIKOTIE_HOUSINGCOMPANIES_BATCH_SCHEMA_URL}
         env_file:
             - .env
         environment:
+            OIKOTIE_SCHEMA_DIR: ${OIKOTIE_SCHEMA_DIR}
+            OIKOTIE_APARTMENTS_BATCH_SCHEMA_URL: ${OIKOTIE_APARTMENTS_BATCH_SCHEMA_URL}
+            OIKOTIE_APARTMENTS_UPDATE_SCHEMA_URL: ${OIKOTIE_APARTMENTS_UPDATE_SCHEMA_URL}
+            OIKOTIE_HOUSINGCOMPANIES_BATCH_SCHEMA_URL: ${OIKOTIE_HOUSINGCOMPANIES_BATCH_SCHEMA_URL}
             DATABASE_URL: postgres://apartment-application:apartment-application@apartment-application-db/apartment-application
             DATABASE_HOST: apartment-application-db.helsinki
             ELASTICSEARCH_HOST: apartment-application-elasticsearch.helsinki
