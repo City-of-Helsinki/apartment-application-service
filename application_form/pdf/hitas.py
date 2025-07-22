@@ -387,10 +387,10 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         project_contract_collateral_type=apartment.project_contract_collateral_type,
         project_contract_default_collateral=apartment.project_contract_default_collateral,  # noqa E501
         project_contract_construction_permit_requested=(
-            apartment.project_contract_construction_permit_requested
-        )
-        if apartment.project_contract_construction_permit_requested
-        else None,
+            (apartment.project_contract_construction_permit_requested)
+            if apartment.project_contract_construction_permit_requested
+            else None
+        ),
         project_contract_other_terms=apartment.project_contract_combined_terms,
         project_documents_delivered=apartment.project_documents_delivered,
         signing_place_and_time="Helsinki",

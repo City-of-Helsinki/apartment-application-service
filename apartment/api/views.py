@@ -1,6 +1,5 @@
 import itertools
 import logging
-from datetime import datetime, time
 
 from dateutil import parser
 from django.core.exceptions import ObjectDoesNotExist
@@ -222,9 +221,9 @@ class SaleReportAPIView(APIView):
             end_date_obj = end_date_obj.replace(tzinfo=tz)
 
         state_events = ApartmentReservationStateChangeEvent.objects.filter(
-            timestamp__range=[
-                datetime.combine(start_date_obj, time.min),
-                datetime.combine(end_date_obj, time.max),
+            timestamp__date__range=[
+                start_date_obj,
+                end_date_obj,
             ],
             state=ApartmentReservationState.SOLD,
         )
@@ -270,7 +269,7 @@ class SaleReportAPIView(APIView):
             state_events.count(),
         )
 
-        export_services = XlsxSalesReportExportService(state_events)
+        export_services = XlsxSalesReportExportService(state_events, project_uuids)
         xlsx_file = export_services.write_xlsx_file()
         file_name = format_lazy(
             _("Sale report {start_date} - {end_date}"),
@@ -283,9 +282,9 @@ class SaleReportAPIView(APIView):
             response_content,
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",  # noqa:E501
         )
-        response[
-            "Content-Disposition"
-        ] = "attachment; filename={file_name}.xlsx".format(file_name=file_name)
+        response["Content-Disposition"] = (
+            "attachment; filename={file_name}.xlsx".format(file_name=file_name)
+        )
 
         return response
 

@@ -10,7 +10,8 @@ from typing import List, Union
 
 import xlsxwriter
 from django.core.exceptions import ObjectDoesNotExist
-from django.db.models import Max, QuerySet
+from django.db.models import CharField, Max, QuerySet
+from django.db.models.functions import Cast
 
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import (
@@ -25,6 +26,7 @@ from apartment.utils import get_apartment_state_from_apartment_uuid
 from application_form.enums import ApartmentReservationState
 from application_form.models import ApartmentReservation, LotteryEvent
 from application_form.models.reservation import ApartmentReservationStateChangeEvent
+from application_form.services.types import SalesReportProjectTotalsDict
 from application_form.utils import get_apartment_number_sort_tuple
 
 _logger = logging.getLogger(__name__)
@@ -381,19 +383,75 @@ class XlsxSalesReportExportService(XlsxExportService):
     COL_WIDTH = 26
     HIGHLIGHT_COLOR = "#E8E8E8"
 
-    def __init__(self, sold_events):
+    def __init__(self, sold_events, project_uuids):
         self.sold_events = sold_events
+        self.project_uuids = project_uuids
 
-        # need to convert to str for comparison
-        self.sold_apartment_uuids = list(
-            map(str, sold_events.values_list("reservation__apartment_uuid", flat=True))
+        # cast uuidfield to charfield for comparison
+        self.sold_apartment_uuids = (
+            sold_events.annotate(
+                auuid=Cast("reservation__apartment_uuid", output_field=CharField())
+            )
+            .order_by()
+            .distinct()
+            .values_list("auuid", flat=True)
         )
+
         self.projects = self._get_projects()
         _logger.debug(
             "Creating XlsxSalesReport with projects %s and sold_apartment_uuids %s",
             self.projects,
             self.sold_apartment_uuids,
         )
+
+    def _get_project_totals(
+        self, project: ApartmentDocument
+    ) -> SalesReportProjectTotalsDict:
+        """Groups total sold HITAS, sold HASO apartments, counts unsold apartments
+        and the total sales sums for a project.
+
+        Args:
+            project (ApartmentDocument): _description_
+
+        Returns:
+            dict: ```
+            {
+                "sold_haso_apartments_count": int
+                "sold_hitas_apartments_count": int
+                "unsold_apartments_count": int
+                "haso_right_of_occupancy_payment_sum": Decimal
+                "hitas_sales_price_sum": Decimal
+                "hitas_debt_free_sales_price_sum": Decimal
+            }
+            ```
+        """
+        project_apartments = get_apartments(
+            project.project_uuid, include_project_fields=True
+        )
+        sold_apartments = self._get_sold_apartments(project_apartments)
+        sold_hitas_apartments = self._get_hitas_apartments(sold_apartments)
+        sold_haso_apartments = self._get_haso_apartments(sold_apartments)
+
+        haso_right_of_occupancy_payment_sum = self._sum_cents(
+            x.right_of_occupancy_payment or 0 for x in sold_haso_apartments
+        )
+        hitas_sales_price_sum = self._sum_cents(
+            x.sales_price or 0 for x in sold_hitas_apartments
+        )
+        hitas_debt_free_sales_price_sum = self._sum_cents(
+            x.debt_free_sales_price or 0 for x in sold_hitas_apartments
+        )
+
+        unsold_apartments_count = self._get_unsold_count(project_apartments)
+
+        return {
+            "sold_haso_apartments_count": len(sold_haso_apartments),
+            "sold_hitas_apartments_count": len(sold_hitas_apartments),
+            "unsold_apartments_count": unsold_apartments_count,
+            "haso_right_of_occupancy_payment_sum": haso_right_of_occupancy_payment_sum,
+            "hitas_sales_price_sum": hitas_sales_price_sum,
+            "hitas_debt_free_sales_price_sum": hitas_debt_free_sales_price_sum,
+        }
 
     def get_rows(self):
         apartments = []
@@ -464,19 +522,27 @@ class XlsxSalesReportExportService(XlsxExportService):
             project (ApartmentDocument): Project
             apartments (List[ApartmentDocument]): List of apartments for the project.
             Passed as an argument to reduce calls to `get_apartments()`
-            first (bool): Is it the first project to be handled?
+            first (bool): if `True`, adds a header row before the other rows
         """
         _logger.debug("Project %s", project.project_uuid)
 
         sold_apartments = self._get_sold_apartments(apartments)
-        is_haso = project.project_ownership_type.lower() == OwnershipType.HASO.value
-        is_hitas = project.project_ownership_type.lower() == OwnershipType.HITAS.value
-
-        if len(sold_apartments) <= 0:
-            return []
+        is_haso = self._is_haso(project)
+        is_hitas = self._is_hitas(project)
+        totals = self._get_project_totals(project)
 
         rows = []
-        rows.append(self._get_project_apartment_count_row(project, apartments))
+
+        rows.append(
+            [
+                project.project_street_address,
+                len(apartments),
+                totals["sold_hitas_apartments_count"],
+                totals["sold_haso_apartments_count"],
+                totals["unsold_apartments_count"],
+            ]
+        )
+
         if first:
             rows.append(
                 [
@@ -494,38 +560,17 @@ class XlsxSalesReportExportService(XlsxExportService):
 
         totals_row = [
             "Yhteensä",
-            self._sum_cents(x.sales_price or 0 for x in sold_apartments)
-            if is_hitas
-            else "",  # noqa: E501
-            self._sum_cents(x.debt_free_sales_price or 0 for x in sold_apartments)
-            if is_hitas
-            else "",  # noqa: E501
-            self._sum_cents(x.right_of_occupancy_payment or 0 for x in sold_apartments)
-            if is_haso
-            else "",  # noqa: E501
+            totals["hitas_sales_price_sum"] if is_hitas else "",  # noqa: E501
+            totals["hitas_debt_free_sales_price_sum"] if is_hitas else "",  # noqa: E501
+            (
+                totals["haso_right_of_occupancy_payment_sum"] if is_haso else ""
+            ),  # noqa: E501
             self.HIGHLIGHT_COLOR,
         ]
         rows.append(totals_row)
         rows.append([""])
 
         return rows
-
-    def _get_project_apartment_count_row(
-        self, project: ApartmentDocument, apartments: List[ApartmentDocument]
-    ) -> List:
-        sold_apartments = self._get_sold_apartments(apartments)
-        is_haso = self._is_haso(project)
-        is_hitas = self._is_hitas(project)
-
-        row = [
-            project.project_street_address,
-            len(apartments),
-            len(self._get_hitas_apartments(sold_apartments)) if is_hitas else "",
-            len(self._get_haso_apartments(sold_apartments)) if is_haso else "",
-            self._get_unsold_count(apartments),
-        ]
-
-        return row
 
     def _get_total_sold_row(
         self,
@@ -558,7 +603,7 @@ class XlsxSalesReportExportService(XlsxExportService):
 
         return row
 
-    def _get_unsold_count(self, apartments: List[ApartmentDocument]):
+    def _get_unsold_count(self, apartments: List[ApartmentDocument]) -> int:
         """Counts unsold apartments based on the apartment's state, disregarding
         any 'sold'-events the apartment may have.
 
@@ -673,26 +718,29 @@ class XlsxSalesReportExportService(XlsxExportService):
         return state_change_event.timestamp.strftime("%d.%m.%Y")
 
     def _is_haso(self, project: ApartmentDocument):
+        if not project.project_ownership_type:
+            return False
+
         return project.project_ownership_type.lower() == OwnershipType.HASO.value
 
     def _is_hitas(self, project: ApartmentDocument):
+        if not project.project_ownership_type:
+            return False
+
         return project.project_ownership_type.lower() == OwnershipType.HITAS.value
 
     def _get_projects(self):
         projects = []
         uuids = []
-        for e in self.sold_events:
+        for project_uuid in self.project_uuids:
             try:
-                project_uuid = get_apartment_project_uuid(
-                    e.reservation.apartment_uuid
-                ).project_uuid
                 if project_uuid not in uuids:
                     projects.append(get_project(project_uuid))
                     uuids.append(project_uuid)
             except ObjectDoesNotExist:
                 _logger.error(
-                    "Apartment %s does not exist in ElasticSearch",
-                    e.reservation.apartment_uuid,
+                    "Project %s does not exist in ElasticSearch",
+                    project_uuid,
                 )
 
         return sorted(projects, key=lambda x: x.project_street_address)
