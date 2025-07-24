@@ -603,7 +603,6 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         "transfer_of_shares_signature": "",
     }
 
-
     contract_dataclass = HitasContractPDFData
     pdf_template_path = HITAS_CONTRACT_PDF_TEMPLATE_FILE_NAME
 
