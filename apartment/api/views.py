@@ -282,9 +282,9 @@ class SaleReportAPIView(APIView):
             response_content,
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",  # noqa:E501
         )
-        response[
-            "Content-Disposition"
-        ] = "attachment; filename={file_name}.xlsx".format(file_name=file_name)
+        response["Content-Disposition"] = (
+            "attachment; filename={file_name}.xlsx".format(file_name=file_name)
+        )
 
         return response
 
