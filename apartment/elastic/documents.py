@@ -73,6 +73,7 @@ class ApartmentDocument(ReadOnlyDocument):
     project_estimated_completion_date = Date()
     project_completion_date = Date()
     project_possession_transfer_date = Date()
+    project_transfer_of_shares_date = Date()
     project_published = Boolean()
     project_archived = Boolean()
 

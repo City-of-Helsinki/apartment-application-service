@@ -4,6 +4,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from io import BytesIO
 from typing import ClassVar, Dict, List, Optional, Union
 
+from apartment.elastic.documents import ApartmentDocument
 from num2words import num2words
 
 from apartment.elastic.queries import get_apartment
@@ -391,7 +392,7 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
     customer = SafeAttributeObject(reservation.customer)
     primary_profile = SafeAttributeObject(customer.primary_profile)
     secondary_profile = SafeAttributeObject(customer.secondary_profile)
-    apartment = SafeAttributeObject(
+    apartment: ApartmentDocument = SafeAttributeObject(
         get_apartment(reservation.apartment_uuid, include_project_fields=True)
     )
 
@@ -593,14 +594,15 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         "sales_price_paid_place_and_time": "",  # TODO: To be added in a future task
         "sales_price_paid_salesperson_signature": "",  # TODO: To be added in a future task  # noqa: E501
         "sales_price_x_0_02": True,
-        "other_space": "other space",
-        "other_space_area": "10.1",
+        "other_space": "",
+        "other_space_area": "",
         "salesperson_signature": "salesperson_signature",
-        "transfer_of_posession": "transfer_of_posession",
-        "transfer_of_shares": "transfer_of_shares",
-        "transfer_of_shares_confirmed": "transfer_of_shares_confirmed",
-        "transfer_of_shares_signature": "transfer_of_shares_signature",
+        "transfer_of_posession": apartment.project_possession_transfer_date,
+        "transfer_of_shares": apartment.project_transfer_of_shares_date,
+        "transfer_of_shares_confirmed": "",
+        "transfer_of_shares_signature": "",
     }
+
 
     contract_dataclass = HitasContractPDFData
     pdf_template_path = HITAS_CONTRACT_PDF_TEMPLATE_FILE_NAME
