@@ -8,9 +8,9 @@ from apartment_application_service.pdf import _get_checkbox_checked_value
 from apartment_application_service.pdf import PDFCurrencyField as CF
 
 from ..pdf.hitas import (
-    HITAS_CONTRACT_PDF_TEMPLATE_FILE_NAME,
     create_hitas_complete_apartment_contract_pdf_from_data,
     create_hitas_contract_pdf_from_data,
+    HITAS_CONTRACT_PDF_TEMPLATE_FILE_NAME,
     HitasCompleteApartmentContractPDFData,
     HitasContractPDFData,
 )

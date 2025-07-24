@@ -4,9 +4,9 @@ from decimal import Decimal, ROUND_HALF_UP
 from io import BytesIO
 from typing import ClassVar, Dict, List, Optional, Union
 
-from apartment.elastic.documents import ApartmentDocument
 from num2words import num2words
 
+from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import get_apartment
 from apartment_application_service.pdf import create_pdf, PDFCurrencyField, PDFData
 from apartment_application_service.utils import SafeAttributeObject

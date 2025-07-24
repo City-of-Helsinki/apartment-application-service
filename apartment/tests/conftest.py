@@ -1,11 +1,12 @@
 import random
 import string
-from factory import Faker
-from faker import providers
+
 import faker.config
 from django.conf import settings
 from elasticsearch.helpers.test import get_test_client
 from elasticsearch_dsl.connections import add_connection
+from factory import Faker
+from faker import providers
 from pytest import fixture
 
 from apartment.tests.factories import ApartmentDocumentFactory
