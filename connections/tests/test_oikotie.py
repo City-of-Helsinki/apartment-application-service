@@ -8,6 +8,7 @@ from django_etuovi.utils.testing import check_dataclass_typing
 
 from apartment.tests.factories import ApartmentDocumentFactory
 from connections.models import MappedApartment
+from django_oikotie.xml_models.apartment import Apartment
 from connections.oikotie.oikotie_mapper import (
     form_description,
     map_address,
@@ -277,6 +278,32 @@ class TestOikotieMapper:
         formed_description = form_description(elastic_apartment)
 
         assert formed_description.strip() == expected.strip()
+
+    def test_oikotie_truncated_description_bug(
+            self
+    ):
+        """
+        For some reason when generating the XML any description text is truncated to
+        2000 characters.
+        """
+        expected_description = "A"*12000
+        apartment = ApartmentMinimalFactory(
+            project_description=expected_description,
+            url=None
+        )
+        apartment = ApartmentMinimalFactory(
+            project_description=expected_description,
+            url=None
+        )
+        apartment = ApartmentMinimalFactory(
+            project_description=expected_description,
+            url=None
+        )
+        mapped_apartment = map_oikotie_apartment(apartment)
+        description_elem = mapped_apartment.to_etree().find("Description")
+        if description_elem.text != expected_description:
+            pytest.fail(f"Description truncated from {len(expected_description)} to {len(description_elem.text)} characters")  # E501: noqa
+        pass
 
 
 @pytest.mark.django_db
