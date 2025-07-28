@@ -1,7 +1,7 @@
-from collections.abc import Callable
-from typing import Union
 import logging
+from collections.abc import Callable
 from decimal import Decimal
+from typing import Union
 
 from django.conf import settings
 from elasticsearch_dsl import connections
