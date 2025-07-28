@@ -1,6 +1,8 @@
+from decimal import Decimal
 import os
 from uuid import UUID
 
+from apartment.enums import OwnershipType
 import pytest
 from django.conf import settings
 from django.core.management import call_command
@@ -299,7 +301,34 @@ class TestOikotieMapper:
         if description_elem.text != expected_description:
             pytest.fail(
                 f"Description truncated from {len(expected_description)} to {len(description_elem.text)} characters"  # noqa: E501
-            )  # E501: noqa
+            )
+        pass
+
+    def test_oikotie_map_correct_price_info(self):
+        """
+        Get `ApartmentDocument.release_payment` for HASO apartments and
+        `ApartmentDocument.sales_price` for HITAS apartments.
+        """
+        release_payment = 1000
+        sales_price = 2000
+
+        expected_release_payment = Decimal(release_payment / 100)
+        expected_sales_price = Decimal(sales_price / 100)
+
+        haso_apartment = ApartmentMinimalFactory(
+            project_ownership_type=OwnershipType.HASO.value,
+            release_payment=release_payment,
+            sales_price=0,
+        )
+        hitas_apartment = ApartmentMinimalFactory(
+            project_ownership_type=OwnershipType.HITAS.value,
+            sales_price=sales_price,
+            release_payment=0,
+        )
+
+        assert map_sales_price(hitas_apartment).value == expected_sales_price
+        assert map_sales_price(haso_apartment).value == expected_release_payment
+
         pass
 
 

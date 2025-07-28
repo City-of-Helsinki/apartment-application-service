@@ -4,6 +4,7 @@ from typing import List, Optional
 
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
+from apartment.enums import OwnershipType
 from django_oikotie.enums import ApartmentType, NewDevelopmentStatusChoices
 from django_oikotie.xml_models.apartment import (
     Apartment,
@@ -266,9 +267,14 @@ def map_unencumbered_sales_price(
 
 
 def map_sales_price(elastic_apartment: ElasticApartment) -> Optional[SalesPrice]:
-    if elastic_apartment.sales_price is not None:
+    price_value = elastic_apartment.sales_price
+
+    if elastic_apartment.project_ownership_type == OwnershipType.HASO.value:
+        price_value = elastic_apartment.release_payment
+
+    if price_value is not None:
         return SalesPrice(
-            value=convert_price_from_cents_to_eur(elastic_apartment.sales_price),
+            value=convert_price_from_cents_to_eur(price_value),
             currency=Currency.EUR.value,
         )
     else:
@@ -439,9 +445,11 @@ def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:
         ),
         "lift": map_lift(elastic_apartment),
         "year_of_building": map_year_of_building(elastic_apartment),
-        "heating": ", ".join(elastic_apartment.project_heating_options)
-        if getattr(elastic_apartment, "project_heating_options", None)
-        else None,
+        "heating": (
+            ", ".join(elastic_apartment.project_heating_options)
+            if getattr(elastic_apartment, "project_heating_options", None)
+            else None
+        ),
         "general_condition": map_general_condition(elastic_apartment),
         "site": map_site(elastic_apartment),
         "site_area": map_site_area(elastic_apartment),
@@ -453,9 +461,11 @@ def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:
         ),
         "other_fees": getattr(elastic_apartment, "other_fees", None),
         "car_parking_charge": map_car_parking_charge(elastic_apartment),
-        "building_material": ", ".join(elastic_apartment.project_construction_materials)
-        if getattr(elastic_apartment, "project_construction_materials", None)
-        else None,
+        "building_material": (
+            ", ".join(elastic_apartment.project_construction_materials)
+            if getattr(elastic_apartment, "project_construction_materials", None)
+            else None
+        ),
         "roof_material": getattr(elastic_apartment, "project_roof_material", None),
         "kitchen_appliances": getattr(elastic_apartment, "kitchen_appliances", None),
         "sauna": map_sauna(elastic_apartment),
@@ -480,14 +490,13 @@ def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:
         "showing_start_time2": map_showing_start_time(elastic_apartment, 1),
         "showing_end_time2": map_showing_end_time(elastic_apartment, 1),
         "showing_date_explanation2": map_showing_date_explanation(elastic_apartment, 1),
-        # for now not using this option:
-        # getattr(elastic_apartment, "application_url", None)
-        "application_url": None,
+        "application_url": getattr(elastic_apartment, "application_url", None),
         "rc_energyclass": getattr(elastic_apartment, "project_energy_class", None),
         "new_development_status": map_new_development_status(elastic_apartment),
         "time_of_completion": getattr(
             elastic_apartment, "project_completion_date", None
         ),
+        "more_info_url": getattr(elastic_apartment, "url", None),
     }
     return Apartment(**apartment_field_dict)
 
