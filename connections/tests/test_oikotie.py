@@ -44,6 +44,7 @@ from connections.tests.utils import (
     get_elastic_apartments_for_sale_project_uuids,
     get_elastic_apartments_for_sale_published_on_etuovi_uuids,
     get_elastic_apartments_for_sale_published_on_oikotie_uuids,
+    get_elastic_apartments_not_sold_published_on_oikotie_uuids,
     make_apartments_sold_in_elastic,
     publish_elastic_apartments,
     unpublish_elastic_oikotie_apartments,
@@ -343,7 +344,7 @@ class TestApartmentFetchingFromElasticAndMapping:
         # Test data contains three apartments with oikotie invalid data
 
         elastic_oikotie_ap = (
-            get_elastic_apartments_for_sale_published_on_oikotie_uuids()
+            get_elastic_apartments_not_sold_published_on_oikotie_uuids()
         )
         expected_ap = elastic_oikotie_ap.copy()
 

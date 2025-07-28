@@ -38,6 +38,29 @@ def get_elastic_apartments_for_sale_published_on_etuovi_uuids(
         uuids.append(hit.uuid)
     return uuids
 
+def get_elastic_apartments_not_sold_published_on_oikotie_uuids(
+    only_oikotie_published=False,
+) -> list:
+    """
+    Get apartments where apartment_state_of_sale != "SOLD" and published on Oikotie
+    If etuovi_published is False exclude apartments published on Etuovi
+    """
+    s_obj = (
+        ApartmentDocument.search()
+        .filter("term", _language="fi")
+        .exclude("term", apartment_state_of_sale__keyword=ApartmentStateOfSale.SOLD)
+        .filter("term", publish_on_oikotie=True)
+    )
+    if only_oikotie_published:
+        s_obj = s_obj.filter("term", publish_on_etuovi=False)
+
+    s_obj.execute()
+    scan = s_obj.scan()
+    uuids = []
+    for hit in scan:
+        uuids.append(hit.uuid)
+    return uuids
+
 
 def get_elastic_apartments_for_sale_published_on_oikotie_uuids(
     only_oikotie_published=False,

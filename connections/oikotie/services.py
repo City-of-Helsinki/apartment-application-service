@@ -35,10 +35,20 @@ def fetch_apartments_for_sale() -> Tuple[list, list]:
     for hit in scan:
         apartment = map_document(hit, map_oikotie_apartment)
         housing = map_document(hit, map_oikotie_housing_company)
-        if apartment:
-            apartments.append(apartment)
-        if housing:
-            housing_companies.append(housing)
+
+        if not apartment:
+            _logger.warning(f"Could not map apartment company {hit.uuid}")
+
+        if not housing:
+            _logger.warning(f"Could not map housing company {hit.uuid}")
+
+        if not apartment or not housing:
+            continue
+
+        apartments.append(apartment)
+        housing_companies.append(housing)
+
+
 
     if not apartments:
         _logger.warning(
