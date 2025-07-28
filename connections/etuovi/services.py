@@ -3,12 +3,12 @@ import os
 from typing import Optional
 
 from django.conf import settings
-from connections.utils import map_document
 from django_etuovi.etuovi import create_xml_file
 
 from apartment.elastic.documents import ApartmentDocument
 from connections.enums import ApartmentStateOfSale
 from connections.etuovi.etuovi_mapper import map_apartment_to_item
+from connections.utils import map_document
 
 _logger = logging.getLogger(__name__)
 

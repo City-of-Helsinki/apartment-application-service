@@ -3,7 +3,6 @@ import os
 from typing import Optional, Tuple
 
 from django.conf import settings
-from connections.utils import map_document
 from django_oikotie.oikotie import create_apartments, create_housing_companies
 from django_oikotie.utils import validate_against_schema
 
@@ -13,6 +12,7 @@ from connections.oikotie.oikotie_mapper import (
     map_oikotie_apartment,
     map_oikotie_housing_company,
 )
+from connections.utils import map_document
 
 _logger = logging.getLogger(__name__)
 
@@ -47,8 +47,6 @@ def fetch_apartments_for_sale() -> Tuple[list, list]:
 
         apartments.append(apartment)
         housing_companies.append(housing)
-
-
 
     if not apartments:
         _logger.warning(

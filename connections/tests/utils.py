@@ -38,6 +38,7 @@ def get_elastic_apartments_for_sale_published_on_etuovi_uuids(
         uuids.append(hit.uuid)
     return uuids
 
+
 def get_elastic_apartments_not_sold_published_on_oikotie_uuids(
     only_oikotie_published=False,
 ) -> list:

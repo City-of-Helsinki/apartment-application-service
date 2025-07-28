@@ -1,13 +1,12 @@
-from decimal import Decimal
+from collections.abc import Callable
+from typing import Union
 import logging
+from decimal import Decimal
 
 from django.conf import settings
 from elasticsearch_dsl import connections
 
 _logger = logging.getLogger(__name__)
-
-from collections.abc import Callable
-from typing import List, Union
 
 
 def create_elastic_connection() -> None:
@@ -36,7 +35,7 @@ def convert_price_from_cents_to_eur(price: int) -> Decimal:
 
 
 def map_document(
-    document: "ApartmentDocument", document_mapper_func: Callable
+    document: "ApartmentDocument", document_mapper_func: Callable  # noqa: F821
 ) -> Union[dict, None]:
     """Maps an ApartmentDocument into the correct dictionary using the given
     mapper function passed to it. Handles and logs errors.
@@ -55,6 +54,6 @@ def map_document(
         _logger.error(e)
         _logger.warning(
             f"{document_mapper_func.__name__}: Could not map {document.uuid}/{document}:",  # noqa: E501
-            exc_info=True
+            exc_info=True,
         )
     return mapped
