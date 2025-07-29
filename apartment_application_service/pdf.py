@@ -113,6 +113,24 @@ def create_pdf(
     return pdf_bytes
 
 
+def _get_checkbox_checked_value(annotation: object):
+    # NOTE: There is no universal value for a checked checkbox
+    # https://stackoverflow.com/a/48412434/4558221
+    # Try to mitigate this by figuring out
+    # what the value for the "checked" state is
+    # Its stored in the key "/AP" and its "/On", "/Yes" or "/1"
+    # 9.6.2025
+    checked_value = "/On"
+    annotation_ap_keys = annotation.AP["/D"].keys()
+
+    if "/Yes" in annotation_ap_keys:
+        checked_value = "/Yes"
+    elif "/1" in annotation_ap_keys:
+        checked_value = "/1"
+
+    return checked_value
+
+
 def _set_pdf_fields(pdf: Pdf, data_dict: DataDict, idx: None) -> None:
     for page in pdf.pages:
         for annot in getattr(page, "Annots", []):
@@ -138,9 +156,10 @@ def _set_pdf_fields(pdf: Pdf, data_dict: DataDict, idx: None) -> None:
                 if not data_dict[field_name]:
                     # Not checked
                     continue
-                # NOTE: There is no universal value for a checked checkbox, so this
-                # will break if the template is updated to use a different value
-                pdf_value = Name("/On")
+
+                checked_value = _get_checkbox_checked_value(annot)
+
+                pdf_value = Name(checked_value)
                 annot.AS = pdf_value
                 annot.V = pdf_value
             else:

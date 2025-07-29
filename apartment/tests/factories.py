@@ -48,6 +48,7 @@ class ApartmentDocumentFactory(ElasticFactory):
     project_street_address = factory.Faker("street_address")
     project_postal_code = fuzzy.FuzzyText(length=6, chars=string.digits)
     project_city = "Helsinki"
+    project_contract_business_id = factory.Faker("business_id")
     project_district = fuzzy.FuzzyText()
     project_realty_id = fuzzy.FuzzyText()
     project_construction_year = fuzzy.FuzzyInteger(2000, 3000)
