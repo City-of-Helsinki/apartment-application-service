@@ -4,7 +4,6 @@ from typing import List, Optional
 
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
-from apartment.enums import OwnershipType
 from django_oikotie.enums import ApartmentType, NewDevelopmentStatusChoices
 from django_oikotie.xml_models.apartment import (
     Apartment,
@@ -41,6 +40,7 @@ from django_oikotie.xml_models.housing_company import Picture as HousingCompanyP
 from django_oikotie.xml_models.housing_company import RealEstateAgent
 
 from apartment.elastic.documents import ApartmentDocument as ElasticApartment
+from apartment.enums import OwnershipType
 from connections.enums import Currency, Unit
 from connections.oikotie.field_mapper import (
     APARTMENT_TYPE_MAPPING,

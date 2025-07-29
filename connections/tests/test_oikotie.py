@@ -1,13 +1,13 @@
-from decimal import Decimal
 import os
+from decimal import Decimal
 from uuid import UUID
 
-from apartment.enums import OwnershipType
 import pytest
 from django.conf import settings
 from django.core.management import call_command
 from django_etuovi.utils.testing import check_dataclass_typing
 
+from apartment.enums import OwnershipType
 from apartment.tests.factories import ApartmentDocumentFactory
 from connections.models import MappedApartment
 from connections.oikotie.oikotie_mapper import (
