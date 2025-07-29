@@ -7,7 +7,12 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from audit_log.viewsets import AuditLoggingModelViewSet
 from users.api.permissions import IsCreatingOrAuthenticated
-from users.api.serializers import MaskedTokenObtainPairSerializer, ProfileSerializer
+from users.api.serializers import (
+    MaskedTokenObtainPairSerializer,
+    ProfileSerializer,
+    UserSerializer,
+)
+from users.enums import Roles
 from users.masking import mask_string, mask_uuid, unmask_uuid
 from users.models import Profile
 
@@ -18,6 +23,16 @@ MASKED_ID_PARAMETER = OpenApiParameter(
     required=True,
     description="A masked UUID string identifying this profile.",
 )
+
+
+class SalesPersonViewSet(AuditLoggingModelViewSet):
+    queryset = (
+        get_user_model()
+        .objects.filter(groups__name__iexact=Roles.DJANGO_SALESPERSON.name)
+        .exclude(first_name="")
+    )
+    serializer_class = UserSerializer
+    http_method_names = ["get"]
 
 
 @extend_schema_view(
