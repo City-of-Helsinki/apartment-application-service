@@ -4,6 +4,7 @@ from dateutil import parser
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse
+from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 from drf_spectacular.types import OpenApiTypes
@@ -165,9 +166,16 @@ class ApartmentReservationViewSet(
         "the reservation's project's ownership type.",
         responses={(200, "application/pdf"): OpenApiTypes.BINARY},
     )
-    @action(methods=["GET"], detail=True)
+    @action(methods=["POST"], detail=True)
     def contract(self, request, pk=None):
         reservation = self.get_object()
+
+        data = request.data
+
+        sales_price_paid_place = data.get("sales_price_paid_place")
+        sales_price_paid_time = data.get("sales_price_paid_time")
+        salesperson_id = data.get("salesperson_id")
+
         apartment = get_apartment(
             reservation.apartment_uuid, include_project_fields=True
         )
@@ -175,10 +183,22 @@ class ApartmentReservationViewSet(
             (apartment.title or "").strip().lower().replace(" ", "_").replace(",", "")
         )
 
+
+        try:
+            if salesperson_id:
+                salesperson = get_user_model().objects.get(pk=salesperson_id)
+        except:
+            raise ValueError(f"Unknown salesperson: {salesperson_id}")
+
         ownership_type = apartment.project_ownership_type.lower()
         if ownership_type == "hitas":
             filename = f"hitas_sopimus_{title}" if title else "hitas_sopimus"
-            pdf_data = create_hitas_contract_pdf(reservation)
+            pdf_data = create_hitas_contract_pdf(
+                reservation, 
+                sales_price_paid_place, 
+                sales_price_paid_time, 
+                salesperson,
+            )
         elif ownership_type == "haso":
             filename = f"haso_sopimus_{title}" if title else "haso_sopimus"
             pdf_data = create_haso_contract_pdf(reservation)

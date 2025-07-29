@@ -5,6 +5,8 @@ from decimal import Decimal
 import pytest
 from django.urls import reverse
 from django.utils.timezone import localtime
+from django.contrib.auth import get_user_model
+from users.models import User
 
 from apartment.models import ProjectExtraData
 from apartment.tests.factories import ApartmentDocumentFactory
@@ -312,7 +314,10 @@ def test_contract_pdf_creation(
     is_haso = ownership_type == "HASO"
     is_hitas = ownership_type == "Hitas"
 
-    apartment = ApartmentDocumentFactory(project_ownership_type=ownership_type)
+    apartment = ApartmentDocumentFactory(
+        project_ownership_type=ownership_type,
+        project_use_complete_contract=True
+    )
 
     if reservation_has_application:
         reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
@@ -321,9 +326,12 @@ def test_contract_pdf_creation(
             apartment_uuid=apartment.uuid, application_apartment=None
         )
 
+
+    user = sales_ui_salesperson_api_client.user
     test_post_data = {
-        "sales_price_paid_place_and_time": f"Helsinki 29.7.2025",
-        "sales_price_paid_salesperson_signature": "Matias Myyjä"
+        "sales_price_paid_place": "Helsinki",
+        "sales_price_paid_time":  "29.7.2025",
+        "salesperson_id": str(user.id)
     }
 
     if is_haso:
@@ -351,11 +359,12 @@ def test_contract_pdf_creation(
     assert_pdf_has_text(response.content, test_value)
 
     if is_hitas:
+        expected_sales_price_paid_place_time = f'{test_post_data["sales_price_paid_place"]} {test_post_data["sales_price_paid_time"]}'  # noqa: E501
         assert_pdf_has_text(
-            response.content, test_post_data["sales_price_paid_place_and_time"]
+            response.content, expected_sales_price_paid_place_time
         )
         assert_pdf_has_text(
-            response.content, test_post_data["sales_price_paid_salesperson_signature"]
+            response.content, f"{user.first_name} {user.last_name}"
         )
 
 
