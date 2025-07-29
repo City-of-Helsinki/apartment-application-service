@@ -309,6 +309,9 @@ def test_contract_pdf_creation(
     ownership_type,
     reservation_has_application,
 ):
+    is_haso = ownership_type == "HASO"
+    is_hitas = ownership_type == "Hitas"
+
     apartment = ApartmentDocumentFactory(project_ownership_type=ownership_type)
 
     if reservation_has_application:
@@ -318,11 +321,20 @@ def test_contract_pdf_creation(
             apartment_uuid=apartment.uuid, application_apartment=None
         )
 
-    response = sales_ui_salesperson_api_client.get(
+    test_post_data = {
+        "sales_price_paid_place_and_time": f"Helsinki 29.7.2025",
+        "sales_price_paid_salesperson_signature": "Matias Myyjä"
+    }
+
+    if is_haso:
+        test_post_data = {}
+
+    response = sales_ui_salesperson_api_client.post(
         reverse(
             "application_form:sales-apartment-reservation-contract",
             kwargs={"pk": reservation.id},
         ),
+        test_post_data,
         format="json",
     )
 
@@ -337,6 +349,14 @@ def test_contract_pdf_creation(
 
     assert isinstance(test_value, str) and len(test_value) > 10
     assert_pdf_has_text(response.content, test_value)
+
+    if is_hitas:
+        assert_pdf_has_text(
+            response.content, test_post_data["sales_price_paid_place_and_time"]
+        )
+        assert_pdf_has_text(
+            response.content, test_post_data["sales_price_paid_salesperson_signature"]
+        )
 
 
 @pytest.mark.django_db
