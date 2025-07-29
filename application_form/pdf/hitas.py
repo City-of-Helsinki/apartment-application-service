@@ -575,7 +575,7 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
     full_apartment_contract_data = {
         **contract_data,
         "building_permit_applied_for": apartment.project_construction_permit_claim,
-        "buyer_has_paid_down_payment": "buyer_has_paid_down_payment",
+        "buyer_has_paid_down_payment": "",
         "credit_interest": "0,00%",
         "debt_free_price_x_0_014": True,
         "documents": apartment.project_customer_document_handover,
@@ -596,7 +596,7 @@ def create_hitas_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
         "sales_price_x_0_02": True,
         "other_space": "",
         "other_space_area": "",
-        "salesperson_signature": "salesperson_signature",
+        "salesperson_signature": "",
         "transfer_of_posession": apartment.project_possession_transfer_date,
         "transfer_of_shares": apartment.project_transfer_of_shares_date,
         "transfer_of_shares_confirmed": "",
