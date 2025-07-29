@@ -65,7 +65,7 @@ django-etuovi==0.2.1
     # via -r requirements.in
 django-helusers==0.13.0
     # via -r requirements.in
-django-oikotie @ git+https://github.com/City-of-Helsinki/django-oikotie.git@schema-validation
+django-oikotie @ git+https://github.com/City-of-Helsinki/django-oikotie.git@version_0_2_2
     # via -r requirements.in
 django-pgcrypto-fields @ git+https://github.com/incuna/django-pgcrypto-fields@5b4b8eed3f9636ba3331f26e41a639fe4bee9247
     # via -r requirements.in

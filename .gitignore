@@ -144,3 +144,5 @@ dmypy.json
 
 # test XML files
 transfer_files/*
+
+schemas/*

@@ -1,4 +1,5 @@
 import os
+from decimal import Decimal
 from uuid import UUID
 
 import pytest
@@ -6,6 +7,7 @@ from django.conf import settings
 from django.core.management import call_command
 from django_etuovi.utils.testing import check_dataclass_typing
 
+from apartment.enums import OwnershipType
 from apartment.tests.factories import ApartmentDocumentFactory
 from connections.models import MappedApartment
 from connections.oikotie.oikotie_mapper import (
@@ -43,6 +45,7 @@ from connections.tests.utils import (
     get_elastic_apartments_for_sale_project_uuids,
     get_elastic_apartments_for_sale_published_on_etuovi_uuids,
     get_elastic_apartments_for_sale_published_on_oikotie_uuids,
+    get_elastic_apartments_not_sold_published_on_oikotie_uuids,
     make_apartments_sold_in_elastic,
     publish_elastic_apartments,
     unpublish_elastic_oikotie_apartments,
@@ -278,6 +281,56 @@ class TestOikotieMapper:
 
         assert formed_description.strip() == expected.strip()
 
+    def test_oikotie_truncated_description_bug(self):
+        """
+        For some reason when generating the XML any description text is truncated to
+        2000 characters.
+        """
+        expected_description = "A" * 12000
+        apartment = ApartmentMinimalFactory(
+            project_description=expected_description, url=None
+        )
+        apartment = ApartmentMinimalFactory(
+            project_description=expected_description, url=None
+        )
+        apartment = ApartmentMinimalFactory(
+            project_description=expected_description, url=None
+        )
+        mapped_apartment = map_oikotie_apartment(apartment)
+        description_elem = mapped_apartment.to_etree().find("Description")
+        if description_elem.text != expected_description:
+            pytest.fail(
+                f"Description truncated from {len(expected_description)} to {len(description_elem.text)} characters"  # noqa: E501
+            )
+        pass
+
+    def test_oikotie_map_correct_price_info(self):
+        """
+        Get `ApartmentDocument.release_payment` for HASO apartments and
+        `ApartmentDocument.sales_price` for HITAS apartments.
+        """
+        release_payment = 1000
+        sales_price = 2000
+
+        expected_release_payment = Decimal(release_payment / 100)
+        expected_sales_price = Decimal(sales_price / 100)
+
+        haso_apartment = ApartmentMinimalFactory(
+            project_ownership_type=OwnershipType.HASO.value,
+            release_payment=release_payment,
+            sales_price=0,
+        )
+        hitas_apartment = ApartmentMinimalFactory(
+            project_ownership_type=OwnershipType.HITAS.value,
+            sales_price=sales_price,
+            release_payment=0,
+        )
+
+        assert map_sales_price(hitas_apartment).value == expected_sales_price
+        assert map_sales_price(haso_apartment).value == expected_release_payment
+
+        pass
+
 
 @pytest.mark.django_db
 @pytest.mark.usefixtures("client")
@@ -316,7 +369,7 @@ class TestApartmentFetchingFromElasticAndMapping:
         # Test data contains three apartments with oikotie invalid data
 
         elastic_oikotie_ap = (
-            get_elastic_apartments_for_sale_published_on_oikotie_uuids()
+            get_elastic_apartments_not_sold_published_on_oikotie_uuids()
         )
         expected_ap = elastic_oikotie_ap.copy()
 

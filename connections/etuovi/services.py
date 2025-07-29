@@ -8,6 +8,7 @@ from django_etuovi.etuovi import create_xml_file
 from apartment.elastic.documents import ApartmentDocument
 from connections.enums import ApartmentStateOfSale
 from connections.etuovi.etuovi_mapper import map_apartment_to_item
+from connections.utils import map_document
 
 _logger = logging.getLogger(__name__)
 
@@ -28,11 +29,10 @@ def fetch_apartments_for_sale(verbose: bool = False) -> list:
     items = []
 
     for hit in scan:
-        try:
-            items.append(map_apartment_to_item(hit))
-        except ValueError as e:
-            print(e)
-            _logger.warning(f"Could not map apartment {hit.uuid}/{hit}:", exc_info=True)
+        apartment = map_document(hit, map_apartment_to_item)
+        if apartment:
+            items.append(apartment)
+
     if not items:
         _logger.warning(
             "There were no apartments to map or could not map any apartments"
