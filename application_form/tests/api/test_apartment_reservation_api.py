@@ -5,8 +5,6 @@ from decimal import Decimal
 import pytest
 from django.urls import reverse
 from django.utils.timezone import localtime
-from django.contrib.auth import get_user_model
-from users.models import User
 
 from apartment.models import ProjectExtraData
 from apartment.tests.factories import ApartmentDocumentFactory
@@ -315,8 +313,7 @@ def test_contract_pdf_creation(
     is_hitas = ownership_type == "Hitas"
 
     apartment = ApartmentDocumentFactory(
-        project_ownership_type=ownership_type,
-        project_use_complete_contract=True
+        project_ownership_type=ownership_type, project_use_complete_contract=True
     )
 
     if reservation_has_application:
@@ -326,12 +323,11 @@ def test_contract_pdf_creation(
             apartment_uuid=apartment.uuid, application_apartment=None
         )
 
-
     user = sales_ui_salesperson_api_client.user
     test_post_data = {
         "sales_price_paid_place": "Helsinki",
-        "sales_price_paid_time":  "29.7.2025",
-        "salesperson_id": str(user.id)
+        "sales_price_paid_time": "29.7.2025",
+        "salesperson_id": str(user.id),
     }
 
     if is_haso:
@@ -360,12 +356,8 @@ def test_contract_pdf_creation(
 
     if is_hitas:
         expected_sales_price_paid_place_time = f'{test_post_data["sales_price_paid_place"]} {test_post_data["sales_price_paid_time"]}'  # noqa: E501
-        assert_pdf_has_text(
-            response.content, expected_sales_price_paid_place_time
-        )
-        assert_pdf_has_text(
-            response.content, f"{user.first_name} {user.last_name}"
-        )
+        assert_pdf_has_text(response.content, expected_sales_price_paid_place_time)
+        assert_pdf_has_text(response.content, f"{user.first_name} {user.last_name}")
 
 
 @pytest.mark.django_db

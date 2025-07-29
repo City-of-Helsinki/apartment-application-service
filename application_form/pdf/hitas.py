@@ -5,7 +5,6 @@ from io import BytesIO
 from typing import ClassVar, Dict, List, Optional, Union
 
 from num2words import num2words
-from users.models import User
 
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import get_apartment
@@ -19,6 +18,7 @@ from invoicing.enums import (
 )
 from invoicing.models import ApartmentInstallment, ProjectInstallmentTemplate
 from invoicing.utils import remove_exponent
+from users.models import User
 
 HITAS_CONTRACT_PDF_TEMPLATE_FILE_NAME = "hitas_contract_template.pdf"
 HITAS_COMPLETE_APARTMENT_CONTRACT_PDF_TEMPLATE_FILE_NAME = (
@@ -390,18 +390,17 @@ class HitasContractPDFData(PDFData):
 
 
 def create_hitas_contract_pdf(
-        reservation: ApartmentReservation, 
-        sales_price_paid_place: str,
-        sales_price_paid_time: str,
-        salesperson: User
-    ) -> BytesIO:
+    reservation: ApartmentReservation,
+    sales_price_paid_place: str,
+    sales_price_paid_time: str,
+    salesperson: User,
+) -> BytesIO:
     customer = SafeAttributeObject(reservation.customer)
     primary_profile = SafeAttributeObject(customer.primary_profile)
     secondary_profile = SafeAttributeObject(customer.secondary_profile)
     apartment: ApartmentDocument = SafeAttributeObject(
         get_apartment(reservation.apartment_uuid, include_project_fields=True)
     )
-
 
     # use contract for complete apartment
     # can possibly be None, use bool() to convert to False in that case
@@ -578,7 +577,9 @@ def create_hitas_contract_pdf(
         ),
     }
 
-    sales_price_paid_place_and_time = f"{sales_price_paid_place} {sales_price_paid_time}"
+    sales_price_paid_place_and_time = (
+        f"{sales_price_paid_place} {sales_price_paid_time}"
+    )
 
     # full apartment contract data is mostly the same fields but with some changes
     full_apartment_contract_data = {

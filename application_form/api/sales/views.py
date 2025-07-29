@@ -2,9 +2,9 @@ from datetime import timedelta
 
 from dateutil import parser
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse
-from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 from drf_spectacular.types import OpenApiTypes
@@ -183,20 +183,19 @@ class ApartmentReservationViewSet(
             (apartment.title or "").strip().lower().replace(" ", "_").replace(",", "")
         )
 
-
         try:
             if salesperson_id:
                 salesperson = get_user_model().objects.get(pk=salesperson_id)
-        except:
+        except get_user_model().DoesNotExist:
             raise ValueError(f"Unknown salesperson: {salesperson_id}")
 
         ownership_type = apartment.project_ownership_type.lower()
         if ownership_type == "hitas":
             filename = f"hitas_sopimus_{title}" if title else "hitas_sopimus"
             pdf_data = create_hitas_contract_pdf(
-                reservation, 
-                sales_price_paid_place, 
-                sales_price_paid_time, 
+                reservation,
+                sales_price_paid_place,
+                sales_price_paid_time,
                 salesperson,
             )
         elif ownership_type == "haso":
