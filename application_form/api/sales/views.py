@@ -166,15 +166,15 @@ class ApartmentReservationViewSet(
         "the reservation's project's ownership type.",
         responses={(200, "application/pdf"): OpenApiTypes.BINARY},
     )
-    @action(methods=["POST"], detail=True)
+    @action(methods=["GET"], detail=True)
     def contract(self, request, pk=None):
         reservation = self.get_object()
 
-        data = request.data
+        data = request.query_params
 
         sales_price_paid_place = data.get("sales_price_paid_place")
         sales_price_paid_time = data.get("sales_price_paid_time")
-        salesperson_id = data.get("salesperson_id")
+        salesperson_uuid = data.get("salesperson_uuid")
 
         apartment = get_apartment(
             reservation.apartment_uuid, include_project_fields=True
@@ -183,15 +183,17 @@ class ApartmentReservationViewSet(
             (apartment.title or "").strip().lower().replace(" ", "_").replace(",", "")
         )
 
+        salesperson = None
         try:
-            if salesperson_id:
-                salesperson = get_user_model().objects.get(pk=salesperson_id)
+            if salesperson_uuid:
+                salesperson = get_user_model().objects.get(uuid=salesperson_uuid)
         except get_user_model().DoesNotExist:
-            raise ValueError(f"Unknown salesperson: {salesperson_id}")
+            raise ValueError(f"Unknown salesperson: {salesperson_uuid}")
 
         ownership_type = apartment.project_ownership_type.lower()
         if ownership_type == "hitas":
             filename = f"hitas_sopimus_{title}" if title else "hitas_sopimus"
+
             pdf_data = create_hitas_contract_pdf(
                 reservation,
                 sales_price_paid_place,
@@ -205,10 +207,8 @@ class ApartmentReservationViewSet(
             raise ValueError(
                 f"Unknown ownership_type: {apartment.project_ownership_type}"
             )
-
         response = HttpResponse(pdf_data, content_type="application/pdf")
         response["Content-Disposition"] = f"attachment; filename={filename}.pdf"
-
         return response
 
     @extend_schema(
