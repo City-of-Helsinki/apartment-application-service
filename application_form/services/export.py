@@ -8,6 +8,8 @@ from decimal import Decimal
 from io import BytesIO, StringIO
 from typing import List, Union
 
+from invoicing.enums import InstallmentType
+from invoicing.models import ApartmentInstallment
 import xlsxwriter
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import CharField, Max, QuerySet
@@ -68,7 +70,7 @@ def _get_reservation_cell_value(column_name, apartment=None, reservation=None):
         return reservation.queue_position
     if column_name == "right_of_residence":
         return reservation.right_of_residence
-    return ""
+    return None
 
 
 class XlsxExportService:
@@ -260,8 +262,30 @@ class ApplicantMailingListExportService(CSVExportService):
 
         for column in self.COLUMNS:
             cell_value = _get_reservation_cell_value(column[1], apartment, reservation)
-            line.append(cell_value)
+            if cell_value is not None:
+                line.append(cell_value)
+
+        for installment in self.get_right_of_occupancy_installments(reservation):
+            line += [
+                installment.value,
+                installment.payment_status.value
+            ]
+            pass
+
         return line
+
+    def get_right_of_occupancy_installments(
+            self, 
+            reservation: ApartmentReservation
+    ) -> QuerySet[ApartmentInstallment]:
+        installments: QuerySet[ApartmentInstallment] = reservation.apartment_installments.filter(  # noqa: E501
+            type__in=[
+                InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT,
+                InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_2,
+                InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_3,
+            ]
+        ).order_by("type")
+        return installments
 
 
 class ApplicantExportService(CSVExportService):
