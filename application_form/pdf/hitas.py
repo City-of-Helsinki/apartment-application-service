@@ -4,7 +4,6 @@ from decimal import Decimal, ROUND_HALF_UP
 from django.utils import translation
 from io import BytesIO
 from typing import ClassVar, Dict, List, Optional, Union
-from django.utils.translation import gettext_lazy as _
 from num2words import num2words
 
 from apartment.elastic.documents import ApartmentDocument
@@ -582,13 +581,12 @@ def create_hitas_contract_pdf(
         f"{sales_price_paid_place} {sales_price_paid_time}"
     )
 
-
     # override language to Finnish, as the user's browser settings etc.
     # shouldn't affect the printed out PDFs
     # further info on how Django resolves language preference:
     # https://docs.djangoproject.com/en/5.1/topics/i18n/translation/
     with translation.override("fi"):
-        payment_1_price = hitas_price(payment_1.value*100)
+        payment_1_price = hitas_price(payment_1.value * 100)
         payment_terms_rest_of_price = f"{payment_1.type.label} eräpäivä {payment_1.due_date} {payment_1_price.value} {payment_1_price.suffix}"  # noqa: E501
 
     # full apartment contract data is mostly the same fields but with some changes
@@ -603,7 +601,7 @@ def create_hitas_contract_pdf(
         "guarantee": "guarantee",
         "guarantee_attachment_exists": True,
         "guarantee_attachment_not_exists": False,
-        "project_contract_collateral_type": apartment.project_contract_default_collateral,
+        "project_contract_collateral_type": apartment.project_contract_default_collateral,  # noqa: E501
         "loan_share_and_sales_price": hitas_price(apartment.debt_free_sales_price),
         "occupants_signatures": contract_data["signing_buyers"],
         "other_contract_terms": apartment.project_contract_combined_terms,
