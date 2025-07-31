@@ -169,7 +169,9 @@ COMPLETE_CONTRACT_PDF_DATA = HitasCompleteApartmentContractPDFData(
     other_space_area="10.5",
     project_contract_transfer_restriction_false=False,
     project_contract_transfer_restriction_true=True,
-    project_contract_transfer_restriction="Lunastusoikeus lisätiedot",
+    project_contract_transfer_restriction_text="Lunastusoikeus lisätiedot",
+    project_contract_construction_permit_requested="12.1.2024",
+    project_documents_delivered="Foo.pdf\nBar.pdf\nTest.docx",
     sales_price=CF(euros=Decimal("1234.56")),
     loan_share=CF(euros=Decimal("2345.67")),
     loan_share_and_sales_price=CF(euros=Decimal("3580.23")),
@@ -192,7 +194,6 @@ COMPLETE_CONTRACT_PDF_DATA = HitasCompleteApartmentContractPDFData(
     guarantee="Muu vakuus",
     guarantee_attachment_exists=True,
     guarantee_attachment_not_exists=False,
-    building_permit_applied_for="Haettu 10.11.2023",
     project_built_according_to_regulations="Rakennettu säännösten mukaan",
     other_contract_terms="Muut sopimusehdot",
     documents="Ostaja on perehtynyt seuraaviin asiakirjoihin <lista asiakirjoista>",
@@ -239,7 +240,6 @@ class TesthitasCompleteApartmentContractPdfFromData(unittest.TestCase):
 
     def test_pdf_content_is_correct(self):
         # regression test
-
         assert get_cleaned_pdf_texts(self.pdf_content) == [
             "Valmiin uuden asunnon kauppakirja",
             "1 Sopijapuolet",
@@ -478,7 +478,7 @@ class TesthitasCompleteApartmentContractPdfFromData(unittest.TestCase):
             "8",
             "12 Rakentamista koskevat säännökset ja määräykset",
             "Yhtiölle on haettu rakennuslupaa",
-            "Haettu 10.11.2023",
+            "12.1.2024",
             "Yhtiö on rakennettu rakennusluvan hakemisajankohtana voimassa olevien säännösten",
             "ja määräysten tai niihin mahdollisesti myönnettyjen poikkeuslupien mukaisesti",
             "Rakennettu säännösten mukaan",
@@ -500,7 +500,9 @@ class TesthitasCompleteApartmentContractPdfFromData(unittest.TestCase):
             "Näiden sopimusehtojen lisäksi kauppaan sovelletaan asuntokauppalakia (843/1994).",
             "Tämän kauppakirjan allekirjoituksella ostaja ilmoittaa tutustuneensa seuraaviin",
             "asiakirjoihin ja vastaanottaneensa ne",
-            "Ostaja on perehtynyt seuraaviin asiakirjoihin <lista asiakirjoista>",
+            "Foo.pdf",
+            "Bar.pdf",
+            "Test.docx",
             "11",
             "Paikka ja aika",
             "22.1.2024 Helsinki",

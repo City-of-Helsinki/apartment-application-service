@@ -22,6 +22,13 @@ from users.models import Profile
 _logger = logging.getLogger(__name__)
 
 
+class UserSerializer(ModelSerializer):
+
+    class Meta:
+        model = get_user_model()
+        fields = ["uuid", "first_name", "last_name"]
+
+
 class ProfileSerializerBase(ModelSerializer):
     id = UUIDField(source="pk")
 

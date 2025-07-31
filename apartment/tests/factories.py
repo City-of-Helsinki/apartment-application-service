@@ -115,6 +115,8 @@ class ApartmentDocumentFactory(ElasticFactory):
     project_coordinate_lat = fuzzy.FuzzyFloat(-90, 90)
     project_coordinate_lon = fuzzy.FuzzyFloat(-180, 180)
 
+    project_use_complete_contact = False
+
     apartment_state_of_sale = fuzzy.FuzzyChoice(
         [
             "FOR_SALE",
