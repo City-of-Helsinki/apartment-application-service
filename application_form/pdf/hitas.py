@@ -1,9 +1,10 @@
 import dataclasses
 from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
+from django.utils import translation
 from io import BytesIO
 from typing import ClassVar, Dict, List, Optional, Union
-
+from django.utils.translation import gettext_lazy as _
 from num2words import num2words
 
 from apartment.elastic.documents import ApartmentDocument
@@ -64,7 +65,7 @@ class HitasCompleteApartmentContractPDFData(PDFData):
     other_space_area: Union[str, None]
     project_contract_transfer_restriction_false: Union[bool, None]
     project_contract_transfer_restriction_true: Union[bool, None]
-    project_contract_transfer_restriction: Union[str, None]
+    project_contract_transfer_restriction_text: Union[str, None]
     sales_price: Union[str, None]
     loan_share: Union[str, None]
     loan_share_and_sales_price: Union[str, None]
@@ -85,10 +86,10 @@ class HitasCompleteApartmentContractPDFData(PDFData):
     project_contract_collateral_type: Union[str, None]
     guarantee_attachment_exists: Union[bool, None]
     guarantee_attachment_not_exists: Union[bool, None]
-    building_permit_applied_for: Union[str, None]
+    project_contract_construction_permit_requested: Union[str, None]
     project_built_according_to_regulations: Union[str, None]
     other_contract_terms: Union[str, None]
-    documents: Union[str, None]
+    project_documents_delivered: Union[str, None]
     signing_place_and_time: Union[str, None]
     salesperson_signature: Union[str, None]
     occupants_signatures: Union[str, None]
@@ -127,7 +128,7 @@ class HitasCompleteApartmentContractPDFData(PDFData):
         "other_space_area": "P3Muidentilojenpintaala",  # "Muiden tilojen pinta-ala",
         "project_contract_transfer_restriction_false": "P3Lunastusoikeuseiole",  # "Ei ole",  # noqa: E501
         "project_contract_transfer_restriction_true": "P3Lunastusoikeuson",  # "On",
-        "project_contract_transfer_restriction": "P3Lunastusoikeus",  # "Lunastusoikeus ja luovutusta koskevat rajoitteet",  # noqa: E501
+        "project_contract_transfer_restriction_text": "P3Lunastusoikeus",  # "Lunastusoikeus ja luovutusta koskevat rajoitteet",  # noqa: E501
         "sales_price": "P4Kauppahinta",  # "Kauppahinta (kirjaimin ja numeroin)",
         "loan_share": "P4Osuuslainoista",  # "Myytyihin osakkeisiin kohdistuva osuus yhtiön lainoista",  # noqa: E501
         "loan_share_and_sales_price": "P4Kauppahintajalainaosuus",  # "Kauppahinta ja yhtiölainaosuus yhteensä (velaton hinta)",  # noqa: E501
@@ -147,10 +148,10 @@ class HitasCompleteApartmentContractPDFData(PDFData):
         "project_contract_collateral_type": "P8Suorituskyvyttomyysvakuus",  # "Suorituskyvyttömyysvakuus",  # noqa: E501
         "guarantee_attachment_exists": "P8Liiteon",  # "Liite on",
         "guarantee_attachment_not_exists": "P8Liitettaeiole",  # "Liitettä ei ole",
-        "building_permit_applied_for": "P9Haetturakennuslupaa",  # "Yhtiölle on haettu rakennuslupaa",  # noqa: E501
+        "project_contract_construction_permit_requested": "P9Haetturakennuslupaa",  # "Yhtiölle on haettu rakennuslupaa",  # noqa: E501
         "project_built_according_to_regulations": "P9Yhtiorakennettumukaisesti",  # "Yhtiö on rakennettu säännösten mukaisesti",  # noqa: E501
         "other_contract_terms": "P10Muutehdot",  # "Muut ehdot ja lisätiedot",
-        "documents": "P11Asiakirjat",  # "Asiakirjat",
+        "project_documents_delivered": "P11Asiakirjat",  # "Asiakirjat",
         "signing_place_and_time": "P12Paikkajaaika",  # "Paikka ja aika",
         "salesperson_signature": "P12Myyjanallekirjoitus",  # "Myyjän allekirjoitus",
         "occupants_signatures": "P12Ostajanallekirjoitus",  # "Ostajan tai ostajien allekirjoitus",  # noqa: E501
@@ -581,6 +582,15 @@ def create_hitas_contract_pdf(
         f"{sales_price_paid_place} {sales_price_paid_time}"
     )
 
+
+    # override language to Finnish, as the user's browser settings etc.
+    # shouldn't affect the printed out PDFs
+    # further info on how Django resolves language preference:
+    # https://docs.djangoproject.com/en/5.1/topics/i18n/translation/
+    with translation.override("fi"):
+        payment_1_price = hitas_price(payment_1.value*100)
+        payment_terms_rest_of_price = f"{payment_1.type.label} eräpäivä {payment_1.due_date} {payment_1_price.value} {payment_1_price.suffix}"  # noqa: E501
+
     # full apartment contract data is mostly the same fields but with some changes
     full_apartment_contract_data = {
         **contract_data,
@@ -588,22 +598,21 @@ def create_hitas_contract_pdf(
         "buyer_has_paid_down_payment": "",
         "credit_interest": "0,00%",
         "debt_free_price_x_0_014": True,
-        "documents": apartment.project_customer_document_handover,
+        "project_documents_delivered": apartment.project_documents_delivered,
         "final_payment": "final_payment",
         "guarantee": "guarantee",
         "guarantee_attachment_exists": True,
         "guarantee_attachment_not_exists": False,
-        "inability_to_pay_guarantee": apartment.project_default_collateral,
-        "loan_share_and_sales_price": apartment.debt_free_sales_price,
+        "project_contract_collateral_type": apartment.project_contract_default_collateral,
+        "loan_share_and_sales_price": hitas_price(apartment.debt_free_sales_price),
         "occupants_signatures": contract_data["signing_buyers"],
         "other_contract_terms": apartment.project_contract_combined_terms,
-        "payment_terms_rest_of_price": "",
+        "payment_terms_rest_of_price": payment_terms_rest_of_price,
         "project_built_according_to_regulations": "",  # noqa: E501
-        "project_contract_transfer_restriction": apartment.project_article_of_association,  # noqa: E501
-        "sales_price_paid": "",  # TODO: To be added in a future task
+        "sales_price_paid": "",
         "sales_price_paid_place_and_time": sales_price_paid_place_and_time,  # noqa: E501
         "sales_price_paid_salesperson_signature": salesperson.profile_or_user_full_name,
-        "sales_price_x_0_02": True,
+        "sales_price_x_0_02": False,
         "other_space": "",
         "other_space_area": "",
         "salesperson_signature": "",
