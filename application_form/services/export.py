@@ -185,6 +185,15 @@ class ApplicantMailingListExportService(CSVExportService):
         ("Kohteen postitoimipaikka", "project_city"),
         ("Huoneiston kokoonpano", "apartment_structure"),
         ("Asuinpinta-ala", "living_area"),
+        ("AO-maksu 1", ""),
+        ("Summa", ""),
+        ("Maksettu", ""),
+        ("AO-maksu 2", ""),
+        ("Summa", ""),
+        ("Maksettu", ""),
+        ("AO-maksu 3", ""),
+        ("Summa", ""),
+        ("Maksettu", ""),
     ]
 
     ORDER_BY = ["apartment_uuid", "queue_position"]

@@ -4,8 +4,13 @@ from decimal import Decimal
 from io import BytesIO
 from typing import List
 
+from invoicing.enums import InstallmentType
+from invoicing.models import ApartmentInstallment
+from invoicing.tests.factories import ApartmentInstallmentFactory
 import pytest
 from _pytest.fixtures import fixture
+from django.db.models import QuerySet
+
 from django.utils import timezone
 
 from apartment.elastic.documents import ApartmentDocument
@@ -135,9 +140,18 @@ def _validate_mailing_list_csv(
         reservations, key=lambda x: get_apartment(x.apartment_uuid).apartment_number
     )
 
+
     for i, row in enumerate(content_rows):
 
         reservation = reservations[i]
+        roo_installments:QuerySet[ApartmentInstallment] = reservation.apartment_installments.filter(
+            type__in=[
+                InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT,
+                InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_2,
+                InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_3,
+            ]
+        ).order_by("type")
+
         apartment = get_apartment(
             reservation.apartment_uuid, include_project_fields=True
         )
@@ -167,8 +181,17 @@ def _validate_mailing_list_csv(
             apartment.living_area,
         ]
 
+        for roo_installment in roo_installments:
+            expected_row += [
+                roo_installment.value,
+                roo_installment.payment_status.value,
+            ]
+            pass
+
         for expected_field_value, value in zip(expected_row, row):
             assert expected_field_value == value
+
+        assert row == expected_row
 
     pass
 
@@ -215,6 +238,22 @@ def test_export_applicants_mailing_list_all(reservations):
     )
 
     filtered_reservations = applicant_mailing_list_export_service.filter_reservations()
+
+    roo_installment_types = [
+        InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT,
+        InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_2,
+        InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_3,
+    ]
+    for reservation in filtered_reservations:
+        for installment_type in roo_installment_types:
+            ApartmentInstallmentFactory(
+                apartment_reservation=reservation, 
+                value=100,
+                type=installment_type,
+            )
+
+        pass
+
     csv_lines = applicant_mailing_list_export_service.get_rows()
 
     assert len(filtered_reservations) == 23
