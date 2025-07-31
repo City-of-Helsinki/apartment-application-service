@@ -1,9 +1,10 @@
 import dataclasses
 from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
-from django.utils import translation
 from io import BytesIO
 from typing import ClassVar, Dict, List, Optional, Union
+
+from django.utils import translation
 from num2words import num2words
 
 from apartment.elastic.documents import ApartmentDocument
