@@ -323,6 +323,12 @@ def test_contract_pdf_creation(
             apartment_uuid=apartment.uuid, application_apartment=None
         )
 
+    installment = ApartmentInstallmentFactory(
+        apartment_reservation=reservation, 
+        value=1234,
+        type=InstallmentType.PAYMENT_1
+    )
+
     user = sales_ui_salesperson_api_client.user
     test_payload = {
         "sales_price_paid_place": "Helsinki",
