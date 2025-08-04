@@ -31,7 +31,7 @@ from connections.etuovi.field_mapper import (
     REALTY_TYPE_MAPPING,
     TRADE_TYPE_MAPPING,
 )
-from connections.utils import convert_price_from_cents_to_eur
+from connections.utils import a_tags_to_text, convert_price_from_cents_to_eur
 
 
 def handle_field_value(field: Union[str, AttrList, None]) -> str:
@@ -262,6 +262,12 @@ def form_presentation(elastic_apartment):
         # ensure paragraph and line breaks still work even after stripping the HTML
         main_text = re.sub(r"<br.*?>", r"\n", main_text)
         main_text = re.sub(r"<p>(.*?)</p>", r"\1\n\n", main_text)
+
+        # convert <a> tags to text and link
+        # e.g. `<a href="http://foo.bar">Link to page</a>`
+        # -> `Link to page\n http://foo.bar`
+        main_text = a_tags_to_text(main_text)
+
         main_text = strip_tags(main_text)
 
     link = getattr(elastic_apartment, "url", None)

@@ -1,10 +1,12 @@
 import logging
 from collections.abc import Callable
+import re
 from decimal import Decimal
 from typing import Union
 
 from django.conf import settings
 from elasticsearch_dsl import connections
+from lxml import etree
 
 _logger = logging.getLogger(__name__)
 
@@ -57,3 +59,38 @@ def map_document(
             exc_info=True,
         )
     return mapped
+
+def a_tags_to_text(original_text: str) -> str:
+    """
+    Convert <a> tags to a text and link since the integrations only support a
+    limited subset of HTML
+    e.g. `<a href="http://foo.bar">Link to page</a>`
+    -> `Link to page\n http://foo.bar`
+    """
+
+    html_parser = etree.HTMLParser()
+    parsed = etree.fromstring(original_text, html_parser)
+    a_tags = parsed.findall(".//a")
+
+    # eTree doesn't return the string representations of tags correctly
+    # parse tags with regex and use those strings as string replacement patterns
+    a_tag_strings = re.findall(r"<a.*?>.*?</a>", original_text, re.MULTILINE)
+
+    for a_tag, a_tag_str in zip(a_tags, a_tag_strings):
+
+        # a_tag_str = etree.tostring(a_tag).decode()
+        href = a_tag.attrib["href"]
+        text = a_tag.text
+        if not a_tag_str or not text:
+            continue
+
+        if "mailto:" in href:
+            continue
+
+        original_text = original_text.replace(
+            a_tag_str,
+            f"{text}\n{href}",
+        )
+        pass
+
+    return original_text
