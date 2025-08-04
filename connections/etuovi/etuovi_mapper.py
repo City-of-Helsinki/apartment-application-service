@@ -256,11 +256,10 @@ def form_presentation(elastic_apartment):
     Replace <br> and </p> with line breaks.
     """
 
-
     main_text = getattr(elastic_apartment, "project_description", None)
-    
+
     if main_text:
-        # ensure paragraph and line breaks still work even after stripping the HTML        
+        # ensure paragraph and line breaks still work even after stripping the HTML
         main_text = re.sub(r"<br.*?>", r"\n", main_text)
         main_text = re.sub(r"<p>(.*?)</p>", r"\1\n\n", main_text)
         main_text = strip_tags(main_text)
@@ -282,6 +281,7 @@ def get_text_mapping(text_key: TextKey, text_value: str) -> Text:
         text_value=text_value,
         text_language=TextLanguage.FI,
     )
+
 
 def map_apartment_to_text_properties(
     elastic_apartment: ApartmentDocument,
