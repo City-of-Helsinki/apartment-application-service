@@ -151,6 +151,7 @@ if SENTRY_DSN and SENTRY_ENVIRONMENT:
         release=get_version(),
         environment=SENTRY_ENVIRONMENT,
         integrations=[DjangoIntegration()],
+        send_default_pii=True,
     )
 
 var_root = env.path("VAR_ROOT")
