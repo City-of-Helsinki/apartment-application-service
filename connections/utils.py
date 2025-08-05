@@ -2,7 +2,7 @@ import logging
 from collections.abc import Callable
 import re
 from typing import Union
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
 from django.conf import settings
 from elasticsearch_dsl import connections
@@ -72,7 +72,6 @@ def a_tags_to_text(original_text: str) -> str:
     parsed = etree.fromstring(original_text, html_parser)
     a_tags = parsed.findall(".//a")
 
-
     # parse through <a> tags in reverse order
     # replace with <p> tags with the href and the text of the link tag
     for a_tag in reversed(a_tags):
@@ -90,6 +89,8 @@ def a_tags_to_text(original_text: str) -> str:
 
         a_tag.getparent().replace(a_tag, new_elem)
 
-    original_text = "".join([ etree.tostring(child).decode() for child in parsed.findall("body/") ])
-    import ipdb;ipdb.set_trace()
+    original_text = "".join(
+        [etree.tostring(child).decode() for child in parsed.findall("body/")]
+    )
+
     return original_text

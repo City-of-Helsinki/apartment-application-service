@@ -157,7 +157,7 @@ class TestApartmentFetchingFromElasticAndMapping:
         assert file_name is None
 
     def test_strip_link_tags(self):
-        input_text = "<p>Lorem ipsum <a href='https://foo.bar'>FooBar link</a></p><p><a href='mailto:user.name@mail.com'>user.name@mail.com</a><a href='https://test.site'>Test site over here</a></p>"
+        input_text = "<p>Lorem ipsum <a href='https://foo.bar'>FooBar link</a></p><p><a href='mailto:user.name@mail.com'>user.name@mail.com</a><a href='https://test.site'>Test site over here</a></p>"  # noqa: E501
 
         expected_text = '<p>Lorem ipsum <p>FooBar link\nhttps://foo.bar</p></p><p><a href="mailto:user.name@mail.com">user.name@mail.com</a><p>Test site over here\nhttps://test.site</p></p>'  # noqa: E501
 
