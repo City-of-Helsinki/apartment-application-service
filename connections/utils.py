@@ -1,8 +1,8 @@
 import logging
 from collections.abc import Callable
 import re
-from decimal import Decimal
 from typing import Union
+from decimal import ROUND_HALF_UP, Decimal
 
 from django.conf import settings
 from elasticsearch_dsl import connections
@@ -33,7 +33,7 @@ def convert_price_from_cents_to_eur(price: int) -> Decimal:
     """
     Prices are saved as cents in ElasticSearch. Convert to EUR.
     """
-    return Decimal(price / 100.0)
+    return Decimal(price / 100.0).quantize(Decimal("0.10"), ROUND_HALF_UP)
 
 
 def map_document(
