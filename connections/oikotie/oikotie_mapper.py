@@ -386,7 +386,7 @@ def map_new_development_status(
 
 def form_description(elastic_apartment: ElasticApartment) -> Optional[str]:
     """
-    Fetch link to project presentation and add it to the start of the project 
+    Fetch link to project presentation and add it to the start of the project
     description
     """
     optional_text = "Tarkemman kohde-esittelyn sekä varaustilanteen löydät täältä:"

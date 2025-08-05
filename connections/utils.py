@@ -1,8 +1,8 @@
 import logging
-from collections.abc import Callable
 import re
-from typing import Union
+from collections.abc import Callable
 from decimal import Decimal, ROUND_HALF_UP
+from typing import Union
 
 from django.conf import settings
 from django.utils.html import strip_tags
@@ -61,6 +61,7 @@ def map_document(
         )
     return mapped
 
+
 def a_tags_to_text(original_text: str) -> str:
     """
     Convert <a> tags to a <p> tag with text and link since the integrations only support
@@ -95,6 +96,7 @@ def a_tags_to_text(original_text: str) -> str:
     )
 
     return original_text
+
 
 def clean_html_tags_from_text(text: str) -> str:
     """
