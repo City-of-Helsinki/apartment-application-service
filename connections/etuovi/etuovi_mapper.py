@@ -30,10 +30,7 @@ from connections.etuovi.field_mapper import (
     REALTY_TYPE_MAPPING,
     TRADE_TYPE_MAPPING,
 )
-from connections.utils import (
-    clean_html_tags_from_text,
-    convert_price_from_cents_to_eur,
-)
+from connections.utils import clean_html_tags_from_text, convert_price_from_cents_to_eur
 
 
 def handle_field_value(field: Union[str, AttrList, None]) -> str:
