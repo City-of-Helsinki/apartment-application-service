@@ -256,7 +256,7 @@ class TestOikotieMapper:
             (
                 "full description",
                 "link_to_project",
-                "full description\n\nlink_to_project",
+                "Tarkemman kohde-esittelyn sekä varaustilanteen löydät täältä:\nlink_to_project\n\nfull description",
             ),
             (
                 None,
@@ -275,7 +275,9 @@ class TestOikotieMapper:
         self, description, link, expected
     ):
         elastic_apartment = ApartmentMinimalFactory(
-            project_description=description, url=link
+            project_description=description, 
+            url=link,
+            project_url=link
         )
         formed_description = form_description(elastic_apartment)
 

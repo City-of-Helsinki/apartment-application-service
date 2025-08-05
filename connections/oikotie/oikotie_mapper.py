@@ -51,7 +51,7 @@ from connections.oikotie.field_mapper import (
     NEW_DEVELOPMENT_STATUS_MAPPING,
     SITE_MAPPING,
 )
-from connections.utils import convert_price_from_cents_to_eur
+from connections.utils import clean_html_tags_from_text, convert_price_from_cents_to_eur
 
 _logger = logging.getLogger(__name__)
 
@@ -386,11 +386,17 @@ def map_new_development_status(
 
 def form_description(elastic_apartment: ElasticApartment) -> Optional[str]:
     """
-    Fetch link to apartment presentation and add it to the end of project description
+    Fetch link to project presentation and add it to the start of the project 
+    description
     """
     optional_text = "Tarkemman kohde-esittelyn sekä varaustilanteen löydät täältä:"
     main_text = getattr(elastic_apartment, "project_description", None)
-    link = getattr(elastic_apartment, "url", None)
+    if main_text:
+        main_text = clean_html_tags_from_text(main_text)
+    link = getattr(elastic_apartment, "project_url", None)
+
+    if main_text and link:
+        return f"{optional_text}\n{link}\n\n{main_text}"
 
     if not main_text and link:
         return "\n".join(filter(None, [optional_text, link]))

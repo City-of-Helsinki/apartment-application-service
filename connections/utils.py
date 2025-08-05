@@ -5,6 +5,7 @@ from typing import Union
 from decimal import Decimal, ROUND_HALF_UP
 
 from django.conf import settings
+from django.utils.html import strip_tags
 from elasticsearch_dsl import connections
 from lxml import etree
 
@@ -94,3 +95,21 @@ def a_tags_to_text(original_text: str) -> str:
     )
 
     return original_text
+
+def clean_html_tags_from_text(text: str) -> str:
+    """
+    Strip html tags from a string. Keep the text contents of <p> tags and the href
+    attributes of <a> tags.
+    """
+
+    # ensure paragraph and line breaks still work even after stripping the HTML
+    text = re.sub(r"<br.*?>", r"\n", text)
+    text = re.sub(r"<p>(.*?)</p>", r"\1\n\n", text)
+
+    # convert <a> tags to text and link
+    # e.g. `<a href="http://foo.bar">Link to page</a>`
+    # -> `Link to page\n http://foo.bar`
+    text = a_tags_to_text(text)
+    text = strip_tags(text)
+
+    return text
