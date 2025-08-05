@@ -12,6 +12,7 @@ from connections.oikotie.oikotie_mapper import (
     map_oikotie_apartment,
     map_oikotie_housing_company,
 )
+from connections.utils import map_document
 
 _logger = logging.getLogger(__name__)
 
@@ -22,8 +23,8 @@ def fetch_apartments_for_sale() -> Tuple[list, list]:
     """
     s_obj = (
         ApartmentDocument.search()
-        .filter("term", _language__keyword="fi")
-        .filter("term", apartment_state_of_sale__keyword=ApartmentStateOfSale.FOR_SALE)
+        .filter("term", _language="fi")
+        .exclude("term", apartment_state_of_sale__keyword=ApartmentStateOfSale.SOLD)
         .filter("term", publish_on_oikotie=True)
     )
     s_obj.execute()
@@ -32,15 +33,16 @@ def fetch_apartments_for_sale() -> Tuple[list, list]:
     housing_companies = []
 
     for hit in scan:
-        try:
-            apartment = map_oikotie_apartment(hit)
-        except ValueError:
-            _logger.warning(f"Could not map apartment {hit.uuid}", exc_info=True)
-            continue
-        try:
-            housing = map_oikotie_housing_company(hit)
-        except ValueError:
+        apartment = map_document(hit, map_oikotie_apartment)
+        housing = map_document(hit, map_oikotie_housing_company)
+
+        if not apartment:
+            _logger.warning(f"Could not map apartment company {hit.uuid}")
+
+        if not housing:
             _logger.warning(f"Could not map housing company {hit.uuid}")
+
+        if not apartment or not housing:
             continue
 
         apartments.append(apartment)
