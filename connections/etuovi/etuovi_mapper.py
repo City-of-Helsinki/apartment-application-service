@@ -3,6 +3,7 @@ from decimal import Decimal
 from typing import List, Optional, Tuple, Union
 
 from django.conf import settings
+from django.utils.html import strip_tags
 from django.utils.translation import gettext_lazy as _
 from django_etuovi.enums import (
     Condition,
@@ -29,7 +30,7 @@ from connections.etuovi.field_mapper import (
     REALTY_TYPE_MAPPING,
     TRADE_TYPE_MAPPING,
 )
-from connections.utils import convert_price_from_cents_to_eur
+from connections.utils import clean_html_tags_from_text, convert_price_from_cents_to_eur
 
 
 def handle_field_value(field: Union[str, AttrList, None]) -> str:
@@ -250,13 +251,20 @@ def map_scontacts(elastic_apartment: ApartmentDocument) -> Optional[List[Scontac
 
 def form_presentation(elastic_apartment):
     """
-    Fetch link to apartment presentation and add it to the end of project description
+    Fetch link to apartment presentation and add it to the end of project description.
+    Replace <br> and </p> with line breaks.
     """
+
     main_text = getattr(elastic_apartment, "project_description", None)
+
+    if main_text:
+        main_text = clean_html_tags_from_text(main_text)
+
     link = getattr(elastic_apartment, "url", None)
 
     if main_text or link:
         return "\n".join(filter(None, [main_text, link]))
+
     return None
 
 
@@ -332,7 +340,7 @@ def map_texts(elastic_apartment: ApartmentDocument) -> List[Text]:
         current_texts = []
         if field_value:
             for text_value in handle_field_value(field_value):
-                current_texts.append(str(text_value))
+                current_texts.append(strip_tags(str(text_value)))
             complete_text = ", ".join(current_texts)
             texts.append(get_text_mapping(text_key, complete_text))
     return texts
