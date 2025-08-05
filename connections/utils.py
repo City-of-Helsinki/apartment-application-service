@@ -62,35 +62,34 @@ def map_document(
 
 def a_tags_to_text(original_text: str) -> str:
     """
-    Convert <a> tags to a text and link since the integrations only support a
-    limited subset of HTML
+    Convert <a> tags to a <p> tag with text and link since the integrations only support
+    a limited subset of HTML
     e.g. `<a href="http://foo.bar">Link to page</a>`
-    -> `Link to page\n http://foo.bar`
+    -> `<p>Link to page\nhttp://foo.bar</p>`
     """
 
     html_parser = etree.HTMLParser()
     parsed = etree.fromstring(original_text, html_parser)
     a_tags = parsed.findall(".//a")
 
-    # eTree doesn't return the string representations of tags correctly
-    # parse tags with regex and use those strings as string replacement patterns
-    a_tag_strings = re.findall(r"<a.*?>.*?</a>", original_text, re.MULTILINE)
 
-    for a_tag, a_tag_str in zip(a_tags, a_tag_strings):
-
-        # a_tag_str = etree.tostring(a_tag).decode()
+    # parse through <a> tags in reverse order
+    # replace with <p> tags with the href and the text of the link tag
+    for a_tag in reversed(a_tags):
         href = a_tag.attrib["href"]
         text = a_tag.text
-        if not a_tag_str or not text:
+
+        if not text:
             continue
 
         if "mailto:" in href:
             continue
 
-        original_text = original_text.replace(
-            a_tag_str,
-            f"{text}\n{href}",
-        )
-        pass
+        new_elem = etree.Element("p")
+        new_elem.text = f"{text}\n{href}"
 
+        a_tag.getparent().replace(a_tag, new_elem)
+
+    original_text = "".join([ etree.tostring(child).decode() for child in parsed.findall("body/") ])
+    import ipdb;ipdb.set_trace()
     return original_text
