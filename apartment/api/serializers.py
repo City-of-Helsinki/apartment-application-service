@@ -182,7 +182,7 @@ class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
     def get_apartments(self, obj):
         all_reservations = ApartmentReservation.objects.filter(
             apartment_uuid__in=self.apartment_uuids
-        )
+        ).active()
 
         reservation_counts = (
             ApartmentReservation.objects.active()
