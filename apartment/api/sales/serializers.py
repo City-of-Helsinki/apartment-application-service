@@ -7,7 +7,6 @@ from application_form.api.sales.serializers import (
     SalesApartmentReservationSerializer,
     SalesWinningApartmentReservationSerializer,
 )
-from application_form.api.serializers import ApartmentReservationSerializer
 
 
 class ApartmentSerializer(serializers.Serializer):
@@ -35,10 +34,7 @@ class ApartmentSerializer(serializers.Serializer):
             for reservation in self.context.get("reservations", [])
             if reservation.apartment_uuid == UUID(obj.uuid)
         ]
-        return SalesApartmentReservationSerializer(
-            reservations, 
-            many=True
-        ).data
+        return SalesApartmentReservationSerializer(reservations, many=True).data
 
     def get_reservation_count(self, obj):
         return next(
