@@ -7,8 +7,7 @@ from rest_framework import serializers
 from apartment.api.sales.serializers import ApartmentSerializer
 from apartment.elastic.queries import get_apartments
 from apartment.models import ProjectExtraData
-from application_form.api.sales.serializers import ProjectExtraDataSerializer, SalesApartmentReservationSerializer
-from application_form.api.serializers import ApartmentReservationSerializer
+from application_form.api.sales.serializers import ProjectExtraDataSerializer
 from application_form.models import ApartmentReservation, Application, LotteryEvent
 from invoicing.api.serializers import ProjectInstallmentTemplateSerializer
 from invoicing.models import ProjectInstallmentTemplate
@@ -160,7 +159,6 @@ class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
     extra_data = serializers.SerializerMethodField()
     lottery_completed_at = serializers.SerializerMethodField()
     application_count = serializers.SerializerMethodField()
-
 
     def get_installment_templates(self, obj):
         installment_templates = ProjectInstallmentTemplate.objects.filter(
