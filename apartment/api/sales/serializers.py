@@ -29,8 +29,14 @@ class ApartmentSerializer(serializers.Serializer):
         return get_apartment_state_from_reserved_reservations(reserved_reservations)
 
     def get_reservations(self, obj):
+        reservations = [
+            reservation
+            for reservation in self.context.get("reservations", [])
+            if reservation.apartment_uuid == UUID(obj.uuid)
+        ]
         return ApartmentReservationSerializer(
-            self.context.get("reservations", []), many=True
+            reservations, 
+            many=True
         ).data
 
     def get_reservation_count(self, obj):
