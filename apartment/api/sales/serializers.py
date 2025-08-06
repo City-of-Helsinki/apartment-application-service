@@ -4,6 +4,7 @@ from rest_framework import serializers
 
 from apartment.utils import get_apartment_state_from_reserved_reservations
 from application_form.api.sales.serializers import (
+    SalesApartmentReservationSerializer,
     SalesWinningApartmentReservationSerializer,
 )
 from application_form.api.serializers import ApartmentReservationSerializer
@@ -34,7 +35,7 @@ class ApartmentSerializer(serializers.Serializer):
             for reservation in self.context.get("reservations", [])
             if reservation.apartment_uuid == UUID(obj.uuid)
         ]
-        return ApartmentReservationSerializer(
+        return SalesApartmentReservationSerializer(
             reservations, 
             many=True
         ).data
