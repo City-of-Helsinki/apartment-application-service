@@ -251,31 +251,34 @@ class TestOikotieMapper:
         raise Exception("Missing project_postal_code should have thrown a ValueError")
 
     @pytest.mark.parametrize(
-        "description,link,expected",
+        "description,link,project_link,expected",
         [
             (
                 "full description",
+                "link_to_apartment",
                 "link_to_project",
-                "Tarkemman kohde-esittelyn sekä varaustilanteen löydät täältä:\nlink_to_project\n\nfull description",  # noqa: E501
+                "Tarkemman kohde-esittelyn sekä varaustilanteen löydät täältä:\nlink_to_project\n\nfull description\n\nlink_to_apartment",  # noqa: E501
             ),
             (
                 None,
+                "link_to_apartment",
                 "link_to_project",
                 "Tarkemman kohde-esittelyn sekä varaustilanteen löydät täältä:"
-                + "\nlink_to_project",
+                + "\nlink_to_project\n\nlink_to_apartment",
             ),
             (
                 "full description",
+                None,
                 None,
                 "full description",
             ),
         ],
     )
     def test_elastic_to_oikotie_missing__project_description(
-        self, description, link, expected
+        self, description, link, project_link, expected
     ):
         elastic_apartment = ApartmentMinimalFactory(
-            project_description=description, url=link, project_url=link
+            project_description=description, url=link, project_url=project_link
         )
         formed_description = form_description(elastic_apartment)
 
@@ -328,6 +331,40 @@ class TestOikotieMapper:
 
         assert map_sales_price(hitas_apartment).value == expected_sales_price
         assert map_sales_price(haso_apartment).value == expected_release_payment
+
+        pass
+
+    def test_oikotie_map_correct_unencumbered_price_info(self):
+        """
+        Get `ApartmentDocument.release_payment` for HASO apartments and
+        `ApartmentDocument.debt_free_sales_price` for HITAS apartments.
+        UnencumberedSalesPrice must be set for HASO apartments or else the price wont
+        be shown in the listing.
+        """
+        release_payment = 1000
+        debt_free_sales_price = 2000
+
+        expected_release_payment = Decimal(release_payment / 100)
+        expected_sales_price = Decimal(debt_free_sales_price / 100)
+
+        haso_apartment = ApartmentMinimalFactory(
+            project_ownership_type=OwnershipType.HASO.value,
+            release_payment=release_payment,
+            debt_free_sales_price=0,
+        )
+        hitas_apartment = ApartmentMinimalFactory(
+            project_ownership_type=OwnershipType.HITAS.value,
+            debt_free_sales_price=debt_free_sales_price,
+            release_payment=0,
+        )
+
+        assert (
+            map_unencumbered_sales_price(hitas_apartment).value == expected_sales_price
+        )
+        assert (
+            map_unencumbered_sales_price(haso_apartment).value
+            == expected_release_payment
+        )
 
         pass
 
