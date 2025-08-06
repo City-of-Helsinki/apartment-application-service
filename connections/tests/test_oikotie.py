@@ -251,31 +251,34 @@ class TestOikotieMapper:
         raise Exception("Missing project_postal_code should have thrown a ValueError")
 
     @pytest.mark.parametrize(
-        "description,link,expected",
+        "description,link,project_link,expected",
         [
             (
                 "full description",
+                "link_to_apartment",
                 "link_to_project",
-                "Tarkemman kohde-esittelyn sekä varaustilanteen löydät täältä:\nlink_to_project\n\nfull description",  # noqa: E501
+                "Tarkemman kohde-esittelyn sekä varaustilanteen löydät täältä:\nlink_to_project\n\nfull description\n\nlink_to_apartment",  # noqa: E501
             ),
             (
                 None,
+                "link_to_apartment",
                 "link_to_project",
                 "Tarkemman kohde-esittelyn sekä varaustilanteen löydät täältä:"
-                + "\nlink_to_project",
+                + "\nlink_to_project\n\nlink_to_apartment",
             ),
             (
                 "full description",
+                None,
                 None,
                 "full description",
             ),
         ],
     )
     def test_elastic_to_oikotie_missing__project_description(
-        self, description, link, expected
+        self, description, link, project_link, expected
     ):
         elastic_apartment = ApartmentMinimalFactory(
-            project_description=description, url=link, project_url=link
+            project_description=description, url=link, project_url=project_link
         )
         formed_description = form_description(elastic_apartment)
 

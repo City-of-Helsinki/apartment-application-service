@@ -5,6 +5,7 @@ from typing import List, Optional, Tuple, Union
 from django.conf import settings
 from django.utils.html import strip_tags
 from django.utils.translation import gettext_lazy as _
+from apartment.utils import form_description_with_link
 from django_etuovi.enums import (
     Condition,
     Country,
@@ -251,21 +252,10 @@ def map_scontacts(elastic_apartment: ApartmentDocument) -> Optional[List[Scontac
 
 def form_presentation(elastic_apartment):
     """
-    Fetch link to apartment presentation and add it to the end of project description.
-    Replace <br> and </p> with line breaks.
+    Form apartment presentation (description) text
     """
+    return form_description_with_link(elastic_apartment)
 
-    main_text = getattr(elastic_apartment, "project_description", None)
-
-    if main_text:
-        main_text = clean_html_tags_from_text(main_text)
-
-    link = getattr(elastic_apartment, "url", None)
-
-    if main_text or link:
-        return "\n".join(filter(None, [main_text, link]))
-
-    return None
 
 
 def get_text_mapping(text_key: TextKey, text_value: str) -> Text:

@@ -4,6 +4,7 @@ from typing import List, Optional
 
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
+from apartment.utils import form_description_with_link
 from django_oikotie.enums import ApartmentType, NewDevelopmentStatusChoices
 from django_oikotie.xml_models.apartment import (
     Apartment,
@@ -389,20 +390,7 @@ def form_description(elastic_apartment: ElasticApartment) -> Optional[str]:
     Fetch link to project presentation and add it to the start of the project
     description
     """
-    optional_text = "Tarkemman kohde-esittelyn sekä varaustilanteen löydät täältä:"
-    main_text = getattr(elastic_apartment, "project_description", None)
-    if main_text:
-        main_text = clean_html_tags_from_text(main_text)
-    link = getattr(elastic_apartment, "project_url", None)
-
-    if main_text and link:
-        return f"{optional_text}\n{link}\n\n{main_text}"
-
-    if not main_text and link:
-        return "\n".join(filter(None, [optional_text, link]))
-    if main_text or link:
-        return "\n\n".join(filter(None, [main_text, link]))
-    return None
+    return form_description_with_link(elastic_apartment)
 
 
 def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:

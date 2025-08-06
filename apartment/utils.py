@@ -1,8 +1,10 @@
+from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import get_apartment
 from apartment.enums import ApartmentState, OwnershipType
 from application_form.enums import ApartmentReservationState
 from application_form.models import ApartmentReservation
 from connections.enums import ApartmentStateOfSale
+from connections.utils import clean_html_tags_from_text
 
 
 def get_apartment_state_from_apartment_uuid(apartment_uuid):
@@ -74,3 +76,38 @@ def get_apartment_state_from_reserved_reservations(reserved_reservations):
     return ApartmentState.get_from_reserved_reservation_state(
         reservation_list[0].state
     ).value
+
+def form_description_with_link(elastic_apartment: ApartmentDocument):
+    """
+    Fetch link to project and add it to the start of description.
+    Fetch link to the apartment itself and add it to the end of the description.
+    Replace <br> and </p> with line breaks.
+    """
+
+    optional_text = "Tarkemman kohde-esittelyn sekä varaustilanteen löydät täältä:"
+    main_text = getattr(elastic_apartment, "project_description", None)
+
+    if main_text:
+        main_text = clean_html_tags_from_text(main_text)
+    project_link = getattr(elastic_apartment, "project_url", None)
+    apartment_link = getattr(elastic_apartment, "url", None)
+
+    project_link_text = f"Tarkemman kohde-esittelyn sekä varaustilanteen löydät täältä:\n{project_link}"  # noqa: E501
+    if project_link:
+        return "\n\n".join(filter(None, [project_link_text, main_text, apartment_link]))
+    
+    if apartment_link:
+        return "\n\n".join(filter(None, [main_text, apartment_link]))
+
+    if main_text and project_link:
+        return f"{optional_text}\n{project_link}\n\n{main_text}\n\n{apartment_link}"
+
+    if not main_text and project_link:
+        return f"{optional_text}\n"
+
+    if not main_text and project_link:
+        return "\n".join(filter(None, [optional_text, project_link]))
+    if main_text or project_link:
+        return "\n\n".join(filter(None, [main_text, project_link]))
+
+    pass
