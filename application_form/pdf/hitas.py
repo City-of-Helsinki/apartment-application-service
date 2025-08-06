@@ -423,6 +423,10 @@ def create_hitas_contract_pdf(
         ).first()
     )
 
+    sales_price_paid_place_and_time = (
+        f"{sales_price_paid_place} {sales_price_paid_time}"
+    )
+
     def hitas_price(cents: Union[int, None]) -> Union[PDFCurrencyField, None]:
         """Turns the price in cents to whole euros (division by 100). Outputs
         a PDFCurrencyField prefilled with a string that has the euro sum
@@ -563,8 +567,8 @@ def create_hitas_contract_pdf(
         ),
         "project_contract_other_terms": apartment.project_contract_combined_terms,
         "project_documents_delivered": apartment.project_documents_delivered,
-        "signing_place_and_time": "Helsinki",
-        "salesperson": apartment.project_acc_salesperson,
+        "signing_place_and_time": sales_price_paid_place_and_time,
+        "salesperson": salesperson.profile_or_user_full_name,
         "signing_buyers": " & ".join(
             name
             for name in [primary_profile.full_name, secondary_profile.full_name]
@@ -578,9 +582,7 @@ def create_hitas_contract_pdf(
         ),
     }
 
-    sales_price_paid_place_and_time = (
-        f"{sales_price_paid_place} {sales_price_paid_time}"
-    )
+
 
     # override language to Finnish, as the user's browser settings etc.
     # shouldn't affect the printed out PDFs
@@ -588,7 +590,8 @@ def create_hitas_contract_pdf(
     # https://docs.djangoproject.com/en/5.1/topics/i18n/translation/
     with translation.override("fi"):
         payment_1_price = hitas_price(payment_1.value * 100)
-        payment_terms_rest_of_price = f"{payment_1.type.label} eräpäivä {payment_1.due_date} {payment_1_price.value} {payment_1_price.suffix}"  # noqa: E501
+        due_date = payment_1.due_date.strftime("%d.%m.%Y")
+        payment_terms_rest_of_price = f"{payment_1.type.label} eräpäivä {due_date} {payment_1_price.value} {payment_1_price.suffix}"  # noqa: E501
 
     # full apartment contract data is mostly the same fields but with some changes
     full_apartment_contract_data = {
