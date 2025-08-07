@@ -77,6 +77,7 @@ def get_apartment_state_from_reserved_reservations(reserved_reservations):
         reservation_list[0].state
     ).value
 
+
 def form_description_with_link(elastic_apartment: ApartmentDocument):
     """
     Fetch link to project and add it to the start of description.
@@ -95,7 +96,7 @@ def form_description_with_link(elastic_apartment: ApartmentDocument):
     project_link_text = f"Tarkemman kohde-esittelyn sekä varaustilanteen löydät täältä:\n{project_link}"  # noqa: E501
     if project_link:
         return "\n\n".join(filter(None, [project_link_text, main_text, apartment_link]))
-    
+
     if apartment_link:
         return "\n\n".join(filter(None, [main_text, apartment_link]))
 

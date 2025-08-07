@@ -5,7 +5,6 @@ from typing import List, Optional, Tuple, Union
 from django.conf import settings
 from django.utils.html import strip_tags
 from django.utils.translation import gettext_lazy as _
-from apartment.utils import form_description_with_link
 from django_etuovi.enums import (
     Condition,
     Country,
@@ -24,6 +23,7 @@ from elasticsearch_dsl.utils import AttrList
 
 from apartment.elastic.documents import ApartmentDocument
 from apartment.enums import OwnershipType
+from apartment.utils import form_description_with_link
 from connections.enums import Currency, Unit
 from connections.etuovi.field_mapper import (
     CONDITION_MAPPING,
@@ -31,7 +31,7 @@ from connections.etuovi.field_mapper import (
     REALTY_TYPE_MAPPING,
     TRADE_TYPE_MAPPING,
 )
-from connections.utils import clean_html_tags_from_text, convert_price_from_cents_to_eur
+from connections.utils import convert_price_from_cents_to_eur
 
 
 def handle_field_value(field: Union[str, AttrList, None]) -> str:
@@ -255,7 +255,6 @@ def form_presentation(elastic_apartment):
     Form apartment presentation (description) text
     """
     return form_description_with_link(elastic_apartment)
-
 
 
 def get_text_mapping(text_key: TextKey, text_value: str) -> Text:
