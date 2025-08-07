@@ -8,6 +8,7 @@ from connections.enums import ApartmentStateOfSale
 from connections.utils import clean_html_tags_from_text
 from django.conf import settings
 
+
 def get_apartment_state_from_apartment_uuid(apartment_uuid):
     try:
         reserved_reservation = ApartmentReservation.objects.reserved().get(

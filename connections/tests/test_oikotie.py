@@ -358,8 +358,13 @@ class TestOikotieMapper:
             release_payment=0,
         )
 
-        assert map_unencumbered_sales_price(hitas_apartment).value == expected_sales_price
-        assert map_unencumbered_sales_price(haso_apartment).value == expected_release_payment
+        assert (
+            map_unencumbered_sales_price(hitas_apartment).value == expected_sales_price
+        )
+        assert (
+            map_unencumbered_sales_price(haso_apartment).value
+            == expected_release_payment
+        )
 
         pass
 
