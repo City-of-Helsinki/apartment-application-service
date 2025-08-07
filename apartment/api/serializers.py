@@ -169,6 +169,10 @@ class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
         ).data
 
     def get_apartments(self, obj):
+        all_reservations = ApartmentReservation.objects.filter(
+            apartment_uuid__in=self.apartment_uuids
+        ).active()
+
         reservation_counts = (
             ApartmentReservation.objects.active()
             .values("apartment_uuid")
@@ -184,8 +188,7 @@ class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
             )
         )
         winning_reservations = (
-            ApartmentReservation.objects.filter(apartment_uuid__in=self.apartment_uuids)
-            .related_fields()
+            all_reservations.related_fields()
             .active()
             .filter(queue_position=1)
             .annotate(
@@ -209,6 +212,7 @@ class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
                 "reserved_reservations": ApartmentReservation.objects.filter(
                     apartment_uuid__in=self.apartment_uuids
                 ).reserved(),
+                "reservations": all_reservations,
             },
         ).data
 
