@@ -256,10 +256,16 @@ def map_water_fee(elastic_apartment: ElasticApartment) -> Optional[WaterFee]:
 def map_unencumbered_sales_price(
     elastic_apartment: ElasticApartment,
 ) -> Optional[UnencumberedSalesPrice]:
-    if elastic_apartment.debt_free_sales_price is not None:
+    price_value = elastic_apartment.debt_free_sales_price
+
+    if elastic_apartment.project_ownership_type == OwnershipType.HASO.value:
+        price_value = elastic_apartment.release_payment
+
+
+    if price_value is not None:
         return UnencumberedSalesPrice(
             value=convert_price_from_cents_to_eur(
-                elastic_apartment.debt_free_sales_price
+                price_value
             ),
             currency=Currency.EUR.value,
         )

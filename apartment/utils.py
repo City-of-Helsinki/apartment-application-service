@@ -1,3 +1,4 @@
+from datetime import datetime
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import get_apartment
 from apartment.enums import ApartmentState, OwnershipType
@@ -5,7 +6,7 @@ from application_form.enums import ApartmentReservationState
 from application_form.models import ApartmentReservation
 from connections.enums import ApartmentStateOfSale
 from connections.utils import clean_html_tags_from_text
-
+from django.conf import settings
 
 def get_apartment_state_from_apartment_uuid(apartment_uuid):
     try:
@@ -87,6 +88,9 @@ def form_description_with_link(elastic_apartment: ApartmentDocument):
 
     optional_text = "Tarkemman kohde-esittelyn sekä varaustilanteen löydät täältä:"
     main_text = getattr(elastic_apartment, "project_description", None)
+
+    if settings.DEBUG:
+        main_text = f"[debug] Päivitetty {datetime.now().isoformat()}\n\n{main_text}"
 
     if main_text:
         main_text = clean_html_tags_from_text(main_text)
