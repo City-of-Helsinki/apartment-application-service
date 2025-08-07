@@ -84,6 +84,7 @@ class ProjectAPIView(APIView):
         serializer_class = (
             ProjectDocumentListSerializer if many else ProjectDocumentDetailSerializer
         )
+
         serializer = serializer_class(project_data, many=many)
         return Response(serializer.data)
 
