@@ -1,4 +1,7 @@
 from datetime import datetime
+
+from django.conf import settings
+
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import get_apartment
 from apartment.enums import ApartmentState, OwnershipType
@@ -6,7 +9,6 @@ from application_form.enums import ApartmentReservationState
 from application_form.models import ApartmentReservation
 from connections.enums import ApartmentStateOfSale
 from connections.utils import clean_html_tags_from_text
-from django.conf import settings
 
 
 def get_apartment_state_from_apartment_uuid(apartment_uuid):
