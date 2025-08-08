@@ -582,8 +582,6 @@ def create_hitas_contract_pdf(
         ),
     }
 
-
-
     # override language to Finnish, as the user's browser settings etc.
     # shouldn't affect the printed out PDFs
     # further info on how Django resolves language preference:
