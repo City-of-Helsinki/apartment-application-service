@@ -23,6 +23,7 @@ from elasticsearch_dsl.utils import AttrList
 
 from apartment.elastic.documents import ApartmentDocument
 from apartment.enums import OwnershipType
+from apartment.utils import form_description_with_link
 from connections.enums import Currency, Unit
 from connections.etuovi.field_mapper import (
     CONDITION_MAPPING,
@@ -30,7 +31,7 @@ from connections.etuovi.field_mapper import (
     REALTY_TYPE_MAPPING,
     TRADE_TYPE_MAPPING,
 )
-from connections.utils import clean_html_tags_from_text, convert_price_from_cents_to_eur
+from connections.utils import convert_price_from_cents_to_eur
 
 
 def handle_field_value(field: Union[str, AttrList, None]) -> str:
@@ -251,21 +252,9 @@ def map_scontacts(elastic_apartment: ApartmentDocument) -> Optional[List[Scontac
 
 def form_presentation(elastic_apartment):
     """
-    Fetch link to apartment presentation and add it to the end of project description.
-    Replace <br> and </p> with line breaks.
+    Form apartment presentation (description) text
     """
-
-    main_text = getattr(elastic_apartment, "project_description", None)
-
-    if main_text:
-        main_text = clean_html_tags_from_text(main_text)
-
-    link = getattr(elastic_apartment, "url", None)
-
-    if main_text or link:
-        return "\n".join(filter(None, [main_text, link]))
-
-    return None
+    return form_description_with_link(elastic_apartment)
 
 
 def get_text_mapping(text_key: TextKey, text_value: str) -> Text:

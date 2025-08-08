@@ -87,7 +87,7 @@ def a_tags_to_text(original_text: str) -> str:
             continue
 
         new_elem = etree.Element("p")
-        new_elem.text = f"{text}\n{href}"
+        new_elem.text = f"\n{text}\n{href}\n"
 
         a_tag.getparent().replace(a_tag, new_elem)
 
