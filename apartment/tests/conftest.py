@@ -1,7 +1,12 @@
+import random
+import string
+
 import faker.config
 from django.conf import settings
 from elasticsearch.helpers.test import get_test_client
 from elasticsearch_dsl.connections import add_connection
+from factory import Faker
+from faker import providers
 from pytest import fixture
 
 from apartment.tests.factories import ApartmentDocumentFactory
@@ -14,6 +19,23 @@ from users.tests.conftest import (  # noqa: F401
 )
 
 faker.config.DEFAULT_LOCALE = "fi_FI"
+
+
+class BusinessIdProvider(providers.BaseProvider):
+    """Generates INVALID Finnish business ids in the format XXXXXXX-0
+    where the X's are the seven digits and the 0 is the check digit.
+
+    We use 0 as the check digit to avid clashing with any real company's business id
+    (check digit 0 doesn't exist in the real world).
+    """
+
+    __provider__ = "business_id"
+
+    def business_id(self) -> str:
+        return "".join([random.choice(string.digits) for _ in range(7)]) + "-0"
+
+
+Faker.add_provider(BusinessIdProvider)
 
 
 def setup_elasticsearch():
