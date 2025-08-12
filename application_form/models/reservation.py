@@ -1,6 +1,7 @@
 import uuid
 from typing import Optional
 
+from django.utils.functional import cached_property
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
@@ -24,12 +25,11 @@ User = get_user_model()
 
 
 class ApartmentReservationQuerySet(models.QuerySet):
+
+    @cached_property
     def reserved(self):
-        return self.exclude(
-            state__in=(
-                ApartmentReservationState.SUBMITTED,
-                ApartmentReservationState.CANCELED,
-            )
+        return self.active.exclude(
+            state=ApartmentReservationState.SUBMITTED
         )
 
     def related_fields(self):
@@ -43,6 +43,7 @@ class ApartmentReservationQuerySet(models.QuerySet):
             .select_related("revaluation")
         )
 
+    @cached_property
     def active(self):
         return self.exclude(state=ApartmentReservationState.CANCELED)
 
