@@ -18,7 +18,6 @@ class ApartmentSerializer(serializers.Serializer):
     state = serializers.SerializerMethodField()
     reservation_count = serializers.SerializerMethodField()
     winning_reservation = serializers.SerializerMethodField()
-    reservations = serializers.SerializerMethodField()
 
     def get_state(self, obj):
         reserved_reservations = [
