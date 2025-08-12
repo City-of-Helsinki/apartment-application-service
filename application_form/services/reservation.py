@@ -135,7 +135,7 @@ def get_existing_reservations(apartment_uuid: str) -> QuerySet:
 
 
 def get_reservation_state(existing_reservations: QuerySet) -> str:
-    if existing_reservations.reserved.exists():
+    if existing_reservations.reserved().exists():
         return ApartmentReservationState.SUBMITTED
     return ApartmentReservationState.RESERVED
 

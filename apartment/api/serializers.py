@@ -173,8 +173,8 @@ class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
             apartment_uuid__in=self.apartment_uuids
         )
 
-        active_reservations = all_reservations.active
-        reserved_reservations = active_reservations.reserved
+        active_reservations = all_reservations.active()
+        reserved_reservations = active_reservations.reserved()
 
         reservation_counts = active_reservations.values("apartment_uuid").annotate(
             reservation_count=Count("apartment_uuid")

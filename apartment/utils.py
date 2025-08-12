@@ -7,7 +7,7 @@ from connections.enums import ApartmentStateOfSale
 
 def get_apartment_state_from_apartment_uuid(apartment_uuid):
     try:
-        reserved_reservation = ApartmentReservation.objects.reserved.get(
+        reserved_reservation = ApartmentReservation.objects.reserved().get(
             apartment_uuid=apartment_uuid
         )
     except ApartmentReservation.DoesNotExist:
@@ -36,7 +36,7 @@ def get_apartment_state_of_sale_from_event(event):
     # the latest change is a reservation cancellation
     if event.state == ApartmentReservationState.CANCELED:
         if (
-            ApartmentReservation.objects.active.filter(
+            ApartmentReservation.objects.active().filter(
                 apartment_uuid=event.reservation.apartment_uuid
             )
             .only("id")
@@ -46,7 +46,7 @@ def get_apartment_state_of_sale_from_event(event):
             return ApartmentStateOfSale.FREE_FOR_RESERVATIONS
         # Edge case when there is already a sold reservation
         if (
-            ApartmentReservation.objects.active.filter(
+            ApartmentReservation.objects.active().filter(
                 apartment_uuid=event.reservation.apartment_uuid,
                 state=ApartmentReservationState.SOLD,
             )

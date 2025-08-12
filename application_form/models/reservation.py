@@ -26,9 +26,8 @@ User = get_user_model()
 
 class ApartmentReservationQuerySet(models.QuerySet):
 
-    @cached_property
     def reserved(self):
-        return self.active.exclude(state=ApartmentReservationState.SUBMITTED)
+        return self.active().exclude(state=ApartmentReservationState.SUBMITTED)
 
     def related_fields(self):
         return (
@@ -41,7 +40,6 @@ class ApartmentReservationQuerySet(models.QuerySet):
             .select_related("revaluation")
         )
 
-    @cached_property
     def active(self):
         return self.exclude(state=ApartmentReservationState.CANCELED)
 
@@ -49,7 +47,7 @@ class ApartmentReservationQuerySet(models.QuerySet):
         self, apartment_uuid: uuid.UUID
     ) -> Optional["ApartmentReservation"]:
         try:
-            return self.active.filter(apartment_uuid=apartment_uuid).earliest(
+            return self.active().filter(apartment_uuid=apartment_uuid).earliest(
                 "queue_position"
             )
         except ApartmentReservation.DoesNotExist:

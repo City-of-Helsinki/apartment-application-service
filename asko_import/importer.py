@@ -568,7 +568,7 @@ def _create_reservation(
     reservations = ApartmentReservation.objects.filter(apartment_uuid=apartment_uuid)
 
     max_lp = reservations.aggregate(m=models.Max("list_position"))["m"]
-    max_qp = reservations.active.aggregate(m=models.Max("queue_position"))["m"]
+    max_qp = reservations.active().aggregate(m=models.Max("queue_position"))["m"]
 
     reservation = ApartmentReservation.objects.create(
         apartment_uuid=apartment_uuid,
