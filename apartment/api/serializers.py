@@ -212,7 +212,6 @@ class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
                 "reservation_counts": reservation_counts,
                 "winning_reservations": winning_reservations,
                 "reserved_reservations": reserved_reservations,
-                "reservations": all_reservations,
             },
         ).data
 
