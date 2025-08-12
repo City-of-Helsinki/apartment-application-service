@@ -3,6 +3,7 @@ from decimal import Decimal
 from typing import List, Optional, Tuple, Union
 
 from django.conf import settings
+from django.utils.html import strip_tags
 from django.utils.translation import gettext_lazy as _
 from django_etuovi.enums import (
     Condition,
@@ -22,6 +23,7 @@ from elasticsearch_dsl.utils import AttrList
 
 from apartment.elastic.documents import ApartmentDocument
 from apartment.enums import OwnershipType
+from apartment.utils import form_description_with_link
 from connections.enums import Currency, Unit
 from connections.etuovi.field_mapper import (
     CONDITION_MAPPING,
@@ -250,14 +252,9 @@ def map_scontacts(elastic_apartment: ApartmentDocument) -> Optional[List[Scontac
 
 def form_presentation(elastic_apartment):
     """
-    Fetch link to apartment presentation and add it to the end of project description
+    Form apartment presentation (description) text
     """
-    main_text = getattr(elastic_apartment, "project_description", None)
-    link = getattr(elastic_apartment, "url", None)
-
-    if main_text or link:
-        return "\n".join(filter(None, [main_text, link]))
-    return None
+    return form_description_with_link(elastic_apartment)
 
 
 def get_text_mapping(text_key: TextKey, text_value: str) -> Text:
@@ -332,7 +329,7 @@ def map_texts(elastic_apartment: ApartmentDocument) -> List[Text]:
         current_texts = []
         if field_value:
             for text_value in handle_field_value(field_value):
-                current_texts.append(str(text_value))
+                current_texts.append(strip_tags(str(text_value)))
             complete_text = ", ".join(current_texts)
             texts.append(get_text_mapping(text_key, complete_text))
     return texts

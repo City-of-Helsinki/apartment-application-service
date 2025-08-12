@@ -40,6 +40,8 @@ from django_oikotie.xml_models.housing_company import Picture as HousingCompanyP
 from django_oikotie.xml_models.housing_company import RealEstateAgent
 
 from apartment.elastic.documents import ApartmentDocument as ElasticApartment
+from apartment.enums import OwnershipType
+from apartment.utils import form_description_with_link
 from connections.enums import Currency, Unit
 from connections.oikotie.field_mapper import (
     APARTMENT_TYPE_MAPPING,
@@ -254,11 +256,14 @@ def map_water_fee(elastic_apartment: ElasticApartment) -> Optional[WaterFee]:
 def map_unencumbered_sales_price(
     elastic_apartment: ElasticApartment,
 ) -> Optional[UnencumberedSalesPrice]:
-    if elastic_apartment.debt_free_sales_price is not None:
+    price_value = elastic_apartment.debt_free_sales_price
+
+    if elastic_apartment.project_ownership_type == OwnershipType.HASO.value:
+        price_value = elastic_apartment.release_payment
+
+    if price_value is not None:
         return UnencumberedSalesPrice(
-            value=convert_price_from_cents_to_eur(
-                elastic_apartment.debt_free_sales_price
-            ),
+            value=convert_price_from_cents_to_eur(price_value),
             currency=Currency.EUR.value,
         )
     else:
@@ -266,9 +271,14 @@ def map_unencumbered_sales_price(
 
 
 def map_sales_price(elastic_apartment: ElasticApartment) -> Optional[SalesPrice]:
-    if elastic_apartment.sales_price is not None:
+    price_value = elastic_apartment.sales_price
+
+    if elastic_apartment.project_ownership_type == OwnershipType.HASO.value:
+        price_value = elastic_apartment.release_payment
+
+    if price_value is not None:
         return SalesPrice(
-            value=convert_price_from_cents_to_eur(elastic_apartment.sales_price),
+            value=convert_price_from_cents_to_eur(price_value),
             currency=Currency.EUR.value,
         )
     else:
@@ -380,17 +390,10 @@ def map_new_development_status(
 
 def form_description(elastic_apartment: ElasticApartment) -> Optional[str]:
     """
-    Fetch link to apartment presentation and add it to the end of project description
+    Fetch link to project presentation and add it to the start of the project
+    description
     """
-    optional_text = "Tarkemman kohde-esittelyn sekä varaustilanteen löydät täältä:"
-    main_text = getattr(elastic_apartment, "project_description", None)
-    link = getattr(elastic_apartment, "url", None)
-
-    if not main_text and link:
-        return "\n".join(filter(None, [optional_text, link]))
-    if main_text or link:
-        return "\n\n".join(filter(None, [main_text, link]))
-    return None
+    return form_description_with_link(elastic_apartment)
 
 
 def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:
@@ -484,14 +487,13 @@ def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:
         "showing_start_time2": map_showing_start_time(elastic_apartment, 1),
         "showing_end_time2": map_showing_end_time(elastic_apartment, 1),
         "showing_date_explanation2": map_showing_date_explanation(elastic_apartment, 1),
-        # for now not using this option:
-        # getattr(elastic_apartment, "application_url", None)
-        "application_url": None,
+        "application_url": getattr(elastic_apartment, "application_url", None),
         "rc_energyclass": getattr(elastic_apartment, "project_energy_class", None),
         "new_development_status": map_new_development_status(elastic_apartment),
         "time_of_completion": getattr(
             elastic_apartment, "project_completion_date", None
         ),
+        "more_info_url": getattr(elastic_apartment, "url", None),
     }
     return Apartment(**apartment_field_dict)
 
@@ -519,6 +521,7 @@ def map_address(elastic_apartment: ElasticApartment) -> Address:
     postal_code = getattr(elastic_apartment, "project_postal_code", None)
     city = getattr(elastic_apartment, "project_city", None)
     region = getattr(elastic_apartment, "project_district", None)
+
     if street and postal_code and city:
         return Address(
             street=street,

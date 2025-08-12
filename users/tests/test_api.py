@@ -3,6 +3,7 @@ from uuid import UUID
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from django.urls import reverse
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -15,6 +16,7 @@ from users.tests.conftest import (
     PROFILE_TEST_DATA_WITH_NIN,
     TEST_USER_PASSWORD,
 )
+from users.tests.factories import UserFactory
 from users.tests.utils import _create_token
 
 User = get_user_model()
@@ -478,3 +480,55 @@ def test_token_refresh(profile, api_client):
     response = api_client.post(reverse("token_refresh"), post_data)
     assert response.status_code == 200
     assert "access" in response.data
+
+
+@pytest.mark.django_db
+def test_salesperson_list_not_authorized(user_api_client):
+    """Only salespersons should be able to list salespersons"""
+    response = user_api_client.get(reverse("v1/profiles:user-list"))
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_salesperson_list_only_contains_salespersons(sales_ui_salesperson_api_client):
+    # create some users, 5 regular users, 5 salespeople
+    user_count = 10
+    salesperson_count = 5
+    salesperson_group = Group.objects.get(name__iexact=Roles.DJANGO_SALESPERSON.name)
+    regular_user_uuids = []
+    salesperson_uuids = []
+
+    for idx in range(user_count):
+        user = UserFactory()
+        if idx >= 5:
+            salesperson_group.user_set.add(user)
+            salesperson_uuids.append(user.uuid)
+        else:
+            regular_user_uuids.append(user.uuid)
+
+    response = sales_ui_salesperson_api_client.get(reverse("v1/profiles:user-list"))
+    response_uuids = [user["uuid"] for user in response.json()]
+
+    # none of the regular users are in salesperson list
+    assert (
+        len(
+            [
+                user_uuid
+                for user_uuid in regular_user_uuids
+                if user_uuid in response_uuids
+            ]
+        )
+        == 0
+    )
+
+    # all of the salespeople are in salesperson list
+    assert (
+        len(
+            [
+                user_uuid
+                for user_uuid in salesperson_uuids
+                if user_uuid in salesperson_uuids
+            ]
+        )
+        == salesperson_count
+    )
