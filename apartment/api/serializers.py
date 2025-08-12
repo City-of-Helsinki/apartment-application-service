@@ -173,23 +173,21 @@ class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
             apartment_uuid__in=self.apartment_uuids
         ).active()
 
-        reservation_counts = (
-            ApartmentReservation.objects.active()
-            .values("apartment_uuid")
-            .annotate(reservation_count=Count("apartment_uuid"))
+        active_reservations = all_reservations.active()
+        reserved_reservations = active_reservations.reserved()
+
+        reservation_counts = active_reservations.values("apartment_uuid").annotate(
+            reservation_count=Count("apartment_uuid")
         )
 
-        customer_other_winning_apartments = (
-            ApartmentReservation.objects.reserved()
-            .exclude(pk=OuterRef("pk"))
-            .filter(
-                apartment_uuid__in=self.apartment_uuids,
-                customer=OuterRef("customer__pk"),
-            )
+        customer_other_winning_apartments = reserved_reservations.exclude(
+            pk=OuterRef("pk")
+        ).filter(
+            apartment_uuid__in=self.apartment_uuids,
+            customer=OuterRef("customer__pk"),
         )
         winning_reservations = (
-            all_reservations.related_fields()
-            .active()
+            active_reservations.related_fields()
             .filter(queue_position=1)
             .annotate(
                 customer_has_other_winning_apartments=Exists(
@@ -209,10 +207,7 @@ class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
                 "project_uuid": obj.project_uuid,
                 "reservation_counts": reservation_counts,
                 "winning_reservations": winning_reservations,
-                "reserved_reservations": ApartmentReservation.objects.filter(
-                    apartment_uuid__in=self.apartment_uuids
-                ).reserved(),
-                "reservations": all_reservations,
+                "reserved_reservations": reserved_reservations,
             },
         ).data
 
