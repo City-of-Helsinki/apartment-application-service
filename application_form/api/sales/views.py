@@ -279,9 +279,11 @@ class ApartmentReservationViewSet(
             if isinstance(queue_position, str):
                 queue_position = int(queue_position.lstrip("0"))
 
-            current_queue_length = ApartmentReservation.objects.active().filter(
-                apartment_uuid=reservation.apartment_uuid
-            ).count()
+            current_queue_length = (
+                ApartmentReservation.objects.active()
+                .filter(apartment_uuid=reservation.apartment_uuid)
+                .count()
+            )
 
             if queue_position > current_queue_length:
                 queue_position = current_queue_length + 1
