@@ -280,7 +280,7 @@ class ApartmentReservationViewSet(
                 queue_position = int(queue_position.lstrip("0"))
 
             current_queue_length = (
-                ApartmentReservation.objects.active()
+                ApartmentReservation.objects.active
                 .filter(apartment_uuid=reservation.apartment_uuid)
                 .count()
             )

@@ -339,7 +339,7 @@ def test_add_hitas_application_to_queue_with_only_cancelled_reservations(
     add_application_to_queues(app1)
 
     assert (
-        ApartmentReservation.objects.active()
+        ApartmentReservation.objects.active
         .filter(apartment_uuid=first_apartment_uuid)
         .first()
         .queue_position
@@ -371,7 +371,7 @@ def test_add_haso_application_to_queue_with_a_cancelled_reservation(
     add_application_to_queues(app)
 
     assert (
-        ApartmentReservation.objects.active()
+        ApartmentReservation.objects.active
         .filter(apartment_uuid=first_apartment_uuid)
         .first()
         .queue_position

@@ -337,7 +337,7 @@ def sell_apartments(
 
             reservation = (
                 ApartmentReservation.objects.filter(apartment_uuid=apartment.uuid)
-                .reserved()
+                .reserved
                 .first()
             )
             reservation.set_state(ApartmentReservationState.SOLD)

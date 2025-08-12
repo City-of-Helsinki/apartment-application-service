@@ -52,7 +52,7 @@ class ApartmentReservationQuerySet(models.QuerySet):
     ) -> Optional["ApartmentReservation"]:
         try:
             return (
-                self.active()
+                self.active
                 .filter(apartment_uuid=apartment_uuid)
                 .earliest("queue_position")
             )
