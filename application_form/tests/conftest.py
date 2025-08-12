@@ -335,11 +335,9 @@ def sell_apartments(
     for i, apartment in enumerate(apartments):
         if i <= (sell_count - 1):
 
-            reservation = (
-                ApartmentReservation.objects.filter(apartment_uuid=apartment.uuid)
-                .reserved
-                .first()
-            )
+            reservation = ApartmentReservation.objects.filter(
+                apartment_uuid=apartment.uuid
+            ).reserved.first()
             reservation.set_state(ApartmentReservationState.SOLD)
 
     return (project, apartments)

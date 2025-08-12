@@ -36,8 +36,9 @@ def get_apartment_state_of_sale_from_event(event):
     # the latest change is a reservation cancellation
     if event.state == ApartmentReservationState.CANCELED:
         if (
-            ApartmentReservation.objects.active
-            .filter(apartment_uuid=event.reservation.apartment_uuid)
+            ApartmentReservation.objects.active.filter(
+                apartment_uuid=event.reservation.apartment_uuid
+            )
             .only("id")
             .count()
             == 0
@@ -45,8 +46,7 @@ def get_apartment_state_of_sale_from_event(event):
             return ApartmentStateOfSale.FREE_FOR_RESERVATIONS
         # Edge case when there is already a sold reservation
         if (
-            ApartmentReservation.objects.active
-            .filter(
+            ApartmentReservation.objects.active.filter(
                 apartment_uuid=event.reservation.apartment_uuid,
                 state=ApartmentReservationState.SOLD,
             )

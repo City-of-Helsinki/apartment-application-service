@@ -176,19 +176,15 @@ class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
         active_reservations = all_reservations.active
         reserved_reservations = active_reservations.reserved
 
-        reservation_counts = (
-            active_reservations
-            .values("apartment_uuid")
-            .annotate(reservation_count=Count("apartment_uuid"))
+        reservation_counts = active_reservations.values("apartment_uuid").annotate(
+            reservation_count=Count("apartment_uuid")
         )
 
-        customer_other_winning_apartments = (
-            reserved_reservations
-            .exclude(pk=OuterRef("pk"))
-            .filter(
-                apartment_uuid__in=self.apartment_uuids,
-                customer=OuterRef("customer__pk"),
-            )
+        customer_other_winning_apartments = reserved_reservations.exclude(
+            pk=OuterRef("pk")
+        ).filter(
+            apartment_uuid__in=self.apartment_uuids,
+            customer=OuterRef("customer__pk"),
         )
         winning_reservations = (
             active_reservations.related_fields()
