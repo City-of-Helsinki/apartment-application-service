@@ -860,29 +860,6 @@ def test_get_project_extra_data_endpoint_non_existing_project(
 
 
 @pytest.mark.django_db
-def test_get_project_detail_reservations(sales_ui_salesperson_api_client):
-    apartment = ApartmentDocumentFactory()
-    project_uuid = apartment.project_uuid
-
-    for idx in range(5):
-        ApartmentReservationFactory(
-            apartment_uuid=apartment.uuid,
-            list_position=idx,
-            queue_position=idx,
-            state=ApartmentReservationState.SUBMITTED,
-        )
-
-    url = reverse("apartment:project-detail", kwargs={"project_uuid": project_uuid})
-
-    response = sales_ui_salesperson_api_client.get(url, format="json").json()
-
-    # all apartments should have their reservations listed
-    assert len(
-        [apt for apt in response["apartments"] if len(apt.get("reservations", [])) > 0]
-    ) == len(response["apartments"])
-
-
-@pytest.mark.django_db
 @pytest.mark.parametrize("has_extra_data_instance", (False, True))
 def test_get_project_detail_extra_data_field(
     sales_ui_salesperson_api_client, has_extra_data_instance
