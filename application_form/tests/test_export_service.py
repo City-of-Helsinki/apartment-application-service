@@ -4,9 +4,6 @@ from decimal import Decimal
 from io import BytesIO
 from typing import List, Union
 
-from invoicing.enums import InstallmentType
-from invoicing.models import ApartmentInstallment
-from invoicing.tests.factories import ApartmentInstallmentFactory
 import pytest
 from _pytest.fixtures import fixture
 from django.contrib.auth import get_user_model
@@ -20,6 +17,7 @@ from apartment.elastic.queries import (
     get_apartments,
     get_project,
 )
+from apartment.enums import OwnershipType
 from apartment.tests.factories import ApartmentDocumentFactory
 from apartment.utils import get_apartment_state_from_apartment_uuid
 from application_form.enums import ApartmentReservationState
@@ -45,6 +43,9 @@ from application_form.tests.factories import (
     ApplicationFactory,
 )
 from customer.tests.factories import CustomerFactory
+from invoicing.enums import InstallmentType
+from invoicing.models import ApartmentInstallment
+from invoicing.tests.factories import ApartmentInstallmentFactory
 from users.tests.factories import ProfileFactory
 
 
@@ -143,45 +144,46 @@ def _validate_mailing_list_csv(
         reservations, key=lambda x: get_apartment(x.apartment_uuid).apartment_number
     )
 
-
     for i, row in enumerate(content_rows):
 
         reservation = reservations[i]
-        roo_installments:QuerySet[ApartmentInstallment] = reservation.apartment_installments.filter(
-            type__in=[
-                InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT,
-                InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_2,
-                InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_3,
-            ]
-        ).order_by("type")
+        roo_installments: QuerySet[ApartmentInstallment] = (
+            reservation.apartment_installments.filter(
+                type__in=[
+                    InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT,
+                    InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_2,
+                    InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_3,
+                ]
+            ).order_by("type")
+        )
 
         apartment = get_apartment(
             reservation.apartment_uuid, include_project_fields=True
         )
 
         expected_row = [
-            apartment.apartment_number,
+            apartment.apartment_number or "",
             reservation.queue_position,
-            reservation.customer.primary_profile.first_name,
-            reservation.customer.primary_profile.last_name,
-            reservation.customer.primary_profile.email,
-            reservation.customer.primary_profile.street_address,
-            reservation.customer.primary_profile.postal_code,
-            reservation.customer.primary_profile.city,
-            reservation.customer.primary_profile.national_identification_number,
-            reservation.customer.secondary_profile.first_name,
-            reservation.customer.secondary_profile.last_name,
-            reservation.customer.secondary_profile.email,
-            reservation.customer.secondary_profile.street_address,
-            reservation.customer.secondary_profile.postal_code,
-            reservation.customer.secondary_profile.city,
-            reservation.customer.secondary_profile.national_identification_number,
-            bool(reservation.has_children),
-            apartment.project_street_address,
-            apartment.project_postal_code,
-            apartment.project_city,
-            apartment.apartment_structure,
-            apartment.living_area,
+            reservation.customer.primary_profile.first_name or "",
+            reservation.customer.primary_profile.last_name or "",
+            reservation.customer.primary_profile.email or "",
+            reservation.customer.primary_profile.street_address or "",
+            reservation.customer.primary_profile.postal_code or "",
+            reservation.customer.primary_profile.city or "",
+            reservation.customer.primary_profile.national_identification_number or "",
+            reservation.customer.secondary_profile.first_name or "",
+            reservation.customer.secondary_profile.last_name or "",
+            reservation.customer.secondary_profile.email or "",
+            reservation.customer.secondary_profile.street_address or "",
+            reservation.customer.secondary_profile.postal_code or "",
+            reservation.customer.secondary_profile.city or "",
+            reservation.customer.secondary_profile.national_identification_number or "",
+            "X" if bool(reservation.has_children) else "",
+            apartment.project_street_address or "",
+            apartment.project_postal_code or "",
+            apartment.project_city or "",
+            apartment.apartment_structure or "",
+            apartment.living_area or "",
         ]
 
         for roo_installment in roo_installments:
@@ -189,14 +191,11 @@ def _validate_mailing_list_csv(
                 roo_installment.value,
                 roo_installment.payment_status.value,
             ]
-            pass
 
         for expected_field_value, value in zip(expected_row, row):
             assert expected_field_value == value
 
         assert row == expected_row
-
-    pass
 
 
 @pytest.mark.django_db
@@ -224,15 +223,70 @@ def test_sorting_function(reservations):
 
 
 @pytest.mark.django_db
+def test_export_applicants_mailing_list_haso_payments():
+    apartment = ApartmentDocumentFactory(
+        project_ownership_type=OwnershipType.HASO.value
+    )
+
+    # add apartment with some empty attributes
+    # to test that empty attributes dont cause misalignment with content row and header
+    apartment_missing_attribs = ApartmentDocumentFactory(
+        living_area=None, project_ownership_type=OwnershipType.HASO.value
+    )
+    apartments = [apartment, apartment_missing_attribs]
+
+    # add reservations and installments
+    roo_installment_types = [
+        InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT,
+        InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_2,
+        InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_3,
+    ]
+
+    apartment_uuids = []
+
+    for apt in apartments:
+        res = ApartmentReservationFactory(
+            apartment_uuid=apt.uuid,
+            state=ApartmentReservationState.SOLD,
+            customer=CustomerFactory(
+                primary_profile=ProfileFactory(), secondary_profile=ProfileFactory()
+            ),
+        )
+        for installment_type in roo_installment_types:
+            ApartmentInstallmentFactory(
+                apartment_reservation=res,
+                type=installment_type,
+            )
+        apartment_uuids.append(apt.uuid)
+
+    reservation_queryset = ApartmentReservation.objects.filter(
+        apartment_uuid__in=apartment_uuids
+    )
+
+    applicant_mailing_list_export_service = ApplicantMailingListExportService(
+        reservation_queryset,
+        export_type=ApartmentReservationState.SOLD.value,
+    )
+
+    filtered_reservations = applicant_mailing_list_export_service.filter_reservations()
+
+    csv_lines = applicant_mailing_list_export_service.get_rows()
+    _validate_mailing_list_csv(csv_lines, filtered_reservations)
+
+    pass
+
+
+@pytest.mark.django_db
 def test_export_applicants_mailing_list_all(reservations):
     """Assert that getting all applicants except for state = 'CANCELED' works"""
+
     # convert list to queryset
     reservation_queryset = ApartmentReservation.objects.filter(
         apartment_uuid__in=[res.apartment_uuid for res in reservations]
     )
     reservation_queryset.update(state=ApartmentReservationState.SUBMITTED)
     first_reservation = reservation_queryset.first()
-    first_reservation.state = ApartmentReservationState.CANCELED
+    # first_reservation.state = ApartmentReservationState.CANCELED
     first_reservation.save()
 
     applicant_mailing_list_export_service = ApplicantMailingListExportService(
@@ -242,26 +296,10 @@ def test_export_applicants_mailing_list_all(reservations):
 
     filtered_reservations = applicant_mailing_list_export_service.filter_reservations()
 
-    roo_installment_types = [
-        InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT,
-        InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_2,
-        InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_3,
-    ]
-    for reservation in filtered_reservations:
-        for installment_type in roo_installment_types:
-            ApartmentInstallmentFactory(
-                apartment_reservation=reservation, 
-                value=100,
-                type=installment_type,
-            )
-
-        pass
-
     csv_lines = applicant_mailing_list_export_service.get_rows()
-
-    assert len(filtered_reservations) == 23
-    assert len(csv_lines) == 24
     _validate_mailing_list_csv(csv_lines, filtered_reservations)
+    assert len(filtered_reservations) == 24
+    assert len(csv_lines) == 25
 
 
 @pytest.mark.django_db

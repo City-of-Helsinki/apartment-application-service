@@ -8,8 +8,6 @@ from decimal import Decimal
 from io import BytesIO, StringIO
 from typing import List, Union
 
-from invoicing.enums import InstallmentType
-from invoicing.models import ApartmentInstallment
 import xlsxwriter
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import CharField, Max, QuerySet
@@ -30,13 +28,28 @@ from application_form.models import ApartmentReservation, LotteryEvent
 from application_form.models.reservation import ApartmentReservationStateChangeEvent
 from application_form.services.types import SalesReportProjectTotalsDict
 from application_form.utils import get_apartment_number_sort_tuple
+from invoicing.enums import InstallmentType
+from invoicing.models import ApartmentInstallment
 
 _logger = logging.getLogger(__name__)
 
 
-def _get_reservation_cell_value(column_name, apartment=None, reservation=None):
+def _get_reservation_cell_value(
+    column_name: str,
+    apartment: ApartmentDocument = None,
+    reservation: Union[ApartmentReservation, None] = None,
+):
     if not reservation:
         return ""
+
+    roo_column_names = [
+        InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT.value,
+        InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_2.value,
+        InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_3.value,
+        "Maksettu",
+    ]
+    if column_name in roo_column_names:
+        return None
 
     # Apartment fields
     if (
@@ -52,7 +65,7 @@ def _get_reservation_cell_value(column_name, apartment=None, reservation=None):
         ]
         and apartment is not None
     ):
-        return getattr(apartment, column_name)
+        return getattr(apartment, column_name) or ""
     # Profile fields
     if column_name.startswith("primary") or column_name.startswith("secondary"):
         if (
@@ -61,16 +74,16 @@ def _get_reservation_cell_value(column_name, apartment=None, reservation=None):
         ):
             return None
         else:
-            return operator.attrgetter(column_name)(reservation.customer)
+            return operator.attrgetter(column_name)(reservation.customer) or ""
     if column_name == "has_children":
-        return bool(reservation.has_children)
+        return "X" if bool(reservation.has_children) else ""
     if column_name == "lottery_position":
         return reservation.application_apartment.lotteryeventresult.result_position
     if column_name == "queue_position":
         return reservation.queue_position
     if column_name == "right_of_residence":
         return reservation.right_of_residence
-    return None
+    return ""
 
 
 class XlsxExportService:
@@ -189,15 +202,12 @@ class ApplicantMailingListExportService(CSVExportService):
         ("Kohteen postitoimipaikka", "project_city"),
         ("Huoneiston kokoonpano", "apartment_structure"),
         ("Asuinpinta-ala", "living_area"),
-        ("AO-maksu 1", ""),
-        ("Summa", ""),
-        ("Maksettu", ""),
-        ("AO-maksu 2", ""),
-        ("Summa", ""),
-        ("Maksettu", ""),
-        ("AO-maksu 3", ""),
-        ("Summa", ""),
-        ("Maksettu", ""),
+        ("AO-maksu 1", InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT.value),
+        ("Maksettu", "Maksettu"),
+        ("AO-maksu 2", InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_2.value),
+        ("Maksettu", "Maksettu"),
+        ("AO-maksu 3", InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_3.value),
+        ("Maksettu", "Maksettu"),
     ]
 
     ORDER_BY = ["apartment_uuid", "queue_position"]
@@ -265,26 +275,25 @@ class ApplicantMailingListExportService(CSVExportService):
             if cell_value is not None:
                 line.append(cell_value)
 
-        for installment in self.get_right_of_occupancy_installments(reservation):
-            line += [
-                installment.value,
-                installment.payment_status.value
-            ]
-            pass
+        if self.export_type == ApartmentReservationState.SOLD.value:
+            for installment in self.get_right_of_occupancy_installments(reservation):
+                line += [installment.value, installment.payment_status.value]
+                pass
 
         return line
 
     def get_right_of_occupancy_installments(
-            self, 
-            reservation: ApartmentReservation
+        self, reservation: ApartmentReservation
     ) -> QuerySet[ApartmentInstallment]:
-        installments: QuerySet[ApartmentInstallment] = reservation.apartment_installments.filter(  # noqa: E501
-            type__in=[
-                InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT,
-                InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_2,
-                InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_3,
-            ]
-        ).order_by("type")
+        installments: QuerySet[ApartmentInstallment] = (
+            reservation.apartment_installments.filter(  # noqa: E501
+                type__in=[
+                    InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT,
+                    InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_2,
+                    InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_3,
+                ]
+            ).order_by("type")
+        )
         return installments
 
 
@@ -593,10 +602,22 @@ class XlsxSalesReportExportService(XlsxExportService):
 
         totals_row = [
             "Yhteensä",
-            totals["hitas_sales_price_sum"] if is_hitas else "",  # noqa: E501
-            totals["hitas_debt_free_sales_price_sum"] if is_hitas else "",  # noqa: E501
             (
-                totals["haso_right_of_occupancy_payment_sum"] if is_haso else ""
+                self._sum_cents(x.sales_price or 0 for x in sold_apartments)
+                if is_hitas
+                else ""
+            ),  # noqa: E501
+            (
+                self._sum_cents(x.debt_free_sales_price or 0 for x in sold_apartments)
+                if is_hitas
+                else ""
+            ),  # noqa: E501
+            (
+                self._sum_cents(
+                    x.right_of_occupancy_payment or 0 for x in sold_apartments
+                )
+                if is_haso
+                else ""
             ),  # noqa: E501
             self.HIGHLIGHT_COLOR,
         ]
