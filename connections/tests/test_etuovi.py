@@ -18,6 +18,7 @@ from connections.tests.utils import (
     make_apartments_sold_in_elastic,
     publish_elastic_apartments,
 )
+from connections.utils import a_tags_to_text
 
 
 class TestEtuoviMapper:
@@ -154,3 +155,12 @@ class TestApartmentFetchingFromElasticAndMapping:
         file_name = create_xml(items)
 
         assert file_name is None
+
+    def test_strip_link_tags(self):
+        input_text = """<p>Lorem ipsum <a href='https://foo.bar'>FooBar link</a></p><p><a href='mailto:user.name@mail.com'>user.name@mail.com</a><a href='https://test.site'>Test site over here</a><a href='https://test.site/gallery'>Image gallery is here</a></p>"""  # noqa: E501
+
+        expected_text = '<p>Lorem ipsum <p>\nFooBar link\nhttps://foo.bar\n</p></p><p><a href="mailto:user.name@mail.com">user.name@mail.com</a><p>\nTest site over here\nhttps://test.site\n</p><p>\nImage gallery is here\nhttps://test.site/gallery\n</p></p>'  # noqa: E501
+
+        text_no_link_tags = a_tags_to_text(input_text)
+        assert text_no_link_tags == expected_text
+        pass

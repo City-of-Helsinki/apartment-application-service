@@ -24,6 +24,7 @@ class ApartmentMinimalFactory(ElasticFactory):
     project_street_address = fuzzy.FuzzyText()
     project_postal_code = fuzzy.FuzzyText(length=6, chars=string.digits)
     project_city = "Helsinki"
+    project_contract_business_id = factory.Faker("business_id")
     project_building_type = "BLOCK_OF_FLATS"
     project_estate_agent = fuzzy.FuzzyText()
     project_estate_agent_email = Faker("email")
