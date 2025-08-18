@@ -133,19 +133,19 @@ def reservations(elastic_project_with_24_apartments):
 
 
 def _validate_mailing_list_csv(
-    csv_rows: List[List[str]], 
+    csv_rows: List[List[str]],
     reservations: List[ApartmentReservation],
-    export_service: Union[ApplicantMailingListExportService, None]=None,
+    export_service: Union[ApplicantMailingListExportService, None] = None,
 ):
     """Validates a mailing list CSV created by ApplicationMailingListExportService
 
     Args:
         csv_rows (List[List[str]]): content of the rows
         reservations (List[ApartmentReservation]): reservations used to generate the csv
-        export_service (ApplicantMailingListExportService|None): Optional instance of the
-        ApplicantMailingListExportService in case the columns in the instance are changed
-    """ 
-    columns = ApplicantMailingListExportService.COLUMNS   
+        export_service (ApplicantMailingListExportService|None): Optional instance of
+        the ApplicantMailingListExportService in case the instance's columns are changed
+    """
+    columns = ApplicantMailingListExportService.COLUMNS
     if export_service is not None:
         columns = export_service.COLUMNS
 
@@ -257,13 +257,15 @@ def test_sorting_function(reservations):
         (ApartmentReservationState.SOLD.value, OwnershipType.HASO, 28),
         (ApartmentReservationState.SOLD.value, OwnershipType.HITAS, 22),
         (ApartmentReservationState.RESERVED.value, OwnershipType.HASO, 22),
-        (ApplicantMailingListExportService.export_first_in_queue, OwnershipType.HASO, 22),
-    ]
+        (
+            ApplicantMailingListExportService.export_first_in_queue,
+            OwnershipType.HASO,
+            22,
+        ),
+    ],
 )
 def test_export_applicants_mailing_list_haso_payments(
-    export_type: str,
-    project_ownership_type: OwnershipType,
-    expected_column_count: int
+    export_type: str, project_ownership_type: OwnershipType, expected_column_count: int
 ):
     """
     Test that the applicants mailing list CSV gets the Right Of Occupancy Payment
@@ -298,7 +300,8 @@ def test_export_applicants_mailing_list_haso_payments(
             apartment_uuid=apt.uuid,
             state=ApartmentReservationState.SOLD,
             customer=CustomerFactory(
-                primary_profile=ProfileFactory(), secondary_profile=ProfileFactory() if idx == 0 else None
+                primary_profile=ProfileFactory(),
+                secondary_profile=ProfileFactory() if idx == 0 else None,
             ),
         )
         for installment_type in roo_installment_types:
@@ -321,18 +324,12 @@ def test_export_applicants_mailing_list_haso_payments(
 
     csv_lines = applicant_mailing_list_export_service.get_rows()
     _validate_mailing_list_csv(
-        csv_lines,
-        filtered_reservations,
-        applicant_mailing_list_export_service
+        csv_lines, filtered_reservations, applicant_mailing_list_export_service
     )
 
     assert len(csv_lines[0]) == expected_column_count
 
-
     pass
-
-
-
 
 
 @pytest.mark.django_db

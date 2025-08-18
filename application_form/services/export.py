@@ -182,14 +182,20 @@ class ApplicantMailingListExportService(CSVExportService):
         ("Ensisijainen hakija osoite", "primary_profile.street_address"),
         ("Ensisijainen hakija postinumero", "primary_profile.postal_code"),
         ("Ensisijainen hakija postitoimipaikka", "primary_profile.city"),
-        ( "Ensisijainen hakija henkilötunnus", "primary_profile.national_identification_number", ),
+        (
+            "Ensisijainen hakija henkilötunnus",
+            "primary_profile.national_identification_number",
+        ),
         ("Kanssahakija etunimi", "secondary_profile.first_name"),
         ("Kanssahakija sukunimi", "secondary_profile.last_name"),
         ("Kanssahakija sähköposti", "secondary_profile.email"),
         ("Kanssahakija osoite", "secondary_profile.street_address"),
         ("Kanssahakija postinumero", "secondary_profile.postal_code"),
         ("Kanssahakija postitoimipaikka", "secondary_profile.city"),
-        ( "Kanssahakija henkilötunnus", "secondary_profile.national_identification_number", ),
+        (
+            "Kanssahakija henkilötunnus",
+            "secondary_profile.national_identification_number",
+        ),
         ("Lapsia", "has_children"),
         ("Kohteen osoite", "project_street_address"),
         ("Kohteen postinumero", "project_postal_code"),
@@ -220,9 +226,9 @@ class ApplicantMailingListExportService(CSVExportService):
     def __init__(self, reservations: QuerySet, export_type: str):
         self.reservations: QuerySet = reservations
         self.export_type = export_type
-        
+
         self.add_roo_columns = (
-            self.any_reservation_has_roo_installments() 
+            self.any_reservation_has_roo_installments()
             and export_type == ApartmentReservationState.SOLD.value
         )
 
@@ -234,7 +240,7 @@ class ApplicantMailingListExportService(CSVExportService):
 
     def any_reservation_has_roo_installments(self) -> bool:
         """
-        Returns True if any reservation in the set has Right Of Occupancy installments 
+        Returns True if any reservation in the set has Right Of Occupancy installments
         associated with it.
         """
         return self._get_apartment_roo_installments().exists()
@@ -246,10 +252,10 @@ class ApplicantMailingListExportService(CSVExportService):
         return ApartmentInstallment.objects.filter(
             apartment_reservation__in=self.reservations,
             type__in=[
-                    InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT,
-                    InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_2,
-                    InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_3,
-            ]
+                InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT,
+                InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_2,
+                InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_3,
+            ],
         )
 
     def get_order_key(self, row):
@@ -305,7 +311,6 @@ class ApplicantMailingListExportService(CSVExportService):
             columns = columns + self.COLUMNS_ROO_PAYMENTS
 
         for column in columns:
-            print("Add column", column)
             cell_value = _get_reservation_cell_value(column[1], apartment, reservation)
             if cell_value is not None:
                 line.append(cell_value)
@@ -321,9 +326,9 @@ class ApplicantMailingListExportService(CSVExportService):
         self, reservation: ApartmentReservation
     ) -> QuerySet[ApartmentInstallment]:
         installments: QuerySet[ApartmentInstallment] = (
-            self._get_apartment_roo_installments().filter(
-                apartment_reservation=reservation
-            ).order_by("type")
+            self._get_apartment_roo_installments()
+            .filter(apartment_reservation=reservation)
+            .order_by("type")
         )
         return installments
 
