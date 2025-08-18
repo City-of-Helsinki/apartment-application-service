@@ -28,7 +28,7 @@ from application_form.models import ApartmentReservation, LotteryEvent
 from application_form.models.reservation import ApartmentReservationStateChangeEvent
 from application_form.services.types import SalesReportProjectTotalsDict
 from application_form.utils import get_apartment_number_sort_tuple
-from invoicing.enums import InstallmentType
+from invoicing.enums import InstallmentType, PaymentStatus
 from invoicing.models import ApartmentInstallment
 
 _logger = logging.getLogger(__name__)
@@ -317,7 +317,14 @@ class ApplicantMailingListExportService(CSVExportService):
 
         if export_type_is_sold and is_haso:
             for installment in self.get_right_of_occupancy_installments(reservation):
-                line += [installment.value, installment.payment_status.value]
+                line += [
+                    installment.value,
+                    (
+                        "X"
+                        if installment.payment_status.value == PaymentStatus.PAID.value
+                        else ""
+                    ),
+                ]
                 pass
 
         return line

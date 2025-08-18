@@ -43,9 +43,9 @@ from application_form.tests.factories import (
     ApplicationFactory,
 )
 from customer.tests.factories import CustomerFactory
-from invoicing.enums import InstallmentType
+from invoicing.enums import InstallmentType, PaymentStatus
 from invoicing.models import ApartmentInstallment
-from invoicing.tests.factories import ApartmentInstallmentFactory
+from invoicing.tests.factories import ApartmentInstallmentFactory, PaymentFactory
 from users.tests.factories import ProfileFactory
 
 
@@ -217,7 +217,12 @@ def _validate_mailing_list_csv(
             for roo_installment in roo_installments:
                 expected_row += [
                     roo_installment.value,
-                    roo_installment.payment_status.value,
+                    (
+                        "X"
+                        if roo_installment.payment_status.value
+                        != PaymentStatus.UNPAID.value
+                        else ""
+                    ),  # noqa: E501
                 ]
 
         for expected_field_value, value in zip(expected_row, row):
@@ -304,11 +309,16 @@ def test_export_applicants_mailing_list_haso_payments(
                 secondary_profile=ProfileFactory() if idx == 0 else None,
             ),
         )
-        for installment_type in roo_installment_types:
-            ApartmentInstallmentFactory(
+        for jdx, installment_type in enumerate(roo_installment_types):
+            installment = ApartmentInstallmentFactory(
                 apartment_reservation=res,
                 type=installment_type,
             )
+            if jdx == 0:
+                PaymentFactory(
+                    apartment_installment=installment, amount=installment.value
+                )
+
         apartment_uuids.append(apt.uuid)
 
     reservation_queryset = ApartmentReservation.objects.filter(
@@ -323,6 +333,7 @@ def test_export_applicants_mailing_list_haso_payments(
     filtered_reservations = applicant_mailing_list_export_service.filter_reservations()
 
     csv_lines = applicant_mailing_list_export_service.get_rows()
+
     _validate_mailing_list_csv(
         csv_lines, filtered_reservations, applicant_mailing_list_export_service
     )
