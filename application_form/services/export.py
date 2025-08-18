@@ -72,7 +72,7 @@ def _get_reservation_cell_value(
             column_name.startswith("secondary")
             and reservation.customer.secondary_profile is None
         ):
-            return None
+            return ""
         else:
             return operator.attrgetter(column_name)(reservation.customer) or ""
     if column_name == "has_children":
@@ -182,26 +182,23 @@ class ApplicantMailingListExportService(CSVExportService):
         ("Ensisijainen hakija osoite", "primary_profile.street_address"),
         ("Ensisijainen hakija postinumero", "primary_profile.postal_code"),
         ("Ensisijainen hakija postitoimipaikka", "primary_profile.city"),
-        (
-            "Ensisijainen hakija henkilötunnus",
-            "primary_profile.national_identification_number",
-        ),
+        ( "Ensisijainen hakija henkilötunnus", "primary_profile.national_identification_number", ),
         ("Kanssahakija etunimi", "secondary_profile.first_name"),
         ("Kanssahakija sukunimi", "secondary_profile.last_name"),
         ("Kanssahakija sähköposti", "secondary_profile.email"),
         ("Kanssahakija osoite", "secondary_profile.street_address"),
         ("Kanssahakija postinumero", "secondary_profile.postal_code"),
         ("Kanssahakija postitoimipaikka", "secondary_profile.city"),
-        (
-            "Kanssahakija henkilötunnus",
-            "secondary_profile.national_identification_number",
-        ),
+        ( "Kanssahakija henkilötunnus", "secondary_profile.national_identification_number", ),
         ("Lapsia", "has_children"),
         ("Kohteen osoite", "project_street_address"),
         ("Kohteen postinumero", "project_postal_code"),
         ("Kohteen postitoimipaikka", "project_city"),
         ("Huoneiston kokoonpano", "apartment_structure"),
         ("Asuinpinta-ala", "living_area"),
+    ]
+
+    COLUMNS_ROO_PAYMENTS = [
         ("AO-maksu 1", InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT.value),
         ("Maksettu", "Maksettu"),
         ("AO-maksu 2", InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_2.value),
@@ -223,6 +220,37 @@ class ApplicantMailingListExportService(CSVExportService):
     def __init__(self, reservations: QuerySet, export_type: str):
         self.reservations: QuerySet = reservations
         self.export_type = export_type
+        
+        self.add_roo_columns = (
+            self.any_reservation_has_roo_installments() 
+            and export_type == ApartmentReservationState.SOLD.value
+        )
+
+        if self.add_roo_columns:
+            self.COLUMNS = self.COLUMNS + self.COLUMNS_ROO_PAYMENTS
+
+    def _get_header_row(self):
+        return [col[0] for col in self.COLUMNS]
+
+    def any_reservation_has_roo_installments(self) -> bool:
+        """
+        Returns True if any reservation in the set has Right Of Occupancy installments 
+        associated with it.
+        """
+        return self._get_apartment_roo_installments().exists()
+
+    def _get_apartment_roo_installments(self) -> QuerySet[ApartmentReservation]:
+        """
+        Gets Right Of Occupancy installments for the reservations
+        """
+        return ApartmentInstallment.objects.filter(
+            apartment_reservation__in=self.reservations,
+            type__in=[
+                    InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT,
+                    InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_2,
+                    InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_3,
+            ]
+        )
 
     def get_order_key(self, row):
         # turn letter-number combo into numeric values for comparison
@@ -267,15 +295,22 @@ class ApplicantMailingListExportService(CSVExportService):
 
         return rows
 
-    def get_row(self, reservation, apartment):
+    def get_row(self, reservation: ApartmentReservation, apartment: ApartmentDocument):
         line = []
+        columns = self.COLUMNS
+        export_type_is_sold = self.export_type == ApartmentReservationState.SOLD.value
+        is_haso = apartment.project_ownership_type == OwnershipType.HASO.value
 
-        for column in self.COLUMNS:
+        if export_type_is_sold and is_haso:
+            columns = columns + self.COLUMNS_ROO_PAYMENTS
+
+        for column in columns:
+            print("Add column", column)
             cell_value = _get_reservation_cell_value(column[1], apartment, reservation)
             if cell_value is not None:
                 line.append(cell_value)
 
-        if self.export_type == ApartmentReservationState.SOLD.value:
+        if export_type_is_sold and is_haso:
             for installment in self.get_right_of_occupancy_installments(reservation):
                 line += [installment.value, installment.payment_status.value]
                 pass
@@ -286,12 +321,8 @@ class ApplicantMailingListExportService(CSVExportService):
         self, reservation: ApartmentReservation
     ) -> QuerySet[ApartmentInstallment]:
         installments: QuerySet[ApartmentInstallment] = (
-            reservation.apartment_installments.filter(  # noqa: E501
-                type__in=[
-                    InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT,
-                    InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_2,
-                    InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_3,
-                ]
+            self._get_apartment_roo_installments().filter(
+                apartment_reservation=reservation
             ).order_by("type")
         )
         return installments
