@@ -41,6 +41,7 @@ from django_oikotie.xml_models.housing_company import RealEstateAgent
 
 from apartment.elastic.documents import ApartmentDocument as ElasticApartment
 from apartment.enums import OwnershipType
+from apartment.utils import form_description_with_link
 from connections.enums import Currency, Unit
 from connections.oikotie.field_mapper import (
     APARTMENT_TYPE_MAPPING,
@@ -51,7 +52,7 @@ from connections.oikotie.field_mapper import (
     NEW_DEVELOPMENT_STATUS_MAPPING,
     SITE_MAPPING,
 )
-from connections.utils import clean_html_tags_from_text, convert_price_from_cents_to_eur
+from connections.utils import convert_price_from_cents_to_eur
 
 _logger = logging.getLogger(__name__)
 
@@ -255,11 +256,14 @@ def map_water_fee(elastic_apartment: ElasticApartment) -> Optional[WaterFee]:
 def map_unencumbered_sales_price(
     elastic_apartment: ElasticApartment,
 ) -> Optional[UnencumberedSalesPrice]:
-    if elastic_apartment.debt_free_sales_price is not None:
+    price_value = elastic_apartment.debt_free_sales_price
+
+    if elastic_apartment.project_ownership_type == OwnershipType.HASO.value:
+        price_value = elastic_apartment.release_payment
+
+    if price_value is not None:
         return UnencumberedSalesPrice(
-            value=convert_price_from_cents_to_eur(
-                elastic_apartment.debt_free_sales_price
-            ),
+            value=convert_price_from_cents_to_eur(price_value),
             currency=Currency.EUR.value,
         )
     else:
@@ -389,20 +393,7 @@ def form_description(elastic_apartment: ElasticApartment) -> Optional[str]:
     Fetch link to project presentation and add it to the start of the project
     description
     """
-    optional_text = "Tarkemman kohde-esittelyn sekä varaustilanteen löydät täältä:"
-    main_text = getattr(elastic_apartment, "project_description", None)
-    if main_text:
-        main_text = clean_html_tags_from_text(main_text)
-    link = getattr(elastic_apartment, "project_url", None)
-
-    if main_text and link:
-        return f"{optional_text}\n{link}\n\n{main_text}"
-
-    if not main_text and link:
-        return "\n".join(filter(None, [optional_text, link]))
-    if main_text or link:
-        return "\n\n".join(filter(None, [main_text, link]))
-    return None
+    return form_description_with_link(elastic_apartment)
 
 
 def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:
