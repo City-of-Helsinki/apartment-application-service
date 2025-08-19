@@ -24,13 +24,9 @@ User = get_user_model()
 
 
 class ApartmentReservationQuerySet(models.QuerySet):
+
     def reserved(self):
-        return self.exclude(
-            state__in=(
-                ApartmentReservationState.SUBMITTED,
-                ApartmentReservationState.CANCELED,
-            )
-        )
+        return self.active().exclude(state=ApartmentReservationState.SUBMITTED)
 
     def related_fields(self):
         return (
