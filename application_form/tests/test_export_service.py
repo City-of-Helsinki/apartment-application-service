@@ -353,7 +353,7 @@ def test_export_applicants_mailing_list_all(reservations):
     )
     reservation_queryset.update(state=ApartmentReservationState.SUBMITTED)
     first_reservation = reservation_queryset.first()
-    # first_reservation.state = ApartmentReservationState.CANCELED
+    first_reservation.state = ApartmentReservationState.CANCELED
     first_reservation.save()
 
     applicant_mailing_list_export_service = ApplicantMailingListExportService(
@@ -365,8 +365,8 @@ def test_export_applicants_mailing_list_all(reservations):
 
     csv_lines = applicant_mailing_list_export_service.get_rows()
     _validate_mailing_list_csv(csv_lines, filtered_reservations)
-    assert len(filtered_reservations) == 24
-    assert len(csv_lines) == 25
+    assert len(filtered_reservations) == 23
+    assert len(csv_lines) == 24
 
 
 @pytest.mark.django_db
