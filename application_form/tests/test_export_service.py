@@ -378,17 +378,16 @@ def test_export_applicants_mailing_list_first_in_queue(reservations):
         apartment_uuid__in=[res.apartment_uuid for res in reservations]
     )
 
-
     # ensure the reservation queryset always has a reservation with queue_position=2
     # and state != "CANCELED"
     reservation_queryset.update(queue_position=2)
     last_reservation = reservation_queryset.last()
     last_reservation.queue_position = 1
-    
+
     # "reservations" fixture randomizes the reservation states
     # therefore we can end up with a reservation that has state="CANCELED" and
     # gets filtered out in `ApplicantMailingListExportService.filter_reservations()`
-    last_reservation.state = ApartmentReservationState.SUBMITTED 
+    last_reservation.state = ApartmentReservationState.SUBMITTED
     last_reservation.save()
 
     applicant_mailing_list_export_service = ApplicantMailingListExportService(
