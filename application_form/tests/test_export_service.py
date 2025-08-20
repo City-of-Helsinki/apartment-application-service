@@ -168,6 +168,13 @@ def _validate_mailing_list_csv(
         city = None
         national_identification_number = None
 
+    payment_status_labels = {
+        PaymentStatus.PAID: "maksettu",
+        PaymentStatus.UNPAID: "",
+        PaymentStatus.OVERPAID: "ylisuoritus",
+        PaymentStatus.UNDERPAID: "alisuoritus",
+    }
+
     for i, row in enumerate(content_rows):
 
         reservation = reservations[i]
@@ -217,12 +224,7 @@ def _validate_mailing_list_csv(
             for roo_installment in roo_installments:
                 expected_row += [
                     roo_installment.value,
-                    (
-                        "X"
-                        if roo_installment.payment_status.value
-                        != PaymentStatus.UNPAID.value
-                        else ""
-                    ),  # noqa: E501
+                    payment_status_labels[roo_installment.payment_status],
                 ]
 
         for expected_field_value, value in zip(expected_row, row):
@@ -281,12 +283,16 @@ def test_export_applicants_mailing_list_haso_payments(
         project_ownership_type=project_ownership_type.value
     )
 
+    apartment_2 = ApartmentDocumentFactory(
+        project_ownership_type=project_ownership_type.value
+    )
+
     # add apartment with some empty attributes
     # to test that empty attributes dont cause misalignment with content row and header
     apartment_missing_attribs = ApartmentDocumentFactory(
         living_area=None, project_ownership_type=project_ownership_type.value
     )
-    apartments = [apartment, apartment_missing_attribs]
+    apartments = [apartment, apartment_2, apartment_missing_attribs]
 
     # add reservations and installments if HASO test case
     roo_installment_types = []
@@ -309,15 +315,23 @@ def test_export_applicants_mailing_list_haso_payments(
                 secondary_profile=ProfileFactory() if idx == 0 else None,
             ),
         )
+
         for jdx, installment_type in enumerate(roo_installment_types):
             installment = ApartmentInstallmentFactory(
                 apartment_reservation=res,
                 type=installment_type,
             )
-            if jdx == 0:
-                PaymentFactory(
-                    apartment_installment=installment, amount=installment.value
-                )
+
+            installment_value = [0, 10, -10][jdx]
+
+            # only add underpaid payment to last apartment
+            if idx != (len(apartments) - 1) and jdx == 2:
+                continue
+
+            PaymentFactory(
+                apartment_installment=installment,
+                amount=installment.value + installment_value,
+            )
 
         apartment_uuids.append(apt.uuid)
 
