@@ -588,8 +588,14 @@ def create_hitas_contract_pdf(
     # https://docs.djangoproject.com/en/5.1/topics/i18n/translation/
     with translation.override("fi"):
         payment_1_price = hitas_price(payment_1.value * 100)
-        due_date = payment_1.due_date.strftime("%d.%m.%Y")
-        payment_terms_rest_of_price = f"{payment_1.type.label} eräpäivä {due_date} {payment_1_price.value} {payment_1_price.suffix}"  # noqa: E501
+        payment_terms_rest_of_price = f"{payment_1.type.label}"
+        if payment_1.due_date:
+            due_date = payment_1.due_date.strftime("%d.%m.%Y")
+            payment_terms_rest_of_price += f" {due_date}"
+
+        payment_terms_rest_of_price += (
+            f" {payment_1_price.value} {payment_1_price.suffix}"  # noqa: E501
+        )
 
     # full apartment contract data is mostly the same fields but with some changes
     full_apartment_contract_data = {
