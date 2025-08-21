@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from django.contrib.auth import get_user_model
 from django.db import transaction
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
@@ -17,6 +18,8 @@ from customer.models import Customer, CustomerComment
 from invoicing.api.serializers import ApartmentInstallmentSerializer
 from users.api.sales.serializers import ProfileSerializer
 from users.models import Profile
+
+User = get_user_model()
 
 
 class CustomerApartmentReservationSerializer(ApartmentReservationSerializerBase):
@@ -219,8 +222,19 @@ class CustomerListSerializer(serializers.ModelSerializer):
         return None
 
 
+class AuthorLikeProfileSerializer(serializers.ModelSerializer):
+    # имена полей как в ProfileSerializer
+    first_name = serializers.CharField(read_only=True)
+    last_name = serializers.CharField(read_only=True)
+    email = serializers.EmailField(read_only=True)
+
+    class Meta:
+        model = User
+        fields = ("id", "first_name", "last_name", "email")
+
+
 class CustomerCommentSerializer(serializers.ModelSerializer):
-    author = ProfileSerializer(read_only=True)
+    author = AuthorLikeProfileSerializer(source="author_user", read_only=True)
 
     class Meta:
         model = CustomerComment
