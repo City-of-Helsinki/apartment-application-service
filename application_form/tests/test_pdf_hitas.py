@@ -2,13 +2,25 @@ import datetime
 import pathlib
 import unittest
 from dataclasses import dataclass
+from datetime import date, timedelta
 from decimal import Decimal
 
+import pytest
+from django.contrib.auth import get_user_model
+
+from apartment.enums import OwnershipType
+from apartment.tests.factories import ApartmentDocumentFactory
 from apartment_application_service.pdf import _get_checkbox_checked_value
 from apartment_application_service.pdf import PDFCurrencyField as CF
+from application_form.enums import ApartmentReservationState
+from application_form.models.reservation import ApartmentReservation
+from application_form.tests.conftest import sell_apartments
+from invoicing.enums import InstallmentType
+from invoicing.tests.factories import ApartmentInstallmentFactory
 
 from ..pdf.hitas import (
     create_hitas_complete_apartment_contract_pdf_from_data,
+    create_hitas_contract_pdf,
     create_hitas_contract_pdf_from_data,
     HITAS_CONTRACT_PDF_TEMPLATE_FILE_NAME,
     HitasCompleteApartmentContractPDFData,
@@ -530,6 +542,66 @@ class TesthitasCompleteApartmentContractPdfFromData(unittest.TestCase):
             "12",
         ]
         pass
+
+
+@pytest.mark.django_db
+def test_create_hitas_contract_complete_apartment_pdf():
+    """
+    Basic test to verify the feature doesn't crash
+    """
+    ownership_type = OwnershipType.HITAS.value
+    apartment = ApartmentDocumentFactory(
+        project_ownership_type=ownership_type,
+        project_use_complete_contract=True,
+    )
+
+    apartments = [apartment]
+    apartments.append(
+        ApartmentDocumentFactory(
+            project_ownership_type=ownership_type,
+            project_use_complete_contract=True,
+            project_uuid=apartment.project_uuid,
+        )
+    )
+
+    sell_apartments(apartment.project_uuid, len(apartments))
+
+    reservations = ApartmentReservation.objects.filter(
+        apartment_uuid__in=[apt.uuid for apt in apartments],
+        state=ApartmentReservationState.SOLD,
+    )
+
+    installment_due_date = date.today() + timedelta(days=30)
+    installment_due_date_str = installment_due_date.strftime("%d.%m.%Y")
+    installment_value = 10500
+    installment_value_str = "10500.00 €"
+    installment_iban = "FI7271347440000296"
+    for idx, res in enumerate(reservations):
+
+        installment = ApartmentInstallmentFactory(
+            apartment_reservation=res,
+            type=InstallmentType.PAYMENT_1,
+            # verify due_date = None is handled correctly
+            due_date=installment_due_date if idx > 0 else None,
+            value=installment_value,
+            account_number=installment_iban,
+        )
+
+    for idx, res in enumerate(reservations):
+        pdf_data = create_hitas_contract_pdf(
+            res, "Vantaa", "2025-08-21", get_user_model().objects.first()
+        )
+
+        pdf_texts = get_cleaned_pdf_texts(pdf_data.getvalue())
+
+        if idx == 1:
+            assert (
+                f"{installment.type.label} {installment_due_date_str} {installment_value_str}"
+                in pdf_texts
+            )
+        else:
+            assert f"{installment.type.label} {installment_value_str}" in pdf_texts
+    pass
 
 
 class TesthitasContractPdfFromData(unittest.TestCase):
