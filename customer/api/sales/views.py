@@ -78,10 +78,10 @@ class CustomerCommentViewSet(
     def get_queryset(self):
         customer_id = self.kwargs["customer_pk"]
         return CustomerComment.objects.filter(customer_id=customer_id).select_related(
-            "author", "customer"
+            "author_user", "customer"
         )
 
     def perform_create(self, serializer):
         customer = Customer.objects.get(pk=self.kwargs["customer_pk"])
-        profile = self.request.user.profile
-        serializer.save(customer=customer, author=profile)
+        user = self.request.user
+        serializer.save(customer=customer, author_user=user)
