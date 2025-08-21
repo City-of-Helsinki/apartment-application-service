@@ -12,6 +12,8 @@ import xlsxwriter
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import CharField, Max, QuerySet
 from django.db.models.functions import Cast
+from django.utils import translation
+from django.utils.translation import gettext as _
 
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import (
@@ -316,16 +318,22 @@ class ApplicantMailingListExportService(CSVExportService):
                 line.append(cell_value)
 
         if export_type_is_sold and is_haso:
-            for installment in self.get_right_of_occupancy_installments(reservation):
-                line += [
-                    installment.value,
-                    (
-                        "X"
-                        if installment.payment_status.value == PaymentStatus.PAID.value
-                        else ""
-                    ),
-                ]
-                pass
+            # export file's language shouldnt change based on the user's web browser
+            # how language is usually resolved
+            # https://docs.djangoproject.com/en/5.1/topics/i18n/translation/
+            with translation.override("fi"):
+                for installment in self.get_right_of_occupancy_installments(
+                    reservation
+                ):
+                    line += [
+                        installment.value,
+                        (
+                            _(installment.payment_status.label)
+                            if installment.payment_status != PaymentStatus.UNPAID
+                            else ""
+                        ),
+                    ]
+                    pass
 
         return line
 
