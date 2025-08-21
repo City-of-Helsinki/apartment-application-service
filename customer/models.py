@@ -2,6 +2,7 @@
 Customer models.
 """
 
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q, UniqueConstraint
@@ -9,6 +10,8 @@ from django.utils.translation import gettext_lazy as _
 
 from apartment_application_service.models import CommonApplicationData, TimestampedModel
 from users.models import Profile
+
+User = get_user_model()
 
 
 class Customer(TimestampedModel, CommonApplicationData):
@@ -83,6 +86,16 @@ class CustomerComment(models.Model):
         on_delete=models.PROTECT,
         related_name="customer_comments",
         verbose_name=_("author"),
+        null=True,
+        blank=True,
+    )
+    author_user = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="customer_comments",
+        verbose_name=_("author user"),
+        null=True,
+        blank=True,
     )
     content = models.TextField(_("comment content"))
     created_at = models.DateTimeField(_("created at"), auto_now_add=True)
@@ -91,4 +104,13 @@ class CustomerComment(models.Model):
         ordering = ("-created_at",)
 
     def __str__(self):
-        return f"{self.customer} | {self.author}: {self.content[:20]}"
+        return f"{self.customer} | {self.display_author_name}: {self.content[:20]}"
+
+    @property
+    def display_author_name(self) -> str:
+        if self.author_user:
+            full = f"{self.author_user.first_name} {self.author_user.last_name}".strip()
+            return full or (self.author_user.username or self.author_user.email or "—")
+        if self.author:
+            return getattr(self.author, "full_name", "") or "—"
+        return "—"
