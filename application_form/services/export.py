@@ -210,6 +210,7 @@ class ApplicantMailingListExportService(CSVExportService):
             "secondary_profile.national_identification_number",
         ),
         ("Lapsia", "has_children"),
+        ("Hitas omistus", "has_hitas_ownership"),
         ("Kohteen osoite", "project_street_address"),
         ("Kohteen postinumero", "project_postal_code"),
         ("Kohteen postitoimipaikka", "project_city"),
