@@ -79,6 +79,10 @@ def _get_reservation_cell_value(
             return operator.attrgetter(column_name)(reservation.customer) or ""
     if column_name == "has_children":
         return "X" if bool(reservation.has_children) else ""
+    if column_name == "has_hitas_ownership":
+        if reservation.has_hitas_ownership is None:
+            return ""
+        return "Kyllä" if bool(reservation.has_hitas_ownership) else "Ei"
     if column_name == "lottery_position":
         return reservation.application_apartment.lotteryeventresult.result_position
     if column_name == "queue_position":
@@ -199,6 +203,7 @@ class ApplicantMailingListExportService(CSVExportService):
             "secondary_profile.national_identification_number",
         ),
         ("Lapsia", "has_children"),
+        ("Hitas omistus", "has_hitas_ownership"),
         ("Kohteen osoite", "project_street_address"),
         ("Kohteen postinumero", "project_postal_code"),
         ("Kohteen postitoimipaikka", "project_city"),
