@@ -36,6 +36,50 @@ from invoicing.models import ApartmentInstallment
 _logger = logging.getLogger(__name__)
 
 
+# --- helpers & constants to lower complexity ---
+_APARTMENT_FIELDS = {
+    "project_street_address",
+    "project_postal_code",
+    "project_city",
+    "apartment_number",
+    "apartment_structure",
+    "living_area",
+    "floor",
+}
+
+_ROO_COLUMN_NAMES = {
+    InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT.value,
+    InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_2.value,
+    InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_3.value,
+    "Maksettu",
+}
+
+
+def _get_profile_cell(reservation: ApartmentReservation, column_name: str) -> str:
+    if (
+        column_name.startswith("secondary")
+        and not reservation.customer.secondary_profile
+    ):
+        return ""
+    return operator.attrgetter(column_name)(reservation.customer) or ""
+
+
+def _get_simple_reservation_cell(reservation: ApartmentReservation, column_name: str):
+    dispatch = {
+        "has_children": lambda r: "X" if bool(r.has_children) else "",
+        "has_hitas_ownership": lambda r: (
+            ""
+            if getattr(r, "has_hitas_ownership", None) is None
+            else ("Kyllä" if bool(r.has_hitas_ownership) else "Ei")
+        ),
+        "lottery_position": lambda r: r.application_apartment.lotteryeventresult.result_position,  # noqa: E501
+        "queue_position": lambda r: r.queue_position,
+        "right_of_residence": lambda r: r.right_of_residence,
+    }
+    fn = dispatch.get(column_name)
+    return fn(reservation) if fn else None
+
+
 def _get_reservation_cell_value(
     column_name: str,
     apartment: ApartmentDocument = None,
@@ -43,52 +87,15 @@ def _get_reservation_cell_value(
 ):
     if not reservation:
         return ""
-
-    roo_column_names = [
-        InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT.value,
-        InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_2.value,
-        InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_3.value,
-        "Maksettu",
-    ]
-    if column_name in roo_column_names:
+    if column_name in _ROO_COLUMN_NAMES:
         return None
-
-    # Apartment fields
-    if (
-        column_name
-        in [
-            "project_street_address",
-            "project_postal_code",
-            "project_city",
-            "apartment_number",
-            "apartment_structure",
-            "living_area",
-            "floor",
-        ]
-        and apartment is not None
-    ):
+    if column_name in _APARTMENT_FIELDS and apartment is not None:
         return getattr(apartment, column_name) or ""
-    # Profile fields
     if column_name.startswith("primary") or column_name.startswith("secondary"):
-        if (
-            column_name.startswith("secondary")
-            and reservation.customer.secondary_profile is None
-        ):
-            return ""
-        else:
-            return operator.attrgetter(column_name)(reservation.customer) or ""
-    if column_name == "has_children":
-        return "X" if bool(reservation.has_children) else ""
-    if column_name == "has_hitas_ownership":
-        if reservation.has_hitas_ownership is None:
-            return ""
-        return "Kyllä" if bool(reservation.has_hitas_ownership) else "Ei"
-    if column_name == "lottery_position":
-        return reservation.application_apartment.lotteryeventresult.result_position
-    if column_name == "queue_position":
-        return reservation.queue_position
-    if column_name == "right_of_residence":
-        return reservation.right_of_residence
+        return _get_profile_cell(reservation, column_name)
+    simple = _get_simple_reservation_cell(reservation, column_name)
+    if simple is not None:
+        return simple
     return ""
 
 
@@ -280,7 +287,23 @@ class ApplicantMailingListExportService(CSVExportService):
         )
 
         if self.export_type == self.export_first_in_queue:
-            reservations = reservations.filter(queue_position=1)
+            base = reservations.active()
+            firsts = base.filter(queue_position=1)
+            if firsts.exists():
+                reservations = firsts
+            else:
+                candidate = (
+                    base.exclude(queue_position__isnull=True)
+                    .order_by("queue_position")
+                    .first()
+                )
+                if candidate is None:
+                    candidate = base.order_by("list_position").first()
+                reservations = (
+                    reservations.model.objects.filter(pk=candidate.pk)
+                    if candidate is not None
+                    else reservations.model.objects.none()
+                )
         elif self.export_type == ApartmentReservationState.SOLD.value:
             reservations = reservations.filter(state=ApartmentReservationState.SOLD)
 
