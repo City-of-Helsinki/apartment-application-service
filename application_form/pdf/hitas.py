@@ -454,10 +454,10 @@ def create_hitas_contract_pdf(
         )
 
     signing_buyers = " & ".join(
-                    name
-                    for name in [primary_profile.full_name, secondary_profile.full_name]
-                    if name
-                )
+        name
+        for name in [primary_profile.full_name, secondary_profile.full_name]
+        if name
+    )
 
     contract_data = {
         "occupant_1": primary_profile.full_name,
@@ -624,7 +624,6 @@ def create_hitas_contract_pdf(
         "other_space": "",
         "other_space_area": "",
         "salesperson_signature": salesperson.profile_or_user_full_name,
-        "transfer_of_posession": apartment.project_possession_transfer_date,
         "transfer_of_shares": apartment.project_shares_transferred_when,
         "transfer_of_posession": apartment.project_control_transferred_when,
         "transfer_of_shares_confirmed": sales_price_paid_place_and_time,
