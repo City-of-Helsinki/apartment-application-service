@@ -281,21 +281,23 @@ class ApplicantMailingListExportService(CSVExportService):
         )
 
         if self.export_type == self.export_first_in_queue:
-            results = []
-            apartment_ids = reservations.values_list(
-                "apartment_uuid", flat=True
-            ).distinct()
-            for apt_uuid in apartment_ids:
-                base = reservations.filter(apartment_uuid=apt_uuid)
-                first_by_queue = (
+            base = reservations.active()
+            firsts = base.filter(queue_position=1)
+            if firsts.exists():
+                reservations = firsts
+            else:
+                candidate = (
                     base.exclude(queue_position__isnull=True)
                     .order_by("queue_position")
                     .first()
                 )
-                chosen = first_by_queue or base.order_by("list_position").first()
-                if chosen is not None:
-                    results.append(chosen.pk)
-            reservations = reservations.model.objects.filter(pk__in=results)
+                if candidate is None:
+                    candidate = base.order_by("list_position").first()
+                reservations = (
+                    reservations.model.objects.filter(pk=candidate.pk)
+                    if candidate is not None
+                    else reservations.model.objects.none()
+                )
         elif self.export_type == ApartmentReservationState.SOLD.value:
             reservations = reservations.filter(state=ApartmentReservationState.SOLD)
 
