@@ -266,7 +266,7 @@ def test_sorting_function(reservations):
 @pytest.mark.parametrize(
     "export_type,project_ownership_type,expected_column_count",
     [
-        (ApartmentReservationState.SOLD.value, OwnershipType.HASO, 28),
+        (ApartmentReservationState.SOLD.value, OwnershipType.HASO, 29),
         (ApartmentReservationState.SOLD.value, OwnershipType.HITAS, 23),
         (ApartmentReservationState.RESERVED.value, OwnershipType.HASO, 23),
         (
