@@ -80,9 +80,10 @@ def _get_reservation_cell_value(
     if column_name == "has_children":
         return "X" if bool(reservation.has_children) else ""
     if column_name == "has_hitas_ownership":
-        if reservation.has_hitas_ownership is None:
+        val = getattr(reservation, "has_hitas_ownership", None)
+        if val is None:
             return ""
-        return "Kyllä" if bool(reservation.has_hitas_ownership) else "Ei"
+        return "Kyllä" if bool(val) else "Ei"
     if column_name == "lottery_position":
         return reservation.application_apartment.lotteryeventresult.result_position
     if column_name == "queue_position":

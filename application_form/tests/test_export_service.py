@@ -213,7 +213,11 @@ def _validate_mailing_list_csv(
             secondary_profile.city or "",
             secondary_profile.national_identification_number or "",
             "X" if bool(reservation.has_children) else "",
-            "Kyllä" if bool(reservation.has_hitas_ownership) else "Ei",
+            (
+                ""
+                if reservation.has_hitas_ownership is None
+                else ("Kyllä" if reservation.has_hitas_ownership else "Ei")
+            ),
             apartment.project_street_address or "",
             apartment.project_postal_code or "",
             apartment.project_city or "",
