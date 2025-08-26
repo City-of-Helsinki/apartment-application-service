@@ -2,7 +2,7 @@ import logging
 import string
 import uuid
 from datetime import timedelta
-from typing import List, Tuple
+from typing import List, Tuple, Union
 from unittest.mock import Mock
 
 import faker.config
@@ -362,10 +362,19 @@ def elastic_haso_project_with_4_sold_apartments(elastic_haso_project_with_5_apar
 
 
 def create_application_data(
-    profile, application_type=ApplicationType.HASO, num_applicants=2
+    profile,
+    application_type=ApplicationType.HASO,
+    num_applicants=2,
+    apartments: Union[List[ApartmentDocument], None] = None,
 ):
+
     # Build apartments
-    project_uuid, apartment_uuids = get_elastic_apartments_uuids()
+    if not apartments:
+        project_uuid, apartment_uuids = get_elastic_apartments_uuids()
+    else:
+        project_uuid = apartments[0].project_uuid
+        apartment_uuids = [apt.uuid for apt in apartments]
+
     apartments_data = [
         {"priority": index, "identifier": apartment_uuid}
         for index, apartment_uuid in enumerate(apartment_uuids[0:5])
