@@ -95,6 +95,10 @@ class MaskedTokenObtainPairView(TokenObtainPairView):
     password. When the refresh token expires, a full login is required.
     """
 
+    # def post(self, request):
+    #     import ipdb;ipdb.set_trace()
+    #     pass
+
     serializer_class = MaskedTokenObtainPairSerializer
 
 

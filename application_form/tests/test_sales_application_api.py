@@ -1,7 +1,11 @@
+from datetime import datetime, timedelta
+
 import pytest
 from django.contrib.auth.models import Group
 from django.urls import reverse
 
+from apartment.enums import OwnershipType
+from apartment.tests.factories import ApartmentDocumentFactory
 from apartment_application_service.settings import (
     METADATA_HANDLER_INFORMATION,
     METADATA_HASO_PROCESS_NUMBER,
@@ -64,6 +68,92 @@ def test_sales_application_post(
             reservation.state_change_events.last().user
             == drupal_salesperson_api_client.user
         )
+
+
+@pytest.mark.django_db
+def test_sales_application_post_haso_submitted_late(
+    api_client, elastic_hitas_project_with_5_apartments
+):
+    salesperson_profile = ProfileFactory()
+    salesperson_group = Group.objects.get(name__iexact=Roles.DRUPAL_SALESPERSON.name)
+    salesperson_group.user_set.add(salesperson_profile.user)
+
+    customer_profile = ProfileFactory()
+    api_client.credentials(
+        HTTP_AUTHORIZATION=f"Bearer {_create_token(salesperson_profile)}"
+    )
+
+    application_start_time = datetime.now() - timedelta(days=20)
+    application_end_time = application_start_time - timedelta(days=10)
+
+    apartment = ApartmentDocumentFactory(
+        project_application_start_time=application_start_time,
+        project_application_end_time=application_end_time,
+        project_ownership_type=OwnershipType.HASO.value,
+    )
+
+    apartments_late_submit = [apartment]
+    for idx in range(4):
+        apt = ApartmentDocumentFactory(
+            project_uuid=apartment.project_uuid,
+            project_application_start_time=application_start_time,
+            project_application_end_time=application_end_time,
+            project_ownership_type=OwnershipType.HASO.value,
+        )
+
+        apartments_late_submit.append(apt)
+
+    late_submit_data = create_application_data(
+        customer_profile, num_applicants=1, apartments=apartments_late_submit
+    )
+
+    late_submit_data["profile"] = customer_profile.id
+
+    application = post_application(api_client, late_submit_data)
+    assert application.submitted_late is True
+
+    #  setting submitted_late manually in POST shouldnt be allowed
+    customer_profile_2 = ProfileFactory()
+
+    data = create_application_data(
+        customer_profile_2, num_applicants=2, apartments=apartments_late_submit
+    )
+
+    data["profile"] = customer_profile_2.id
+    data["submitted_late"] = False
+
+    second_application = post_application(api_client, data)
+    assert second_application.submitted_late is True
+
+    # Test that HITAS apartment late submit isn't allowed (should only work with HASO)
+    apartment = ApartmentDocumentFactory(
+        project_application_start_time=application_start_time,
+        project_application_end_time=application_end_time,
+        project_ownership_type=OwnershipType.HITAS.value,
+    )
+
+    apartments_late_submit_hitas = [apartment]
+    for idx in range(4):
+        apt = ApartmentDocumentFactory(
+            project_uuid=apartment.project_uuid,
+            project_application_start_time=application_start_time,
+            project_application_end_time=application_end_time,
+            project_ownership_type=OwnershipType.HASO.value,
+        )
+
+        apartments_late_submit_hitas.append(apt)
+
+    customer_profile_3 = ProfileFactory()
+
+    data = create_application_data(
+        customer_profile_3, num_applicants=2, apartments=apartments_late_submit_hitas
+    )
+    data["profile"] = customer_profile_3.id
+    third_application = post_application(api_client, data)
+
+    assert third_application.submitted_late is False
+
+    pass
 
 
 def post_application(client, data):
