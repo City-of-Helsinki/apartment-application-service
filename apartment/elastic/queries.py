@@ -1,7 +1,24 @@
 from django.core.exceptions import ObjectDoesNotExist
+from elasticsearch_dsl import search
 
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.elastic_utils import resolve_es_field
+
+
+def apartment_query(**kwargs):
+    search = _filter_apartments_with_keywords(**kwargs)
+    count = search.count()
+    response = search[0:count].execute()
+    return response
+
+
+def project_query(**kwargs):
+    search = _filter_apartments_with_keywords(**kwargs)
+    search = _filter_out_apartments(search)
+
+    count = search.count()
+    response = search[0:count].execute()
+    return response
 
 
 def get_apartment(apartment_uuid, include_project_fields=False):
@@ -85,20 +102,7 @@ def get_project(project_uuid):
     # Project data needs to exist in apartment data
     search = search.filter("exists", field="project_id")
 
-    # Get only most recent apartment which has project data
-    search = search.extra(
-        collapse={
-            "field": "project_id",
-            "inner_hits": {
-                "name": "most_recent",
-                "size": 1,
-                "sort": [{"project_id": "desc"}],
-            },
-        }
-    )
-
-    # Retrieve only project fields
-    search = search.source(["project_*"])
+    search = _filter_out_apartments(search)
 
     # Get only 1 item
     try:
@@ -115,6 +119,34 @@ def get_projects():
     # Project data needs to exist in apartment data
     search = search.filter("exists", field="project_id")
 
+    search = _filter_out_apartments(search)
+
+    # Get all items
+    count = search.count()
+    response = search[0:count].execute()
+
+    return response
+
+
+def _filter_apartments_with_keywords(**kwargs) -> search.Search:
+    search = ApartmentDocument.search()
+    for search_term, search_value in kwargs.items():
+        if isinstance(search_value, str):
+            search = search.filter(
+                "term", **{resolve_es_field(search_term): search_value}
+            )
+        elif isinstance(search_value, bool):
+            search = search.filter("term", **{search_term: search_value})
+
+    return search
+
+
+def _filter_out_apartments(search: search.Search) -> ApartmentDocument:
+    """Filters out most recent Apartment which has project data
+
+    Args:
+        search (search.Search): _description_
+    """
     # Get only most recent apartment which has project data
     search = search.extra(
         collapse={
@@ -130,8 +162,4 @@ def get_projects():
     # Retrieve only project fields
     search = search.source(["project_*"])
 
-    # Get all items
-    count = search.count()
-    response = search[0:count].execute()
-
-    return response
+    return search
