@@ -2,10 +2,9 @@ import logging
 import string
 import uuid
 from datetime import timedelta
-from typing import List, Tuple
+from typing import Dict, List, Tuple, Union
 from unittest.mock import Mock
 
-import faker.config
 from django.conf import settings
 from django.utils import timezone
 from elasticsearch.helpers.test import get_test_client
@@ -37,6 +36,7 @@ from application_form.tests.factories import (
 from application_form.tests.utils import (
     calculate_ssn_suffix,
     get_elastic_apartments_uuids,
+    get_elastic_apartments_with_application_time_left,
 )
 from connections.tests.factories import ApartmentMinimalFactory
 from users.tests.conftest import (  # noqa: F401
@@ -90,23 +90,33 @@ def check_latest_reservation_state_change_events():
         assert reservation.state_change_events.last().state == reservation.state
 
 
+def generate_apartments(elasticsearch, apartment_count: int, apartment_kwargs: Dict):
+    apartments = []
+    apartments.append(ApartmentDocumentFactory(**apartment_kwargs))
+    if apartment_count > 1:
+        for _ in range(apartment_count - 1):
+            apartments.append(
+                ApartmentDocumentFactory(
+                    project_uuid=apartments[0].project_uuid,
+                    **apartment_kwargs,
+                )
+            )
+
+    return apartments
+
+
 @fixture
 def elastic_single_project_with_apartments(elasticsearch):
-    apartments = []
-    apartments.append(
-        ApartmentMinimalFactory(
-            apartment_state_of_sale="FOR_SALE",
-            _language="fi",
-        )
+    application_end_time = timezone.now() + timedelta(days=30)
+    apartments = generate_apartments(
+        elasticsearch,
+        10,
+        {
+            "apartment_state_of_sale": "FOR_SALE",
+            "_language": "fi",
+            "project_application_end_time": application_end_time,
+        },
     )
-    for _ in range(10):
-        apartments.append(
-            ApartmentMinimalFactory(
-                apartment_state_of_sale="FOR_SALE",
-                _language="fi",
-                project_uuid=apartments[0].project_uuid,
-            )
-        )
     yield apartments
 
     for apartment in apartments:
@@ -362,10 +372,17 @@ def elastic_haso_project_with_4_sold_apartments(elastic_haso_project_with_5_apar
 
 
 def create_application_data(
-    profile, application_type=ApplicationType.HASO, num_applicants=2
+    profile,
+    application_type=ApplicationType.HASO,
+    num_applicants=2,
+    apartments: Union[List[ApartmentDocument], None] = None,
 ):
-    # Build apartments
-    project_uuid, apartment_uuids = get_elastic_apartments_uuids()
+    # Fetch apartments if needed
+    if not apartments:
+        apartments = get_elastic_apartments_with_application_time_left()
+
+    project_uuid, apartment_uuids = get_elastic_apartments_uuids(apartments)
+
     apartments_data = [
         {"priority": index, "identifier": apartment_uuid}
         for index, apartment_uuid in enumerate(apartment_uuids[0:5])

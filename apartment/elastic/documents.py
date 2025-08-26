@@ -67,6 +67,7 @@ class ApartmentDocument(ReadOnlyDocument):
     project_premarketing_end_time = Date()
     project_application_start_time = Date()
     project_application_end_time = Date()
+    project_can_apply_afterwards = Boolean()
     project_material_choice_dl = Date()
     project_shareholder_meeting_date = Date()
     project_estimated_completion = Keyword(required=True)
