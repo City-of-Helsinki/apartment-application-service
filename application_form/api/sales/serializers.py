@@ -79,10 +79,14 @@ class SalesApplicationSerializer(ApplicationSerializerBase):
         application = super().create(validated_data)
 
         project = get_project(validated_data.get("project_id"))
-        is_late = (
-            datetime.now().replace(tzinfo=timezone.get_default_timezone())
-            > project.project_application_end_time
-        )
+
+        is_late = False
+
+        if project.project_application_end_time:
+            is_late = (
+                datetime.now().replace(tzinfo=timezone.get_default_timezone())
+                > project.project_application_end_time
+            )
         is_haso = project.project_ownership_type.lower() == OwnershipType.HASO.value
 
         if is_late and (not project.project_can_apply_afterwards or not is_haso):
