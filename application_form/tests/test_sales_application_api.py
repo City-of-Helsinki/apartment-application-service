@@ -93,7 +93,7 @@ def test_sales_application_post_haso_submitted_late(
         project_application_start_time=application_start_time,
         project_application_end_time=application_end_time,
         project_ownership_type=OwnershipType.HASO.value,
-        project_can_apply_afterwards=True
+        project_can_apply_afterwards=True,
     )
 
     apartments_late_submit = [apartment]
@@ -103,7 +103,7 @@ def test_sales_application_post_haso_submitted_late(
             project_application_start_time=application_start_time,
             project_application_end_time=application_end_time,
             project_ownership_type=OwnershipType.HASO.value,
-            project_can_apply_afterwards=True
+            project_can_apply_afterwards=True,
         )
 
         apartments_late_submit.append(apt)
@@ -157,26 +157,28 @@ def test_sales_application_post_haso_submitted_late(
     response = api_client.post(
         reverse("application_form:sales-application-list"), data, format="json"
     )
-    assert response.status_code is not 201
+    assert response.status_code != 201
 
     # Test that ApartmentDocument.project_can_apply_afterwards is respected
     apartment_cant_apply_afterwards = ApartmentDocumentFactory(
         project_application_start_time=application_start_time,
         project_application_end_time=application_end_time,
         project_ownership_type=OwnershipType.HASO.value,
-        project_can_apply_afterwards=False
+        project_can_apply_afterwards=False,
     )
 
     customer_profile_4 = ProfileFactory()
     data = create_application_data(
-        customer_profile_4, num_applicants=2, apartments=[apartment_cant_apply_afterwards]
+        customer_profile_4,
+        num_applicants=2,
+        apartments=[apartment_cant_apply_afterwards],
     )
     data["profile"] = customer_profile_4.id
 
     response = api_client.post(
         reverse("application_form:sales-application-list"), data, format="json"
     )
-    assert response.status_code is not 201
+    assert response.status_code != 201
     pass
 
 
