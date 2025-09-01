@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 
 import pytest
 from django.contrib.auth.models import Group
+from django.utils import timezone
 from django.urls import reverse
 
 from apartment.enums import OwnershipType
@@ -83,13 +84,16 @@ def test_sales_application_post_haso_submitted_late(
         HTTP_AUTHORIZATION=f"Bearer {_create_token(salesperson_profile)}"
     )
 
-    application_start_time = datetime.now() - timedelta(days=20)
+    application_start_time = (datetime.now() - timedelta(days=20)).replace(
+        tzinfo=timezone.get_default_timezone()
+    )
     application_end_time = application_start_time - timedelta(days=10)
 
     apartment = ApartmentDocumentFactory(
         project_application_start_time=application_start_time,
         project_application_end_time=application_end_time,
         project_ownership_type=OwnershipType.HASO.value,
+        project_can_apply_afterwards=True
     )
 
     apartments_late_submit = [apartment]
@@ -99,6 +103,7 @@ def test_sales_application_post_haso_submitted_late(
             project_application_start_time=application_start_time,
             project_application_end_time=application_end_time,
             project_ownership_type=OwnershipType.HASO.value,
+            project_can_apply_afterwards=True
         )
 
         apartments_late_submit.append(apt)
@@ -149,10 +154,29 @@ def test_sales_application_post_haso_submitted_late(
         customer_profile_3, num_applicants=2, apartments=apartments_late_submit_hitas
     )
     data["profile"] = customer_profile_3.id
-    third_application = post_application(api_client, data)
+    response = api_client.post(
+        reverse("application_form:sales-application-list"), data, format="json"
+    )
+    assert response.status_code is not 201
 
-    assert third_application.submitted_late is False
+    # Test that ApartmentDocument.project_can_apply_afterwards is respected
+    apartment_cant_apply_afterwards = ApartmentDocumentFactory(
+        project_application_start_time=application_start_time,
+        project_application_end_time=application_end_time,
+        project_ownership_type=OwnershipType.HASO.value,
+        project_can_apply_afterwards=False
+    )
 
+    customer_profile_4 = ProfileFactory()
+    data = create_application_data(
+        customer_profile_4, num_applicants=2, apartments=[apartment_cant_apply_afterwards]
+    )
+    data["profile"] = customer_profile_4.id
+
+    response = api_client.post(
+        reverse("application_form:sales-application-list"), data, format="json"
+    )
+    assert response.status_code is not 201
     pass
 
 

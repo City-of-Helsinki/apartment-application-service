@@ -83,10 +83,21 @@ class SalesApplicationSerializer(ApplicationSerializerBase):
             datetime.now().replace(tzinfo=timezone.get_default_timezone())
             > project.project_application_end_time
         )
+        is_haso = project.project_ownership_type.lower() == OwnershipType.HASO.value
+
+        if is_late and (
+            not project.project_can_apply_afterwards
+            or not is_haso
+        ):
+            raise serializers.ValidationError(
+                {"detail": "Cannot submit late application to this apartment"},
+                code=400,
+            )
 
         if (
             is_late
-            and project.project_ownership_type.lower() == OwnershipType.HASO.value
+            and is_haso
+            and project.project_can_apply_afterwards
         ):
             application.submitted_late = True
             application.save()
