@@ -2,8 +2,8 @@ from datetime import datetime, timedelta
 
 import pytest
 from django.contrib.auth.models import Group
-from django.utils import timezone
 from django.urls import reverse
+from django.utils import timezone
 
 from apartment.enums import OwnershipType
 from apartment.tests.factories import ApartmentDocumentFactory
