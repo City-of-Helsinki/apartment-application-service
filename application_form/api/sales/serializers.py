@@ -1,16 +1,14 @@
 import logging
-from datetime import datetime
 from uuid import UUID
 
 from django.core.exceptions import ObjectDoesNotExist
-from django.utils import timezone
 from drf_spectacular.utils import extend_schema_field
 from enumfields.drf import EnumSupportSerializerMixin
 from rest_framework import serializers
 from rest_framework.fields import UUIDField
 
-from apartment.elastic.queries import get_apartment, get_apartment_project_uuid, get_project
-from apartment.enums import OwnershipType
+from apartment.elastic.queries import get_apartment
+
 from apartment.models import ProjectExtraData
 from apartment.services import get_offer_message_subject_and_body
 from application_form.api.serializers import (
@@ -77,32 +75,6 @@ class SalesApplicationSerializer(ApplicationSerializerBase):
     def create(self, validated_data):
         self.context["salesperson"] = self.context["request"].user
         application = super().create(validated_data)
-
-        project = get_project(
-            get_apartment_project_uuid(
-                validated_data.get("apartments")[0]["identifier"]
-            ).project_uuid
-        )
-
-        is_late = False
-
-        if project.project_application_end_time:
-            is_late = (
-                datetime.now().replace(tzinfo=timezone.get_default_timezone())
-                > project.project_application_end_time
-            )
-        is_haso = project.project_ownership_type.lower() == OwnershipType.HASO.value
-
-        if is_late and (not project.project_can_apply_afterwards or not is_haso):
-            raise serializers.ValidationError(
-                {"detail": "Cannot submit late application to this apartment"},
-                code=400,
-            )
-
-        if is_late and is_haso and project.project_can_apply_afterwards:
-            application.submitted_late = True
-            application.save()
-
         return application
 
 
