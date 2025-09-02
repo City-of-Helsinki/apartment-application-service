@@ -5,8 +5,6 @@ from datetime import timedelta
 from typing import Dict, List, Tuple, Union
 from unittest.mock import Mock
 
-from apartment.enums import OwnershipType
-import faker.config
 from django.conf import settings
 from django.utils import timezone
 from elasticsearch.helpers.test import get_test_client
@@ -38,11 +36,9 @@ from application_form.tests.factories import (
 from application_form.tests.utils import (
     calculate_ssn_suffix,
     get_elastic_apartments_uuids,
-    get_elastic_apartments_with_application_time_left,
     get_for_sale_elastic_apartments,
 )
 from connections.tests.factories import ApartmentMinimalFactory
-from apartment.tests.factories import ApartmentDocumentFactory
 from users.tests.conftest import (  # noqa: F401
     api_client,
     drupal_salesperson_api_client,
@@ -93,13 +89,10 @@ def check_latest_reservation_state_change_events():
     for reservation in ApartmentReservation.objects.all():
         assert reservation.state_change_events.last().state == reservation.state
 
+
 def generate_apartments(elasticsearch, apartment_count: int, apartment_kwargs: Dict):
     apartments = []
-    apartments.append(
-        ApartmentDocumentFactory(
-            **apartment_kwargs
-        )
-    )
+    apartments.append(ApartmentDocumentFactory(**apartment_kwargs))
     for _ in range(apartment_count):
         apartments.append(
             ApartmentDocumentFactory(
@@ -107,19 +100,21 @@ def generate_apartments(elasticsearch, apartment_count: int, apartment_kwargs: D
                 **apartment_kwargs,
             )
         )
-    
+
     return apartments
 
 
 @fixture
 def elastic_single_project_with_apartments(elasticsearch):
+    application_end_time = timezone.now() + timedelta(days=10)
     apartments = generate_apartments(
         elasticsearch,
         10,
         {
-            "apartment_state_of_sale":"FOR_SALE",
-            "_language":"fi",
-        }
+            "apartment_state_of_sale": "FOR_SALE",
+            "_language": "fi",
+            "project_application_end_time": application_end_time,
+        },
     )
     yield apartments
 
@@ -381,10 +376,6 @@ def create_application_data(
     num_applicants=2,
     apartments: Union[List[ApartmentDocument], None] = None,
 ):
-    if apartments is not None:
-        from apartment.elastic.queries import get_apartment, get_project
-        print([get_apartment(apt.uuid,True).project_application_end_time for apt in apartments])
-
     # Fetch apartments if needed
     if not apartments:
         apartments = get_for_sale_elastic_apartments()

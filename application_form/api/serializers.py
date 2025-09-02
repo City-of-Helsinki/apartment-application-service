@@ -1,11 +1,15 @@
 import logging
+from datetime import datetime
 
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from enumfields.drf import EnumField, EnumSupportSerializerMixin
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.fields import IntegerField, UUIDField
 
+from apartment.elastic.queries import get_apartment_project_uuid, get_project
+from apartment.enums import OwnershipType
 from apartment_application_service.settings import (
     METADATA_HANDLER_INFORMATION,
     METADATA_HASO_PROCESS_NUMBER,
@@ -118,8 +122,37 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
         }
 
     def create(self, validated_data):
+        # TODO: replace this with SalesApplicationSerializer's POST method code
         validated_data = self.prepare_metadata(validated_data)
-        return create_application(validated_data, user=self.context.get("salesperson"))
+        application = create_application(
+            validated_data, user=self.context.get("salesperson")
+        )
+        project = get_project(
+            get_apartment_project_uuid(
+                validated_data.get("apartments")[0]["identifier"]
+            ).project_uuid
+        )
+
+        is_late = False
+
+        if project.project_application_end_time:
+            is_late = (
+                datetime.now().replace(tzinfo=timezone.get_default_timezone())
+                > project.project_application_end_time
+            )
+        is_haso = project.project_ownership_type.lower() == OwnershipType.HASO.value
+
+        if is_late and (not project.project_can_apply_afterwards or not is_haso):
+            raise serializers.ValidationError(
+                {"detail": "Cannot submit late application to this apartment"},
+                code=400,
+            )
+
+        if is_late and is_haso and project.project_can_apply_afterwards:
+            application.submitted_late = True
+            application.save()
+
+        return application
 
     def prepare_metadata(self, validated_data):
         if validated_data.get("type", None) == ApplicationType.HASO:
