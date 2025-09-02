@@ -9,7 +9,7 @@ from enumfields.drf import EnumSupportSerializerMixin
 from rest_framework import serializers
 from rest_framework.fields import UUIDField
 
-from apartment.elastic.queries import get_apartment, get_project
+from apartment.elastic.queries import get_apartment, get_apartment_project_uuid, get_project
 from apartment.enums import OwnershipType
 from apartment.models import ProjectExtraData
 from apartment.services import get_offer_message_subject_and_body
@@ -78,7 +78,11 @@ class SalesApplicationSerializer(ApplicationSerializerBase):
         self.context["salesperson"] = self.context["request"].user
         application = super().create(validated_data)
 
-        project = get_project(validated_data.get("project_id"))
+        project = get_project(
+            get_apartment_project_uuid(
+                validated_data.get("apartments")[0]["identifier"]
+            ).project_uuid
+        )
 
         is_late = False
 
