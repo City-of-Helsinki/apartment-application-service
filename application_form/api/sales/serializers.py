@@ -8,7 +8,6 @@ from rest_framework import serializers
 from rest_framework.fields import UUIDField
 
 from apartment.elastic.queries import get_apartment
-
 from apartment.models import ProjectExtraData
 from apartment.services import get_offer_message_subject_and_body
 from application_form.api.serializers import (
