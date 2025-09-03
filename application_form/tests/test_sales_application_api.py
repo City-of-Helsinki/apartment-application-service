@@ -34,7 +34,9 @@ from users.tests.utils import _create_token
 
 @pytest.mark.django_db
 def test_sales_application_post_without_permission(
-    sales_ui_salesperson_api_client, api_client, elastic_single_project_with_apartments  # noqa: F811 E501
+    sales_ui_salesperson_api_client,
+    api_client,
+    elastic_single_project_with_apartments,  # noqa: F811 E501
 ):
     profile = ProfileFactory()
     data = create_application_data(profile)
@@ -52,7 +54,9 @@ def test_sales_application_post_without_permission(
 
 
 @pytest.mark.django_db
-def test_sales_application_post(drupal_salesperson_api_client, elasticsearch):  # noqa: F811 E501
+def test_sales_application_post(
+    drupal_salesperson_api_client, elasticsearch
+):  # noqa: F811 E501
 
     customer_profile = ProfileFactory()
     drupal_salesperson_api_client.credentials(
@@ -87,7 +91,9 @@ def test_sales_application_post(drupal_salesperson_api_client, elasticsearch):  
 
 
 @pytest.mark.django_db
-def test_sales_application_post_haso_submitted_late(api_client, elasticsearch):  # noqa: F811 E501
+def test_sales_application_post_haso_submitted_late(
+    api_client, elasticsearch
+):  # noqa: F811 E501
     salesperson_profile = ProfileFactory()
     salesperson_group = Group.objects.get(name__iexact=Roles.DRUPAL_SALESPERSON.name)
     salesperson_group.user_set.add(salesperson_profile.user)
@@ -200,7 +206,9 @@ def post_application(client, data):
 
 
 @pytest.mark.django_db
-def test_sales_application_post_check_customer(api_client, elasticsearch):  # noqa: F811 E501
+def test_sales_application_post_check_customer(
+    api_client, elasticsearch
+):  # noqa: F811 E501
 
     application_end_time = datetime.now().replace(
         tzinfo=timezone.get_default_timezone()

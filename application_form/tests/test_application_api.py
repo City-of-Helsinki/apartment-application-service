@@ -45,7 +45,9 @@ from users.tests.utils import _create_token
 
 
 @pytest.mark.django_db
-def test_application_post(api_client, elastic_single_project_with_apartments):  # noqa: F811 E501
+def test_application_post(
+    api_client, elastic_single_project_with_apartments
+):
     profile = ProfileFactory()
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
     data = create_application_data(profile)
@@ -60,7 +62,9 @@ def test_application_post(api_client, elastic_single_project_with_apartments):  
 
 
 @pytest.mark.django_db
-def test_application_post_sets_nin(api_client, elastic_single_project_with_apartments):  # noqa: F811 E501
+def test_application_post_sets_nin(
+    api_client, elastic_single_project_with_apartments
+):
     # Setup: Create application data with NIN and a profile without NIN
     profile: Profile
     profile = ProfileFactory()  # type: ignore
@@ -87,7 +91,9 @@ def test_application_post_sets_nin(api_client, elastic_single_project_with_apart
 @pytest.mark.parametrize("already_existing_customer", (False, True))
 @pytest.mark.django_db
 def test_application_post_single_profile_customer(
-    api_client, elastic_single_project_with_apartments, already_existing_customer  # noqa: F811 E501
+    api_client,
+    elastic_single_project_with_apartments,
+    already_existing_customer,
 ):
     profile = ProfileFactory()
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
@@ -122,7 +128,9 @@ def test_application_post_single_profile_customer(
 @pytest.mark.parametrize("already_existing_customer", (False, True, "wrong"))
 @pytest.mark.django_db
 def test_application_post_multi_profile_customer(
-    api_client, elastic_single_project_with_apartments, already_existing_customer  # noqa: F811 E501
+    api_client,
+    elastic_single_project_with_apartments,
+    already_existing_customer,
 ):
     profile = ProfileFactory()
     secondary_profile = ProfileFactory()
@@ -178,7 +186,7 @@ def test_application_post_multi_profile_customer(
 
 @pytest.mark.django_db
 def test_application_post_writes_audit_log(
-    api_client, elastic_single_project_with_apartments  # noqa: F811 E501
+    api_client, elastic_single_project_with_apartments
 ):
     profile = ProfileFactory()
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
@@ -196,7 +204,7 @@ def test_application_post_writes_audit_log(
 
 @pytest.mark.django_db
 def test_application_post_fails_if_not_authenticated(
-    api_client, elastic_single_project_with_apartments  # noqa: F811 E501
+    api_client, elastic_single_project_with_apartments
 ):
     data = create_application_data(ProfileFactory())
     response = api_client.post(
@@ -207,7 +215,7 @@ def test_application_post_fails_if_not_authenticated(
 
 @pytest.mark.django_db
 def test_application_post_writes_audit_log_if_not_authenticated(
-    api_client, elastic_single_project_with_apartments  # noqa: F811 E501
+    api_client, elastic_single_project_with_apartments
 ):
     data = create_application_data(ProfileFactory())
     api_client.post(reverse("application_form:application-list"), data, format="json")
@@ -220,7 +228,7 @@ def test_application_post_writes_audit_log_if_not_authenticated(
 
 @pytest.mark.django_db
 def test_application_post_fails_if_incorrect_ssn_suffix(
-    api_client, elastic_single_project_with_apartments  # noqa: F811 E501
+    api_client, elastic_single_project_with_apartments
 ):
     profile = ProfileFactory()
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
@@ -239,7 +247,7 @@ def test_application_post_fails_if_incorrect_ssn_suffix(
 
 @pytest.mark.django_db
 def test_application_post_fails_if_incorrect_ssn_suffix_additional_applicant(
-    api_client, elastic_single_project_with_apartments  # noqa: F811 E501
+    api_client, elastic_single_project_with_apartments
 ):
     profile = ProfileFactory()
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
@@ -258,7 +266,7 @@ def test_application_post_fails_if_incorrect_ssn_suffix_additional_applicant(
 
 @pytest.mark.django_db
 def test_application_post_fails_if_applicant_have_already_applied_to_project(
-    api_client, elastic_single_project_with_apartments  # noqa: F811 E501
+    api_client, elastic_single_project_with_apartments
 ):
     """
     Tests that if single applicant tries to send multiple applications. Only
@@ -283,7 +291,7 @@ def test_application_post_fails_if_applicant_have_already_applied_to_project(
 
 @pytest.mark.django_db
 def test_application_post_fails_if_applicants_have_already_applied_to_project(
-    api_client, elastic_single_project_with_apartments  # noqa: F811 E501
+    api_client, elastic_single_project_with_apartments
 ):
     """
     Tests that if applicants tries to send multiple applications. Only one
@@ -308,7 +316,7 @@ def test_application_post_fails_if_applicants_have_already_applied_to_project(
 
 @pytest.mark.django_db
 def test_application_post_fails_if_partner_applicant_have_already_applied_to_project(
-    api_client, elastic_single_project_with_apartments  # noqa: F811 E501
+    api_client, elastic_single_project_with_apartments
 ):
     """
     Tests that if same partner has set into two different applications. Only one
@@ -343,7 +351,7 @@ def test_application_post_fails_if_partner_applicant_have_already_applied_to_pro
 
 @pytest.mark.django_db
 def test_application_post_fails_if_partner_profile_have_already_applied_to_project(
-    api_client, elastic_single_project_with_apartments  # noqa: F811 E501
+    api_client, elastic_single_project_with_apartments
 ):
     """
     Tests that if partner tries to use own profile in another application. Only one
@@ -384,7 +392,9 @@ def test_application_post_fails_if_partner_profile_have_already_applied_to_proje
 )
 @pytest.mark.django_db
 def test_application_post_generate_metadata(
-    api_client, elastic_single_project_with_apartments, application_type  # noqa: F811 E501
+    api_client,
+    elastic_single_project_with_apartments,
+    application_type,
 ):
     profile = ProfileFactory()
     secondary_profile = ProfileFactory()
@@ -432,7 +442,9 @@ def test_application_post_generate_metadata(
 )
 @pytest.mark.django_db
 def test_application_post_right_of_residence_auto_populating(
-    api_client, elastic_single_project_with_apartments, application_type  # noqa: F811 E501
+    api_client,
+    elastic_single_project_with_apartments,
+    application_type,
 ):
     profile = ProfileFactory()
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
@@ -459,7 +471,7 @@ def test_application_post_right_of_residence_auto_populating(
 
 @pytest.mark.django_db
 def test_haso_application_post_right_of_residence_can_be_set(
-    api_client, elastic_single_project_with_apartments  # noqa: F811 E501
+    api_client, elastic_single_project_with_apartments
 ):
     profile = ProfileFactory()
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
@@ -479,7 +491,7 @@ def test_haso_application_post_right_of_residence_can_be_set(
 @pytest.mark.parametrize("has_children", (False, True))
 @pytest.mark.django_db
 def test_application_post_single_profile_customer_has_children(
-    api_client, elastic_single_project_with_apartments, has_children  # noqa: F811 E501
+    api_client, elastic_single_project_with_apartments, has_children
 ):
     profile = ProfileFactory()
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
@@ -505,7 +517,10 @@ def test_application_post_single_profile_customer_has_children(
 
 @pytest.mark.django_db
 def test_get_apartment_states_unauthorized(
-    api_client, user_api_client, profile_api_client, drupal_salesperson_api_client  # noqa: F811 E501
+    api_client,
+    user_api_client,
+    profile_api_client,
+    drupal_salesperson_api_client,
 ):
     response = api_client.get(reverse("application_form:apartment_states"))
     assert response.status_code == 403
@@ -524,7 +539,7 @@ def test_get_apartment_states_unauthorized(
 
 @pytest.mark.django_db
 def test_get_apartment_states(
-    drupal_server_api_client,  # noqa: F811
+    drupal_server_api_client,
     elastic_haso_project_with_5_apartments,
     elastic_hitas_project_with_5_apartments,
 ):
@@ -622,7 +637,7 @@ def test_get_apartment_states(
 
 @pytest.mark.django_db
 def test_get_apartment_states_filter(
-    drupal_server_api_client, elastic_single_project_with_apartments  # noqa: F811
+    drupal_server_api_client, elastic_single_project_with_apartments
 ):
     response = drupal_server_api_client.get(
         reverse("application_form:apartment_states")
@@ -671,7 +686,9 @@ def test_get_apartment_states_filter(
 
 
 @pytest.mark.django_db
-def test_application_post_haso_submitted_late(drupal_server_api_client, elasticsearch):  # noqa: F811 E501
+def test_application_post_haso_submitted_late(
+    drupal_server_api_client, elasticsearch
+):
     profile = ProfileFactory()
     drupal_server_api_client.credentials(
         HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}"
