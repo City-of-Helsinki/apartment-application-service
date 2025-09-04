@@ -74,6 +74,8 @@ class TestHasoContractPdfFromData(unittest.TestCase):
         assert self.pdf_content
 
     def test_pdf_content_text_is_correct(self):
+        # acquire a new version of this PDF array by running
+        # python manage.py pdf_as_array application_form/tests/haso_contract_test_result.pdf  # noqa: E501
         assert get_cleaned_pdf_texts(self.pdf_content) == [
             "Helsinki Haso",
             "Asumisoikeussopimus",
