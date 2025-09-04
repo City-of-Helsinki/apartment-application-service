@@ -72,7 +72,6 @@ class PDFCurrencyField:
             .replace(",", " ")
             .replace(".", ",")
         )
-        pass
 
     def __str__(self):
         return (
