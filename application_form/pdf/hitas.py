@@ -595,9 +595,7 @@ def create_hitas_contract_pdf(
             due_date = payment_1.due_date.strftime("%d.%m.%Y")
             payment_terms_rest_of_price += f" {due_date}"
 
-        payment_terms_rest_of_price += (
-            f" {payment_1_price.value} {payment_1_price.suffix}"  # noqa: E501
-        )
+        payment_terms_rest_of_price += f" {payment_1_price.formatted_number_string()} {payment_1_price.suffix}"  # noqa: E501
 
     # full apartment contract data is mostly the same fields but with some changes
     full_apartment_contract_data = {

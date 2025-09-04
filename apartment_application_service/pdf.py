@@ -66,15 +66,17 @@ class PDFCurrencyField:
         self.prefix = prefix or ""
         self.suffix = suffix or ""
 
+    def formatted_number_string(self) -> str:
+        return (
+            format(self.value.quantize(Decimal(".01")), ",")
+            .replace(",", " ")
+            .replace(".", ",")
+        )
+        pass
+
     def __str__(self):
         return (
-            (
-                self.prefix
-                + format(self.value.quantize(Decimal(".01")), ",")
-                .replace(",", " ")
-                .replace(".", ",")
-                + self.suffix
-            )
+            (self.prefix + self.formatted_number_string() + self.suffix)
             if self.value is not None
             else ""
         )
