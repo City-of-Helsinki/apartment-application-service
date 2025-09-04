@@ -1,4 +1,5 @@
 from django.core.management.base import BaseCommand, CommandError
+
 from application_form.tests.pdf_utils import get_cleaned_pdf_texts
 
 
