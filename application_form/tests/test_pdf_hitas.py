@@ -252,6 +252,9 @@ class TesthitasCompleteApartmentContractPdfFromData(unittest.TestCase):
 
     def test_pdf_content_is_correct(self):
         # regression test
+
+        # acquire a new version of this PDF array by running
+        # python manage.py pdf_as_array application_form/tests/hitas_complete_apartment_contract_test_result.pdf  # noqa: E501
         assert get_cleaned_pdf_texts(self.pdf_content) == [
             "Valmiin uuden asunnon kauppakirja",
             "1 Sopijapuolet",
@@ -574,7 +577,7 @@ def test_create_hitas_contract_complete_apartment_pdf():
     installment_due_date = date.today() + timedelta(days=30)
     installment_due_date_str = installment_due_date.strftime("%d.%m.%Y")
     installment_value = 10500
-    installment_value_str = "10500.00 €"
+    installment_value_str = "10 500,00 €"
     installment_iban = "FI7271347440000296"
     for idx, res in enumerate(reservations):
 
@@ -623,6 +626,8 @@ class TesthitasContractPdfFromData(unittest.TestCase):
         assert self.pdf_content
 
     def test_pdf_content_text_is_correct(self):
+        # acquire a new version of this PDF array by running
+        # python manage.py pdf_as_array application_form/tests/hitas_contract_test_result.pdf  # noqa: E501
         assert get_cleaned_pdf_texts(self.pdf_content) == [
             "Helsinki",
             "Asuinhuoneiston rakentamisvaiheen kauppakirja",
