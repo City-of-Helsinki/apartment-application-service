@@ -202,7 +202,12 @@ class ApartmentReservationViewSet(
             )
         elif ownership_type == "haso":
             filename = f"haso_sopimus_{title}" if title else "haso_sopimus"
-            pdf_data = create_haso_contract_pdf(reservation)
+            pdf_data = create_haso_contract_pdf(
+                reservation,
+                sales_price_paid_place,
+                sales_price_paid_time,
+                salesperson,
+            )
         else:
             raise ValueError(
                 f"Unknown ownership_type: {apartment.project_ownership_type}"
