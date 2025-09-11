@@ -1,14 +1,16 @@
 import logging
 from datetime import datetime
+from textwrap import dedent
 
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from django.core.mail import EmailMessage
 from enumfields.drf import EnumField, EnumSupportSerializerMixin
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.fields import IntegerField, UUIDField
 
-from apartment.elastic.queries import get_apartment_project_uuid, get_project
+from apartment.elastic.queries import get_apartment, get_apartment_project_uuid, get_project
 from apartment.enums import OwnershipType
 from apartment_application_service.settings import (
     METADATA_HANDLER_INFORMATION,
@@ -29,7 +31,7 @@ from application_form.models import (
     Application,
     Offer,
 )
-from application_form.services.application import create_application
+from application_form.services.application import create_application, send_sales_notification_email
 from application_form.validators import ProjectApplicantValidator, SSNSuffixValidator
 from customer.models import Customer
 
@@ -151,6 +153,15 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
         if is_late and is_haso and project.project_can_apply_afterwards:
             application.submitted_late = True
             application.save()
+
+            send_sales_notification_email(
+                application,
+                project,
+                application_apartment_uuids=[
+                    apt["identifier"]
+                    for apt in validated_data.get("apartments")
+                ]
+            )
 
         return application
 

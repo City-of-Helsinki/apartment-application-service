@@ -1,5 +1,8 @@
 from datetime import datetime, timedelta
-
+from typing import List
+from unittest.mock import MagicMock, patch
+from textwrap import dedent
+from apartment.elastic.documents import ApartmentDocument
 import pytest
 from django.urls import reverse
 from django.utils import timezone
@@ -682,8 +685,17 @@ def test_get_apartment_states_filter(
 
 
 @pytest.mark.django_db
-def test_application_post_haso_submitted_late(drupal_server_api_client, elasticsearch):
-    profile = ProfileFactory()
+@patch("application_form.services.application.EmailMessage")
+def test_application_post_haso_submitted_late(
+        EmailMessageMock: MagicMock, 
+        drupal_server_api_client, 
+        elasticsearch
+    ):
+    profile = ProfileFactory(
+        first_name="Heikki", 
+        last_name="Hakija",
+        email="heikki.hakija@mail.com",
+    )
     drupal_server_api_client.credentials(
         HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}"
     )
@@ -699,10 +711,12 @@ def test_application_post_haso_submitted_late(drupal_server_api_client, elastics
         "project_application_end_time": application_end_time,
         "project_ownership_type": OwnershipType.HASO.value,
         "project_can_apply_afterwards": True,
+        "project_housing_company": "Testikatu 321",
+        "project_estate_agent_email": "markku.myyja@mail.com",
     }
 
-    apartments_late_submit = generate_apartments(
-        elasticsearch, 10, late_submit_haso_apartment_properties
+    apartments_late_submit:List[ApartmentDocument] = generate_apartments(
+        elasticsearch, 5, late_submit_haso_apartment_properties
     )
     late_submit_data = create_application_data(
         profile, num_applicants=1, apartments=apartments_late_submit
@@ -719,11 +733,31 @@ def test_application_post_haso_submitted_late(drupal_server_api_client, elastics
     )
     assert application.submitted_late is True
 
+    # ugly indentation to avoid text being unnecessarily indented in the email
+    expected_body = f"""Kohteelle Testikatu 321 on tehty jälkihakemus.
+
+Hakijan tiedot:
+{profile.full_name}
+{profile.email}
+
+Haetut asunnot:\n"""
+
+    for apt in apartments_late_submit:
+        expected_body += f"{apt.apartment_address} {apt.apartment_number}\n"
+
+    # make sure email notification is sent to salesperson
+    EmailMessageMock.assert_called_with(
+        to=["markku.myyja@mail.com"],
+        subject="Jälkihakemus Testikatu 321",
+        body=expected_body,
+    )
+    assert EmailMessageMock().send.call_count == 1
+
     #  setting submitted_late to False manually in POST shouldnt be allowed
     customer_profile_2 = ProfileFactory()
 
     apartments_late_submit_manual = generate_apartments(
-        elasticsearch, 10, late_submit_haso_apartment_properties
+        elasticsearch, 5, late_submit_haso_apartment_properties
     )
 
     late_submit_manual_data = create_application_data(
@@ -747,7 +781,7 @@ def test_application_post_haso_submitted_late(drupal_server_api_client, elastics
     # Test that HITAS apartment late submit isn't allowed (should only work with HASO)
     apartments_late_submit_hitas = generate_apartments(
         elasticsearch,
-        10,
+        5,
         {
             "apartment_state_of_sale": ApartmentStateOfSale.FOR_SALE.value,
             "_language": "fi",

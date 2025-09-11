@@ -93,13 +93,14 @@ def check_latest_reservation_state_change_events():
 def generate_apartments(elasticsearch, apartment_count: int, apartment_kwargs: Dict):
     apartments = []
     apartments.append(ApartmentDocumentFactory(**apartment_kwargs))
-    for _ in range(apartment_count):
-        apartments.append(
-            ApartmentDocumentFactory(
-                project_uuid=apartments[0].project_uuid,
-                **apartment_kwargs,
+    if apartment_count > 1:
+        for _ in range(apartment_count-1):
+            apartments.append(
+                ApartmentDocumentFactory(
+                    project_uuid=apartments[0].project_uuid,
+                    **apartment_kwargs,
+                )
             )
-        )
 
     return apartments
 

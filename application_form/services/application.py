@@ -1,12 +1,14 @@
+from django.core.mail import EmailMessage
 import logging
 import uuid
 from datetime import date
-from typing import Iterable, List, Optional
+from typing import Iterable, List, Optional, Union
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import QuerySet
 
+from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import get_apartment
 from application_form.enums import (
     ApartmentQueueChangeEventType,
@@ -392,3 +394,31 @@ def delete_application(application: Application):
     application.applicants.all().delete()
 
     application.delete()
+
+def send_sales_notification_email(
+        application: Application, 
+        project: ApartmentDocument,
+        application_apartment_uuids: List[Union[uuid.UUID, str]]
+    ):
+    primary_profile = application.customer.primary_profile
+    email_subject = f"Jälkihakemus {project.project_housing_company}"
+    email_body = f"""Kohteelle {project.project_housing_company} on tehty jälkihakemus.
+
+Hakijan tiedot:
+{primary_profile.first_name} {primary_profile.last_name}
+{primary_profile.email}
+
+Haetut asunnot:\n"""
+
+
+    for apt in [get_apartment(uuid) for uuid in  application_apartment_uuids]:
+        email_body += f"{apt.apartment_address} {apt.apartment_number}\n"
+
+    msg = EmailMessage(
+        subject=email_subject,
+        body=email_body,
+        to=[project.project_estate_agent_email],
+    )
+
+    msg.send()
+    pass
