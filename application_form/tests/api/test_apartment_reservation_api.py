@@ -309,8 +309,6 @@ def test_contract_pdf_creation(
     ownership_type,
     reservation_has_application,
 ):
-    is_haso = ownership_type == "HASO"
-    is_hitas = ownership_type == "Hitas"
 
     apartment = ApartmentDocumentFactory(
         project_ownership_type=ownership_type, project_use_complete_contract=True
@@ -334,9 +332,6 @@ def test_contract_pdf_creation(
         "salesperson_uuid": str(user.uuid),
     }
 
-    if is_haso:
-        test_payload = {}
-
     response = sales_ui_salesperson_api_client.get(
         reverse(
             "application_form:sales-apartment-reservation-contract",
@@ -358,10 +353,9 @@ def test_contract_pdf_creation(
     assert isinstance(test_value, str) and len(test_value) > 10
     assert_pdf_has_text(response.content, test_value)
 
-    if is_hitas:
-        expected_sales_price_paid_place_time = f'{test_payload["sales_price_paid_place"]} {test_payload["sales_price_paid_time"]}'  # noqa: E501
-        assert_pdf_has_text(response.content, expected_sales_price_paid_place_time)
-        assert_pdf_has_text(response.content, f"{user.first_name} {user.last_name}")
+    expected_sales_price_paid_place_time = f'{test_payload["sales_price_paid_place"]} {test_payload["sales_price_paid_time"]}'  # noqa: E501
+    assert_pdf_has_text(response.content, expected_sales_price_paid_place_time)
+    assert_pdf_has_text(response.content, f"{user.first_name} {user.last_name}")
 
 
 @pytest.mark.django_db

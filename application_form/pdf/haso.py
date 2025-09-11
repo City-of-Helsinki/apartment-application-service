@@ -11,6 +11,7 @@ from apartment_application_service.pdf import create_pdf, PDFCurrencyField, PDFD
 from apartment_application_service.utils import SafeAttributeObject
 from application_form.models import ApartmentReservation
 from invoicing.enums import InstallmentType
+from users.models import User
 
 HASO_CONTRACT_PDF_TEMPLATE_FILE_NAME = "haso_contract_template.pdf"
 HASO_RELEASE_PDF_TEMPLATE_FILE_NAME = "haso_release_template.pdf"
@@ -136,13 +137,26 @@ class HasoReleasePDFData(PDFData):
     }
 
 
-def create_haso_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
-    pdf_data = get_haso_contract_pdf_data(reservation)
+def create_haso_contract_pdf(
+    reservation: ApartmentReservation,
+    sales_price_paid_place: str,
+    sales_price_paid_time: str,
+    salesperson: User,
+) -> BytesIO:
+    pdf_data = get_haso_contract_pdf_data(
+        reservation,
+        sales_price_paid_place,
+        sales_price_paid_time,
+        salesperson,
+    )
     return create_haso_contract_pdf_from_data(pdf_data)
 
 
 def get_haso_contract_pdf_data(
     reservation: ApartmentReservation,
+    sales_price_paid_place: str,
+    sales_price_paid_time: str,
+    salesperson: User,
 ) -> HasoContractPDFData:
     customer = SafeAttributeObject(reservation.customer)
     primary_profile = SafeAttributeObject(customer.primary_profile)
@@ -216,8 +230,8 @@ def get_haso_contract_pdf_data(
             if completion_start_str or completion_end_str
             else ""
         ),
-        signing_place_and_time="Helsinki",  # TODO: Is Signing Time needed?
-        project_acc_salesperson=apartment.project_acc_salesperson,
+        signing_place_and_time=f"{sales_price_paid_place} {sales_price_paid_time}",  # noqa: E501
+        project_acc_salesperson=salesperson.full_name,
         project_contract_other_terms=apartment.project_contract_combined_terms,
         project_contract_usage_fees=apartment.project_contract_usage_fees,
         project_contract_right_of_occupancy_payment_verification=(
