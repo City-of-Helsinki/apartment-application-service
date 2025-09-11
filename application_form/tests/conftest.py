@@ -94,7 +94,7 @@ def generate_apartments(elasticsearch, apartment_count: int, apartment_kwargs: D
     apartments = []
     apartments.append(ApartmentDocumentFactory(**apartment_kwargs))
     if apartment_count > 1:
-        for _ in range(apartment_count-1):
+        for _ in range(apartment_count - 1):
             apartments.append(
                 ApartmentDocumentFactory(
                     project_uuid=apartments[0].project_uuid,

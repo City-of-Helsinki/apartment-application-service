@@ -1,14 +1,14 @@
 from datetime import datetime, timedelta
 from typing import List
 from unittest.mock import MagicMock, patch
-from textwrap import dedent
-from apartment.elastic.documents import ApartmentDocument
+
 import pytest
 from django.urls import reverse
 from django.utils import timezone
 from freezegun import freeze_time
 from rest_framework import status
 
+from apartment.elastic.documents import ApartmentDocument
 from apartment.enums import OwnershipType
 from apartment.tests.factories import ApartmentDocumentFactory
 from apartment_application_service.settings import (
@@ -35,14 +35,6 @@ from connections.enums import ApartmentStateOfSale
 from customer.models import Customer
 from customer.tests.factories import CustomerFactory
 from users.models import Profile
-from users.tests.conftest import (  # noqa: F401
-    api_client,
-    drupal_salesperson_api_client,
-    drupal_server_api_client,
-    profile_api_client,
-    sales_ui_salesperson_api_client,
-    user_api_client,
-)
 from users.tests.factories import ProfileFactory
 from users.tests.utils import _create_token
 
@@ -643,7 +635,7 @@ def test_get_apartment_states_filter(
     )
     assert response.status_code == 200
     assert response.data == {}
-    apartments = elastic_single_project_with_apartments  # 11 apartments
+    apartments = elastic_single_project_with_apartments  # 10 apartments
     with freeze_time("2020-02-01"):
         for apartment in apartments:
             ApartmentReservationFactory(
@@ -651,7 +643,7 @@ def test_get_apartment_states_filter(
             )
             LotteryEventFactory(apartment_uuid=apartment.uuid)
 
-    assert len(apartments) == 11
+    assert len(apartments) == 10
     sold_apartment_uuids_1 = [apt.uuid for apt in apartments[:5]]
     sold_apartment_uuids_2 = [apt.uuid for apt in apartments[5:]]
     sold_reservations_1 = ApartmentReservation.objects.filter(
@@ -674,7 +666,7 @@ def test_get_apartment_states_filter(
             reverse("application_form:apartment_states")
         )
         assert response.status_code == 200
-        assert len(response.data.keys()) == 6
+        assert len(response.data.keys()) == 5
         assert sorted(response.data.keys()) == sorted(sold_apartment_uuids_2)
 
     response = drupal_server_api_client.get(
@@ -687,12 +679,10 @@ def test_get_apartment_states_filter(
 @pytest.mark.django_db
 @patch("application_form.services.application.EmailMessage")
 def test_application_post_haso_submitted_late(
-        EmailMessageMock: MagicMock, 
-        drupal_server_api_client, 
-        elasticsearch
-    ):
+    EmailMessageMock: MagicMock, drupal_server_api_client, elasticsearch
+):
     profile = ProfileFactory(
-        first_name="Heikki", 
+        first_name="Heikki",
         last_name="Hakija",
         email="heikki.hakija@mail.com",
     )
@@ -715,7 +705,7 @@ def test_application_post_haso_submitted_late(
         "project_estate_agent_email": "markku.myyja@mail.com",
     }
 
-    apartments_late_submit:List[ApartmentDocument] = generate_apartments(
+    apartments_late_submit: List[ApartmentDocument] = generate_apartments(
         elasticsearch, 5, late_submit_haso_apartment_properties
     )
     late_submit_data = create_application_data(
