@@ -1,10 +1,10 @@
-from django.core.mail import EmailMessage
 import logging
 import uuid
 from datetime import date
 from typing import Iterable, List, Optional, Union
 
 from django.contrib.auth import get_user_model
+from django.core.mail import EmailMessage
 from django.db import transaction
 from django.db.models import QuerySet
 
@@ -395,12 +395,16 @@ def delete_application(application: Application):
 
     application.delete()
 
+
 def send_sales_notification_email(
-        application: Application, 
-        project: ApartmentDocument,
-        application_apartment_uuids: List[Union[uuid.UUID, str]]
-    ):
+    application: Application,
+    project: ApartmentDocument,
+    application_apartment_uuids: List[Union[uuid.UUID, str]],
+):
     primary_profile = application.customer.primary_profile
+
+    # kinda ugly, but we don't have enough features sending email
+    # to warrant developing a template based solution
     email_subject = f"Jälkihakemus {project.project_housing_company}"
     email_body = f"""Kohteelle {project.project_housing_company} on tehty jälkihakemus.
 
@@ -410,8 +414,7 @@ Hakijan tiedot:
 
 Haetut asunnot:\n"""
 
-
-    for apt in [get_apartment(uuid) for uuid in  application_apartment_uuids]:
+    for apt in [get_apartment(uuid) for uuid in application_apartment_uuids]:
         email_body += f"{apt.apartment_address} {apt.apartment_number}\n"
 
     msg = EmailMessage(
