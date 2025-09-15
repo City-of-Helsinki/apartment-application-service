@@ -7,6 +7,7 @@ from django.contrib.auth import get_user_model
 from django.core.mail import EmailMessage
 from django.db import transaction
 from django.db.models import QuerySet
+from django.template.loader import render_to_string
 
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import get_apartment
@@ -403,19 +404,21 @@ def send_sales_notification_email(
 ):
     primary_profile = application.customer.primary_profile
 
-    # kinda ugly, but we don't have enough features sending email
-    # to warrant developing a template based solution
+
     email_subject = f"Jälkihakemus {project.project_housing_company}"
-    email_body = f"""Kohteelle {project.project_housing_company} on tehty jälkihakemus.
+    apartments = [
+                get_apartment(uuid) for uuid in application_apartment_uuids
+            ]
 
-Hakijan tiedot:
-{primary_profile.first_name} {primary_profile.last_name}
-{primary_profile.email}
-
-Haetut asunnot:\n"""
-
-    for apt in [get_apartment(uuid) for uuid in application_apartment_uuids]:
-        email_body += f"{apt.apartment_address} {apt.apartment_number}\n"
+    # render body with Django's template engine for cleaner code
+    email_body = render_to_string(
+        "email_late_application.html",
+        context={
+            "project": project,
+            "applied_apartments": apartments,
+            "primary_profile": primary_profile,
+        }
+    )
 
     msg = EmailMessage(
         subject=email_subject,
