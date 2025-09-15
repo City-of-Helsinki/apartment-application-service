@@ -733,15 +733,24 @@ Hakijan tiedot:
 Haetut asunnot:\n"""
 
     for apt in apartments_late_submit:
-        expected_body += f"{apt.apartment_address} {apt.apartment_number}\n"
+        expected_body += f"{apt.apartment_address}\n"
 
+    import ipdb;ipdb.set_trace()
+    assert EmailMessageMock.call_args[1]["body"] == expected_body
     # make sure email notification is sent to salesperson
     EmailMessageMock.assert_called_with(
         to=["markku.myyja@mail.com"],
         subject="Jälkihakemus Testikatu 321",
         body=expected_body,
     )
+
     assert EmailMessageMock().send.call_count == 1
+
+
+    # make sure reservations are created
+    assert ApartmentReservation.objects.filter(
+        apartment_uuid__in=[apt.uuid for apt in apartments_late_submit],
+    ).count() == len(apartments_late_submit)
 
     #  setting submitted_late to False manually in POST shouldnt be allowed
     customer_profile_2 = ProfileFactory()
