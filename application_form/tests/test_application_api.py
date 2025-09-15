@@ -735,7 +735,6 @@ Haetut asunnot:\n"""
     for apt in apartments_late_submit:
         expected_body += f"{apt.apartment_address}\n"
 
-    import ipdb;ipdb.set_trace()
     assert EmailMessageMock.call_args[1]["body"] == expected_body
     # make sure email notification is sent to salesperson
     EmailMessageMock.assert_called_with(
@@ -745,7 +744,6 @@ Haetut asunnot:\n"""
     )
 
     assert EmailMessageMock().send.call_count == 1
-
 
     # make sure reservations are created
     assert ApartmentReservation.objects.filter(

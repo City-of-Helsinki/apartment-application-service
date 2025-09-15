@@ -404,11 +404,8 @@ def send_sales_notification_email(
 ):
     primary_profile = application.customer.primary_profile
 
-
     email_subject = f"Jälkihakemus {project.project_housing_company}"
-    apartments = [
-                get_apartment(uuid) for uuid in application_apartment_uuids
-            ]
+    apartments = [get_apartment(uuid) for uuid in application_apartment_uuids]
 
     # render body with Django's template engine for cleaner code
     email_body = render_to_string(
@@ -417,7 +414,7 @@ def send_sales_notification_email(
             "project": project,
             "applied_apartments": apartments,
             "primary_profile": primary_profile,
-        }
+        },
     )
 
     msg = EmailMessage(
