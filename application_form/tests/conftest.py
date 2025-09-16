@@ -37,7 +37,6 @@ from application_form.tests.utils import (
     calculate_ssn_suffix,
     get_elastic_apartments_uuids,
     get_elastic_apartments_with_application_time_left,
-    get_for_sale_elastic_apartments,
 )
 from connections.tests.factories import ApartmentMinimalFactory
 from users.tests.conftest import (  # noqa: F401
