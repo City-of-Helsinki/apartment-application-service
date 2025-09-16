@@ -732,10 +732,9 @@ Hakijan tiedot:
 
 Haetut asunnot:\n"""
 
-    for apt in apartments_late_submit:
-        expected_body += f"{apt.apartment_address}\n"
+    for idx, apt in enumerate(apartments_late_submit):
+        expected_body += f"{idx+1}. {apt.apartment_address}\n"
 
-    assert EmailMessageMock.call_args[1]["body"] == expected_body
     # make sure email notification is sent to salesperson
     EmailMessageMock.assert_called_with(
         to=["markku.myyja@mail.com"],

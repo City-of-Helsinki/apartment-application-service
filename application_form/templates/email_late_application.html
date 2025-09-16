@@ -5,4 +5,4 @@ Hakijan tiedot:
 {{ primary_profile.email }}
 
 Haetut asunnot:{% for apartment in applied_apartments %}
-{{ apartment.apartment_address }}{% endfor %}
+{{ forloop.counter }}. {{ apartment.apartment_address }}{% endfor %}
