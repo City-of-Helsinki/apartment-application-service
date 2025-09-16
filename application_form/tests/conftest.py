@@ -36,6 +36,7 @@ from application_form.tests.factories import (
 from application_form.tests.utils import (
     calculate_ssn_suffix,
     get_elastic_apartments_uuids,
+    get_elastic_apartments_with_application_time_left,
     get_for_sale_elastic_apartments,
 )
 from connections.tests.factories import ApartmentMinimalFactory
@@ -107,7 +108,7 @@ def generate_apartments(elasticsearch, apartment_count: int, apartment_kwargs: D
 
 @fixture
 def elastic_single_project_with_apartments(elasticsearch):
-    application_end_time = timezone.now() + timedelta(days=10)
+    application_end_time = timezone.now() + timedelta(days=30)
     apartments = generate_apartments(
         elasticsearch,
         10,
@@ -379,7 +380,7 @@ def create_application_data(
 ):
     # Fetch apartments if needed
     if not apartments:
-        apartments = get_for_sale_elastic_apartments()
+        apartments = get_elastic_apartments_with_application_time_left()
 
     project_uuid, apartment_uuids = get_elastic_apartments_uuids(apartments)
 
