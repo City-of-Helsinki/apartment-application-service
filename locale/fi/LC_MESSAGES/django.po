@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-04-09 13:27+0300\n"
+"POT-Creation-Date: 2025-08-20 09:44+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,17 +18,17 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: apartment/api/views.py:99 apartment/api/views.py:134
+#: apartment/api/views.py:107 apartment/api/views.py:142
 #, python-brace-format
 msgid "[Project {title}] Applicants information"
 msgstr ""
 
-#: apartment/api/views.py:158
+#: apartment/api/views.py:166
 #, python-brace-format
 msgid "[Project {title}] Lottery result"
 msgstr ""
 
-#: apartment/api/views.py:198
+#: apartment/api/views.py:276
 #, python-brace-format
 msgid "Sale report {start_date} - {end_date}"
 msgstr ""
@@ -68,20 +68,20 @@ msgid ""
 "31.8.2023 or before."
 msgstr ""
 
-#: apartment_application_service/settings.py:172 users/models.py:64
+#: apartment_application_service/settings.py:167 users/models.py:64
 msgid "Finnish"
 msgstr ""
 
-#: apartment_application_service/settings.py:172 users/models.py:66
+#: apartment_application_service/settings.py:167 users/models.py:66
 msgid "English"
 msgstr ""
 
-#: apartment_application_service/settings.py:172 users/models.py:65
+#: apartment_application_service/settings.py:167 users/models.py:65
 msgid "Swedish"
 msgstr ""
 
 #: application_form/models/application.py:17
-#: application_form/models/reservation.py:70
+#: application_form/models/reservation.py:66 customer/models.py:79
 msgid "customer"
 msgstr ""
 
@@ -98,7 +98,7 @@ msgid "application type"
 msgstr ""
 
 #: application_form/models/application.py:25
-#: application_form/models/reservation.py:94 customer/models.py:35
+#: application_form/models/reservation.py:90 customer/models.py:36
 msgid "has children"
 msgstr ""
 
@@ -164,7 +164,7 @@ msgstr ""
 
 #: application_form/models/application.py:75
 #: application_form/models/lottery.py:12
-#: application_form/models/reservation.py:67
+#: application_form/models/reservation.py:63
 msgid "apartment uuid"
 msgstr ""
 
@@ -173,7 +173,7 @@ msgid "priority number"
 msgstr ""
 
 #: application_form/models/lottery.py:16 application_form/models/offer.py:41
-#: application_form/models/reservation.py:100 invoicing/models.py:115
+#: application_form/models/reservation.py:96 invoicing/models.py:115
 msgid "handler"
 msgstr ""
 
@@ -198,49 +198,49 @@ msgid "concluded at"
 msgstr ""
 
 #: application_form/models/offer.py:36
-#: application_form/models/reservation.py:168
-#: application_form/models/reservation.py:181
+#: application_form/models/reservation.py:164
+#: application_form/models/reservation.py:177
 msgid "comment"
 msgstr ""
 
-#: application_form/models/reservation.py:75
+#: application_form/models/reservation.py:71
 msgid "position in queue"
 msgstr ""
 
-#: application_form/models/reservation.py:78
+#: application_form/models/reservation.py:74
 msgid "position in queue before cancelation"
 msgstr ""
 
-#: application_form/models/reservation.py:80
+#: application_form/models/reservation.py:76
 msgid "position in list"
 msgstr ""
 
-#: application_form/models/reservation.py:92
-#: application_form/models/reservation.py:179
+#: application_form/models/reservation.py:88
+#: application_form/models/reservation.py:175
 msgid "apartment reservation state"
 msgstr ""
 
-#: application_form/models/reservation.py:96 customer/models.py:36
+#: application_form/models/reservation.py:92 customer/models.py:37
 msgid "is age over 55"
 msgstr ""
 
-#: application_form/models/reservation.py:166
+#: application_form/models/reservation.py:162
 msgid "change type"
 msgstr ""
 
-#: application_form/models/reservation.py:182
+#: application_form/models/reservation.py:178
 msgid "timestamp"
 msgstr ""
 
-#: application_form/models/reservation.py:184 users/models.py:20
+#: application_form/models/reservation.py:180 users/models.py:20
 msgid "user"
 msgstr ""
 
-#: application_form/models/reservation.py:189
+#: application_form/models/reservation.py:185
 msgid "cancellation reason"
 msgstr ""
 
-#: application_form/models/reservation.py:195
+#: application_form/models/reservation.py:191
 msgid "replaced by"
 msgstr ""
 
@@ -254,7 +254,7 @@ msgstr ""
 msgid "sent at"
 msgstr ""
 
-#: audit_log/models.py:9 invoicing/models.py:43
+#: audit_log/models.py:9 customer/models.py:88 invoicing/models.py:43
 msgid "created at"
 msgstr "luontiaika"
 
@@ -263,91 +263,99 @@ msgstr "luontiaika"
 msgid "Could not map the ownership_type %s"
 msgstr ""
 
-#: connections/etuovi/etuovi_mapper.py:153
+#: connections/etuovi/etuovi_mapper.py:156
 #, python-brace-format
 msgid "project_holding_type {holding_type} not found in HOLDING_TYPE_MAPPING"
 msgstr ""
 
-#: connections/etuovi/etuovi_mapper.py:192
+#: connections/etuovi/etuovi_mapper.py:195
 #, python-brace-format
 msgid "project_building_type {realty_type} not found in REALTY_TYPE_MAPPING"
 msgstr ""
 
-#: connections/etuovi/etuovi_mapper.py:207
+#: connections/etuovi/etuovi_mapper.py:210
 #, python-format
 msgid "project_holding_type %s not found in TRADE_TYPE_MAPPING"
 msgstr ""
 
-#: connections/oikotie/oikotie_mapper.py:64
+#: connections/oikotie/oikotie_mapper.py:66
 #, python-format
 msgid "could not map the project_building_type %s"
 msgstr ""
 
-#: connections/oikotie/oikotie_mapper.py:76
+#: connections/oikotie/oikotie_mapper.py:78
 #, python-format
 msgid "could not map the project_holding_type %s"
 msgstr ""
 
-#: connections/oikotie/oikotie_mapper.py:87
+#: connections/oikotie/oikotie_mapper.py:89
 #, python-format
 msgid "could not map the project_city %s"
 msgstr ""
 
-#: connections/oikotie/oikotie_mapper.py:376
+#: connections/oikotie/oikotie_mapper.py:386
 #, python-format
 msgid "could not map the project_new_development_status %s"
 msgstr ""
 
-#: connections/oikotie/oikotie_mapper.py:505
+#: connections/oikotie/oikotie_mapper.py:511
 #, python-format
 msgid "could not map the project_estate_agent_email %s"
 msgstr ""
 
-#: connections/oikotie/oikotie_mapper.py:532
+#: connections/oikotie/oikotie_mapper.py:539
 #, python-format
 msgid "could not map %s"
 msgstr ""
 
-#: connections/oikotie/oikotie_mapper.py:583
+#: connections/oikotie/oikotie_mapper.py:590
 #, python-format
 msgid "could not map the project_housing_company %s"
 msgstr ""
 
-#: customer/models.py:20
+#: customer/models.py:21
 msgid "primary profile"
 msgstr ""
 
-#: customer/models.py:26
+#: customer/models.py:27
 msgid "secondary profile"
 msgstr ""
 
-#: customer/models.py:33
+#: customer/models.py:34
 msgid "additional information"
 msgstr ""
 
-#: customer/models.py:34
+#: customer/models.py:35
 msgid "last contact date"
 msgstr ""
 
-#: customer/models.py:63
+#: customer/models.py:64
 msgid ""
 "There already exists a Customer which has the same primary and secondary "
 "profile."
+msgstr ""
+
+#: customer/models.py:85
+msgid "author"
+msgstr ""
+
+#: customer/models.py:87
+msgid "comment content"
 msgstr ""
 
 #: invoicing/api/serializers.py:52
 msgid "Value in cents."
 msgstr ""
 
-#: invoicing/api/serializers.py:155
+#: invoicing/api/serializers.py:157
 msgid "Value in cents. Either this or `percentage` is required."
 msgstr ""
 
-#: invoicing/api/serializers.py:162
+#: invoicing/api/serializers.py:164
 msgid "Either this or `amount` is required."
 msgstr ""
 
-#: invoicing/api/serializers.py:166
+#: invoicing/api/serializers.py:168
 msgid "This is required with `percentage`."
 msgstr ""
 
@@ -449,19 +457,19 @@ msgstr "AO-maksu"
 
 #: invoicing/enums.py:78
 msgid "paid"
-msgstr ""
+msgstr "maksettu"
 
 #: invoicing/enums.py:79
 msgid "unpaid"
-msgstr ""
+msgstr "maksamatta"
 
 #: invoicing/enums.py:80
 msgid "overpaid"
-msgstr ""
+msgstr "ylisuoritus"
 
 #: invoicing/enums.py:81
 msgid "underpaid"
-msgstr ""
+msgstr "alisuoritus"
 
 #: invoicing/models.py:46
 #, fuzzy
@@ -509,53 +517,53 @@ msgstr ""
 msgid "percentage specifier"
 msgstr "yksikön täsmennys"
 
-#: invoicing/models.py:269
+#: invoicing/models.py:275
 msgid "Payment batch"
 msgstr ""
 
-#: invoicing/models.py:273
+#: invoicing/models.py:279
 msgid "payment batch"
 msgstr ""
 
-#: invoicing/models.py:274
+#: invoicing/models.py:280
 #, fuzzy
 #| msgid "late payment interest"
 msgid "payment batches"
 msgstr "Viivästyskorko"
 
-#: invoicing/models.py:284
+#: invoicing/models.py:290
 msgid "batch"
 msgstr ""
 
-#: invoicing/models.py:292
+#: invoicing/models.py:298
 #, fuzzy
 #| msgid "apartment reservation"
 msgid "apartment installment"
 msgstr "huoneistovaraus"
 
-#: invoicing/models.py:297
+#: invoicing/models.py:303
 msgid "amount"
 msgstr ""
 
-#: invoicing/models.py:299
+#: invoicing/models.py:305
 #, fuzzy
 #| msgid "1st payment"
 msgid "payment date"
 msgstr "1. Erä"
 
-#: invoicing/models.py:302
+#: invoicing/models.py:308
 #, fuzzy
 #| msgid "1st payment"
 msgid "payment"
 msgstr "1. Erä"
 
-#: invoicing/models.py:303
+#: invoicing/models.py:309
 #, fuzzy
 #| msgid "1st payment"
 msgid "payments"
 msgstr "1. Erä"
 
-#: invoicing/pdf.py:82
+#: invoicing/pdf.py:81
 msgid "Apartment"
 msgstr "Huoneisto"
 

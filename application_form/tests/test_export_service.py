@@ -17,6 +17,7 @@ from apartment.elastic.queries import (
     get_apartments,
     get_project,
 )
+from apartment.enums import OwnershipType
 from apartment.tests.factories import ApartmentDocumentFactory
 from apartment.utils import get_apartment_state_from_apartment_uuid
 from application_form.enums import ApartmentReservationState
@@ -42,6 +43,9 @@ from application_form.tests.factories import (
     ApplicationFactory,
 )
 from customer.tests.factories import CustomerFactory
+from invoicing.enums import InstallmentType, PaymentStatus
+from invoicing.models import ApartmentInstallment
+from invoicing.tests.factories import ApartmentInstallmentFactory, PaymentFactory
 from users.tests.factories import ProfileFactory
 
 
@@ -129,10 +133,24 @@ def reservations(elastic_project_with_24_apartments):
 
 
 def _validate_mailing_list_csv(
-    csv_rows: List[List[str]], reservations: List[ApartmentReservation]
+    csv_rows: List[List[str]],
+    reservations: List[ApartmentReservation],
+    export_service: Union[ApplicantMailingListExportService, None] = None,
 ):
+    """Validates a mailing list CSV created by ApplicationMailingListExportService
+
+    Args:
+        csv_rows (List[List[str]]): content of the rows
+        reservations (List[ApartmentReservation]): reservations used to generate the csv
+        export_service (ApplicantMailingListExportService|None): Optional instance of
+        the ApplicantMailingListExportService in case the instance's columns are changed
+    """
+    columns = ApplicantMailingListExportService.COLUMNS
+    if export_service is not None:
+        columns = export_service.COLUMNS
+
     for idx, header in enumerate(csv_rows[0]):
-        assert header == ApplicantMailingListExportService.COLUMNS[idx][0]
+        assert header == columns[idx][0]
 
     content_rows = csv_rows[1:]
 
@@ -140,42 +158,79 @@ def _validate_mailing_list_csv(
         reservations, key=lambda x: get_apartment(x.apartment_uuid).apartment_number
     )
 
+    # placeholder for empty primary_profile or secondary_profile to simplify code below
+    class empty_profile:
+        first_name = None
+        last_name = None
+        email = None
+        street_address = None
+        postal_code = None
+        city = None
+        national_identification_number = None
+
+    payment_status_labels = {
+        PaymentStatus.PAID: "maksettu",
+        PaymentStatus.UNPAID: "",
+        PaymentStatus.OVERPAID: "ylisuoritus",
+        PaymentStatus.UNDERPAID: "alisuoritus",
+    }
+
     for i, row in enumerate(content_rows):
 
         reservation = reservations[i]
+        roo_installments: QuerySet[ApartmentInstallment] = (
+            reservation.apartment_installments.filter(
+                type__in=[
+                    InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT,
+                    InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_2,
+                    InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_3,
+                ]
+            ).order_by("type")
+        )
+
         apartment = get_apartment(
             reservation.apartment_uuid, include_project_fields=True
         )
 
+        primary_profile = reservation.customer.primary_profile or empty_profile
+        secondary_profile = reservation.customer.secondary_profile or empty_profile
+
         expected_row = [
-            apartment.apartment_number,
+            apartment.apartment_number or "",
             reservation.queue_position,
-            reservation.customer.primary_profile.first_name,
-            reservation.customer.primary_profile.last_name,
-            reservation.customer.primary_profile.email,
-            reservation.customer.primary_profile.street_address,
-            reservation.customer.primary_profile.postal_code,
-            reservation.customer.primary_profile.city,
-            reservation.customer.primary_profile.national_identification_number,
-            reservation.customer.secondary_profile.first_name,
-            reservation.customer.secondary_profile.last_name,
-            reservation.customer.secondary_profile.email,
-            reservation.customer.secondary_profile.street_address,
-            reservation.customer.secondary_profile.postal_code,
-            reservation.customer.secondary_profile.city,
-            reservation.customer.secondary_profile.national_identification_number,
-            bool(reservation.has_children),
-            apartment.project_street_address,
-            apartment.project_postal_code,
-            apartment.project_city,
-            apartment.apartment_structure,
-            apartment.living_area,
+            primary_profile.first_name or "",
+            primary_profile.last_name or "",
+            primary_profile.email or "",
+            primary_profile.street_address or "",
+            primary_profile.postal_code or "",
+            primary_profile.city or "",
+            primary_profile.national_identification_number or "",
+            secondary_profile.first_name or "",
+            secondary_profile.last_name or "",
+            secondary_profile.email or "",
+            secondary_profile.street_address or "",
+            secondary_profile.postal_code or "",
+            secondary_profile.city or "",
+            secondary_profile.national_identification_number or "",
+            "X" if bool(reservation.has_children) else "",
+            apartment.project_street_address or "",
+            apartment.project_postal_code or "",
+            apartment.project_city or "",
+            apartment.apartment_structure or "",
+            apartment.living_area or "",
         ]
+
+        if export_service is not None and export_service.add_roo_columns:
+            for roo_installment in roo_installments:
+                expected_row += [
+                    roo_installment.value,
+                    payment_status_labels[roo_installment.payment_status],
+                ]
 
         for expected_field_value, value in zip(expected_row, row):
             assert expected_field_value == value
 
-    pass
+        assert row == expected_row
 
 
 @pytest.mark.django_db
@@ -203,8 +258,109 @@ def test_sorting_function(reservations):
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "export_type,project_ownership_type,expected_column_count",
+    [
+        (ApartmentReservationState.SOLD.value, OwnershipType.HASO, 28),
+        (ApartmentReservationState.SOLD.value, OwnershipType.HITAS, 22),
+        (ApartmentReservationState.RESERVED.value, OwnershipType.HASO, 22),
+        (
+            ApplicantMailingListExportService.export_first_in_queue,
+            OwnershipType.HASO,
+            22,
+        ),
+    ],
+)
+def test_export_applicants_mailing_list_haso_payments(
+    export_type: str, project_ownership_type: OwnershipType, expected_column_count: int
+):
+    """
+    Test that the applicants mailing list CSV gets the Right Of Occupancy Payment
+    installment columns when the project is a HASO project and the export mode is "SOLD"
+    """
+
+    apartment = ApartmentDocumentFactory(
+        project_ownership_type=project_ownership_type.value
+    )
+
+    apartment_2 = ApartmentDocumentFactory(
+        project_ownership_type=project_ownership_type.value
+    )
+
+    # add apartment with some empty attributes
+    # to test that empty attributes dont cause misalignment with content row and header
+    apartment_missing_attribs = ApartmentDocumentFactory(
+        living_area=None, project_ownership_type=project_ownership_type.value
+    )
+    apartments = [apartment, apartment_2, apartment_missing_attribs]
+
+    # add reservations and installments if HASO test case
+    roo_installment_types = []
+
+    if project_ownership_type == OwnershipType.HASO:
+        roo_installment_types = [
+            InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT,
+            InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_2,
+            InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_3,
+        ]
+
+    apartment_uuids = []
+
+    for idx, apt in enumerate(apartments):
+        res = ApartmentReservationFactory(
+            apartment_uuid=apt.uuid,
+            state=ApartmentReservationState.SOLD,
+            customer=CustomerFactory(
+                primary_profile=ProfileFactory(),
+                secondary_profile=ProfileFactory() if idx == 0 else None,
+            ),
+        )
+
+        for jdx, installment_type in enumerate(roo_installment_types):
+            installment = ApartmentInstallmentFactory(
+                apartment_reservation=res,
+                type=installment_type,
+            )
+
+            installment_value = [0, 10, -10][jdx]
+
+            # only add underpaid payment to last apartment
+            if idx != (len(apartments) - 1) and jdx == 2:
+                continue
+
+            PaymentFactory(
+                apartment_installment=installment,
+                amount=installment.value + installment_value,
+            )
+
+        apartment_uuids.append(apt.uuid)
+
+    reservation_queryset = ApartmentReservation.objects.filter(
+        apartment_uuid__in=apartment_uuids
+    )
+
+    applicant_mailing_list_export_service = ApplicantMailingListExportService(
+        reservation_queryset,
+        export_type=export_type,
+    )
+
+    filtered_reservations = applicant_mailing_list_export_service.filter_reservations()
+
+    csv_lines = applicant_mailing_list_export_service.get_rows()
+
+    _validate_mailing_list_csv(
+        csv_lines, filtered_reservations, applicant_mailing_list_export_service
+    )
+
+    assert len(csv_lines[0]) == expected_column_count
+
+    pass
+
+
+@pytest.mark.django_db
 def test_export_applicants_mailing_list_all(reservations):
     """Assert that getting all applicants except for state = 'CANCELED' works"""
+
     # convert list to queryset
     reservation_queryset = ApartmentReservation.objects.filter(
         apartment_uuid__in=[res.apartment_uuid for res in reservations]
@@ -220,11 +376,11 @@ def test_export_applicants_mailing_list_all(reservations):
     )
 
     filtered_reservations = applicant_mailing_list_export_service.filter_reservations()
-    csv_lines = applicant_mailing_list_export_service.get_rows()
 
+    csv_lines = applicant_mailing_list_export_service.get_rows()
+    _validate_mailing_list_csv(csv_lines, filtered_reservations)
     assert len(filtered_reservations) == 23
     assert len(csv_lines) == 24
-    _validate_mailing_list_csv(csv_lines, filtered_reservations)
 
 
 @pytest.mark.django_db
@@ -236,9 +392,16 @@ def test_export_applicants_mailing_list_first_in_queue(reservations):
         apartment_uuid__in=[res.apartment_uuid for res in reservations]
     )
 
+    # ensure the reservation queryset always has a reservation with queue_position=2
+    # and state != "CANCELED"
     reservation_queryset.update(queue_position=2)
     last_reservation = reservation_queryset.last()
     last_reservation.queue_position = 1
+
+    # "reservations" fixture randomizes the reservation states
+    # therefore we can end up with a reservation that has state="CANCELED" and
+    # gets filtered out in `ApplicantMailingListExportService.filter_reservations()`
+    last_reservation.state = ApartmentReservationState.SUBMITTED
     last_reservation.save()
 
     applicant_mailing_list_export_service = ApplicantMailingListExportService(
@@ -293,14 +456,14 @@ def test_export_applicants(applicant_export_service):
         ].customer.primary_profile.full_name
     )
 
-    assert csv_lines[1][3] is None
+    assert csv_lines[1][3] == ""
     assert (
         csv_lines[2][0]
         == applicant_export_service.get_reservations()[
             1
         ].customer.primary_profile.full_name
     )
-    assert csv_lines[2][3] is None
+    assert csv_lines[2][3] == ""
 
 
 @pytest.mark.django_db

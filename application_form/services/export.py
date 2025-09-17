@@ -12,6 +12,8 @@ import xlsxwriter
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import CharField, Max, QuerySet
 from django.db.models.functions import Cast
+from django.utils import translation
+from django.utils.translation import gettext as _
 
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import (
@@ -28,46 +30,72 @@ from application_form.models import ApartmentReservation, LotteryEvent
 from application_form.models.reservation import ApartmentReservationStateChangeEvent
 from application_form.services.types import SalesReportProjectTotalsDict
 from application_form.utils import get_apartment_number_sort_tuple
+from invoicing.enums import InstallmentType, PaymentStatus
+from invoicing.models import ApartmentInstallment
 
 _logger = logging.getLogger(__name__)
 
 
-def _get_reservation_cell_value(column_name, apartment=None, reservation=None):
+# --- helpers & constants to lower complexity ---
+_APARTMENT_FIELDS = {
+    "project_street_address",
+    "project_postal_code",
+    "project_city",
+    "apartment_number",
+    "apartment_structure",
+    "living_area",
+    "floor",
+}
+
+_ROO_COLUMN_NAMES = {
+    InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT.value,
+    InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_2.value,
+    InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_3.value,
+    "Maksettu",
+}
+
+
+def _get_profile_cell(reservation: ApartmentReservation, column_name: str) -> str:
+    if (
+        column_name.startswith("secondary")
+        and not reservation.customer.secondary_profile
+    ):
+        return ""
+    return operator.attrgetter(column_name)(reservation.customer) or ""
+
+
+def _get_simple_reservation_cell(reservation: ApartmentReservation, column_name: str):
+    dispatch = {
+        "has_children": lambda r: "X" if bool(r.has_children) else "",
+        "has_hitas_ownership": lambda r: (
+            ""
+            if getattr(r, "has_hitas_ownership", None) is None
+            else ("Kyllä" if bool(r.has_hitas_ownership) else "Ei")
+        ),
+        "lottery_position": lambda r: r.application_apartment.lotteryeventresult.result_position,  # noqa: E501
+        "queue_position": lambda r: r.queue_position,
+        "right_of_residence": lambda r: r.right_of_residence,
+    }
+    fn = dispatch.get(column_name)
+    return fn(reservation) if fn else None
+
+
+def _get_reservation_cell_value(
+    column_name: str,
+    apartment: ApartmentDocument = None,
+    reservation: Union[ApartmentReservation, None] = None,
+):
     if not reservation:
         return ""
-
-    # Apartment fields
-    if (
-        column_name
-        in [
-            "project_street_address",
-            "project_postal_code",
-            "project_city",
-            "apartment_number",
-            "apartment_structure",
-            "living_area",
-            "floor",
-        ]
-        and apartment is not None
-    ):
-        return getattr(apartment, column_name)
-    # Profile fields
+    if column_name in _ROO_COLUMN_NAMES:
+        return None
+    if column_name in _APARTMENT_FIELDS and apartment is not None:
+        return getattr(apartment, column_name) or ""
     if column_name.startswith("primary") or column_name.startswith("secondary"):
-        if (
-            column_name.startswith("secondary")
-            and reservation.customer.secondary_profile is None
-        ):
-            return None
-        else:
-            return operator.attrgetter(column_name)(reservation.customer)
-    if column_name == "has_children":
-        return bool(reservation.has_children)
-    if column_name == "lottery_position":
-        return reservation.application_apartment.lotteryeventresult.result_position
-    if column_name == "queue_position":
-        return reservation.queue_position
-    if column_name == "right_of_residence":
-        return reservation.right_of_residence
+        return _get_profile_cell(reservation, column_name)
+    simple = _get_simple_reservation_cell(reservation, column_name)
+    if simple is not None:
+        return simple
     return ""
 
 
@@ -189,6 +217,15 @@ class ApplicantMailingListExportService(CSVExportService):
         ("Asuinpinta-ala", "living_area"),
     ]
 
+    COLUMNS_ROO_PAYMENTS = [
+        ("AO-maksu 1", InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT.value),
+        ("Maksettu", "Maksettu"),
+        ("AO-maksu 2", InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_2.value),
+        ("Maksettu", "Maksettu"),
+        ("AO-maksu 3", InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_3.value),
+        ("Maksettu", "Maksettu"),
+    ]
+
     ORDER_BY = ["apartment_uuid", "queue_position"]
 
     export_first_in_queue = "first_in_queue"
@@ -202,6 +239,37 @@ class ApplicantMailingListExportService(CSVExportService):
     def __init__(self, reservations: QuerySet, export_type: str):
         self.reservations: QuerySet = reservations
         self.export_type = export_type
+
+        self.add_roo_columns = (
+            self.any_reservation_has_roo_installments()
+            and export_type == ApartmentReservationState.SOLD.value
+        )
+
+        if self.add_roo_columns:
+            self.COLUMNS = self.COLUMNS + self.COLUMNS_ROO_PAYMENTS
+
+    def _get_header_row(self):
+        return [col[0] for col in self.COLUMNS]
+
+    def any_reservation_has_roo_installments(self) -> bool:
+        """
+        Returns True if any reservation in the set has Right Of Occupancy installments
+        associated with it.
+        """
+        return self._get_apartment_roo_installments().exists()
+
+    def _get_apartment_roo_installments(self) -> QuerySet[ApartmentReservation]:
+        """
+        Gets Right Of Occupancy installments for the reservations
+        """
+        return ApartmentInstallment.objects.filter(
+            apartment_reservation__in=self.reservations,
+            type__in=[
+                InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT,
+                InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_2,
+                InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_3,
+            ],
+        )
 
     def get_order_key(self, row):
         # turn letter-number combo into numeric values for comparison
@@ -218,7 +286,23 @@ class ApplicantMailingListExportService(CSVExportService):
         )
 
         if self.export_type == self.export_first_in_queue:
-            reservations = reservations.filter(queue_position=1)
+            base = reservations.active()
+            firsts = base.filter(queue_position=1)
+            if firsts.exists():
+                reservations = firsts
+            else:
+                candidate = (
+                    base.exclude(queue_position__isnull=True)
+                    .order_by("queue_position")
+                    .first()
+                )
+                if candidate is None:
+                    candidate = base.order_by("list_position").first()
+                reservations = (
+                    reservations.model.objects.filter(pk=candidate.pk)
+                    if candidate is not None
+                    else reservations.model.objects.none()
+                )
         elif self.export_type == ApartmentReservationState.SOLD.value:
             reservations = reservations.filter(state=ApartmentReservationState.SOLD)
 
@@ -246,13 +330,49 @@ class ApplicantMailingListExportService(CSVExportService):
 
         return rows
 
-    def get_row(self, reservation, apartment):
+    def get_row(self, reservation: ApartmentReservation, apartment: ApartmentDocument):
         line = []
+        columns = self.COLUMNS
+        export_type_is_sold = self.export_type == ApartmentReservationState.SOLD.value
+        is_haso = apartment.project_ownership_type == OwnershipType.HASO.value
 
-        for column in self.COLUMNS:
+        if export_type_is_sold and is_haso:
+            columns = columns + self.COLUMNS_ROO_PAYMENTS
+
+        for column in columns:
             cell_value = _get_reservation_cell_value(column[1], apartment, reservation)
-            line.append(cell_value)
+            if cell_value is not None:
+                line.append(cell_value)
+
+        if export_type_is_sold and is_haso:
+            # export file's language shouldnt change based on the user's web browser
+            # how language is usually resolved
+            # https://docs.djangoproject.com/en/5.1/topics/i18n/translation/
+            with translation.override("fi"):
+                for installment in self.get_right_of_occupancy_installments(
+                    reservation
+                ):
+                    line += [
+                        installment.value,
+                        (
+                            _(installment.payment_status.label)
+                            if installment.payment_status != PaymentStatus.UNPAID
+                            else ""
+                        ),
+                    ]
+                    pass
+
         return line
+
+    def get_right_of_occupancy_installments(
+        self, reservation: ApartmentReservation
+    ) -> QuerySet[ApartmentInstallment]:
+        installments: QuerySet[ApartmentInstallment] = (
+            self._get_apartment_roo_installments()
+            .filter(apartment_reservation=reservation)
+            .order_by("type")
+        )
+        return installments
 
 
 class ApplicantExportService(CSVExportService):
@@ -560,10 +680,22 @@ class XlsxSalesReportExportService(XlsxExportService):
 
         totals_row = [
             "Yhteensä",
-            totals["hitas_sales_price_sum"] if is_hitas else "",  # noqa: E501
-            totals["hitas_debt_free_sales_price_sum"] if is_hitas else "",  # noqa: E501
             (
-                totals["haso_right_of_occupancy_payment_sum"] if is_haso else ""
+                self._sum_cents(x.sales_price or 0 for x in sold_apartments)
+                if is_hitas
+                else ""
+            ),  # noqa: E501
+            (
+                self._sum_cents(x.debt_free_sales_price or 0 for x in sold_apartments)
+                if is_hitas
+                else ""
+            ),  # noqa: E501
+            (
+                self._sum_cents(
+                    x.right_of_occupancy_payment or 0 for x in sold_apartments
+                )
+                if is_haso
+                else ""
             ),  # noqa: E501
             self.HIGHLIGHT_COLOR,
         ]

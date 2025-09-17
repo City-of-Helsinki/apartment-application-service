@@ -453,6 +453,12 @@ def create_hitas_contract_pdf(
             suffix=" €",
         )
 
+    signing_buyers = " & ".join(
+        name
+        for name in [primary_profile.full_name, secondary_profile.full_name]
+        if name
+    )
+
     contract_data = {
         "occupant_1": primary_profile.full_name,
         "occupant_1_share_of_ownership": None,
@@ -569,11 +575,7 @@ def create_hitas_contract_pdf(
         "project_documents_delivered": apartment.project_documents_delivered,
         "signing_place_and_time": sales_price_paid_place_and_time,
         "salesperson": salesperson.profile_or_user_full_name,
-        "signing_buyers": " & ".join(
-            name
-            for name in [primary_profile.full_name, secondary_profile.full_name]
-            if name
-        ),
+        "signing_buyers": signing_buyers,
         "project_contract_collateral_bank_and_address": "  ".join(
             [
                 apartment.project_contract_depositary or "",
@@ -588,8 +590,12 @@ def create_hitas_contract_pdf(
     # https://docs.djangoproject.com/en/5.1/topics/i18n/translation/
     with translation.override("fi"):
         payment_1_price = hitas_price(payment_1.value * 100)
-        due_date = payment_1.due_date.strftime("%d.%m.%Y")
-        payment_terms_rest_of_price = f"{payment_1.type.label} eräpäivä {due_date} {payment_1_price.value} {payment_1_price.suffix}"  # noqa: E501
+        payment_terms_rest_of_price = f"{payment_1.type.label}"
+        if payment_1.due_date:
+            due_date = payment_1.due_date.strftime("%d.%m.%Y")
+            payment_terms_rest_of_price += f" {due_date}"
+
+        payment_terms_rest_of_price += f" {payment_1_price.formatted_number_string()} {payment_1_price.suffix}"  # noqa: E501
 
     # full apartment contract data is mostly the same fields but with some changes
     full_apartment_contract_data = {
@@ -599,13 +605,13 @@ def create_hitas_contract_pdf(
         "credit_interest": "0,00%",
         "debt_free_price_x_0_014": True,
         "project_documents_delivered": apartment.project_documents_delivered,
-        "final_payment": "final_payment",
-        "guarantee": "guarantee",
+        "final_payment": "",
+        "guarantee": "",
         "guarantee_attachment_exists": True,
         "guarantee_attachment_not_exists": False,
         "project_contract_collateral_type": apartment.project_contract_default_collateral,  # noqa: E501
         "loan_share_and_sales_price": hitas_price(apartment.debt_free_sales_price),
-        "occupants_signatures": contract_data["signing_buyers"],
+        "occupants_signatures": signing_buyers,
         "other_contract_terms": apartment.project_contract_combined_terms,
         "payment_terms_rest_of_price": payment_terms_rest_of_price,
         "project_built_according_to_regulations": "",  # noqa: E501
@@ -615,11 +621,11 @@ def create_hitas_contract_pdf(
         "sales_price_x_0_02": False,
         "other_space": "",
         "other_space_area": "",
-        "salesperson_signature": "",
-        "transfer_of_posession": apartment.project_possession_transfer_date,
-        "transfer_of_shares": apartment.project_transfer_of_shares_date,
-        "transfer_of_shares_confirmed": "",
-        "transfer_of_shares_signature": "",
+        "salesperson_signature": salesperson.profile_or_user_full_name,
+        "transfer_of_shares": apartment.project_shares_transferred_when,
+        "transfer_of_posession": apartment.project_control_transferred_when,
+        "transfer_of_shares_confirmed": sales_price_paid_place_and_time,
+        "transfer_of_shares_signature": signing_buyers,
     }
 
     contract_dataclass = HitasContractPDFData
