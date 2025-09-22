@@ -83,3 +83,10 @@ def get_wbs_element(installment: ApartmentInstallment) -> str:
         raise ValueError(f"Invalid property_number {property_number}")
 
     return f"{prefix}{ownership_type_code}{property_number}{revenue_type_code}"
+
+
+def get_posting_date(due_date: Union[datetime, date]) -> str:
+    days_until_due = (due_date - date.today()).days
+    if days_until_due >= 30:
+        return (due_date - timedelta(days=30)).strftime("%Y%m%d")
+    return date.today().strftime("%Y%m%d")
