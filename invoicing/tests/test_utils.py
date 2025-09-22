@@ -18,21 +18,19 @@ def test_generate_reference_number(identifier, expected):
     assert generate_reference_number(identifier) == expected
 
 
+class FakeDate(date):
+    @classmethod
+    def today(cls):
+        return date(2025, 9, 1)
+
+
 @pytest.mark.parametrize(
-    "due_date, today, expected",
+    "due_date, expected",
     [
-        (
-            date.today() + timedelta(days=31),
-            date.today(),
-            (date.today() + timedelta(days=1)).strftime("%Y%m%d"),
-        ),
-        (
-            date.today() + timedelta(days=29),
-            date.today(),
-            date.today().strftime("%Y%m%d"),
-        ),
+        (date(2025, 9, 23), "20250901"),
+        (date(2025, 10, 10), "20250910"),
     ],
 )
-def test_get_posting_date(monkeypatch, due_date, today, expected):
-    monkeypatch.setattr("invoicing.sap.send.xml_utils.date", lambda: today)
+def test_get_posting_date(monkeypatch, due_date, expected):
+    monkeypatch.setattr("invoicing.sap.send.xml_utils.date", FakeDate)
     assert get_posting_date(due_date) == expected
