@@ -1,3 +1,4 @@
+from datetime import date, timedelta
 from xml.etree import ElementTree
 
 from django.conf import settings
@@ -51,3 +52,11 @@ def assert_apartment_installment_match_xml_data(
 
     line_items = accounts_receivable.findall("LineItem")
     assert len(line_items) == 2
+
+    due_date = apartment_installment.due_date
+    days_until_due = (due_date - date.today()).days
+    expected_posting_date = (
+        (due_date - timedelta(days=30)) if days_until_due >= 30 else date.today()
+    ).strftime("%Y%m%d")
+
+    assert posting_date.text == expected_posting_date
