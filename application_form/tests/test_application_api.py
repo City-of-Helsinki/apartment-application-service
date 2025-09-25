@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from email.headerregistry import Group
 from typing import List
 from unittest.mock import MagicMock, patch
 
@@ -674,6 +675,131 @@ def test_get_apartment_states_filter(
     )
     assert response.status_code == 200
     assert response.data == {}
+
+@pytest.mark.django_db
+def test_application_post_haso_submitted_late_end_of_queue(
+    # add_application_to_queues_mock, api_client, elasticsearch
+    drupal_server_api_client, elasticsearch
+):
+    """
+    HASO Applications added late should be at the end of the queue.
+    """
+    profile = ProfileFactory()
+
+    drupal_server_api_client.credentials(
+        HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}"
+    )
+
+    late_customer_profile = ProfileFactory()
+
+    drupal_server_api_client.credentials(
+        HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}"
+    )
+
+    application_start_time = (datetime.now() - timedelta(days=10)).replace(
+        tzinfo=timezone.get_default_timezone()
+    )
+    application_end_time = application_start_time + timedelta(days=20)
+
+    apartment_properties = {
+        "apartment_state_of_sale": ApartmentStateOfSale.FOR_SALE.value,
+        "_language": "fi",
+        "project_application_start_time": application_start_time,
+        "project_application_end_time": application_end_time,
+        "project_ownership_type": OwnershipType.HASO.value,
+        "project_can_apply_afterwards": True,
+    }
+
+    apartments = generate_apartments(elasticsearch, 
+        2,
+        apartment_properties
+    )
+
+    on_time_applications = []
+    for idx in range(5):
+        on_time_customer_profile = ProfileFactory()
+
+        on_time_application_data = create_application_data(
+            on_time_customer_profile,
+            ApplicationType.HASO,
+            1,
+            apartments
+        )
+        on_time_application_data["profile"] = on_time_customer_profile.id
+        on_time_application_data["right_of_residence"] = 1000+idx
+
+        response = drupal_server_api_client.post(
+            reverse("application_form:application-list"), on_time_application_data, format="json"
+        )
+        assert response.status_code == 201
+        on_time_application = Application.objects.get(
+            external_uuid=response.json()["application_uuid"]
+        )
+        on_time_applications.append(on_time_application)
+
+    # create late applications
+    late_applications = []
+    for idx in range(5):
+        late_customer_profile = ProfileFactory()
+        late_application_data = create_application_data(
+            late_customer_profile,
+            ApplicationType.HASO,
+            1,
+            apartments
+        )
+        late_application_data["profile"] = late_customer_profile.id
+        late_application_data["right_of_residence"] = 1+idx
+
+        with freeze_time(application_end_time+timedelta(days=2)):
+            drupal_server_api_client.credentials(
+                HTTP_AUTHORIZATION=f"Bearer {_create_token(late_customer_profile)}"
+            )
+
+            response = drupal_server_api_client.post(
+                reverse("application_form:application-list"), late_application_data, format="json"
+            )
+            
+            assert response.status_code == 201
+            late_application = Application.objects.get(
+                external_uuid=response.json()["application_uuid"]
+            )
+
+        late_applications.append(late_application)
+
+    on_time_customer_profile = ProfileFactory()
+
+    drupal_server_api_client.credentials(
+        HTTP_AUTHORIZATION=f"Bearer {_create_token(on_time_customer_profile)}"
+    )
+    on_time_application_data = create_application_data(
+        on_time_customer_profile,
+        ApplicationType.HASO,
+        1,
+        apartments
+    )
+
+    on_time_reservations = ApartmentReservation.objects.filter(
+        application_apartment__application__in=on_time_applications
+    )
+    late_reservations = ApartmentReservation.objects.filter(
+        application_apartment__application__in=late_applications,
+        # submitted_late=True
+    )
+
+    highest_on_time_queue_pos = max(
+        on_time_reservations.values_list("queue_position", flat=True)
+    )
+    lowest_late_time_queue_pos = max(
+        late_reservations.values_list("queue_position", flat=True)
+    )
+
+    # Reservations for late applications should be marked with submitted_late = True
+    assert [*late_reservations.values_list("submitted_late", flat=True).distinct()] == [True]
+
+    # Applications submitted on time should be higher in queue than late submitted ones
+    assert highest_on_time_queue_pos < lowest_late_time_queue_pos
+
+    pass
 
 
 @pytest.mark.django_db
