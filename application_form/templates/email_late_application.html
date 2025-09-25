@@ -1,0 +1,8 @@
+Kohteelle {{ project.project_housing_company }} on tehty jälkihakemus.
+
+Hakijan tiedot:
+{{ primary_profile.first_name }} {{ primary_profile.last_name }}
+{{ primary_profile.email }}
+
+Haetut asunnot:{% for apartment in applied_apartments %}
+{{ forloop.counter }}. {{ apartment.apartment_address }}{% endfor %}

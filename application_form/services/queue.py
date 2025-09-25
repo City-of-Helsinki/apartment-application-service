@@ -31,6 +31,7 @@ def add_application_to_queues(
     """
     Adds the given application to the queues of all the apartments applied to.
     """
+
     for application_apartment in application.application_apartments.all():
         apartment_uuid = application_apartment.apartment_uuid
         with lock_table(ApartmentReservation):
@@ -84,6 +85,7 @@ def add_application_to_queues(
                 has_hitas_ownership=application.has_hitas_ownership,
                 is_age_over_55=application.customer.is_age_over_55,
                 is_right_of_occupancy_housing_changer=application.is_right_of_occupancy_housing_changer,  # noqa: E501
+                submitted_late=application.submitted_late,
             )
             apartment_reservation.save(user=user)
             apartment_reservation.queue_change_events.create(
