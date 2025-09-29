@@ -125,9 +125,8 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
         }
 
     def create(self, validated_data):
-        # TODO: replace this with SalesApplicationSerializer's POST method code
         validated_data = self.prepare_metadata(validated_data)
-        # TODO: move late_submit logic here?
+
         project = get_project(
             get_apartment_project_uuid(
                 validated_data.get("apartments")[0]["identifier"]
@@ -143,21 +142,21 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
             )
         is_haso = project.project_ownership_type.lower() == OwnershipType.HASO.value
 
-        if is_submitted_late and (not project.project_can_apply_afterwards or not is_haso):
+        if is_submitted_late and (
+            not project.project_can_apply_afterwards or not is_haso
+        ):
             raise serializers.ValidationError(
                 {"detail": "Cannot submit late application to this apartment"},
                 code=400,
             )
 
-
         application = create_application(
-            validated_data, 
+            validated_data,
             user=self.context.get("salesperson"),
-            submitted_late=is_submitted_late
+            submitted_late=is_submitted_late,
         )
 
         if is_submitted_late and is_haso and project.project_can_apply_afterwards:
-
             send_sales_notification_email(
                 application,
                 project,

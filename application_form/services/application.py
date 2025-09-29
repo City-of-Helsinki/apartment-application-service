@@ -86,7 +86,7 @@ def cancel_reservation(
 
 @transaction.atomic
 def create_application(
-    application_data: dict, 
+    application_data: dict,
     user: Optional[User] = None,
     submitted_late: bool = False,
 ) -> Application:

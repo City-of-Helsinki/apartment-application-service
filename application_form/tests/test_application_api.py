@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-from email.headerregistry import Group
 from typing import List
 from unittest.mock import MagicMock, patch
 
@@ -676,13 +675,15 @@ def test_get_apartment_states_filter(
     assert response.status_code == 200
     assert response.data == {}
 
+
 @pytest.mark.django_db
 def test_application_post_haso_submitted_late_end_of_queue(
     # add_application_to_queues_mock, api_client, elasticsearch
-    drupal_server_api_client, elasticsearch
+    drupal_server_api_client,
+    elasticsearch,
 ):
     """
-    HASO Applications added late should be at the end of the queue regardless of 
+    HASO Applications added late should be at the end of the queue regardless of
     the applicant's right of residence number
     """
     profile = ProfileFactory()
@@ -711,26 +712,22 @@ def test_application_post_haso_submitted_late_end_of_queue(
         "project_can_apply_afterwards": True,
     }
 
-    apartments = generate_apartments(elasticsearch, 
-        2,
-        apartment_properties
-    )
+    apartments = generate_apartments(elasticsearch, 2, apartment_properties)
 
     on_time_applications = []
     for idx in range(5):
         on_time_customer_profile = ProfileFactory()
 
         on_time_application_data = create_application_data(
-            on_time_customer_profile,
-            ApplicationType.HASO,
-            1,
-            apartments
+            on_time_customer_profile, ApplicationType.HASO, 1, apartments
         )
         on_time_application_data["profile"] = on_time_customer_profile.id
-        on_time_application_data["right_of_residence"] = 1000+idx
+        on_time_application_data["right_of_residence"] = 1000 + idx
 
         response = drupal_server_api_client.post(
-            reverse("application_form:application-list"), on_time_application_data, format="json"
+            reverse("application_form:application-list"),
+            on_time_application_data,
+            format="json",
         )
         assert response.status_code == 201
         on_time_application = Application.objects.get(
@@ -743,23 +740,22 @@ def test_application_post_haso_submitted_late_end_of_queue(
     for idx in range(5):
         late_customer_profile = ProfileFactory()
         late_application_data = create_application_data(
-            late_customer_profile,
-            ApplicationType.HASO,
-            1,
-            apartments
+            late_customer_profile, ApplicationType.HASO, 1, apartments
         )
         late_application_data["profile"] = late_customer_profile.id
-        late_application_data["right_of_residence"] = 1+idx
+        late_application_data["right_of_residence"] = 1 + idx
 
-        with freeze_time(application_end_time+timedelta(days=2)):
+        with freeze_time(application_end_time + timedelta(days=2)):
             drupal_server_api_client.credentials(
                 HTTP_AUTHORIZATION=f"Bearer {_create_token(late_customer_profile)}"
             )
 
             response = drupal_server_api_client.post(
-                reverse("application_form:application-list"), late_application_data, format="json"
+                reverse("application_form:application-list"),
+                late_application_data,
+                format="json",
             )
-            
+
             assert response.status_code == 201
             late_application = Application.objects.get(
                 external_uuid=response.json()["application_uuid"]
@@ -773,10 +769,7 @@ def test_application_post_haso_submitted_late_end_of_queue(
         HTTP_AUTHORIZATION=f"Bearer {_create_token(on_time_customer_profile)}"
     )
     on_time_application_data = create_application_data(
-        on_time_customer_profile,
-        ApplicationType.HASO,
-        1,
-        apartments
+        on_time_customer_profile, ApplicationType.HASO, 1, apartments
     )
 
     on_time_reservations = ApartmentReservation.objects.filter(
@@ -795,7 +788,9 @@ def test_application_post_haso_submitted_late_end_of_queue(
     )
 
     # Reservations for late applications should be marked with submitted_late = True
-    assert [*late_reservations.values_list("submitted_late", flat=True).distinct()] == [True]
+    assert [*late_reservations.values_list("submitted_late", flat=True).distinct()] == [
+        True
+    ]
 
     # Applications submitted on time should be higher in queue than late submitted ones
     assert highest_on_time_queue_pos < lowest_late_time_queue_pos
@@ -850,10 +845,9 @@ def test_application_post_haso_submitted_late(
     )
     assert application.submitted_late is True
 
-
     late_submit_reservation_count = ApartmentReservation.objects.filter(
         apartment_uuid__in=[ap.uuid for ap in apartments_late_submit],
-        submitted_late=True
+        submitted_late=True,
     ).count()
     assert late_submit_reservation_count == len(apartments_late_submit)
 

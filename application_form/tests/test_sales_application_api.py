@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta
-from unittest.mock import patch
-from freezegun import freeze_time
+
 import pytest
 from django.contrib.auth.models import Group
 from django.urls import reverse
