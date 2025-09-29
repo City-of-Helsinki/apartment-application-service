@@ -682,7 +682,8 @@ def test_application_post_haso_submitted_late_end_of_queue(
     drupal_server_api_client, elasticsearch
 ):
     """
-    HASO Applications added late should be at the end of the queue.
+    HASO Applications added late should be at the end of the queue regardless of 
+    the applicant's right of residence number
     """
     profile = ProfileFactory()
 
@@ -848,6 +849,13 @@ def test_application_post_haso_submitted_late(
         external_uuid=response.json()["application_uuid"]
     )
     assert application.submitted_late is True
+
+
+    late_submit_reservation_count = ApartmentReservation.objects.filter(
+        apartment_uuid__in=[ap.uuid for ap in apartments_late_submit],
+        submitted_late=True
+    ).count()
+    assert late_submit_reservation_count == len(apartments_late_submit)
 
     # ugly indentation to avoid text being unnecessarily indented in the email
     expected_body = f"""Kohteelle Testikatu 321 on tehty jälkihakemus.
