@@ -1,7 +1,11 @@
+from datetime import datetime, timedelta
+
 import pytest
 from django.contrib.auth.models import Group
 from django.urls import reverse
+from django.utils import timezone
 
+from apartment.enums import OwnershipType
 from apartment_application_service.settings import (
     METADATA_HANDLER_INFORMATION,
     METADATA_HASO_PROCESS_NUMBER,
@@ -10,18 +14,29 @@ from apartment_application_service.settings import (
 from application_form.enums import ApplicationArrivalMethod, ApplicationType
 from application_form.models import ApartmentReservation
 from application_form.models.application import Application
-from application_form.tests.conftest import create_application_data
+from application_form.tests.conftest import create_application_data, generate_apartments
 from application_form.tests.utils import assert_profile_match_data
+from connections.enums import ApartmentStateOfSale
 from customer.models import Customer
 from users.enums import Roles
 from users.models import Profile
+from users.tests.conftest import (  # noqa: F401
+    api_client,
+    drupal_salesperson_api_client,
+    drupal_server_api_client,
+    profile_api_client,
+    sales_ui_salesperson_api_client,
+    user_api_client,
+)
 from users.tests.factories import ProfileFactory
 from users.tests.utils import _create_token
 
 
 @pytest.mark.django_db
 def test_sales_application_post_without_permission(
-    sales_ui_salesperson_api_client, api_client, elastic_single_project_with_apartments
+    sales_ui_salesperson_api_client,
+    api_client,
+    elastic_single_project_with_apartments,  # noqa: F811 E501
 ):
     profile = ProfileFactory()
     data = create_application_data(profile)
@@ -40,16 +55,25 @@ def test_sales_application_post_without_permission(
 
 @pytest.mark.django_db
 def test_sales_application_post(
-    drupal_salesperson_api_client, elastic_single_project_with_apartments
-):
+    drupal_salesperson_api_client, elasticsearch
+):  # noqa: F811 E501
+
     customer_profile = ProfileFactory()
     drupal_salesperson_api_client.credentials(
         HTTP_AUTHORIZATION=f"Bearer {_create_token(drupal_salesperson_api_client.user.profile)}"  # noqa: E501
     )
-    data = create_application_data(customer_profile)
+
+    # apply for apartments with application time left
+    apartments = generate_apartments(
+        elasticsearch,
+        10,
+        {"project_application_end_time": timezone.now() + timedelta(days=1)},
+    )
+    data = create_application_data(customer_profile, apartments=apartments)
     data["profile"] = customer_profile.id
     data["applicant"]["ssn_suffix"] = "XXXXX"  # ssn suffix should not be validated
     data["additional_applicant"]["ssn_suffix"] = "XXXXX"
+
     response = drupal_salesperson_api_client.post(
         reverse("application_form:sales-application-list"), data, format="json"
     )
@@ -66,6 +90,111 @@ def test_sales_application_post(
         )
 
 
+@pytest.mark.django_db
+def test_sales_application_post_haso_submitted_late(
+    api_client, elasticsearch
+):  # noqa: F811 E501
+    salesperson_profile = ProfileFactory()
+    salesperson_group = Group.objects.get(name__iexact=Roles.DRUPAL_SALESPERSON.name)
+    salesperson_group.user_set.add(salesperson_profile.user)
+
+    customer_profile = ProfileFactory()
+    api_client.credentials(
+        HTTP_AUTHORIZATION=f"Bearer {_create_token(salesperson_profile)}"
+    )
+
+    application_start_time = (datetime.now() - timedelta(days=20)).replace(
+        tzinfo=timezone.get_default_timezone()
+    )
+    application_end_time = application_start_time - timedelta(days=10)
+
+    apartments_late_submit = generate_apartments(
+        elasticsearch,
+        10,
+        {
+            "apartment_state_of_sale": ApartmentStateOfSale.FOR_SALE.value,
+            "_language": "fi",
+            "project_application_start_time": application_start_time,
+            "project_application_end_time": application_end_time,
+            "project_can_apply_afterwards": True,
+            "project_ownership_type": OwnershipType.HASO.value,
+        },
+    )
+
+    late_submit_data = create_application_data(
+        customer_profile, num_applicants=1, apartments=apartments_late_submit
+    )
+
+    late_submit_data["profile"] = customer_profile.id
+
+    application = post_application(api_client, late_submit_data)
+    assert application.submitted_late is True
+
+    #  setting submitted_late to False manually in POST shouldnt be allowed
+    customer_profile_2 = ProfileFactory()
+
+    data = create_application_data(
+        customer_profile_2, num_applicants=2, apartments=apartments_late_submit
+    )
+
+    data["profile"] = customer_profile_2.id
+    data["submitted_late"] = False
+
+    second_application = post_application(api_client, data)
+    assert second_application.submitted_late is True
+
+    # Test that HITAS apartment late submit isn't allowed (should only work with HASO)
+    apartments_late_submit_hitas = generate_apartments(
+        elasticsearch,
+        10,
+        {
+            "apartment_state_of_sale": ApartmentStateOfSale.FOR_SALE.value,
+            "_language": "fi",
+            "project_application_start_time": application_start_time,
+            "project_application_end_time": application_end_time,
+            "project_ownership_type": OwnershipType.HITAS.value,
+        },
+    )
+
+    customer_profile_3 = ProfileFactory()
+
+    data = create_application_data(
+        customer_profile_3, num_applicants=2, apartments=apartments_late_submit_hitas
+    )
+    data["profile"] = customer_profile_3.id
+    response = api_client.post(
+        reverse("application_form:sales-application-list"), data, format="json"
+    )
+    assert response.status_code != 201
+
+    # Test that ApartmentDocument.project_can_apply_afterwards is respected
+    apartment_cant_apply_afterwards = generate_apartments(
+        elasticsearch,
+        10,
+        {
+            "apartment_state_of_sale": ApartmentStateOfSale.FOR_SALE.value,
+            "_language": "fi",
+            "project_application_start_time": application_start_time,
+            "project_application_end_time": application_end_time,
+            "project_can_apply_afterwards": False,
+        },
+    )
+
+    customer_profile_4 = ProfileFactory()
+    data = create_application_data(
+        customer_profile_4,
+        num_applicants=2,
+        apartments=apartment_cant_apply_afterwards,
+    )
+    data["profile"] = customer_profile_4.id
+
+    response = api_client.post(
+        reverse("application_form:sales-application-list"), data, format="json"
+    )
+    assert response.status_code != 201
+    pass
+
+
 def post_application(client, data):
     response = client.post(
         reverse("application_form:sales-application-list"), data, format="json"
@@ -78,8 +207,22 @@ def post_application(client, data):
 
 @pytest.mark.django_db
 def test_sales_application_post_check_customer(
-    api_client, elastic_single_project_with_apartments
-):
+    api_client, elasticsearch
+):  # noqa: F811 E501
+
+    application_end_time = datetime.now().replace(
+        tzinfo=timezone.get_default_timezone()
+    ) + timedelta(days=1)
+    apartments = generate_apartments(
+        elasticsearch,
+        10,
+        {
+            "apartment_state_of_sale": "FOR_SALE",
+            "_language": "fi",
+            "project_application_end_time": application_end_time,
+        },
+    )
+
     salesperson_profile = ProfileFactory()
     salesperson_group = Group.objects.get(name__iexact=Roles.DRUPAL_SALESPERSON.name)
     salesperson_group.user_set.add(salesperson_profile.user)
@@ -88,11 +231,14 @@ def test_sales_application_post_check_customer(
     api_client.credentials(
         HTTP_AUTHORIZATION=f"Bearer {_create_token(salesperson_profile)}"
     )
+
     assert Profile.objects.count() == 2
     assert Customer.objects.count() == 0
 
     # post an application with a single profile customer
-    data = create_application_data(customer_profile, num_applicants=1)
+    data = create_application_data(
+        customer_profile, num_applicants=1, apartments=apartments
+    )
     data["profile"] = customer_profile.id
     application = post_application(api_client, data)
     assert Profile.objects.count() == 2
@@ -100,7 +246,9 @@ def test_sales_application_post_check_customer(
     assert application.customer.secondary_profile is None
 
     # post an application with the same single profile customer
-    data = create_application_data(customer_profile, num_applicants=1)
+    data = create_application_data(
+        customer_profile, num_applicants=1, apartments=apartments
+    )
     data["profile"] = customer_profile.id
     application = post_application(api_client, data)
     assert Profile.objects.count() == 2
@@ -108,7 +256,7 @@ def test_sales_application_post_check_customer(
     assert application.customer.secondary_profile is None
 
     # post an application with a two profile customer
-    data = create_application_data(customer_profile)
+    data = create_application_data(customer_profile, apartments=apartments)
     data["profile"] = customer_profile.id
     application = post_application(api_client, data)
     assert Profile.objects.count() == 3
@@ -119,7 +267,7 @@ def test_sales_application_post_check_customer(
 
     # post an application with the same two profile customer
     additional_applicant = data["additional_applicant"]
-    data = create_application_data(customer_profile)
+    data = create_application_data(customer_profile, apartments=apartments)
     data["profile"] = customer_profile.id
     data["additional_applicant"] = additional_applicant
     application = post_application(api_client, data)
@@ -132,7 +280,7 @@ def test_sales_application_post_check_customer(
     # verify that a secondary profile is not matched if the primary does not match
     existing_secondary_profile = application.customer.secondary_profile
     another_profile = ProfileFactory()
-    data = create_application_data(another_profile)
+    data = create_application_data(another_profile, apartments=apartments)
     data["profile"] = another_profile.id
     data["additional_applicant"] = additional_applicant
     application = post_application(api_client, data)
@@ -144,7 +292,9 @@ def test_sales_application_post_check_customer(
     assert application.customer.secondary_profile != existing_secondary_profile
 
     # verify that another single profile customer is not matched
-    data = create_application_data(another_profile, num_applicants=1)
+    data = create_application_data(
+        another_profile, num_applicants=1, apartments=apartments
+    )
     data["profile"] = another_profile.id
     application = post_application(api_client, data)
     assert Profile.objects.count() == 5
@@ -157,8 +307,21 @@ def test_sales_application_post_check_customer(
 )
 @pytest.mark.django_db
 def test_sale_application_post_generate_metadata(
-    api_client, elastic_single_project_with_apartments, application_type
+    api_client, elasticsearch, application_type  # noqa: F811
 ):
+    application_end_time = datetime.now().replace(
+        tzinfo=timezone.get_default_timezone()
+    ) + timedelta(days=1)
+    apartments = generate_apartments(
+        elasticsearch,
+        10,
+        {
+            "apartment_state_of_sale": "FOR_SALE",
+            "_language": "fi",
+            "project_application_end_time": application_end_time,
+        },
+    )
+
     salesperson_profile = ProfileFactory()
     salesperson_group = Group.objects.get(name__iexact=Roles.DRUPAL_SALESPERSON.name)
     salesperson_group.user_set.add(salesperson_profile.user)
@@ -171,7 +334,9 @@ def test_sale_application_post_generate_metadata(
     assert Customer.objects.count() == 0
 
     # post an application with a two profile customer
-    data = create_application_data(customer_profile, application_type=application_type)
+    data = create_application_data(
+        customer_profile, application_type=application_type, apartments=apartments
+    )
     data["profile"] = customer_profile.id
     application = post_application(api_client, data)
     assert application.handler_information == METADATA_HANDLER_INFORMATION
