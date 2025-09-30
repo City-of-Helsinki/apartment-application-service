@@ -5,6 +5,7 @@ from typing import TypedDict
 class SalesReportProjectTotalsDict(TypedDict):
     sold_haso_apartments_count: int
     sold_hitas_apartments_count: int
+    terminated_apartment_sales_count: int
     unsold_apartments_count: int
     haso_right_of_occupancy_payment_sum: Decimal
     hitas_sales_price_sum: Decimal
