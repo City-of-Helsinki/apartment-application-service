@@ -1,5 +1,5 @@
 import collections
-from datetime import timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from io import BytesIO
 from typing import List, Union
@@ -9,6 +9,7 @@ from _pytest.fixtures import fixture
 from django.contrib.auth import get_user_model
 from django.db.models import QuerySet
 from django.utils import timezone
+from freezegun import freeze_time
 
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import (
@@ -20,7 +21,10 @@ from apartment.elastic.queries import (
 from apartment.enums import OwnershipType
 from apartment.tests.factories import ApartmentDocumentFactory
 from apartment.utils import get_apartment_state_from_apartment_uuid
-from application_form.enums import ApartmentReservationState
+from application_form.enums import (
+    ApartmentReservationCancellationReason,
+    ApartmentReservationState,
+)
 from application_form.models import (
     ApartmentReservation,
     ApartmentReservationStateChangeEvent,
@@ -143,7 +147,9 @@ def _expected_hitas_ownership(reservation):
 
 
 def _expected_haso_revaluation_values(columns, reservation):
-    """Вернёт список значений для HASO-колонок в порядке их появления в columns."""
+    """
+    Returns a list of values ​​for HASO columns in the order they appear in columns.
+    """
     haso_keys = {
         "haso_original_ao_payment",
         "haso_luovutushinta",
@@ -580,8 +586,13 @@ def test_export_project_lottery_result(
     )
 
 
-def get_sold_state_events(
-    start=timezone.now() - timedelta(days=7), end=timezone.now() + timedelta(days=7)
+def get_state_events_for_export(
+    start=timezone.now() - timedelta(days=7),
+    end=timezone.now() + timedelta(days=7),
+    reservation_states=[
+        ApartmentReservationState.SOLD,
+        ApartmentReservationState.CANCELED,
+    ],
 ) -> Union[QuerySet, List[ApartmentReservationStateChangeEvent]]:
     """Fetches all ApartmentReservationStateChangeEvent objects within the given
     date range
@@ -593,8 +604,9 @@ def get_sold_state_events(
     Returns:
         Union[QuerySet, List[ApartmentReservationStateChangeEvent]]
     """
+
     return ApartmentReservationStateChangeEvent.objects.filter(
-        state=ApartmentReservationState.SOLD, timestamp__date__range=[start, end]
+        state__in=reservation_states, timestamp__date__range=[start, end]
     )
     pass
 
@@ -612,12 +624,25 @@ def test_sale_report_invalid_money_amount():
 
 
 @pytest.mark.django_db
+def test_sale_report_subheader_row():
+    sold_events = ApartmentReservationStateChangeEvent.objects.all()
+    export_service = XlsxSalesReportExportService(sold_events, [])
+
+    sale_subheader_row = export_service._get_subheader_row("sale", True)
+    assert sale_subheader_row[0] == "Myydyt huoneistot"
+
+    termination_subheader_row = export_service._get_subheader_row("termination", True)
+    assert termination_subheader_row[0] == "Puretut huoneistot"
+
+
+@pytest.mark.django_db
 def test_export_project_with_no_sales_shows_on_report():
     """Projects with no sales should be still shown on report when selected"""
     sold_apartments_project = ApartmentDocumentFactory(project_ownership_type="Hitas")
     apartments = [sold_apartments_project]
 
     sell_count = 2
+    terminated_count = 1
 
     for _ in range(4):
         apartment = ApartmentDocumentFactory(
@@ -627,6 +652,17 @@ def test_export_project_with_no_sales_shows_on_report():
         apartments.append(apartment)
 
     sell_apartments(sold_apartments_project.project_uuid, sell_count)
+
+    terminated_reservations = ApartmentReservation.objects.filter(
+        apartment_uuid__in=[ap.uuid for ap in apartments[:terminated_count]]
+    ).order_by("id")
+
+    for res in terminated_reservations:
+        cancel_reservation(
+            res, cancellation_reason=ApartmentReservationCancellationReason.TERMINATED
+        )
+
+        pass
 
     # create apartment on a new project
     unsold_apartments_project = ApartmentDocumentFactory(project_ownership_type="Hitas")
@@ -639,7 +675,7 @@ def test_export_project_with_no_sales_shows_on_report():
         )
         apartments.append(unsold_apartment)
 
-    sales_events = get_sold_state_events()
+    sales_events = get_state_events_for_export()
 
     project_uuids = [
         sold_apartments_project.project_uuid,
@@ -660,12 +696,137 @@ def test_export_project_with_no_sales_shows_on_report():
     assert export_service._get_total_sold_row(apartments) == [
         "Kaupat lukumäärä yhteensä",
         "",
-        sell_count,
+        sell_count - terminated_count,
         0,
-        len(apartments) - sell_count,
+        len(apartments) - sell_count + terminated_count,
         "#E8E8E8",
     ]
     pass
+
+
+@pytest.mark.django_db
+def test_export_terminated_sales_rows():
+    cancel_date = date(2025, 10, 2)
+
+    apartments = []
+    apartment_properties = {
+        "project_ownership_type": "Hitas",
+        "sales_price": 10000000,
+        "debt_free_sales_price": 15000000,
+        "right_of_occupancy_payment": 0,
+        "project_application_end_time": datetime(2025, 10, 1),
+    }
+    apartment = ApartmentDocumentFactory(apartment_number="A1", **apartment_properties)
+    apartments.append(apartment)
+    for idx in range(2, 10):
+        apartment = ApartmentDocumentFactory(
+            apartment_number=f"A{idx}",
+            project_uuid=apartment.project_uuid,
+            **apartment_properties,
+        )
+        apartments.append(apartment)
+
+    with freeze_time(cancel_date):
+        sell_apartments(apartments[0].project_uuid, len(apartments))
+
+        terminated_sales_apartments = apartments[:4]
+        terminated_reservations = ApartmentReservation.objects.filter(
+            apartment_uuid__in=[ap.uuid for ap in terminated_sales_apartments]
+        ).order_by("id")
+
+        for res in terminated_reservations:
+            cancel_reservation(
+                res,
+                cancellation_reason=ApartmentReservationCancellationReason.TERMINATED,
+            )
+
+        state_events = get_state_events_for_export(start=cancel_date, end=cancel_date)
+
+        export_service = XlsxSalesReportExportService(
+            state_events, [apartments[0].project_uuid]
+        )
+
+    assert len(export_service._get_apartments_with_terminated_sales(apartments)) == len(
+        terminated_sales_apartments
+    )
+
+    terminated_row = export_service._get_apartment_row(
+        apartments[0], row_type=export_service.ROW_TYPE_TERMINATION
+    )
+
+    assert terminated_row == [
+        apartments[0].apartment_number,
+        Decimal(100000),
+        Decimal(150000),
+        "",
+        "02.10.2025",
+        "02.10.2025",
+    ]
+
+    terminated_subtotal_row = export_service._get_project_total_terminated_row(
+        terminated_sales_apartments, is_hitas=True
+    )
+
+    expected_terminated_subtotal_row = [
+        "Puretut yhteensä",
+        Decimal(sum(apt.sales_price for apt in terminated_sales_apartments) / 100),
+        Decimal(
+            sum(apt.debt_free_sales_price for apt in terminated_sales_apartments) / 100
+        ),
+        "",
+        "",
+        4,
+        export_service.HIGHLIGHT_COLOR,
+    ]
+    assert terminated_subtotal_row == expected_terminated_subtotal_row
+
+    total_terminated_row = export_service._get_total_terminated_row(apartments)
+
+    assert total_terminated_row == [
+        "Puretut kaupat yhteensä",
+        "",
+        4,
+        0,
+        "",
+        4,
+        export_service.HIGHLIGHT_COLOR,
+    ]
+
+    pass
+
+
+@pytest.mark.django_db
+def test_export_dont_show_project_totals_if_no_sales_or_terminations():
+    apartments = [
+        ApartmentDocumentFactory(
+            apartment_number="A1", project_ownership_type=OwnershipType.HITAS.value
+        )
+    ]
+
+    state_change_events = ApartmentReservationStateChangeEvent.objects.filter(
+        reservation__apartment_uuid=apartments[0].uuid
+    )
+    export_service_no_sales = XlsxSalesReportExportService(
+        state_change_events, [apartments[0].project_uuid]
+    )
+    rows_no_sales = export_service_no_sales.get_rows()
+
+    assert not any(row for row in rows_no_sales if "Myydyt yhteensä" in row)
+
+    sell_apartments(apartments[0].project_uuid, len(apartments))
+
+    state_change_events_no_terminations = (
+        ApartmentReservationStateChangeEvent.objects.filter(  # noqa: E501
+            reservation__apartment_uuid=apartments[0].uuid
+        )
+    )
+
+    export_service_no_terminations = XlsxSalesReportExportService(
+        state_change_events_no_terminations, [apartments[0].project_uuid]
+    )
+    rows_no_terminations = export_service_no_terminations.get_rows()
+    assert any(row for row in rows_no_terminations if "Myydyt yhteensä" in row)
+    assert not any(row for row in rows_no_terminations if "Irtisanotut yhteensä" in row)
 
 
 @pytest.mark.django_db
@@ -687,19 +848,30 @@ def test_export_canceled_sales_should_not_count():
         apartment_uuid=apartment_with_canceled_sale.uuid
     ).order_by("id")
     reservations.last().set_state(ApartmentReservationState.RESERVED)
+
     cancel_reservation(
         reservations.last(),
         user=get_user_model().objects.first(),
     )
 
+    # terminate a sale
+    reservations.first().set_state(
+        ApartmentReservationState.CANCELED,
+        cancellation_reason=ApartmentReservationCancellationReason.TERMINATED,
+    )
+
     # get state change events
-    state_events = get_sold_state_events()
+    state_events = get_state_events_for_export()
+
     export_service = XlsxSalesReportExportService(
         state_events, [apartment.project_uuid]
     )
 
     # we have one canceled sale so it shouldn't count as sold
     assert len(export_service._get_sold_apartments(apartments)) != len(apartments)
+
+    # assert that canceled sales are counted correctly
+    assert len(export_service._get_apartments_with_terminated_sales(apartments)) == 1
 
 
 @pytest.mark.django_db
@@ -709,7 +881,7 @@ def test_export_sale_empty_ownership_type_should_not_crash():
     # ApartmentDocumentFactory doesn't allow us to create an ApartmentDocument with
     # an empty project_ownership_type so we'll need to set it manually
     apartment.project_ownership_type = None
-    sold_events = get_sold_state_events()
+    sold_events = get_state_events_for_export()
 
     export_service = XlsxSalesReportExportService(sold_events, [apartment.project_uuid])
 
@@ -722,7 +894,8 @@ def test_export_sale_empty_ownership_type_should_not_crash():
 
 @pytest.mark.django_db
 def test_export_sale_report_new(
-    elastic_hitas_project_with_5_apartments, elastic_haso_project_with_5_apartments
+    elastic_hitas_project_with_5_apartments,
+    elastic_haso_project_with_5_apartments,
 ):
     sold_apartments_count = 4
 
@@ -760,7 +933,7 @@ def test_export_sale_report_new(
         reservation=reservation,
     )
 
-    state_events = get_sold_state_events()
+    state_events = get_state_events_for_export()
 
     export_service = XlsxSalesReportExportService(
         state_events,
@@ -831,7 +1004,9 @@ def test_export_sale_report_new(
     assert haso_project_totals["hitas_sales_price_sum"] == 0
     assert haso_project_totals["hitas_debt_free_sales_price_sum"] == 0
 
-    assert export_service._get_apartment_row(hitas_apartments[0]) == [
+    assert export_service._get_apartment_row(
+        hitas_apartments[0], XlsxSalesReportExportService.ROW_TYPE_SALE
+    ) == [
         hitas_apartments[0].apartment_number,
         Decimal(hitas_apartments[0].sales_price) / 100,
         Decimal(hitas_apartments[0].debt_free_sales_price) / 100,
@@ -839,7 +1014,9 @@ def test_export_sale_report_new(
         get_sale_timestamp(hitas_apartments[0]),
     ]
 
-    assert export_service._get_apartment_row(haso_apartments[0]) == [
+    assert export_service._get_apartment_row(
+        haso_apartments[0], XlsxSalesReportExportService.ROW_TYPE_SALE
+    ) == [
         haso_apartments[0].apartment_number,
         "",
         "",
@@ -862,7 +1039,7 @@ def test_export_sale_report_new(
 
     excluded_apartment = haso_apartments[0]
     # exclude one apartment's state events
-    state_events = get_sold_state_events().exclude(
+    state_events = get_state_events_for_export().exclude(
         reservation__apartment_uuid=excluded_apartment.uuid
     )
     export_service = XlsxSalesReportExportService(
@@ -872,7 +1049,7 @@ def test_export_sale_report_new(
     # should not have a row if sold event was not found
     rows = export_service.get_rows()
     apartment_row_that_should_not_exist = export_service._get_apartment_row(
-        excluded_apartment
+        excluded_apartment, XlsxSalesReportExportService.ROW_TYPE_SALE
     )
 
     assert apartment_row_that_should_not_exist not in rows
@@ -892,7 +1069,7 @@ def test_export_sale_report_new(
         ]
     )
 
-    state_events_no_hitas_project = get_sold_state_events().exclude(
+    state_events_no_hitas_project = get_state_events_for_export().exclude(
         reservation__apartment_uuid__in=[apt.uuid for apt in hitas_apartments]
     )
 
