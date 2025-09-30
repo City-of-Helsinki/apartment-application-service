@@ -226,8 +226,12 @@ class SaleReportAPIView(APIView):
                 start_date_obj,
                 end_date_obj,
             ],
-            state=ApartmentReservationState.SOLD,
+            state__in=[
+                ApartmentReservationState.SOLD,
+                ApartmentReservationState.CANCELED
+            ],
         )
+
         if project_uuids:
             project_uuids = set(project_uuids.split(","))
 
@@ -263,7 +267,7 @@ class SaleReportAPIView(APIView):
                 key=UserKeyValueKeys.INCLUDE_SALES_REPORT_PROJECT_UUID.value,
             ).filter(value__in=to_delete).delete()
 
-        _logger.debug(
+        _logger.info(
             "User %s creating salesreport with params %s. Found %s state events",
             request.user,
             request.query_params,

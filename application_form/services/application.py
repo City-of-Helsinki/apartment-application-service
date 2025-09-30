@@ -50,6 +50,7 @@ def cancel_reservation(
     If the reservation has already won the apartment, then the winner for the apartment
     will be recalculated.
     """
+
     was_reserved = (
         apartment_reservation.state is not ApartmentReservationState.SUBMITTED
     )
