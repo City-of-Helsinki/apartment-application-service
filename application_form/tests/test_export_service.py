@@ -3,7 +3,7 @@ from datetime import timedelta
 from decimal import Decimal
 from io import BytesIO
 from typing import List, Union
-
+from freezegun import freeze_time
 import pytest
 from _pytest.fixtures import fixture
 from django.contrib.auth import get_user_model
@@ -675,16 +675,27 @@ def test_export_project_with_no_sales_shows_on_report():
 @pytest.mark.django_db
 def test_export_terminated_sales_rows():
     apartments = []
-    apartment = ApartmentDocumentFactory(project_ownership_type="Hitas")
+    apartment_properties = {
+        "project_ownership_type": "Hitas", 
+        "sales_price": 10000000,
+        "debt_free_sales_price": 15000000,
+        "right_of_occupancy_payment": 0,
+    }
+    apartment = ApartmentDocumentFactory(
+        apartment_number="A1",
+        **apartment_properties
+    )
     apartments.append(apartment)
-    for _ in range(10):
+    for idx in range(2, 10):
         apartment = ApartmentDocumentFactory(
-            project_ownership_type="Hitas", project_uuid=apartment.project_uuid
+            apartment_number=f"A{idx}",
+            project_uuid=apartment.project_uuid,
+            **apartment_properties
         )
         apartments.append(apartment)
 
-
     sell_apartments(apartments[0].project_uuid, len(apartments))
+
     terminated_sales_apartments = apartments[:4]
     terminated_reservations = ApartmentReservation.objects.filter(
         apartment_uuid__in=[ap.uuid for ap in terminated_sales_apartments]
@@ -707,6 +718,18 @@ def test_export_terminated_sales_rows():
         export_service._get_apartments_with_terminated_sales(apartments)
     ) == len(terminated_sales_apartments)
 
+    terminated_row = export_service._get_apartment_row(
+        apartments[0],
+        row_type=export_service.ROW_TYPE_TERMINATION
+    ) 
+    assert terminated_row == [
+        apartments[0].apartment_number,
+        Decimal(100000),
+        Decimal(150000),
+        "",
+        "02.10.2025",
+        "02.10.2025",
+    ]
 
 
     pass
