@@ -280,28 +280,33 @@ class ApartmentReservationViewSet(
             queue_position is not None
             and new_state != ApartmentReservationState.CANCELED
         ):
-            # conver queue_position from string to number
             if isinstance(queue_position, str):
-                queue_position = int(queue_position.lstrip("0"))
+                queue_position = int((queue_position or "").lstrip("0") or "0")
+            queue_position = max(1, queue_position)
 
-            current_queue_length = (
-                ApartmentReservation.objects.active()
-                .filter(apartment_uuid=reservation.apartment_uuid)
-                .count()
+            active_qs = ApartmentReservation.objects.active().filter(
+                apartment_uuid=reservation.apartment_uuid
             )
+            if reservation.pk:
+                active_qs = active_qs.exclude(pk=reservation.pk)
 
-            if queue_position > current_queue_length:
+            current_queue_length = active_qs.count()
+
+            if queue_position > current_queue_length + 1:
                 queue_position = current_queue_length + 1
 
-            # position correction in queue
-            _adjust_positions(
-                ApartmentReservation.objects.filter(
-                    apartment_uuid=reservation.apartment_uuid
-                ),
-                "queue_position",
-                queue_position,
-                by=1,
-            )
+            if (
+                reservation.queue_position is None
+                or reservation.queue_position != queue_position
+            ):
+                _adjust_positions(
+                    ApartmentReservation.objects.filter(
+                        apartment_uuid=reservation.apartment_uuid
+                    ).exclude(pk=reservation.pk),
+                    "queue_position",
+                    queue_position,
+                    by=1,
+                )
 
         # set state and position
         state_change_event = reservation.set_state(
