@@ -12,8 +12,6 @@ import xlsxwriter
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import CharField, Max, QuerySet
 from django.db.models.functions import Cast
-from django.utils import translation
-from django.utils.translation import gettext as _
 
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import (
@@ -54,6 +52,14 @@ _ROO_COLUMN_NAMES = {
     "Maksettu",
 }
 
+# --- HASO revaluation: helper keys for CSV columns ---
+_HASO_REVAL_COLUMNS = [
+    ("Alkuperäinen AO-maksu", "haso_original_ao_payment"),
+    ("AO-maksu (indeksi + muutostyöt)", "haso_adjusted_ao_payment"),
+    ("Muutostyöt", "haso_alteration_work"),
+    ("Indeksikorotus", "haso_index_increase"),
+]
+
 
 def _get_profile_cell(reservation: ApartmentReservation, column_name: str) -> str:
     if (
@@ -80,6 +86,30 @@ def _get_simple_reservation_cell(reservation: ApartmentReservation, column_name:
     return fn(reservation) if fn else None
 
 
+def _get_haso_revaluation_value(column_name: str, reservation: ApartmentReservation):
+    rev = getattr(reservation, "revaluation", None)
+    if not rev:
+        return ""
+
+    mapping = {
+        "haso_original_ao_payment": lambda r: r.start_right_of_occupancy_payment or "",
+        "haso_adjusted_ao_payment": lambda r: (r.end_right_of_occupancy_payment or 0)
+        + (r.alteration_work or 0),
+        "haso_alteration_work": lambda r: r.alteration_work or "",
+        "haso_index_increase": lambda r: (
+            ""
+            if (
+                r.start_right_of_occupancy_payment is None
+                or r.end_right_of_occupancy_payment is None
+            )
+            else (r.end_right_of_occupancy_payment - r.start_right_of_occupancy_payment)
+        ),
+    }
+
+    func = mapping.get(column_name)
+    return func(rev) if func else ""
+
+
 def _get_reservation_cell_value(
     column_name: str,
     apartment: ApartmentDocument = None,
@@ -96,6 +126,10 @@ def _get_reservation_cell_value(
     simple = _get_simple_reservation_cell(reservation, column_name)
     if simple is not None:
         return simple
+    # --- HASO revaluation fields (only if reservation.revaluation exists) ---
+    if column_name.startswith("haso_"):
+        return _get_haso_revaluation_value(column_name, reservation)
+
     return ""
 
 
@@ -246,8 +280,29 @@ class ApplicantMailingListExportService(CSVExportService):
             and export_type == ApartmentReservationState.SOLD.value
         )
 
+        # base columns
+        columns = list(self.COLUMNS)
+
+        # append HASO revaluation columns if reservations belong to a HASO project
+        try:
+            first_res = self.reservations.first()
+            is_haso = False
+            if first_res:
+                apt = get_apartment(
+                    first_res.apartment_uuid, include_project_fields=True
+                )
+                is_haso = apt.project_ownership_type == OwnershipType.HASO.value
+            if is_haso:
+                columns += _HASO_REVAL_COLUMNS
+        except Exception:
+            # safety: если не удалось получить apartment из ES — просто пропускаем
+            pass
+
+        # append ROO payment columns только для SOLD + HASO
         if self.add_roo_columns:
-            self.COLUMNS = self.COLUMNS + self.COLUMNS_ROO_PAYMENTS
+            columns += self.COLUMNS_ROO_PAYMENTS
+
+        self.COLUMNS = columns
 
     def _get_header_row(self):
         return [col[0] for col in self.COLUMNS]
@@ -337,31 +392,17 @@ class ApplicantMailingListExportService(CSVExportService):
         export_type_is_sold = self.export_type == ApartmentReservationState.SOLD.value
         is_haso = apartment.project_ownership_type == OwnershipType.HASO.value
 
-        if export_type_is_sold and is_haso:
-            columns = columns + self.COLUMNS_ROO_PAYMENTS
-
         for column in columns:
             cell_value = _get_reservation_cell_value(column[1], apartment, reservation)
             if cell_value is not None:
                 line.append(cell_value)
 
         if export_type_is_sold and is_haso:
-            # export file's language shouldnt change based on the user's web browser
-            # how language is usually resolved
-            # https://docs.djangoproject.com/en/5.1/topics/i18n/translation/
-            with translation.override("fi"):
-                for installment in self.get_right_of_occupancy_installments(
-                    reservation
-                ):
-                    line += [
-                        installment.value,
-                        (
-                            _(installment.payment_status.label)
-                            if installment.payment_status != PaymentStatus.UNPAID
-                            else ""
-                        ),
-                    ]
-                    pass
+            for installment in self.get_right_of_occupancy_installments(reservation):
+                paid_mark = (
+                    "" if installment.payment_status == PaymentStatus.UNPAID else "X"
+                )
+                line += [installment.value, paid_mark]
 
         return line
 
