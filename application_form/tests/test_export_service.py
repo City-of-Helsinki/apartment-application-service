@@ -132,25 +132,73 @@ def reservations(elastic_project_with_24_apartments):
     return reservations
 
 
+def _expected_has_children(reservation):
+    return "X" if bool(reservation.has_children) else ""
+
+
+def _expected_hitas_ownership(reservation):
+    val = getattr(reservation, "has_hitas_ownership", None)
+    if val is None:
+        return ""
+    return "Kyllä" if bool(val) else "Ei"
+
+
+def _expected_haso_revaluation_values(columns, reservation):
+    """Вернёт список значений для HASO-колонок в порядке их появления в columns."""
+    haso_keys = {
+        "haso_original_ao_payment",
+        "haso_adjusted_ao_payment",
+        "haso_alteration_work",
+        "haso_index_increase",
+    }
+    rev = getattr(reservation, "revaluation", None)
+
+    def _one(key):
+        if not rev:
+            return ""
+        if key == "haso_original_ao_payment":
+            return rev.start_right_of_occupancy_payment or ""
+        if key == "haso_adjusted_ao_payment":
+            end_val = rev.end_right_of_occupancy_payment or 0
+            alt = rev.alteration_work or 0
+            return end_val + alt
+        if key == "haso_alteration_work":
+            return rev.alteration_work or ""
+        if key == "haso_index_increase":
+            start_val = rev.start_right_of_occupancy_payment
+            end_val = rev.end_right_of_occupancy_payment
+            return (
+                "" if (start_val is None or end_val is None) else (end_val - start_val)
+            )
+        return ""
+
+    out = []
+    for _, key in columns:
+        if key in haso_keys:
+            out.append(_one(key))
+    return out
+
+
+def _append_roo_installments(expected_row, roo_installments):
+    for inst in roo_installments:
+        expected_row += [
+            inst.value,
+            ("X" if inst.payment_status.value != PaymentStatus.UNPAID.value else ""),
+        ]
+
+
 def _validate_mailing_list_csv(
     csv_rows: List[List[str]],
     reservations: List[ApartmentReservation],
     export_service: Union[ApplicantMailingListExportService, None] = None,
 ):
-    """Validates a mailing list CSV created by ApplicationMailingListExportService
-
-    Args:
-        csv_rows (List[List[str]]): content of the rows
-        reservations (List[ApartmentReservation]): reservations used to generate the csv
-        export_service (ApplicantMailingListExportService|None): Optional instance of
-        the ApplicantMailingListExportService in case the instance's columns are changed
-    """
     columns = ApplicantMailingListExportService.COLUMNS
     if export_service is not None:
         columns = export_service.COLUMNS
 
-    for idx, header in enumerate(csv_rows[0]):
-        assert header == columns[idx][0]
+    header = csv_rows[0]
+    for idx, header_cell in enumerate(header):
+        assert header_cell == columns[idx][0]
 
     content_rows = csv_rows[1:]
 
@@ -158,7 +206,6 @@ def _validate_mailing_list_csv(
         reservations, key=lambda x: get_apartment(x.apartment_uuid).apartment_number
     )
 
-    # placeholder for empty primary_profile or secondary_profile to simplify code below
     class empty_profile:
         first_name = None
         last_name = None
@@ -168,26 +215,8 @@ def _validate_mailing_list_csv(
         city = None
         national_identification_number = None
 
-    payment_status_labels = {
-        PaymentStatus.PAID: "maksettu",
-        PaymentStatus.UNPAID: "",
-        PaymentStatus.OVERPAID: "ylisuoritus",
-        PaymentStatus.UNDERPAID: "alisuoritus",
-    }
-
     for i, row in enumerate(content_rows):
-
         reservation = reservations[i]
-        roo_installments: QuerySet[ApartmentInstallment] = (
-            reservation.apartment_installments.filter(
-                type__in=[
-                    InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT,
-                    InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_2,
-                    InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_3,
-                ]
-            ).order_by("type")
-        )
-
         apartment = get_apartment(
             reservation.apartment_uuid, include_project_fields=True
         )
@@ -212,12 +241,7 @@ def _validate_mailing_list_csv(
             secondary_profile.postal_code or "",
             secondary_profile.city or "",
             secondary_profile.national_identification_number or "",
-            "X" if bool(reservation.has_children) else "",
-            (
-                ""
-                if reservation.has_hitas_ownership is None
-                else ("Kyllä" if reservation.has_hitas_ownership else "Ei")
-            ),
+            _expected_has_children(reservation),
             apartment.project_street_address or "",
             apartment.project_postal_code or "",
             apartment.project_city or "",
@@ -225,49 +249,17 @@ def _validate_mailing_list_csv(
             apartment.living_area or "",
         ]
 
-        # --- HASO revaluation columns (append in the same order as in columns) ---
-        haso_keys = {
-            "haso_original_ao_payment",
-            "haso_adjusted_ao_payment",
-            "haso_alteration_work",
-            "haso_index_increase",
-        }
-
-        # helper to compute expected value like in export.py
-        rev = getattr(reservation, "revaluation", None)
-
-        def _haso_value(key):
-            if not rev:
-                return ""
-            if key == "haso_original_ao_payment":
-                return rev.start_right_of_occupancy_payment or ""
-            if key == "haso_adjusted_ao_payment":
-                end_val = rev.end_right_of_occupancy_payment or 0
-                alt = rev.alteration_work or 0
-                return end_val + alt
-            if key == "haso_alteration_work":
-                return rev.alteration_work or ""
-            if key == "haso_index_increase":
-                start_val = rev.start_right_of_occupancy_payment
-                end_val = rev.end_right_of_occupancy_payment
-                return (
-                    ""
-                    if (start_val is None or end_val is None)
-                    else (end_val - start_val)
-                )
-            return ""
-
-        # go through COLUMNS so the order matches CSV
-        for _, key in columns:
-            if key in haso_keys:
-                expected_row.append(_haso_value(key))
+        expected_row += _expected_haso_revaluation_values(columns, reservation)
 
         if export_service is not None and export_service.add_roo_columns:
-            for roo_installment in roo_installments:
-                expected_row += [
-                    roo_installment.value,
-                    payment_status_labels[roo_installment.payment_status],
+            roo_installments = reservation.apartment_installments.filter(
+                type__in=[
+                    InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT,
+                    InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_2,
+                    InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_3,
                 ]
+            ).order_by("type")
+            _append_roo_installments(expected_row, roo_installments)
 
         for expected_field_value, value in zip(expected_row, row):
             assert expected_field_value == value
@@ -303,7 +295,7 @@ def test_sorting_function(reservations):
 @pytest.mark.parametrize(
     "export_type,project_ownership_type,expected_column_count",
     [
-        (ApartmentReservationState.SOLD.value, OwnershipType.HASO, 32),
+        (ApartmentReservationState.SOLD.value, OwnershipType.HASO, 33),
         (ApartmentReservationState.SOLD.value, OwnershipType.HITAS, 23),
         (ApartmentReservationState.RESERVED.value, OwnershipType.HASO, 27),
         (
