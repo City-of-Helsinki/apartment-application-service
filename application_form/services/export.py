@@ -407,15 +407,12 @@ class ApplicantMailingListExportService(CSVExportService):
                 for installment in self.get_right_of_occupancy_installments(
                     reservation
                 ):
-                    line += [
-                        installment.value,
-                        (
-                            _(installment.payment_status.label)
-                            if installment.payment_status != PaymentStatus.UNPAID
-                            else ""
-                        ),
-                    ]
-                    pass
+                    status_label = (
+                        ""
+                        if installment.payment_status == PaymentStatus.UNPAID
+                        else str(installment.payment_status.label)
+                    )
+                    line += [installment.value, status_label]
 
         return line
 
