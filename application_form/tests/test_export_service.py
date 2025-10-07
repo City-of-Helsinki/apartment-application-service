@@ -225,6 +225,43 @@ def _validate_mailing_list_csv(
             apartment.living_area or "",
         ]
 
+        # --- HASO revaluation columns (append in the same order as in columns) ---
+        haso_keys = {
+            "haso_original_ao_payment",
+            "haso_adjusted_ao_payment",
+            "haso_alteration_work",
+            "haso_index_increase",
+        }
+
+        # helper to compute expected value like in export.py
+        rev = getattr(reservation, "revaluation", None)
+
+        def _haso_value(key):
+            if not rev:
+                return ""
+            if key == "haso_original_ao_payment":
+                return rev.start_right_of_occupancy_payment or ""
+            if key == "haso_adjusted_ao_payment":
+                end_val = rev.end_right_of_occupancy_payment or 0
+                alt = rev.alteration_work or 0
+                return end_val + alt
+            if key == "haso_alteration_work":
+                return rev.alteration_work or ""
+            if key == "haso_index_increase":
+                start_val = rev.start_right_of_occupancy_payment
+                end_val = rev.end_right_of_occupancy_payment
+                return (
+                    ""
+                    if (start_val is None or end_val is None)
+                    else (end_val - start_val)
+                )
+            return ""
+
+        # go through COLUMNS so the order matches CSV
+        for _, key in columns:
+            if key in haso_keys:
+                expected_row.append(_haso_value(key))
+
         if export_service is not None and export_service.add_roo_columns:
             for roo_installment in roo_installments:
                 expected_row += [
