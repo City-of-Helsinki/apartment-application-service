@@ -44,7 +44,6 @@ from application_form.tests.factories import (
 )
 from customer.tests.factories import CustomerFactory
 from invoicing.enums import InstallmentType, PaymentStatus
-from invoicing.models import ApartmentInstallment
 from invoicing.tests.factories import ApartmentInstallmentFactory, PaymentFactory
 from users.tests.factories import ProfileFactory
 
