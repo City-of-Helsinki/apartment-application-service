@@ -266,13 +266,13 @@ def test_sorting_function(reservations):
 @pytest.mark.parametrize(
     "export_type,project_ownership_type,expected_column_count",
     [
-        (ApartmentReservationState.SOLD.value, OwnershipType.HASO, 29),
+        (ApartmentReservationState.SOLD.value, OwnershipType.HASO, 32),
         (ApartmentReservationState.SOLD.value, OwnershipType.HITAS, 23),
-        (ApartmentReservationState.RESERVED.value, OwnershipType.HASO, 23),
+        (ApartmentReservationState.RESERVED.value, OwnershipType.HASO, 27),
         (
             ApplicantMailingListExportService.export_first_in_queue,
             OwnershipType.HASO,
-            23,
+            27,
         ),
     ],
 )

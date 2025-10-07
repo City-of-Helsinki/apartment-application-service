@@ -54,6 +54,14 @@ _ROO_COLUMN_NAMES = {
     "Maksettu",
 }
 
+# --- HASO revaluation: helper keys for CSV columns ---
+_HASO_REVAL_COLUMNS = [
+    ("Alkuperäinen AO-maksu", "haso_original_ao_payment"),
+    ("AO-maksu (indeksi + muutostyöt)", "haso_adjusted_ao_payment"),
+    ("Muutostyöt", "haso_alteration_work"),
+    ("Indeksikorotus", "haso_index_increase"),
+]
+
 
 def _get_profile_cell(reservation: ApartmentReservation, column_name: str) -> str:
     if (
@@ -96,6 +104,27 @@ def _get_reservation_cell_value(
     simple = _get_simple_reservation_cell(reservation, column_name)
     if simple is not None:
         return simple
+    # --- HASO revaluation fields (only if reservation.revaluation exists) ---
+    if column_name.startswith("haso_"):
+        rev = getattr(reservation, "revaluation", None)
+        # если данных revaluation нет — ячейки остаются пустыми
+        if not rev:
+            return ""
+        if column_name == "haso_original_ao_payment":
+            return rev.start_right_of_occupancy_payment or ""
+        if column_name == "haso_adjusted_ao_payment":
+            end_val = rev.end_right_of_occupancy_payment or 0
+            alt = rev.alteration_work or 0
+            return end_val + alt
+        if column_name == "haso_alteration_work":
+            return rev.alteration_work or ""
+        if column_name == "haso_index_increase":
+            start_val = rev.start_right_of_occupancy_payment
+            end_val = rev.end_right_of_occupancy_payment
+            return (
+                "" if (start_val is None or end_val is None) else (end_val - start_val)
+            )
+
     return ""
 
 
@@ -246,8 +275,29 @@ class ApplicantMailingListExportService(CSVExportService):
             and export_type == ApartmentReservationState.SOLD.value
         )
 
+        # base columns
+        columns = list(self.COLUMNS)
+
+        # append HASO revaluation columns if reservations belong to a HASO project
+        try:
+            first_res = self.reservations.first()
+            is_haso = False
+            if first_res:
+                apt = get_apartment(
+                    first_res.apartment_uuid, include_project_fields=True
+                )
+                is_haso = apt.project_ownership_type == OwnershipType.HASO.value
+            if is_haso:
+                columns += _HASO_REVAL_COLUMNS
+        except Exception:
+            # safety: если не удалось получить apartment из ES — просто пропускаем
+            pass
+
+        # append ROO payment columns только для SOLD + HASO
         if self.add_roo_columns:
-            self.COLUMNS = self.COLUMNS + self.COLUMNS_ROO_PAYMENTS
+            columns += self.COLUMNS_ROO_PAYMENTS
+
+        self.COLUMNS = columns
 
     def _get_header_row(self):
         return [col[0] for col in self.COLUMNS]
@@ -336,9 +386,6 @@ class ApplicantMailingListExportService(CSVExportService):
         columns = self.COLUMNS
         export_type_is_sold = self.export_type == ApartmentReservationState.SOLD.value
         is_haso = apartment.project_ownership_type == OwnershipType.HASO.value
-
-        if export_type_is_sold and is_haso:
-            columns = columns + self.COLUMNS_ROO_PAYMENTS
 
         for column in columns:
             cell_value = _get_reservation_cell_value(column[1], apartment, reservation)
