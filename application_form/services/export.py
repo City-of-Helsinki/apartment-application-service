@@ -12,7 +12,6 @@ import xlsxwriter
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import CharField, Max, QuerySet
 from django.db.models.functions import Cast
-from django.utils import translation
 
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import (
