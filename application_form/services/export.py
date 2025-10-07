@@ -88,6 +88,30 @@ def _get_simple_reservation_cell(reservation: ApartmentReservation, column_name:
     return fn(reservation) if fn else None
 
 
+def _get_haso_revaluation_value(column_name: str, reservation: ApartmentReservation):
+    rev = getattr(reservation, "revaluation", None)
+    if not rev:
+        return ""
+
+    mapping = {
+        "haso_original_ao_payment": lambda r: r.start_right_of_occupancy_payment or "",
+        "haso_adjusted_ao_payment": lambda r: (r.end_right_of_occupancy_payment or 0)
+        + (r.alteration_work or 0),
+        "haso_alteration_work": lambda r: r.alteration_work or "",
+        "haso_index_increase": lambda r: (
+            ""
+            if (
+                r.start_right_of_occupancy_payment is None
+                or r.end_right_of_occupancy_payment is None
+            )
+            else (r.end_right_of_occupancy_payment - r.start_right_of_occupancy_payment)
+        ),
+    }
+
+    func = mapping.get(column_name)
+    return func(rev) if func else ""
+
+
 def _get_reservation_cell_value(
     column_name: str,
     apartment: ApartmentDocument = None,
@@ -106,24 +130,7 @@ def _get_reservation_cell_value(
         return simple
     # --- HASO revaluation fields (only if reservation.revaluation exists) ---
     if column_name.startswith("haso_"):
-        rev = getattr(reservation, "revaluation", None)
-        # если данных revaluation нет — ячейки остаются пустыми
-        if not rev:
-            return ""
-        if column_name == "haso_original_ao_payment":
-            return rev.start_right_of_occupancy_payment or ""
-        if column_name == "haso_adjusted_ao_payment":
-            end_val = rev.end_right_of_occupancy_payment or 0
-            alt = rev.alteration_work or 0
-            return end_val + alt
-        if column_name == "haso_alteration_work":
-            return rev.alteration_work or ""
-        if column_name == "haso_index_increase":
-            start_val = rev.start_right_of_occupancy_payment
-            end_val = rev.end_right_of_occupancy_payment
-            return (
-                "" if (start_val is None or end_val is None) else (end_val - start_val)
-            )
+        return _get_haso_revaluation_value(column_name, reservation)
 
     return ""
 
