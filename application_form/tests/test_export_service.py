@@ -1,5 +1,5 @@
 import collections
-from datetime import timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from io import BytesIO
 from typing import List, Union
@@ -680,6 +680,7 @@ def test_export_terminated_sales_rows():
         "sales_price": 10000000,
         "debt_free_sales_price": 15000000,
         "right_of_occupancy_payment": 0,
+        "project_application_end_time": datetime(2025, 10, 1)
     }
     apartment = ApartmentDocumentFactory(
         apartment_number="A1",
@@ -694,34 +695,37 @@ def test_export_terminated_sales_rows():
         )
         apartments.append(apartment)
 
-    sell_apartments(apartments[0].project_uuid, len(apartments))
+    with freeze_time(date(2025, 10, 2)):
+        sell_apartments(apartments[0].project_uuid, len(apartments))
 
-    terminated_sales_apartments = apartments[:4]
-    terminated_reservations = ApartmentReservation.objects.filter(
-        apartment_uuid__in=[ap.uuid for ap in terminated_sales_apartments]
-    ).order_by("id")
+        terminated_sales_apartments = apartments[:4]
+        terminated_reservations = ApartmentReservation.objects.filter(
+            apartment_uuid__in=[ap.uuid for ap in terminated_sales_apartments]
+        ).order_by("id")
 
-    for res in terminated_reservations:
-        cancel_reservation(
-            res,
-            cancellation_reason=ApartmentReservationCancellationReason.TERMINATED
+        for res in terminated_reservations:
+            cancel_reservation(
+                res,
+                cancellation_reason=ApartmentReservationCancellationReason.TERMINATED
+            )
+
+        state_events = get_state_events_for_export()
+
+        export_service = XlsxSalesReportExportService(
+            state_events,
+            [apartments[0].project_uuid]
         )
-
-    state_events = get_state_events_for_export()
-
-    export_service = XlsxSalesReportExportService(
-        state_events,
-        [apartments[0].project_uuid]
-    )
 
     assert len(
         export_service._get_apartments_with_terminated_sales(apartments)
     ) == len(terminated_sales_apartments)
 
+
     terminated_row = export_service._get_apartment_row(
         apartments[0],
         row_type=export_service.ROW_TYPE_TERMINATION
-    ) 
+    )
+
     assert terminated_row == [
         apartments[0].apartment_number,
         Decimal(100000),

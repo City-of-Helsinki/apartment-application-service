@@ -161,12 +161,14 @@ class XlsxExportService:
         last_column_idx = max(len(r) for r in rows)
 
         cell_format_default = workbook.add_format()
+        cell_format_default.set_text_wrap()
 
         for i, row in enumerate(rows):
             # if the last item in the row is a hex representation of a color
             # use it as the row's background. Not the smartest way to do this
             if str(row[-1]).startswith("#"):
                 cell_format = workbook.add_format({"bg_color": row.pop()})
+                cell_format.set_text_wrap()
 
             for j, cell in enumerate(row):
                 worksheet.write(i, j, cell, cell_format)
@@ -689,6 +691,7 @@ class XlsxSalesReportExportService(XlsxExportService):
                 self._sum_cents(x.right_of_occupancy_payment or 0 for x in haso_sold),
                 self.HIGHLIGHT_COLOR,
             ],
+            self._get_total_terminated_row(apartments),
         ]
 
         rows += header_rows
@@ -712,6 +715,14 @@ class XlsxSalesReportExportService(XlsxExportService):
         """
         _logger.debug("Project %s", project.project_uuid)
 
+        subheader_cells = [
+            "Huoneisto",
+            "Myyntihinta",
+            "Velaton hinta",
+            "Luovutushinta",
+            "Kaupantekopäivä",
+        ]
+
         sold_apartments = self._get_sold_apartments(apartments)
         terminated_sales_apartments = self._get_apartments_with_terminated_sales(
             apartments
@@ -733,15 +744,10 @@ class XlsxSalesReportExportService(XlsxExportService):
             ]
         )
 
-        if first:
+        if len(sold_apartments) > 0:
             rows.append(
                 [
-                    "Huoneisto",
-                    "Myyntihinta",
-                    "Velaton hinta",
-                    "Luovutushinta",
-                    "Kaupantekopäivä",
-                    "Purkamispäivä" if is_haso else "Irtisanomispäivä",
+                    *subheader_cells,
                     self.HIGHLIGHT_COLOR,
                 ]
             )
@@ -750,7 +756,14 @@ class XlsxSalesReportExportService(XlsxExportService):
             rows.append(self._get_apartment_row(apartment, row_type=self.ROW_TYPE_SALE))
 
         if len(terminated_sales_apartments) > 0:
-            rows.append(["Irtisanotut", self.HIGHLIGHT_COLOR])
+            rows.append(
+                [
+                    *subheader_cells,
+                    "Purkamispäivä" if is_haso else "Irtisanomispäivä",
+                    self.HIGHLIGHT_COLOR,
+
+                ]
+            )
             for apartment in terminated_sales_apartments:
                 rows.append(self._get_apartment_row(apartment, row_type=self.ROW_TYPE_TERMINATION))
 
@@ -779,6 +792,30 @@ class XlsxSalesReportExportService(XlsxExportService):
         rows.append([""])
 
         return rows
+
+    def _get_total_terminated_row(
+        self,
+        apartments: List[ApartmentDocument]
+    ) -> List[Union[str, Decimal]]:
+        terminated_haso_count = len(
+            self._get_apartments_with_terminated_sales(
+                self._get_haso_apartments(apartments)
+            )
+        )
+        terminated_hitas_count = len(
+            self._get_apartments_with_terminated_sales(
+                self._get_hitas_apartments(apartments)
+            )
+        )
+        return [
+            "Puretut kaupat yhteensä",
+            "",
+            terminated_hitas_count,
+            terminated_haso_count,
+            "",
+            terminated_haso_count+terminated_hitas_count,
+            self.HIGHLIGHT_COLOR,
+        ]
 
     def _get_total_sold_row(
         self,
