@@ -623,6 +623,7 @@ def test_export_project_with_no_sales_shows_on_report():
     apartments = [sold_apartments_project]
 
     sell_count = 2
+    terminated_count = 1
 
     for _ in range(4):
         apartment = ApartmentDocumentFactory(
@@ -632,6 +633,19 @@ def test_export_project_with_no_sales_shows_on_report():
         apartments.append(apartment)
 
     sell_apartments(sold_apartments_project.project_uuid, sell_count)
+
+
+    terminated_reservations = ApartmentReservation.objects.filter(
+                apartment_uuid__in=[ap.uuid for ap in apartments[:terminated_count]]
+            ).order_by("id")
+
+    for res in terminated_reservations:
+        cancel_reservation(
+            res,
+            cancellation_reason=ApartmentReservationCancellationReason.TERMINATED
+        )
+
+        pass
 
     # create apartment on a new project
     unsold_apartments_project = ApartmentDocumentFactory(project_ownership_type="Hitas")
@@ -665,9 +679,9 @@ def test_export_project_with_no_sales_shows_on_report():
     assert export_service._get_total_sold_row(apartments) == [
         "Kaupat lukumäärä yhteensä",
         "",
-        sell_count,
+        sell_count-terminated_count,
         0,
-        len(apartments) - sell_count,
+        len(apartments) - sell_count+terminated_count,
         "#E8E8E8",
     ]
     pass
@@ -735,6 +749,19 @@ def test_export_terminated_sales_rows():
         "02.10.2025",
     ]
 
+    total_terminated_row = export_service._get_total_terminated_row(
+        apartments
+    )
+
+    assert total_terminated_row  == [
+        "Puretut kaupat yhteensä",
+        "",
+        4,
+        0,
+        "",
+        4,
+        export_service.HIGHLIGHT_COLOR
+    ]
 
     pass
 
