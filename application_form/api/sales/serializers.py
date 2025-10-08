@@ -73,7 +73,8 @@ class SalesApplicationSerializer(ApplicationSerializerBase):
 
     def create(self, validated_data):
         self.context["salesperson"] = self.context["request"].user
-        return super().create(validated_data)
+        application = super().create(validated_data)
+        return application
 
 
 class ApplicantCompactSerializer(serializers.ModelSerializer):
