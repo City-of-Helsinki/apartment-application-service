@@ -36,33 +36,42 @@ def get_apartment_state_of_sale_from_event(event):
     the apartment should show as RESERVED (varattu) or RESERVED_HASO (käsittelyssä)
     depending on the apartment type
     """
+    from application_form.enums import ApartmentReservationCancellationReason
+
     if event.state == ApartmentReservationState.SOLD:
         return ApartmentStateOfSale.SOLD
     # Should only check for `FREE` state if
     # the latest change is a reservation cancellation
+    apt_uuid = event.reservation.apartment_uuid
+    active_qs = (
+        ApartmentReservation.objects.active().filter(apartment_uuid=apt_uuid).only("id")
+    )
+    active_count = active_qs.count()
+
     if event.state == ApartmentReservationState.CANCELED:
         if (
-            ApartmentReservation.objects.active()
-            .filter(apartment_uuid=event.reservation.apartment_uuid)
-            .only("id")
-            .count()
-            == 0
+            getattr(event, "cancellation_reason", None)
+            == ApartmentReservationCancellationReason.TERMINATED
         ):
-            return ApartmentStateOfSale.FREE_FOR_RESERVATIONS
-        # Edge case when there is already a sold reservation
-        if (
-            ApartmentReservation.objects.active()
-            .filter(
-                apartment_uuid=event.reservation.apartment_uuid,
-                state=ApartmentReservationState.SOLD,
+            if active_count == 0:
+                return ApartmentStateOfSale.FREE_FOR_RESERVATIONS
+            apartment_type = get_apartment(
+                apt_uuid, include_project_fields=True
+            ).project_ownership_type
+            return (
+                ApartmentStateOfSale.RESERVED_HASO
+                if apartment_type.lower() == OwnershipType.HASO.value
+                else ApartmentStateOfSale.RESERVED
             )
-            .only("id")
-            .exists()
-        ):
+
+        if active_count == 0:
+            return ApartmentStateOfSale.FREE_FOR_RESERVATIONS
+
+        if active_qs.filter(state=ApartmentReservationState.SOLD).exists():
             return ApartmentStateOfSale.SOLD
 
     apartment_type = get_apartment(
-        event.reservation.apartment_uuid, include_project_fields=True
+        apt_uuid, include_project_fields=True
     ).project_ownership_type
     if apartment_type.lower() == OwnershipType.HASO.value:
         return ApartmentStateOfSale.RESERVED_HASO
