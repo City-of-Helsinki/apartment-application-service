@@ -109,7 +109,6 @@ def _get_haso_revaluation_value(column_name: str, reservation: ApartmentReservat
         return rev.end_right_of_occupancy_payment - rev.start_right_of_occupancy_payment
 
     if column_name == "haso_luovutushinta":
-        # UI totalPayment → Luovutushinta = end_right_of_occupancy_payment + alteration_work
         return (rev.end_right_of_occupancy_payment or 0) + (rev.alteration_work or 0)
 
     return ""
@@ -370,7 +369,9 @@ class ApplicantMailingListExportService(CSVExportService):
                 Q(state=ApartmentReservationState.SOLD)
                 | Q(
                     state=ApartmentReservationState.CANCELED,
-                    state_change_events__cancellation_reason=ApartmentReservationCancellationReason.TERMINATED,
+                    state_change_events__cancellation_reason=(
+                        ApartmentReservationCancellationReason.TERMINATED
+                    ),
                 )
             ).distinct()
 
