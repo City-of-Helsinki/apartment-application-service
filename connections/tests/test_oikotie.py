@@ -257,14 +257,14 @@ class TestOikotieMapper:
                 "full description",
                 "link_to_apartment",
                 "link_to_project",
-                "Tarkemman kohde-esittelyn sekä varaustilanteen löydät täältä:\nlink_to_project\n\nfull description\n\nlink_to_apartment",  # noqa: E501
+                "Tarkemman kohde-esittelyn sekä varaustilanteen löydät täältä:\nlink_to_project\n\nfull description\n\nLinkki asunnon sivulle:\nlink_to_apartment",  # noqa: E501
             ),
             (
                 None,
                 "link_to_apartment",
                 "link_to_project",
                 "Tarkemman kohde-esittelyn sekä varaustilanteen löydät täältä:"
-                + "\nlink_to_project\n\nlink_to_apartment",
+                + "\nlink_to_project\n\nLinkki asunnon sivulle:\nlink_to_apartment",
             ),
             (
                 "full description",
