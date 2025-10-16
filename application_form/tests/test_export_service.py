@@ -615,6 +615,17 @@ def test_sale_report_invalid_money_amount():
     )
     assert cent_sum == Decimal(3)
 
+@pytest.mark.django_db
+def test_sale_report_subheader_row():
+    sold_events = ApartmentReservationStateChangeEvent.objects.all()
+    export_service = XlsxSalesReportExportService(sold_events, [])
+    
+    sale_subheader_row = export_service._get_subheader_row("sale")
+    assert sale_subheader_row[0] == "Myydyt huoneistot"
+
+    termination_subheader_row = export_service._get_subheader_row("termination")
+    assert termination_subheader_row[0] == "Irtisanotut huoneistot"
+
 
 @pytest.mark.django_db
 def test_export_project_with_no_sales_shows_on_report():

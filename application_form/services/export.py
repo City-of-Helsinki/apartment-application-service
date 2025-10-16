@@ -715,14 +715,6 @@ class XlsxSalesReportExportService(XlsxExportService):
         """
         _logger.debug("Project %s", project.project_uuid)
 
-        subheader_cells = [
-            "Huoneisto",
-            "Myyntihinta",
-            "Velaton hinta",
-            "Luovutushinta",
-            "Kaupantekopäivä",
-        ]
-
         sold_apartments = self._get_sold_apartments(apartments)
         terminated_sales_apartments = self._get_apartments_with_terminated_sales(
             apartments
@@ -747,7 +739,7 @@ class XlsxSalesReportExportService(XlsxExportService):
         if len(sold_apartments) > 0:
             rows.append(
                 [
-                    *subheader_cells,
+                    *self._get_subheader_row(self.ROW_TYPE_SALE),
                     self.HIGHLIGHT_COLOR,
                 ]
             )
@@ -758,7 +750,7 @@ class XlsxSalesReportExportService(XlsxExportService):
         if len(terminated_sales_apartments) > 0:
             rows.append(
                 [
-                    *subheader_cells,
+                    *self._get_subheader_row(self.ROW_TYPE_TERMINATION),
                     "Purkamispäivä" if is_haso else "Irtisanomispäivä",
                     self.HIGHLIGHT_COLOR,
 
@@ -832,6 +824,19 @@ class XlsxSalesReportExportService(XlsxExportService):
             haso_sold_count,
             self._get_unsold_count(apartments),
             self.HIGHLIGHT_COLOR,
+        ]
+
+    def _get_subheader_row(self, row_type: Literal["sale", "termination"]) -> List[str]:
+        verb = {
+            self.ROW_TYPE_SALE: "Myydyt", self.ROW_TYPE_TERMINATION: "Irtisanotut"
+        }[row_type]
+
+        return [
+            f"{verb} huoneistot",
+            "Myyntihinta",
+            "Velaton hinta",
+            "Luovutushinta",
+            "Kaupantekopäivä",
         ]
 
     def _get_apartment_row(
