@@ -107,17 +107,19 @@ def form_description_with_link(elastic_apartment: ApartmentDocument):
     if main_text:
         main_text = clean_html_tags_from_text(main_text)
     project_link = getattr(elastic_apartment, "project_url", None)
-    apartment_link = getattr(elastic_apartment, "url", None)
+    apartment_link_text = None
+    if apartment_link := getattr(elastic_apartment, "url", None):
+        apartment_link_text = f"Linkki asunnon sivulle:\n{apartment_link}"
 
     project_link_text = f"Tarkemman kohde-esittelyn sekä varaustilanteen löydät täältä:\n{project_link}"  # noqa: E501
     if project_link:
-        return "\n\n".join(filter(None, [project_link_text, main_text, apartment_link]))
+        return "\n\n".join(filter(None, [project_link_text, main_text, apartment_link_text]))
 
-    if apartment_link:
-        return "\n\n".join(filter(None, [main_text, apartment_link]))
+    if apartment_link_text:
+        return "\n\n".join(filter(None, [main_text, apartment_link_text]))
 
     if main_text and project_link:
-        return f"{optional_text}\n{project_link}\n\n{main_text}\n\n{apartment_link}"
+        return f"{optional_text}\n{project_link}\n\n{main_text}\n\n{apartment_link_text}"
 
     if not main_text and project_link:
         return f"{optional_text}\n"
