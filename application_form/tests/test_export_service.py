@@ -146,7 +146,7 @@ def _expected_haso_revaluation_values(columns, reservation):
     """Вернёт список значений для HASO-колонок в порядке их появления в columns."""
     haso_keys = {
         "haso_original_ao_payment",
-        "haso_adjusted_ao_payment",
+        "haso_luovutushinta",
         "haso_alteration_work",
         "haso_index_increase",
     }
@@ -157,7 +157,7 @@ def _expected_haso_revaluation_values(columns, reservation):
             return ""
         if key == "haso_original_ao_payment":
             return rev.start_right_of_occupancy_payment or ""
-        if key == "haso_adjusted_ao_payment":
+        if key == "haso_luovutushinta":
             end_val = rev.end_right_of_occupancy_payment or 0
             alt = rev.alteration_work or 0
             return end_val + alt
