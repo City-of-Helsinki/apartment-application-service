@@ -10,7 +10,7 @@ from typing import List, Union
 
 import xlsxwriter
 from django.core.exceptions import ObjectDoesNotExist
-from django.db.models import CharField, Max, QuerySet
+from django.db.models import CharField, Max, Q, QuerySet
 from django.db.models.functions import Cast
 
 from apartment.elastic.documents import ApartmentDocument
@@ -23,7 +23,10 @@ from apartment.elastic.queries import (
 )
 from apartment.enums import ApartmentState, OwnershipType
 from apartment.utils import get_apartment_state_from_apartment_uuid
-from application_form.enums import ApartmentReservationState
+from application_form.enums import (
+    ApartmentReservationCancellationReason,
+    ApartmentReservationState,
+)
 from application_form.models import ApartmentReservation, LotteryEvent
 from application_form.models.reservation import ApartmentReservationStateChangeEvent
 from application_form.services.types import SalesReportProjectTotalsDict
@@ -55,9 +58,9 @@ _ROO_COLUMN_NAMES = {
 # --- HASO revaluation: helper keys for CSV columns ---
 _HASO_REVAL_COLUMNS = [
     ("Alkuperäinen AO-maksu", "haso_original_ao_payment"),
-    ("AO-maksu (indeksi + muutostyöt)", "haso_adjusted_ao_payment"),
     ("Muutostyöt", "haso_alteration_work"),
     ("Indeksikorotus", "haso_index_increase"),
+    ("Luovutushinta", "haso_luovutushinta"),
 ]
 
 
@@ -91,23 +94,25 @@ def _get_haso_revaluation_value(column_name: str, reservation: ApartmentReservat
     if not rev:
         return ""
 
-    mapping = {
-        "haso_original_ao_payment": lambda r: r.start_right_of_occupancy_payment or "",
-        "haso_adjusted_ao_payment": lambda r: (r.end_right_of_occupancy_payment or 0)
-        + (r.alteration_work or 0),
-        "haso_alteration_work": lambda r: r.alteration_work or "",
-        "haso_index_increase": lambda r: (
-            ""
-            if (
-                r.start_right_of_occupancy_payment is None
-                or r.end_right_of_occupancy_payment is None
-            )
-            else (r.end_right_of_occupancy_payment - r.start_right_of_occupancy_payment)
-        ),
-    }
+    if column_name == "haso_original_ao_payment":
+        return rev.start_right_of_occupancy_payment or ""
 
-    func = mapping.get(column_name)
-    return func(rev) if func else ""
+    if column_name == "haso_alteration_work":
+        return rev.alteration_work or ""
+
+    if column_name == "haso_index_increase":
+        if (
+            rev.start_right_of_occupancy_payment is None
+            or rev.end_right_of_occupancy_payment is None
+        ):
+            return ""
+        return rev.end_right_of_occupancy_payment - rev.start_right_of_occupancy_payment
+
+    if column_name == "haso_luovutushinta":
+        # UI totalPayment → Luovutushinta = end_right_of_occupancy_payment + alteration_work
+        return (rev.end_right_of_occupancy_payment or 0) + (rev.alteration_work or 0)
+
+    return ""
 
 
 def _get_reservation_cell_value(
@@ -337,12 +342,11 @@ class ApplicantMailingListExportService(CSVExportService):
         if self.export_type not in self.allowed_apartment_export_types:
             raise ValueError(f"Invalid export type '{self.export_type}'")
 
-        reservations = self.reservations.exclude(
-            state=ApartmentReservationState.CANCELED
-        )
+        qs = self.reservations
 
         if self.export_type == self.export_first_in_queue:
-            base = reservations.active()
+            base = qs.exclude(state=ApartmentReservationState.CANCELED).active()
+
             firsts = base.filter(queue_position=1)
             if firsts.exists():
                 reservations = firsts
@@ -354,16 +358,26 @@ class ApplicantMailingListExportService(CSVExportService):
                 )
                 if candidate is None:
                     candidate = base.order_by("list_position").first()
+
                 reservations = (
-                    reservations.model.objects.filter(pk=candidate.pk)
+                    base.model.objects.filter(pk=candidate.pk)
                     if candidate is not None
-                    else reservations.model.objects.none()
+                    else base.model.objects.none()
                 )
+
         elif self.export_type == ApartmentReservationState.SOLD.value:
-            reservations = reservations.filter(state=ApartmentReservationState.SOLD)
+            reservations = qs.filter(
+                Q(state=ApartmentReservationState.SOLD)
+                | Q(
+                    state=ApartmentReservationState.CANCELED,
+                    state_change_events__cancellation_reason=ApartmentReservationCancellationReason.TERMINATED,
+                )
+            ).distinct()
+
+        else:
+            reservations = qs.exclude(state=ApartmentReservationState.CANCELED)
 
         reservations = reservations.order_by(*self.ORDER_BY)
-
         self.reservations = reservations
         return reservations
 
