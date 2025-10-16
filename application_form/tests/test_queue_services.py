@@ -4,6 +4,7 @@ from unittest.mock import Mock
 from django.db.models import QuerySet
 from pytest import mark, raises
 
+from apartment.enums import OwnershipType
 from application_form.enums import (
     ApartmentQueueChangeEventType,
     ApartmentReservationState,
@@ -18,10 +19,59 @@ from application_form.services.queue import (
     add_application_to_queues,
     remove_reservation_from_queue,
 )
+from application_form.tests.conftest import generate_apartments, sell_apartments
 from application_form.tests.factories import (
     ApartmentReservationFactory,
     ApplicationFactory,
 )
+from customer.tests.factories import CustomerFactory
+
+
+@mark.django_db
+def test_new_reservation_wont_override_first_one_if_asu_1802(elasticsearch):
+    """
+    When haso reservation has state OFFERED, SOLD or OFFER ACCEPTED then adding
+    a new reservation with a lower right of residence number shouldn't override it.
+    """
+
+    apartments = generate_apartments(
+        elasticsearch,
+        apartment_count=1,
+        apartment_kwargs={
+            "project_ownership_type": OwnershipType.HASO.value,
+        },
+    )
+    sold_apartment = apartments[0]
+    sell_apartments(sold_apartment.project_uuid, 1)
+
+    original_first_reservation = ApartmentReservation.objects.filter(
+        apartment_uuid=sold_apartment.uuid, queue_position=1
+    ).first()
+    original_first_reservation_pk = original_first_reservation.pk
+    # now create reservation with lower right of residence number
+    new_application_right_of_residence = (
+        original_first_reservation.right_of_residence - 10
+    )
+
+    customer = CustomerFactory()
+    new_application = ApplicationFactory(
+        type=ApplicationType.HASO,
+        customer=customer,
+        has_children=False,
+        right_of_residence=new_application_right_of_residence,
+    )
+
+    new_application.application_apartments.create(
+        apartment_uuid=sold_apartment.uuid, priority_number=1
+    )
+    add_application_to_queues(new_application)
+
+    assert (
+        ApartmentReservation.objects.get(
+            queue_position=1, apartment_uuid=sold_apartment.uuid
+        ).pk
+        == original_first_reservation_pk
+    )
 
 
 @mark.django_db
