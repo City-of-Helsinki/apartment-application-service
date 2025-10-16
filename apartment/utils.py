@@ -113,13 +113,17 @@ def form_description_with_link(elastic_apartment: ApartmentDocument):
 
     project_link_text = f"Tarkemman kohde-esittelyn sekä varaustilanteen löydät täältä:\n{project_link}"  # noqa: E501
     if project_link:
-        return "\n\n".join(filter(None, [project_link_text, main_text, apartment_link_text]))
+        return "\n\n".join(
+            filter(None, [project_link_text, main_text, apartment_link_text])
+        )
 
     if apartment_link_text:
         return "\n\n".join(filter(None, [main_text, apartment_link_text]))
 
     if main_text and project_link:
-        return f"{optional_text}\n{project_link}\n\n{main_text}\n\n{apartment_link_text}"
+        return (
+            f"{optional_text}\n{project_link}\n\n{main_text}\n\n{apartment_link_text}"
+        )
 
     if not main_text and project_link:
         return f"{optional_text}\n"
