@@ -157,26 +157,31 @@ class TestApartmentFetchingFromElasticAndMapping:
         assert file_name is None
 
     def test_etuovi_map_energy_class_default_value(self):
-        """Energy class should get default value
-        if `ApartmentDocument.project_energy_class` isn't set"""
-        apartment_no_energy_class = ApartmentMinimalFactory(
-            url=None, project_energy_class=None
+        """Energy class should be validated. Etuovi only allows certain strings.
+        Apartments with no energy class get `None` as the value"""
+        apartment_no_energy_class = ApartmentMinimalFactory(project_energy_class=None)
+
+        apartment_with_valid_energy_class = ApartmentMinimalFactory(
+            project_energy_class="A2007"
         )
-        apartment_with_energy_class = ApartmentMinimalFactory(
-            url=None, project_energy_class="A-class"
+
+        apartment_with_invalid_energy_class = ApartmentMinimalFactory(
+            project_energy_class="non-existant class string"
         )
-        mapped_apartment_with_energy_class = map_apartment_to_item(
-            apartment_with_energy_class
+
+        mapped_apartment_with_valid_energy_class = map_apartment_to_item(
+            apartment_with_valid_energy_class
         )
         mapped_apartment_no_energy_class = map_apartment_to_item(
             apartment_no_energy_class
         )
-
-        assert mapped_apartment_with_energy_class.energyclass == "A-class"
-        assert (
-            mapped_apartment_no_energy_class.energyclass
-            == "Lisätiedot kotisivulta"  # noqa: E501
+        mapped_apartment_with_invalid_energy_class = map_apartment_to_item(
+            apartment_with_invalid_energy_class
         )
+
+        assert mapped_apartment_with_valid_energy_class.energyclass == "A2007"
+        assert mapped_apartment_no_energy_class.energyclass is None
+        assert mapped_apartment_with_invalid_energy_class.energyclass is None
 
     def test_strip_link_tags(self):
         input_text = """<p>Lorem ipsum <a href='https://foo.bar'>FooBar link</a></p><p><a href='mailto:user.name@mail.com'>user.name@mail.com</a><a href='https://test.site'>Test site over here</a><a href='https://test.site/gallery'>Image gallery is here</a></p>"""  # noqa: E501

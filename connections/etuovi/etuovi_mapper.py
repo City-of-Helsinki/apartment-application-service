@@ -24,7 +24,7 @@ from elasticsearch_dsl.utils import AttrList
 from apartment.elastic.documents import ApartmentDocument
 from apartment.enums import OwnershipType
 from apartment.utils import form_description_with_link
-from connections.enums import Currency, Unit
+from connections.enums import Currency, EtuoviEnergyClass, Unit
 from connections.etuovi.field_mapper import (
     CONDITION_MAPPING,
     HOLDING_TYPE_MAPPING,
@@ -367,10 +367,15 @@ def map_apartment_to_link_types(
 
 
 def map_energy_class(elastic_apartment: ApartmentDocument) -> str:
-    if energy_class := getattr(elastic_apartment, "project_energy_class", None):
+    """Only return valid energy class names as listed in the Etuovi integration specs as
+    defined in `connections.utils.EtuoviEnergyClass`"""
+
+    energy_class = getattr(elastic_apartment, "project_energy_class", None)
+
+    if energy_class in EtuoviEnergyClass.__members__:
         return energy_class
 
-    return "Lisätiedot kotisivulta"
+    return None
 
 
 def map_extra_links(elastic_apartment: ApartmentDocument) -> List[ExtraLink]:
