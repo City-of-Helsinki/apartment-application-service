@@ -24,7 +24,7 @@ from elasticsearch_dsl.utils import AttrList
 from apartment.elastic.documents import ApartmentDocument
 from apartment.enums import OwnershipType
 from apartment.utils import form_description_with_link
-from connections.enums import Currency, Unit
+from connections.enums import Currency, EtuoviEnergyClass, Unit
 from connections.etuovi.field_mapper import (
     CONDITION_MAPPING,
     HOLDING_TYPE_MAPPING,
@@ -366,6 +366,18 @@ def map_apartment_to_link_types(
     ]
 
 
+def map_energy_class(elastic_apartment: ApartmentDocument) -> str:
+    """Only return valid energy class names as listed in the Etuovi integration specs as
+    defined in `connections.utils.EtuoviEnergyClass`"""
+
+    energy_class = getattr(elastic_apartment, "project_energy_class", None)
+
+    if energy_class in EtuoviEnergyClass.__members__:
+        return energy_class
+
+    return None
+
+
 def map_extra_links(elastic_apartment: ApartmentDocument) -> List[ExtraLink]:
     """
     Handles the mapping of ExtraLink properties. If the input value is a list of urls,
@@ -503,7 +515,7 @@ def map_apartment_to_item(elastic_apartment: ApartmentDocument) -> Item:
         "currency_code": Currency.EUR.value,  # EUR is only supported currency.
         "cust_itemcode": getattr(elastic_apartment, "uuid", None),
         "debtfreeprice": map_price(elastic_apartment, debtfreeprice_key),
-        "energyclass": getattr(elastic_apartment, "project_energy_class", None),
+        "energyclass": map_energy_class(elastic_apartment),
         "extralink": map_extra_links(elastic_apartment),
         "floors": getattr(elastic_apartment, "floor_max", None),
         "holdingtype": map_holding_type(elastic_apartment),

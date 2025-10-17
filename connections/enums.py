@@ -24,3 +24,25 @@ class ProjectStateOfSale(str, Enum):
     FOR_SALE = "FOR_SALE"
     PROCESSING = "PROCESSING"
     READY = "READY"
+
+
+class EtuoviEnergyClass(Enum):
+    """
+    Allowed energy classes for Etuovi
+    """
+
+    A = "A"
+    A2007 = "A2007"
+    B = "B"
+    B2007 = "B2007"
+    C = "C"
+    C2007 = "C2007"
+    D = "D"
+    D2007 = "D2007"
+    E = "E"
+    E2007 = "E2007"
+    F = "F"
+    F2007 = "F2007"
+    G = "G"
+    G2007 = "G2007"
+    H = "H"

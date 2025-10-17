@@ -307,6 +307,29 @@ class TestOikotieMapper:
             )
         pass
 
+    def test_oikotie_map_energy_class_default_value(self):
+        """Energy class should get default value
+        if `ApartmentDocument.project_energy_class` isn't set"""
+        apartment_no_energy_class = ApartmentMinimalFactory(
+            url=None, project_energy_class=None
+        )
+        apartment_with_energy_class = ApartmentMinimalFactory(
+            url=None, project_energy_class="A-class"
+        )
+        mapped_apartment_with_energy_class = map_oikotie_apartment(
+            apartment_with_energy_class
+        )
+        mapped_apartment_no_energy_class = map_oikotie_apartment(
+            apartment_no_energy_class
+        )
+
+        assert mapped_apartment_with_energy_class.rc_energyclass == "A-class"
+        assert (
+            mapped_apartment_no_energy_class.rc_energyclass
+            == "Lisätiedot kotisivulta"  # noqa: E501
+        )
+        pass
+
     def test_oikotie_map_correct_price_info(self):
         """
         Get `ApartmentDocument.release_payment` for HASO apartments and

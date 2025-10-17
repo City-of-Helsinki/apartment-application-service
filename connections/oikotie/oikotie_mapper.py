@@ -90,6 +90,13 @@ def map_city(elastic_apartment: ElasticApartment) -> City:
         )
 
 
+def map_energy_class(elastic_apartment: ElasticApartment) -> str:
+    if energy_class := getattr(elastic_apartment, "project_energy_class", None):
+        return energy_class
+
+    return "Lisätiedot kotisivulta"
+
+
 def map_estate(elastic_apartment: ElasticApartment) -> Optional[Estate]:
     project_holding_type = getattr(elastic_apartment, "project_holding_type", None)
     if project_holding_type in ESTATE_TYPE_MAPPING.keys():
@@ -488,7 +495,7 @@ def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:
         "showing_end_time2": map_showing_end_time(elastic_apartment, 1),
         "showing_date_explanation2": map_showing_date_explanation(elastic_apartment, 1),
         "application_url": getattr(elastic_apartment, "application_url", None),
-        "rc_energyclass": getattr(elastic_apartment, "project_energy_class", None),
+        "rc_energyclass": map_energy_class(elastic_apartment),
         "new_development_status": map_new_development_status(elastic_apartment),
         "time_of_completion": getattr(
             elastic_apartment, "project_completion_date", None
