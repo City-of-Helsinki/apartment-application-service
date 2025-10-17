@@ -366,6 +366,13 @@ def map_apartment_to_link_types(
     ]
 
 
+def map_energy_class(elastic_apartment: ApartmentDocument) -> str:
+    if energy_class := getattr(elastic_apartment, "project_energy_class", None):
+        return energy_class
+
+    return "Lisätiedot kotisivulta"
+
+
 def map_extra_links(elastic_apartment: ApartmentDocument) -> List[ExtraLink]:
     """
     Handles the mapping of ExtraLink properties. If the input value is a list of urls,
@@ -503,7 +510,7 @@ def map_apartment_to_item(elastic_apartment: ApartmentDocument) -> Item:
         "currency_code": Currency.EUR.value,  # EUR is only supported currency.
         "cust_itemcode": getattr(elastic_apartment, "uuid", None),
         "debtfreeprice": map_price(elastic_apartment, debtfreeprice_key),
-        "energyclass": getattr(elastic_apartment, "project_energy_class", None),
+        "energyclass": map_energy_class(elastic_apartment),
         "extralink": map_extra_links(elastic_apartment),
         "floors": getattr(elastic_apartment, "floor_max", None),
         "holdingtype": map_holding_type(elastic_apartment),

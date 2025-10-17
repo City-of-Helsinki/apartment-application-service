@@ -156,17 +156,14 @@ class TestApartmentFetchingFromElasticAndMapping:
 
         assert file_name is None
 
-
     def test_etuovi_map_energy_class_default_value(self):
-        """Energy class should get default value 
+        """Energy class should get default value
         if `ApartmentDocument.project_energy_class` isn't set"""
         apartment_no_energy_class = ApartmentMinimalFactory(
-            url=None,
-            project_energy_class=None
+            url=None, project_energy_class=None
         )
         apartment_with_energy_class = ApartmentMinimalFactory(
-            url=None,
-            project_energy_class="A-class"
+            url=None, project_energy_class="A-class"
         )
         mapped_apartment_with_energy_class = map_apartment_to_item(
             apartment_with_energy_class
@@ -174,12 +171,11 @@ class TestApartmentFetchingFromElasticAndMapping:
         mapped_apartment_no_energy_class = map_apartment_to_item(
             apartment_no_energy_class
         )
-        
+
+        assert mapped_apartment_with_energy_class.energyclass == "A-class"
         assert (
-            mapped_apartment_with_energy_class.energyclass == "A-class"
-        )
-        assert (
-            mapped_apartment_no_energy_class.energyclass == "Lisätiedot kotisivulta."  # noqa: E501
+            mapped_apartment_no_energy_class.energyclass
+            == "Lisätiedot kotisivulta"  # noqa: E501
         )
 
     def test_strip_link_tags(self):

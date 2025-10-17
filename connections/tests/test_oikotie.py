@@ -308,15 +308,13 @@ class TestOikotieMapper:
         pass
 
     def test_oikotie_map_energy_class_default_value(self):
-        """Energy class should get default value 
+        """Energy class should get default value
         if `ApartmentDocument.project_energy_class` isn't set"""
         apartment_no_energy_class = ApartmentMinimalFactory(
-            url=None,
-            project_energy_class=None
+            url=None, project_energy_class=None
         )
         apartment_with_energy_class = ApartmentMinimalFactory(
-            url=None,
-            project_energy_class="A-class"
+            url=None, project_energy_class="A-class"
         )
         mapped_apartment_with_energy_class = map_oikotie_apartment(
             apartment_with_energy_class
@@ -324,12 +322,11 @@ class TestOikotieMapper:
         mapped_apartment_no_energy_class = map_oikotie_apartment(
             apartment_no_energy_class
         )
-        
+
+        assert mapped_apartment_with_energy_class.rc_energyclass == "A-class"
         assert (
-            mapped_apartment_with_energy_class.rc_energyclass == "A-class"
-        )
-        assert (
-            mapped_apartment_no_energy_class.rc_energyclass == "Lisätiedot kotisivulta."  # noqa: E501
+            mapped_apartment_no_energy_class.rc_energyclass
+            == "Lisätiedot kotisivulta"  # noqa: E501
         )
         pass
 
