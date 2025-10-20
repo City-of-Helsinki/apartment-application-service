@@ -564,7 +564,11 @@ class XlsxSalesReportExportService(XlsxExportService):
     ROW_TYPE_SALE = "sale"
     ROW_TYPE_TERMINATION = "termination"
 
-    def __init__(self, state_events: List[ApartmentReservationStateChangeEvent], project_uuids: List[str]):
+    def __init__(
+        self,
+        state_events: List[ApartmentReservationStateChangeEvent],
+        project_uuids: List[str],
+    ):
         self.state_events = state_events
         self.project_uuids = project_uuids
 
@@ -667,7 +671,6 @@ class XlsxSalesReportExportService(XlsxExportService):
         hitas_sold = self._get_sold_hitas_apartments(apartments)
         haso_sold = self._get_sold_haso_apartments(apartments)
 
- 
         header_rows = [
             [
                 "Kohteen osoite",
@@ -719,7 +722,7 @@ class XlsxSalesReportExportService(XlsxExportService):
         terminated_sales_apartments = self._get_apartments_with_terminated_sales(
             apartments
         )
-        is_haso = self._is_haso(project)
+
         is_hitas = self._is_hitas(project)
         totals = self._get_project_totals(project)
 
@@ -739,55 +742,90 @@ class XlsxSalesReportExportService(XlsxExportService):
         if len(sold_apartments) > 0:
             rows.append(
                 [
-                    *self._get_subheader_row(self.ROW_TYPE_SALE),
+                    *self._get_subheader_row(self.ROW_TYPE_SALE, is_hitas),
                     self.HIGHLIGHT_COLOR,
                 ]
             )
 
-        for apartment in sold_apartments:
-            rows.append(self._get_apartment_row(apartment, row_type=self.ROW_TYPE_SALE))
+            for apartment in sold_apartments:
+                rows.append(
+                    self._get_apartment_row(apartment, row_type=self.ROW_TYPE_SALE)
+                )
+
+            rows.append(
+                self._get_project_total_sold_row(
+                    sold_apartments=sold_apartments, is_hitas=is_hitas
+                )
+            )
 
         if len(terminated_sales_apartments) > 0:
             rows.append(
                 [
-                    *self._get_subheader_row(self.ROW_TYPE_TERMINATION),
-                    "Purkamispäivä" if is_haso else "Irtisanomispäivä",
+                    *self._get_subheader_row(self.ROW_TYPE_TERMINATION, is_hitas),
+                    "Irtisanomispäivä" if is_hitas else "Purkamispäivä",
                     self.HIGHLIGHT_COLOR,
-
                 ]
             )
             for apartment in terminated_sales_apartments:
-                rows.append(self._get_apartment_row(apartment, row_type=self.ROW_TYPE_TERMINATION))
-
-        totals_row = [
-            "Yhteensä",
-            (
-                self._sum_cents(x.sales_price or 0 for x in sold_apartments)
-                if is_hitas
-                else ""
-            ),  # noqa: E501
-            (
-                self._sum_cents(x.debt_free_sales_price or 0 for x in sold_apartments)
-                if is_hitas
-                else ""
-            ),  # noqa: E501
-            (
-                self._sum_cents(
-                    x.right_of_occupancy_payment or 0 for x in sold_apartments
+                rows.append(
+                    self._get_apartment_row(
+                        apartment, row_type=self.ROW_TYPE_TERMINATION
+                    )
                 )
-                if is_haso
-                else ""
-            ),  # noqa: E501
-            self.HIGHLIGHT_COLOR,
-        ]
-        rows.append(totals_row)
+            rows.append(
+                self._get_project_total_terminated_row(
+                    terminated_apartments=terminated_sales_apartments, is_hitas=is_hitas
+                )
+            )
+
         rows.append([""])
 
         return rows
 
+    def _get_project_total_terminated_row(
+        self, terminated_apartments, is_hitas
+    ) -> List[Union[str, Decimal]]:
+        verb = self._verb(self.ROW_TYPE_TERMINATION, is_hitas)
+
+        row = [
+            f"{verb} yhteensä",
+            *self._get_apartment_price_sum_cells(terminated_apartments, is_hitas),
+            self.HIGHLIGHT_COLOR,
+        ]
+
+        return row
+
+    def _get_project_total_sold_row(
+        self, sold_apartments, is_hitas
+    ) -> List[Union[str, Decimal]]:
+        row = [
+            "Myydyt yhteensä",
+            *self._get_apartment_price_sum_cells(sold_apartments, is_hitas),
+            self.HIGHLIGHT_COLOR,
+        ]
+        return row
+
+    def _get_apartment_price_sum_cells(self, apartments, is_hitas) -> List[Decimal]:
+        return [
+            (
+                self._sum_cents(x.sales_price or 0 for x in apartments)
+                if is_hitas
+                else ""
+            ),  # noqa: E501
+            (
+                self._sum_cents(x.debt_free_sales_price or 0 for x in apartments)
+                if is_hitas
+                else ""
+            ),  # noqa: E501
+            (
+                self._sum_cents(x.right_of_occupancy_payment or 0 for x in apartments)
+                if not is_hitas
+                else ""
+            ),  # noqa: E501
+        ]
+
     def _get_total_terminated_row(
-        self,
-        apartments: List[ApartmentDocument]
+        self, apartments: List[ApartmentDocument]
     ) -> List[Union[str, Decimal]]:
         terminated_haso_count = len(
             self._get_apartments_with_terminated_sales(
@@ -805,7 +843,7 @@ class XlsxSalesReportExportService(XlsxExportService):
             terminated_hitas_count,
             terminated_haso_count,
             "",
-            terminated_haso_count+terminated_hitas_count,
+            terminated_haso_count + terminated_hitas_count,
             self.HIGHLIGHT_COLOR,
         ]
 
@@ -826,10 +864,10 @@ class XlsxSalesReportExportService(XlsxExportService):
             self.HIGHLIGHT_COLOR,
         ]
 
-    def _get_subheader_row(self, row_type: Literal["sale", "termination"]) -> List[str]:
-        verb = {
-            self.ROW_TYPE_SALE: "Myydyt", self.ROW_TYPE_TERMINATION: "Irtisanotut"
-        }[row_type]
+    def _get_subheader_row(
+        self, row_type: Literal["sale", "termination"], is_hitas: bool
+    ) -> List[str]:
+        verb = self._verb(row_type, is_hitas)
 
         return [
             f"{verb} huoneistot",
@@ -840,7 +878,7 @@ class XlsxSalesReportExportService(XlsxExportService):
         ]
 
     def _get_apartment_row(
-            self, apartment, row_type:Literal["sale", "termination"]
+        self, apartment, row_type: Literal["sale", "termination"]
     ) -> List:
         is_haso = self._is_haso(apartment)
         is_hitas = self._is_hitas(apartment)
@@ -861,7 +899,6 @@ class XlsxSalesReportExportService(XlsxExportService):
 
         return row
 
-
     def _get_apartment_sale_row_cells(self, apartment: ApartmentDocument) -> List:
 
         cells = [
@@ -870,15 +907,17 @@ class XlsxSalesReportExportService(XlsxExportService):
 
         return cells
 
-    def _get_apartment_termination_row_cells(self, apartment: ApartmentDocument) -> List:
+    def _get_apartment_termination_row_cells(
+        self, apartment: ApartmentDocument
+    ) -> List:
         cells = [
             self._get_apartment_date_of_event(
                 apartment,
                 event=self._get_latest_apartment_event(
-                    apartment, 
+                    apartment,
                     state=ApartmentReservationState.CANCELED,
-                    cancellation_reason=ApartmentReservationCancellationReason.TERMINATED
-                )
+                    cancellation_reason=ApartmentReservationCancellationReason.TERMINATED,  # noqa: E501
+                ),
             )
         ]
         return cells
@@ -896,36 +935,37 @@ class XlsxSalesReportExportService(XlsxExportService):
         return unsold_count
 
     def _get_apartments_with_terminated_sales(
-            self,
-            apartments: List[ApartmentDocument]
+        self, apartments: List[ApartmentDocument]
     ) -> List[ApartmentDocument]:
 
         return self._get_canceled_apartments_with_cancellation_reason(
             apartments=apartments,
-            cancellation_reason=ApartmentReservationCancellationReason.TERMINATED 
+            cancellation_reason=ApartmentReservationCancellationReason.TERMINATED,
         )
-
 
     def _get_canceled_apartments_with_cancellation_reason(
         self,
         apartments: List[ApartmentDocument],
-        cancellation_reason: ApartmentReservationCancellationReason
+        cancellation_reason: ApartmentReservationCancellationReason,
     ):
         apartment_uuids = [ap.uuid for ap in apartments]
-        filtered_apartment_uuids = self.state_events.filter(
-            reservation__apartment_uuid__in=apartment_uuids,
-            cancellation_reason=cancellation_reason.value
-        ).annotate(
-            auuid=Cast("reservation__apartment_uuid", output_field=CharField())
-        ).values_list(
-            "auuid", flat=True
-        ).values_list("auuid", flat=True)
+        filtered_apartment_uuids = (
+            self.state_events.filter(
+                reservation__apartment_uuid__in=apartment_uuids,
+                cancellation_reason=cancellation_reason.value,
+            )
+            .annotate(
+                auuid=Cast("reservation__apartment_uuid", output_field=CharField())
+            )
+            .values_list("auuid", flat=True)
+            .values_list("auuid", flat=True)
+        )
 
         return [
-            apartment for apartment in apartments
+            apartment
+            for apartment in apartments
             if apartment.uuid in filtered_apartment_uuids
         ]
-
 
     def _get_sold_apartments(
         self, apartments: List[ApartmentDocument]
@@ -1010,11 +1050,9 @@ class XlsxSalesReportExportService(XlsxExportService):
             apartment, state=ApartmentReservationState.SOLD
         )
 
-    def _get_latest_apartment_event(
-        self, apartment: ApartmentDocument, **kwargs
-    ):
+    def _get_latest_apartment_event(self, apartment: ApartmentDocument, **kwargs):
         """
-        Shorthand for getting latest ApartmentReservationStateChangeEvent 
+        Shorthand for getting latest ApartmentReservationStateChangeEvent
         related to `apartment` by the given `kwargs`
 
         For example to get all termination events:
@@ -1023,7 +1061,7 @@ class XlsxSalesReportExportService(XlsxExportService):
             state=ApartmentReservationState.CANCELED
             cancellation_reason=ApartmentReservationCancellationReason.TERMINATED
         )```
-        
+
         """
 
         return (
@@ -1036,7 +1074,6 @@ class XlsxSalesReportExportService(XlsxExportService):
         )
         pass
 
-
     def _get_apartment_date_of_sale(
         self, apartment: ApartmentDocument
     ) -> Union[datetime, None]:
@@ -1047,10 +1084,8 @@ class XlsxSalesReportExportService(XlsxExportService):
             apartment (ApartmentDocument):
         """
         return self._get_apartment_date_of_event(
-            apartment,
-            event=self._get_apartment_sold_event(apartment)
+            apartment, event=self._get_apartment_sold_event(apartment)
         )
-
 
     def _get_apartment_date_of_event(
         self, apartment: ApartmentDocument, event: ApartmentReservationStateChangeEvent
@@ -1094,6 +1129,14 @@ class XlsxSalesReportExportService(XlsxExportService):
         if cents is None:
             cents = Decimal(0.00)
         return Decimal(cents) / 100
+
+    def _verb(self, row_type, is_hitas=True):
+        if row_type == self.ROW_TYPE_SALE:
+            return "Myydyt"
+        if row_type == self.ROW_TYPE_TERMINATION and is_hitas:
+            return "Puretut"
+
+        return "Irtisanotut"
 
 
 class SaleReportExportService(CSVExportService):

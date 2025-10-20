@@ -228,7 +228,7 @@ class SaleReportAPIView(APIView):
             ],
             state__in=[
                 ApartmentReservationState.SOLD,
-                ApartmentReservationState.CANCELED
+                ApartmentReservationState.CANCELED,
             ],
         )
 
