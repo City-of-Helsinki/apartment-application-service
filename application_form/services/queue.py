@@ -149,6 +149,7 @@ def _calculate_queue_position(
         apartment_uuid=apartment_uuid
     ).only(
         "queue_position",
+        "state",
         "application_apartment__application__right_of_residence",
         "application_apartment__application__right_of_residence_is_old_batch",
     )
@@ -156,11 +157,19 @@ def _calculate_queue_position(
     reservations = all_reservations.filter(
         application_apartment__application__submitted_late=submitted_late
     ).order_by("queue_position")
+
+    offered_or_sold_states = [
+        ApartmentReservationState.OFFER_ACCEPTED,
+        ApartmentReservationState.OFFERED,
+        ApartmentReservationState.SOLD,
+    ]
     for apartment_reservation in reservations:
         other_application = apartment_reservation.application_apartment.application
+
         if (
             right_of_residence_ordering_number
             < other_application.right_of_residence_ordering_number
+            and apartment_reservation.state not in offered_or_sold_states
         ):
             return apartment_reservation.queue_position
     return all_reservations.count() + 1
