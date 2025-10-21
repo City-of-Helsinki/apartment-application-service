@@ -83,6 +83,7 @@ from invoicing.models import ApartmentInstallment
 from invoicing.sap.send.xml_utils import (
     get_base_line_date_string,
     get_installment_type_text,
+    get_posting_date,
     get_wbs_element,
 )
 
@@ -122,7 +123,7 @@ def _append_account_receivable_container_xml(
 
     # FI: Tositteen kirjauspäivämäärä
     posting_date = SubElement(sbo_account_receivable, "PostingDate")
-    posting_date.text = create_at_str
+    posting_date.text = get_posting_date(apartment_installment.due_date)
 
     # FI: Viite
     reference = SubElement(sbo_account_receivable, "Reference")

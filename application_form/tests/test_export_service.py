@@ -213,6 +213,11 @@ def _validate_mailing_list_csv(
             secondary_profile.city or "",
             secondary_profile.national_identification_number or "",
             "X" if bool(reservation.has_children) else "",
+            (
+                ""
+                if reservation.has_hitas_ownership is None
+                else ("Kyllä" if reservation.has_hitas_ownership else "Ei")
+            ),
             apartment.project_street_address or "",
             apartment.project_postal_code or "",
             apartment.project_city or "",
@@ -261,13 +266,13 @@ def test_sorting_function(reservations):
 @pytest.mark.parametrize(
     "export_type,project_ownership_type,expected_column_count",
     [
-        (ApartmentReservationState.SOLD.value, OwnershipType.HASO, 28),
-        (ApartmentReservationState.SOLD.value, OwnershipType.HITAS, 22),
-        (ApartmentReservationState.RESERVED.value, OwnershipType.HASO, 22),
+        (ApartmentReservationState.SOLD.value, OwnershipType.HASO, 29),
+        (ApartmentReservationState.SOLD.value, OwnershipType.HITAS, 23),
+        (ApartmentReservationState.RESERVED.value, OwnershipType.HASO, 23),
         (
             ApplicantMailingListExportService.export_first_in_queue,
             OwnershipType.HASO,
-            22,
+            23,
         ),
     ],
 )

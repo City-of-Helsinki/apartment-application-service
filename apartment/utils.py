@@ -36,33 +36,42 @@ def get_apartment_state_of_sale_from_event(event):
     the apartment should show as RESERVED (varattu) or RESERVED_HASO (käsittelyssä)
     depending on the apartment type
     """
+    from application_form.enums import ApartmentReservationCancellationReason
+
     if event.state == ApartmentReservationState.SOLD:
         return ApartmentStateOfSale.SOLD
     # Should only check for `FREE` state if
     # the latest change is a reservation cancellation
+    apt_uuid = event.reservation.apartment_uuid
+    active_qs = (
+        ApartmentReservation.objects.active().filter(apartment_uuid=apt_uuid).only("id")
+    )
+    active_count = active_qs.count()
+
     if event.state == ApartmentReservationState.CANCELED:
         if (
-            ApartmentReservation.objects.active()
-            .filter(apartment_uuid=event.reservation.apartment_uuid)
-            .only("id")
-            .count()
-            == 0
+            getattr(event, "cancellation_reason", None)
+            == ApartmentReservationCancellationReason.TERMINATED
         ):
-            return ApartmentStateOfSale.FREE_FOR_RESERVATIONS
-        # Edge case when there is already a sold reservation
-        if (
-            ApartmentReservation.objects.active()
-            .filter(
-                apartment_uuid=event.reservation.apartment_uuid,
-                state=ApartmentReservationState.SOLD,
+            if active_count == 0:
+                return ApartmentStateOfSale.FREE_FOR_RESERVATIONS
+            apartment_type = get_apartment(
+                apt_uuid, include_project_fields=True
+            ).project_ownership_type
+            return (
+                ApartmentStateOfSale.RESERVED_HASO
+                if apartment_type.lower() == OwnershipType.HASO.value
+                else ApartmentStateOfSale.RESERVED
             )
-            .only("id")
-            .exists()
-        ):
+
+        if active_count == 0:
+            return ApartmentStateOfSale.FREE_FOR_RESERVATIONS
+
+        if active_qs.filter(state=ApartmentReservationState.SOLD).exists():
             return ApartmentStateOfSale.SOLD
 
     apartment_type = get_apartment(
-        event.reservation.apartment_uuid, include_project_fields=True
+        apt_uuid, include_project_fields=True
     ).project_ownership_type
     if apartment_type.lower() == OwnershipType.HASO.value:
         return ApartmentStateOfSale.RESERVED_HASO
@@ -98,17 +107,23 @@ def form_description_with_link(elastic_apartment: ApartmentDocument):
     if main_text:
         main_text = clean_html_tags_from_text(main_text)
     project_link = getattr(elastic_apartment, "project_url", None)
-    apartment_link = getattr(elastic_apartment, "url", None)
+    apartment_link_text = None
+    if apartment_link := getattr(elastic_apartment, "url", None):
+        apartment_link_text = f"Linkki asunnon sivulle:\n{apartment_link}"
 
     project_link_text = f"Tarkemman kohde-esittelyn sekä varaustilanteen löydät täältä:\n{project_link}"  # noqa: E501
     if project_link:
-        return "\n\n".join(filter(None, [project_link_text, main_text, apartment_link]))
+        return "\n\n".join(
+            filter(None, [project_link_text, main_text, apartment_link_text])
+        )
 
-    if apartment_link:
-        return "\n\n".join(filter(None, [main_text, apartment_link]))
+    if apartment_link_text:
+        return "\n\n".join(filter(None, [main_text, apartment_link_text]))
 
     if main_text and project_link:
-        return f"{optional_text}\n{project_link}\n\n{main_text}\n\n{apartment_link}"
+        return (
+            f"{optional_text}\n{project_link}\n\n{main_text}\n\n{apartment_link_text}"
+        )
 
     if not main_text and project_link:
         return f"{optional_text}\n"

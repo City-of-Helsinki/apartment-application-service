@@ -257,14 +257,14 @@ class TestOikotieMapper:
                 "full description",
                 "link_to_apartment",
                 "link_to_project",
-                "Tarkemman kohde-esittelyn sekä varaustilanteen löydät täältä:\nlink_to_project\n\nfull description\n\nlink_to_apartment",  # noqa: E501
+                "Tarkemman kohde-esittelyn sekä varaustilanteen löydät täältä:\nlink_to_project\n\nfull description\n\nLinkki asunnon sivulle:\nlink_to_apartment",  # noqa: E501
             ),
             (
                 None,
                 "link_to_apartment",
                 "link_to_project",
                 "Tarkemman kohde-esittelyn sekä varaustilanteen löydät täältä:"
-                + "\nlink_to_project\n\nlink_to_apartment",
+                + "\nlink_to_project\n\nLinkki asunnon sivulle:\nlink_to_apartment",
             ),
             (
                 "full description",
@@ -305,6 +305,29 @@ class TestOikotieMapper:
             pytest.fail(
                 f"Description truncated from {len(expected_description)} to {len(description_elem.text)} characters"  # noqa: E501
             )
+        pass
+
+    def test_oikotie_map_energy_class_default_value(self):
+        """Energy class should get default value
+        if `ApartmentDocument.project_energy_class` isn't set"""
+        apartment_no_energy_class = ApartmentMinimalFactory(
+            url=None, project_energy_class=None
+        )
+        apartment_with_energy_class = ApartmentMinimalFactory(
+            url=None, project_energy_class="A-class"
+        )
+        mapped_apartment_with_energy_class = map_oikotie_apartment(
+            apartment_with_energy_class
+        )
+        mapped_apartment_no_energy_class = map_oikotie_apartment(
+            apartment_no_energy_class
+        )
+
+        assert mapped_apartment_with_energy_class.rc_energyclass == "A-class"
+        assert (
+            mapped_apartment_no_energy_class.rc_energyclass
+            == "Lisätiedot kotisivulta"  # noqa: E501
+        )
         pass
 
     def test_oikotie_map_correct_price_info(self):
