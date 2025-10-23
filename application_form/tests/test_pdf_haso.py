@@ -5,18 +5,18 @@ from decimal import Decimal
 
 import pytest
 
-from apartment.enums import OwnershipType
-from apartment.tests.factories import ApartmentDocumentFactory
 from apartment_application_service.pdf import PDFCurrencyField as CF
-from application_form.tests.factories import ApartmentReservationFactory
 from users.tests.factories import UserFactory
 
 from ..pdf.haso import (
     create_haso_contract_pdf_from_data,
-    get_haso_contract_pdf_data,
     HasoContractPDFData,
 )
-from .pdf_utils import get_cleaned_pdf_texts, remove_pdf_id, set_up_contract_pdf_test_data
+from .pdf_utils import (
+    get_cleaned_pdf_texts,
+    remove_pdf_id,
+    set_up_contract_pdf_test_data,
+)
 
 # This variable should be normally False, but can be set temporarily to
 # True to override the expected test result PDF file.  This is useful
@@ -85,7 +85,7 @@ class TestHasoContractPdfFromData(unittest.TestCase):
 
     @pytest.mark.django_db
     def test_payment_recipient_field_goes_on_pdf(self):
-        
+
         pass
 
     @pytest.mark.django_db

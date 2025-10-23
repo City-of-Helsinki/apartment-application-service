@@ -7,13 +7,15 @@ import pytest
 from django.utils.translation import gettext_lazy as _
 
 from customer.tests.factories import CustomerFactory
-from invoicing.pdf import _get_payer_name_and_address, get_invoice_pdf_data_from_installment
+from invoicing.pdf import (
+    _get_payer_name_and_address,
+    get_invoice_pdf_data_from_installment,
+)
 from users.tests.factories import ProfileFactory
 
+
 @pytest.mark.django_db
-@pytest.mark.parametrize(
-    "ownership_type", (OwnershipType.HASO, OwnershipType.HITAS)
-)
+@pytest.mark.parametrize("ownership_type", (OwnershipType.HASO, OwnershipType.HITAS))
 def test_pdf_payment_recipients_set_correctly(ownership_type):
     apartment = ApartmentDocumentFactory(
         project_ownership_type=ownership_type.value,
@@ -41,14 +43,23 @@ def test_pdf_payment_recipients_set_correctly(ownership_type):
         type=final_installment_type,
     )
 
-
-    first_installment_pdf_data = get_invoice_pdf_data_from_installment(first_installment)
-    final_installment_pdf_data = get_invoice_pdf_data_from_installment(final_installment)
+    first_installment_pdf_data = get_invoice_pdf_data_from_installment(
+        first_installment
+    )
+    final_installment_pdf_data = get_invoice_pdf_data_from_installment(
+        final_installment
+    )
 
     assert first_installment_pdf_data.recipient == apartment.project_payment_recipient
-    assert final_installment_pdf_data.recipient == apartment.project_payment_recipient_final  # noqa: E501
+    assert (
+        final_installment_pdf_data.recipient
+        == apartment.project_payment_recipient_final
+    )  # noqa: E501
+
+    # assert the final payment still gets the final recipient
 
     pass
+
 
 @pytest.mark.django_db
 def test_pdf_payer_name_address_correct():

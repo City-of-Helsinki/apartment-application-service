@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import Decimal
 
-from application_form.tests.factories import ApartmentReservationFactory
 import pytest
 from django.contrib.auth import get_user_model
 
@@ -27,7 +26,10 @@ from ..pdf.hitas import (
     HitasCompleteApartmentContractPDFData,
     HitasContractPDFData,
 )
-from .pdf_utils import get_cleaned_pdf_texts, remove_pdf_id, set_up_contract_pdf_test_data
+from .pdf_utils import (
+    get_cleaned_pdf_texts,
+    remove_pdf_id,
+)
 
 # This variable should be normally False, but can be set temporarily to
 # True to override the expected test result PDF file.  This is useful
@@ -250,7 +252,6 @@ class TesthitasCompleteApartmentContractPdfFromData(unittest.TestCase):
             # Don't assert a == b, because the output is too long to be
             # printed in the test output.
             assert False, "Invalid PDF content"
-
 
     def test_pdf_content_is_correct(self):
         # regression test
@@ -626,7 +627,6 @@ class TesthitasContractPdfFromData(unittest.TestCase):
 
     def test_pdf_content_is_not_empty(self):
         assert self.pdf_content
-
 
     def test_pdf_content_text_is_correct(self):
         # acquire a new version of this PDF array by running

@@ -8,7 +8,11 @@ from apartment.enums import OwnershipType
 from apartment.tests.factories import ApartmentDocumentFactory
 from application_form.models.reservation import ApartmentReservation
 from application_form.pdf.haso import HasoContractPDFData, get_haso_contract_pdf_data
-from application_form.pdf.hitas import HitasCompleteApartmentContractPDFData, HitasContractPDFData, get_hitas_contract_pdf_data
+from application_form.pdf.hitas import (
+    HitasCompleteApartmentContractPDFData,
+    HitasContractPDFData,
+    get_hitas_contract_pdf_data,
+)
 from application_form.tests.factories import ApartmentReservationFactory
 from invoicing.enums import InstallmentType
 from invoicing.tests.factories import ApartmentInstallmentFactory
@@ -65,59 +69,61 @@ def remove_pdf_id(pdf: bytes) -> bytes:
 
 
 def set_up_contract_pdf_test_data(
-        ownership_type:Union[OwnershipType, None]=OwnershipType.HASO,
-        apartment: Union[ApartmentDocument, None]=None,
-        reservation: Union[ApartmentReservation, None]=None,
-        salesperson:Union[str, None]=None,
-        sales_price_paid_place:Union[str, None]=None,
-        sales_price_paid_time:Union[str, None]=None
-    ) -> Union[HitasContractPDFData, HitasCompleteApartmentContractPDFData, HasoContractPDFData]:  # noqa: E501
+    ownership_type: Union[OwnershipType, None] = OwnershipType.HASO,
+    apartment: Union[ApartmentDocument, None] = None,
+    reservation: Union[ApartmentReservation, None] = None,
+    salesperson: Union[str, None] = None,
+    sales_price_paid_place: Union[str, None] = None,
+    sales_price_paid_time: Union[str, None] = None,
+) -> Union[
+    HitasContractPDFData, HitasCompleteApartmentContractPDFData, HasoContractPDFData
+]:  # noqa: E501
 
-        faker = Faker()
-        if not apartment:
-            apartment = ApartmentDocumentFactory(
-                project_ownership_type=ownership_type.value
-            )
-
-        if not reservation:
-            reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
-
-        installment_types = [
-            InstallmentType.PAYMENT_1,
-            InstallmentType.PAYMENT_2,
-            InstallmentType.PAYMENT_3,
-            InstallmentType.PAYMENT_4,
-            InstallmentType.PAYMENT_5,
-            InstallmentType.PAYMENT_6,
-            InstallmentType.PAYMENT_7,
-        ]
-        for installment_type in installment_types:
-            ApartmentInstallmentFactory(
-                apartment_reservation=reservation,
-                value=100_000,
-                type=installment_type,
-            )
-            pass
-
-        if not salesperson:
-            salesperson = UserFactory()
-
-        if not sales_price_paid_place:
-            sales_price_paid_place = faker.city()
-
-        if not sales_price_paid_time:
-            sales_price_paid_time = f"{date.today():%d.%m.%Y}"
-
-        func = {
-            OwnershipType.HASO: get_haso_contract_pdf_data,
-            OwnershipType.HITAS: get_hitas_contract_pdf_data
-        }[ownership_type]
-
-        pdf_data = func(
-            reservation,
-            salesperson=salesperson,
-            sales_price_paid_place=sales_price_paid_place,
-            sales_price_paid_time=sales_price_paid_time,
+    faker = Faker()
+    if not apartment:
+        apartment = ApartmentDocumentFactory(
+            project_ownership_type=ownership_type.value
         )
 
-        return pdf_data
+    if not reservation:
+        reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
+
+    installment_types = [
+        InstallmentType.PAYMENT_1,
+        InstallmentType.PAYMENT_2,
+        InstallmentType.PAYMENT_3,
+        InstallmentType.PAYMENT_4,
+        InstallmentType.PAYMENT_5,
+        InstallmentType.PAYMENT_6,
+        InstallmentType.PAYMENT_7,
+    ]
+    for installment_type in installment_types:
+        ApartmentInstallmentFactory(
+            apartment_reservation=reservation,
+            value=100_000,
+            type=installment_type,
+        )
+        pass
+
+    if not salesperson:
+        salesperson = UserFactory()
+
+    if not sales_price_paid_place:
+        sales_price_paid_place = faker.city()
+
+    if not sales_price_paid_time:
+        sales_price_paid_time = f"{date.today():%d.%m.%Y}"
+
+    func = {
+        OwnershipType.HASO: get_haso_contract_pdf_data,
+        OwnershipType.HITAS: get_hitas_contract_pdf_data,
+    }[ownership_type]
+
+    pdf_data = func(
+        reservation,
+        salesperson=salesperson,
+        sales_price_paid_place=sales_price_paid_place,
+        sales_price_paid_time=sales_price_paid_time,
+    )
+
+    return pdf_data
