@@ -1,22 +1,24 @@
-from datetime import date
 import re
 import subprocess
+from datetime import date
 from typing import List, Union
+
+import pytest
 from faker import Faker
+
 from apartment.elastic.documents import ApartmentDocument
 from apartment.enums import OwnershipType
 from apartment.tests.factories import ApartmentDocumentFactory
 from application_form.models.reservation import ApartmentReservation
-from application_form.pdf.haso import HasoContractPDFData, get_haso_contract_pdf_data
+from application_form.pdf.haso import get_haso_contract_pdf_data, HasoContractPDFData
 from application_form.pdf.hitas import (
+    get_hitas_contract_pdf_data,
     HitasCompleteApartmentContractPDFData,
     HitasContractPDFData,
-    get_hitas_contract_pdf_data,
 )
 from application_form.tests.factories import ApartmentReservationFactory
 from invoicing.enums import InstallmentType
 from invoicing.tests.factories import ApartmentInstallmentFactory
-import pytest
 from users.tests.factories import UserFactory
 
 

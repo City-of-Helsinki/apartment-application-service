@@ -1,16 +1,16 @@
-from apartment.enums import OwnershipType
-from apartment.tests.factories import ApartmentDocumentFactory
-from application_form.tests.factories import ApartmentReservationFactory
-from invoicing.enums import InstallmentType
-from invoicing.tests.factories import ApartmentInstallmentFactory
 import pytest
 from django.utils.translation import gettext_lazy as _
 
+from apartment.enums import OwnershipType
+from apartment.tests.factories import ApartmentDocumentFactory
+from application_form.tests.factories import ApartmentReservationFactory
 from customer.tests.factories import CustomerFactory
+from invoicing.enums import InstallmentType
 from invoicing.pdf import (
     _get_payer_name_and_address,
     get_invoice_pdf_data_from_installment,
 )
+from invoicing.tests.factories import ApartmentInstallmentFactory
 from users.tests.factories import ProfileFactory
 
 

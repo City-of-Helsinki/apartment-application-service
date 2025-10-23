@@ -5,6 +5,7 @@ from datetime import date
 from typing import List, Tuple
 
 from django.utils import timezone
+
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import apartment_query
 from connections.enums import ApartmentStateOfSale

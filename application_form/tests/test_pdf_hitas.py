@@ -26,10 +26,7 @@ from ..pdf.hitas import (
     HitasCompleteApartmentContractPDFData,
     HitasContractPDFData,
 )
-from .pdf_utils import (
-    get_cleaned_pdf_texts,
-    remove_pdf_id,
-)
+from .pdf_utils import get_cleaned_pdf_texts, remove_pdf_id
 
 # This variable should be normally False, but can be set temporarily to
 # True to override the expected test result PDF file.  This is useful
