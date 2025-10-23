@@ -390,253 +390,278 @@ class HitasContractPDFData(PDFData):
     }
 
 
+def get_hitas_contract_pdf_data(
+        apartment: ApartmentDocument,
+        reservation: ApartmentReservation,
+        sales_price_paid_place: str,
+        sales_price_paid_time: str,
+        salesperson: User,
+    ) -> Union[HitasContractPDFData, HitasCompleteApartmentContractPDFData]:
+        customer = SafeAttributeObject(reservation.customer)
+        primary_profile = SafeAttributeObject(customer.primary_profile)
+        secondary_profile = SafeAttributeObject(customer.secondary_profile)
+
+        # use contract for complete apartment
+        # can possibly be None, use bool() to convert to False in that case
+        complete_apartment = bool(apartment.project_use_complete_contract)
+
+        (
+            payment_1,
+            payment_2,
+            payment_3,
+            payment_4,
+            payment_5,
+            payment_6,
+            payment_7,
+        ) = _get_numbered_installments(apartment, reservation)
+
+        down_payment = SafeAttributeObject(
+            reservation.apartment_installments.filter(
+                type=InstallmentType.DOWN_PAYMENT
+            ).first()
+        )
+
+        sales_price_paid_place_and_time = (
+            f"{sales_price_paid_place} {sales_price_paid_time}"
+        )
+
+        def hitas_price(cents: Union[int, None]) -> Union[PDFCurrencyField, None]:
+            """Turns the price in cents to whole euros (division by 100). Outputs
+            a PDFCurrencyField prefilled with a string that has the euro sum
+            as words (in Finnish) and as numbers.
+
+            e.g.
+            12000 -> "tuhat kaksisataa 1200 €"
+
+            11000000 -> "satakymmenentuhatta 110000 €"
+
+            31115224 -> "kolmekymmentäyksimiljoonaa sataviisitoistatuhatta
+            kaksisataakaksikymmentäneljä 31115224 €"
+
+            Args:
+                cents (Union[int, None]): The sum in cents
+
+            Returns: Union[PDFCurrencyField, None]:
+            """
+            if cents is None:
+                return None
+            return PDFCurrencyField(
+                prefix=num2words(Decimal(cents) / 100, lang="fi") + " ",
+                cents=cents,
+                suffix=" €",
+            )
+
+        signing_buyers = " & ".join(
+            name
+            for name in [primary_profile.full_name, secondary_profile.full_name]
+            if name
+        )
+
+        contract_data = {
+            "occupant_1": primary_profile.full_name,
+            "occupant_1_share_of_ownership": None,
+            "occupant_1_address": (
+                (primary_profile.street_address or "")
+                + ", "
+                + (primary_profile.postal_code or "")
+                + " "
+                + (primary_profile.city or "")
+            ).strip(),
+            "occupant_1_phone_number": primary_profile.phone_number,
+            "occupant_1_email": primary_profile.email,
+            "occupant_1_ssn_or_business_id": primary_profile.national_identification_number,
+            "occupant_2": secondary_profile.full_name,
+            "occupant_2_share_of_ownership": None,
+            "occupant_2_address": (
+                (secondary_profile.street_address or "")
+                + ", "
+                + (secondary_profile.postal_code or "")
+                + " "
+                + (secondary_profile.city or "")
+            ).strip(),
+            "occupant_2_phone_number": secondary_profile.phone_number,
+            "occupant_2_email": secondary_profile.email,
+            "occupant_2_ssn_or_business_id": secondary_profile.national_identification_number,  # noqa: E501
+            "project_housing_company": apartment.project_housing_company,
+            "project_contract_business_id": apartment.project_contract_business_id,
+            "project_address": "  ".join(
+                [
+                    apartment.project_street_address,
+                    f"{apartment.project_postal_code} {apartment.project_city}",
+                ]
+            ),
+            "project_realty_id": apartment.project_realty_id,
+            "housing_type_ownership": False,
+            "housing_type_rental": True,
+            "housing_shares": f"{apartment.stock_start_number or ''} - {apartment.stock_end_number or ''}",  # noqa: E501
+            "apartment_street_address": None,
+            "apartment_structure": apartment.apartment_structure,
+            "apartment_number": apartment.apartment_number,
+            "floor": apartment.floor,
+            "living_area": apartment.living_area,
+            "other_space": None,
+            "other_space_area": None,
+            "project_contract_transfer_restriction_false": apartment.project_contract_transfer_restriction  # noqa E501
+            is False,
+            "project_contract_transfer_restriction_true": apartment.project_contract_transfer_restriction,  # noqa E501
+            "project_contract_transfer_restriction_text": apartment.project_contract_article_of_association,  # noqa E501
+            "project_contract_material_selection_later_false": apartment.project_contract_material_selection_later  # noqa E501
+            is False,
+            "project_contract_material_selection_later_true": apartment.project_contract_material_selection_later,  # noqa E501
+            "project_contract_material_selection_description": apartment.project_contract_material_selection_description,  # noqa E501
+            "project_contract_material_selection_date": apartment.project_contract_material_selection_date,  # noqa E501
+            "sales_price": hitas_price(apartment.sales_price),
+            "loan_share": hitas_price(apartment.loan_share),
+            "debt_free_sales_price": hitas_price(apartment.debt_free_sales_price),
+            "payment_1_label": payment_1.type,
+            "payment_1_amount": PDFCurrencyField(euros=payment_1.value),
+            "payment_1_due_date": payment_1.due_date,
+            "payment_1_percentage": payment_1._percentage,
+            "payment_2_label": payment_2.type,
+            "payment_2_amount": PDFCurrencyField(euros=payment_2.value),
+            "payment_2_due_date": payment_2.due_date,
+            "payment_2_percentage": payment_2._percentage,
+            "payment_3_label": payment_3.type,
+            "payment_3_amount": PDFCurrencyField(euros=payment_3.value),
+            "payment_3_due_date": payment_3.due_date,
+            "payment_3_percentage": payment_3._percentage,
+            "payment_4_label": payment_4.type,
+            "payment_4_amount": PDFCurrencyField(euros=payment_4.value),
+            "payment_4_due_date": payment_4.due_date,
+            "payment_4_percentage": payment_4._percentage,
+            "payment_5_label": payment_5.type,
+            "payment_5_amount": PDFCurrencyField(euros=payment_5.value),
+            "payment_5_due_date": payment_5.due_date,
+            "payment_5_percentage": payment_5._percentage,
+            "second_last_payment_label": "6",
+            "second_last_payment_basis_sales_price": False,
+            "second_last_payment_basis_debt_free_sales_price": True,
+            "second_last_payment_dfsp_percentage": payment_6._percentage,
+            "second_last_payment_dfsp_amount": PDFCurrencyField(euros=payment_6.value),
+            "last_payment_label": "7",
+            "last_payment_basis_sales_price": False,
+            "last_payment_basis_debt_free_sales_price": True,
+            "last_payment_dfsp_percentage": payment_7._percentage,
+            "last_payment_dfsp_amount": PDFCurrencyField(euros=payment_7.value),
+            "payment_bank_1": apartment.project_contract_depositary,
+            "payment_account_number_1": apartment.project_regular_bank_account,
+            "payment_bank_2": apartment.project_contract_depositary,
+            "payment_account_number_2": apartment.project_barred_bank_account,
+            "down_payment_amount": PDFCurrencyField(
+                euros=down_payment.amount if down_payment.amount else Decimal(0),
+                suffix=" €",
+            ),
+            "project_contract_apartment_completion_selection_1": apartment.project_contract_apartment_completion_selection_1,  # noqa E501
+            "project_contract_apartment_completion_selection_1_date": apartment.project_contract_apartment_completion_selection_1_date,  # noqa E501
+            "project_contract_apartment_completion_selection_2": apartment.project_contract_apartment_completion_selection_2,  # noqa E501
+            "project_contract_apartment_completion_selection_2_start": apartment.project_contract_apartment_completion_selection_2_start,  # noqa E501
+            "project_contract_apartment_completion_selection_2_end": apartment.project_contract_apartment_completion_selection_2_end,  # noqa E501
+            "project_contract_apartment_completion_selection_3": apartment.project_contract_apartment_completion_selection_3,  # noqa E501
+            "project_contract_apartment_completion_selection_3_date": apartment.project_contract_apartment_completion_selection_3_date,  # noqa E501
+            "project_contract_depositary": apartment.project_contract_depositary,
+            "project_contract_repository": apartment.project_contract_repository,
+            "breach_of_contract_option_1": False,
+            "breach_of_contract_option_2": True,
+            "project_contract_collateral_type": apartment.project_contract_collateral_type,
+            "project_contract_default_collateral": apartment.project_contract_default_collateral,  # noqa E501
+            "project_contract_construction_permit_requested": (
+                (apartment.project_contract_construction_permit_requested)
+                if apartment.project_contract_construction_permit_requested
+                else None
+            ),
+            "project_contract_other_terms": apartment.project_contract_combined_terms,
+            "project_documents_delivered": apartment.project_documents_delivered,
+            "signing_place_and_time": sales_price_paid_place_and_time,
+            "salesperson": salesperson.profile_or_user_full_name,
+            "signing_buyers": signing_buyers,
+            "project_contract_collateral_bank_and_address": "  ".join(
+                [
+                    apartment.project_contract_depositary or "",
+                    apartment.project_contract_repository or "",
+                ]
+            ),
+        }
+
+        # override language to Finnish, as the user's browser settings etc.
+        # shouldn't affect the printed out PDFs
+        # further info on how Django resolves language preference:
+        # https://docs.djangoproject.com/en/5.1/topics/i18n/translation/
+        with translation.override("fi"):
+            payment_1_price = hitas_price(payment_1.value * 100)
+            payment_terms_rest_of_price = f"{payment_1.type.label}"
+            if payment_1.due_date:
+                due_date = payment_1.due_date.strftime("%d.%m.%Y")
+                payment_terms_rest_of_price += f" {due_date}"
+
+            payment_terms_rest_of_price += f" {payment_1_price.formatted_number_string()} {payment_1_price.suffix}"  # noqa: E501
+
+        # full apartment contract data is mostly the same fields but with some changes
+        full_apartment_contract_data = {
+            **contract_data,
+            "building_permit_applied_for": apartment.project_construction_permit_claim,
+            "buyer_has_paid_down_payment": "",
+            "credit_interest": "0,00%",
+            "debt_free_price_x_0_014": True,
+            "project_documents_delivered": apartment.project_documents_delivered,
+            "final_payment": "",
+            "guarantee": "",
+            "guarantee_attachment_exists": True,
+            "guarantee_attachment_not_exists": False,
+            "project_contract_collateral_type": apartment.project_contract_default_collateral,  # noqa: E501
+            "loan_share_and_sales_price": hitas_price(apartment.debt_free_sales_price),
+            "occupants_signatures": signing_buyers,
+            "other_contract_terms": apartment.project_contract_combined_terms,
+            "payment_terms_rest_of_price": payment_terms_rest_of_price,
+            "project_built_according_to_regulations": "",  # noqa: E501
+            "sales_price_paid": "",
+            "sales_price_paid_place_and_time": sales_price_paid_place_and_time,  # noqa: E501
+            "sales_price_paid_salesperson_signature": salesperson.profile_or_user_full_name,
+            "sales_price_x_0_02": False,
+            "other_space": "",
+            "other_space_area": "",
+            "salesperson_signature": salesperson.profile_or_user_full_name,
+            "transfer_of_shares": apartment.project_shares_transferred_when,
+            "transfer_of_posession": apartment.project_control_transferred_when,
+            "transfer_of_shares_confirmed": sales_price_paid_place_and_time,
+            "transfer_of_shares_signature": signing_buyers,
+        }
+
+        contract_dataclass = HitasContractPDFData
+        pdf_template_path = HITAS_CONTRACT_PDF_TEMPLATE_FILE_NAME
+
+        if complete_apartment:
+            contract_dataclass = HitasCompleteApartmentContractPDFData
+            contract_data = full_apartment_contract_data
+            pdf_template_path = HITAS_COMPLETE_APARTMENT_CONTRACT_PDF_TEMPLATE_FILE_NAME
+
+        pdf_data = contract_dataclass(**contract_data)
+
+        return pdf_data
+
+
 def create_hitas_contract_pdf(
     reservation: ApartmentReservation,
     sales_price_paid_place: str,
     sales_price_paid_time: str,
     salesperson: User,
 ) -> BytesIO:
-    customer = SafeAttributeObject(reservation.customer)
-    primary_profile = SafeAttributeObject(customer.primary_profile)
-    secondary_profile = SafeAttributeObject(customer.secondary_profile)
     apartment: ApartmentDocument = SafeAttributeObject(
         get_apartment(reservation.apartment_uuid, include_project_fields=True)
     )
 
-    # use contract for complete apartment
-    # can possibly be None, use bool() to convert to False in that case
+    pdf_data = get_hitas_contract_pdf_data(
+        apartment=apartment,
+        reservation=reservation,
+        sales_price_paid_place=sales_price_paid_place,
+        sales_price_paid_time=sales_price_paid_time,
+        salesperson=salesperson
+    )
+    pdf_template_path = HITAS_CONTRACT_PDF_TEMPLATE_FILE_NAME
     complete_apartment = bool(apartment.project_use_complete_contract)
 
-    (
-        payment_1,
-        payment_2,
-        payment_3,
-        payment_4,
-        payment_5,
-        payment_6,
-        payment_7,
-    ) = _get_numbered_installments(apartment, reservation)
-
-    down_payment = SafeAttributeObject(
-        reservation.apartment_installments.filter(
-            type=InstallmentType.DOWN_PAYMENT
-        ).first()
-    )
-
-    sales_price_paid_place_and_time = (
-        f"{sales_price_paid_place} {sales_price_paid_time}"
-    )
-
-    def hitas_price(cents: Union[int, None]) -> Union[PDFCurrencyField, None]:
-        """Turns the price in cents to whole euros (division by 100). Outputs
-        a PDFCurrencyField prefilled with a string that has the euro sum
-        as words (in Finnish) and as numbers.
-
-        e.g.
-        12000 -> "tuhat kaksisataa 1200 €"
-
-        11000000 -> "satakymmenentuhatta 110000 €"
-
-        31115224 -> "kolmekymmentäyksimiljoonaa sataviisitoistatuhatta
-        kaksisataakaksikymmentäneljä 31115224 €"
-
-        Args:
-            cents (Union[int, None]): The sum in cents
-
-        Returns: Union[PDFCurrencyField, None]:
-        """
-        if cents is None:
-            return None
-        return PDFCurrencyField(
-            prefix=num2words(Decimal(cents) / 100, lang="fi") + " ",
-            cents=cents,
-            suffix=" €",
-        )
-
-    signing_buyers = " & ".join(
-        name
-        for name in [primary_profile.full_name, secondary_profile.full_name]
-        if name
-    )
-
-    contract_data = {
-        "occupant_1": primary_profile.full_name,
-        "occupant_1_share_of_ownership": None,
-        "occupant_1_address": (
-            (primary_profile.street_address or "")
-            + ", "
-            + (primary_profile.postal_code or "")
-            + " "
-            + (primary_profile.city or "")
-        ).strip(),
-        "occupant_1_phone_number": primary_profile.phone_number,
-        "occupant_1_email": primary_profile.email,
-        "occupant_1_ssn_or_business_id": primary_profile.national_identification_number,
-        "occupant_2": secondary_profile.full_name,
-        "occupant_2_share_of_ownership": None,
-        "occupant_2_address": (
-            (secondary_profile.street_address or "")
-            + ", "
-            + (secondary_profile.postal_code or "")
-            + " "
-            + (secondary_profile.city or "")
-        ).strip(),
-        "occupant_2_phone_number": secondary_profile.phone_number,
-        "occupant_2_email": secondary_profile.email,
-        "occupant_2_ssn_or_business_id": secondary_profile.national_identification_number,  # noqa: E501
-        "project_housing_company": apartment.project_housing_company,
-        "project_contract_business_id": apartment.project_contract_business_id,
-        "project_address": "  ".join(
-            [
-                apartment.project_street_address,
-                f"{apartment.project_postal_code} {apartment.project_city}",
-            ]
-        ),
-        "project_realty_id": apartment.project_realty_id,
-        "housing_type_ownership": False,
-        "housing_type_rental": True,
-        "housing_shares": f"{apartment.stock_start_number or ''} - {apartment.stock_end_number or ''}",  # noqa: E501
-        "apartment_street_address": None,
-        "apartment_structure": apartment.apartment_structure,
-        "apartment_number": apartment.apartment_number,
-        "floor": apartment.floor,
-        "living_area": apartment.living_area,
-        "other_space": None,
-        "other_space_area": None,
-        "project_contract_transfer_restriction_false": apartment.project_contract_transfer_restriction  # noqa E501
-        is False,
-        "project_contract_transfer_restriction_true": apartment.project_contract_transfer_restriction,  # noqa E501
-        "project_contract_transfer_restriction_text": apartment.project_contract_article_of_association,  # noqa E501
-        "project_contract_material_selection_later_false": apartment.project_contract_material_selection_later  # noqa E501
-        is False,
-        "project_contract_material_selection_later_true": apartment.project_contract_material_selection_later,  # noqa E501
-        "project_contract_material_selection_description": apartment.project_contract_material_selection_description,  # noqa E501
-        "project_contract_material_selection_date": apartment.project_contract_material_selection_date,  # noqa E501
-        "sales_price": hitas_price(apartment.sales_price),
-        "loan_share": hitas_price(apartment.loan_share),
-        "debt_free_sales_price": hitas_price(apartment.debt_free_sales_price),
-        "payment_1_label": payment_1.type,
-        "payment_1_amount": PDFCurrencyField(euros=payment_1.value),
-        "payment_1_due_date": payment_1.due_date,
-        "payment_1_percentage": payment_1._percentage,
-        "payment_2_label": payment_2.type,
-        "payment_2_amount": PDFCurrencyField(euros=payment_2.value),
-        "payment_2_due_date": payment_2.due_date,
-        "payment_2_percentage": payment_2._percentage,
-        "payment_3_label": payment_3.type,
-        "payment_3_amount": PDFCurrencyField(euros=payment_3.value),
-        "payment_3_due_date": payment_3.due_date,
-        "payment_3_percentage": payment_3._percentage,
-        "payment_4_label": payment_4.type,
-        "payment_4_amount": PDFCurrencyField(euros=payment_4.value),
-        "payment_4_due_date": payment_4.due_date,
-        "payment_4_percentage": payment_4._percentage,
-        "payment_5_label": payment_5.type,
-        "payment_5_amount": PDFCurrencyField(euros=payment_5.value),
-        "payment_5_due_date": payment_5.due_date,
-        "payment_5_percentage": payment_5._percentage,
-        "second_last_payment_label": "6",
-        "second_last_payment_basis_sales_price": False,
-        "second_last_payment_basis_debt_free_sales_price": True,
-        "second_last_payment_dfsp_percentage": payment_6._percentage,
-        "second_last_payment_dfsp_amount": PDFCurrencyField(euros=payment_6.value),
-        "last_payment_label": "7",
-        "last_payment_basis_sales_price": False,
-        "last_payment_basis_debt_free_sales_price": True,
-        "last_payment_dfsp_percentage": payment_7._percentage,
-        "last_payment_dfsp_amount": PDFCurrencyField(euros=payment_7.value),
-        "payment_bank_1": apartment.project_contract_depositary,
-        "payment_account_number_1": apartment.project_regular_bank_account,
-        "payment_bank_2": apartment.project_contract_depositary,
-        "payment_account_number_2": apartment.project_barred_bank_account,
-        "down_payment_amount": PDFCurrencyField(
-            euros=down_payment.amount if down_payment.amount else Decimal(0),
-            suffix=" €",
-        ),
-        "project_contract_apartment_completion_selection_1": apartment.project_contract_apartment_completion_selection_1,  # noqa E501
-        "project_contract_apartment_completion_selection_1_date": apartment.project_contract_apartment_completion_selection_1_date,  # noqa E501
-        "project_contract_apartment_completion_selection_2": apartment.project_contract_apartment_completion_selection_2,  # noqa E501
-        "project_contract_apartment_completion_selection_2_start": apartment.project_contract_apartment_completion_selection_2_start,  # noqa E501
-        "project_contract_apartment_completion_selection_2_end": apartment.project_contract_apartment_completion_selection_2_end,  # noqa E501
-        "project_contract_apartment_completion_selection_3": apartment.project_contract_apartment_completion_selection_3,  # noqa E501
-        "project_contract_apartment_completion_selection_3_date": apartment.project_contract_apartment_completion_selection_3_date,  # noqa E501
-        "project_contract_depositary": apartment.project_contract_depositary,
-        "project_contract_repository": apartment.project_contract_repository,
-        "breach_of_contract_option_1": False,
-        "breach_of_contract_option_2": True,
-        "project_contract_collateral_type": apartment.project_contract_collateral_type,
-        "project_contract_default_collateral": apartment.project_contract_default_collateral,  # noqa E501
-        "project_contract_construction_permit_requested": (
-            (apartment.project_contract_construction_permit_requested)
-            if apartment.project_contract_construction_permit_requested
-            else None
-        ),
-        "project_contract_other_terms": apartment.project_contract_combined_terms,
-        "project_documents_delivered": apartment.project_documents_delivered,
-        "signing_place_and_time": sales_price_paid_place_and_time,
-        "salesperson": salesperson.profile_or_user_full_name,
-        "signing_buyers": signing_buyers,
-        "project_contract_collateral_bank_and_address": "  ".join(
-            [
-                apartment.project_contract_depositary or "",
-                apartment.project_contract_repository or "",
-            ]
-        ),
-    }
-
-    # override language to Finnish, as the user's browser settings etc.
-    # shouldn't affect the printed out PDFs
-    # further info on how Django resolves language preference:
-    # https://docs.djangoproject.com/en/5.1/topics/i18n/translation/
-    with translation.override("fi"):
-        payment_1_price = hitas_price(payment_1.value * 100)
-        payment_terms_rest_of_price = f"{payment_1.type.label}"
-        if payment_1.due_date:
-            due_date = payment_1.due_date.strftime("%d.%m.%Y")
-            payment_terms_rest_of_price += f" {due_date}"
-
-        payment_terms_rest_of_price += f" {payment_1_price.formatted_number_string()} {payment_1_price.suffix}"  # noqa: E501
-
-    # full apartment contract data is mostly the same fields but with some changes
-    full_apartment_contract_data = {
-        **contract_data,
-        "building_permit_applied_for": apartment.project_construction_permit_claim,
-        "buyer_has_paid_down_payment": "",
-        "credit_interest": "0,00%",
-        "debt_free_price_x_0_014": True,
-        "project_documents_delivered": apartment.project_documents_delivered,
-        "final_payment": "",
-        "guarantee": "",
-        "guarantee_attachment_exists": True,
-        "guarantee_attachment_not_exists": False,
-        "project_contract_collateral_type": apartment.project_contract_default_collateral,  # noqa: E501
-        "loan_share_and_sales_price": hitas_price(apartment.debt_free_sales_price),
-        "occupants_signatures": signing_buyers,
-        "other_contract_terms": apartment.project_contract_combined_terms,
-        "payment_terms_rest_of_price": payment_terms_rest_of_price,
-        "project_built_according_to_regulations": "",  # noqa: E501
-        "sales_price_paid": "",
-        "sales_price_paid_place_and_time": sales_price_paid_place_and_time,  # noqa: E501
-        "sales_price_paid_salesperson_signature": salesperson.profile_or_user_full_name,
-        "sales_price_x_0_02": False,
-        "other_space": "",
-        "other_space_area": "",
-        "salesperson_signature": salesperson.profile_or_user_full_name,
-        "transfer_of_shares": apartment.project_shares_transferred_when,
-        "transfer_of_posession": apartment.project_control_transferred_when,
-        "transfer_of_shares_confirmed": sales_price_paid_place_and_time,
-        "transfer_of_shares_signature": signing_buyers,
-    }
-
-    contract_dataclass = HitasContractPDFData
-    pdf_template_path = HITAS_CONTRACT_PDF_TEMPLATE_FILE_NAME
-
     if complete_apartment:
-        contract_dataclass = HitasCompleteApartmentContractPDFData
-        contract_data = full_apartment_contract_data
         pdf_template_path = HITAS_COMPLETE_APARTMENT_CONTRACT_PDF_TEMPLATE_FILE_NAME
 
-    pdf_data = contract_dataclass(**contract_data)
     return create_hitas_contract_pdf_from_data(pdf_data, pdf_template_path)
 
 

@@ -12,8 +12,10 @@ from django.utils.translation import gettext_lazy as _
 
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import get_apartment, get_project
+from apartment.enums import OwnershipType
 from apartment_application_service.pdf import create_pdf, PDFData
 from customer.models import Customer
+from invoicing.enums import InstallmentType
 from invoicing.models import ApartmentInstallment
 
 _logger = logging.getLogger(__name__)
@@ -53,20 +55,18 @@ class InvoicePDFData(PDFData):
         "apartment": "Huoneisto",
     }
 
+def get_invoice_pdf_data_from_installment(
+        installment: ApartmentInstallment,
+    ) -> InvoicePDFData:
+        @lru_cache
+        def get_cached_project(project_uuid: UUID):
+            return get_project(project_uuid)
 
-def create_invoice_pdf_from_installments(
-    installments: Union[QuerySet, List[ApartmentInstallment]]
-):
-    @lru_cache
-    def get_cached_project(project_uuid: UUID):
-        return get_project(project_uuid)
+        @lru_cache
+        def get_cached_apartment(apartment_uuid: UUID) -> ApartmentDocument:
+            return get_apartment(apartment_uuid, include_project_fields=True)
 
-    @lru_cache
-    def get_cached_apartment(apartment_uuid: UUID) -> ApartmentDocument:
-        return get_apartment(apartment_uuid, include_project_fields=True)
 
-    invoice_pdf_data_list = []
-    for installment in installments:
         reservation = installment.apartment_reservation
         payer_name_and_address = _get_payer_name_and_address(
             installment.apartment_reservation.customer
@@ -85,8 +85,18 @@ def create_invoice_pdf_from_installments(
                 + " €"
             )
 
+        final_installment_type = InstallmentType.PAYMENT_7
+        if apartment.project_ownership_type == OwnershipType.HASO.value:
+            final_installment_type = InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_3
+            pass
+
+        payment_recipient = apartment.project_payment_recipient
+        if installment.type == final_installment_type:
+            payment_recipient = apartment.project_payment_recipient_final
+            pass
+
         invoice_pdf_data = InvoicePDFData(
-            recipient=project.project_housing_company,
+            recipient=payment_recipient,
             recipient_account_number=f"{project.project_contract_rs_bank or ''} "
             f"{installment.account_number}".strip(),
             payer_name_and_address=payer_name_and_address,
@@ -95,5 +105,16 @@ def create_invoice_pdf_from_installments(
             amount=installment.value,
             apartment=apartment_text,
         )
+
+        return invoice_pdf_data
+
+def create_invoice_pdf_from_installments(
+    installments: Union[QuerySet, List[ApartmentInstallment]]
+):
+
+    invoice_pdf_data_list = []
+    for installment in installments:
+        invoice_pdf_data = get_invoice_pdf_data_from_installment(installment)
         invoice_pdf_data_list.append(invoice_pdf_data)
+
     return create_pdf(INVOICE_PDF_TEMPLATE_FILE_NAME, invoice_pdf_data_list)
