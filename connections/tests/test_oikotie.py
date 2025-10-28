@@ -250,6 +250,21 @@ class TestOikotieMapper:
             return
         raise Exception("Missing project_postal_code should have thrown a ValueError")
 
+    def test_elastic_to_oikotie_application_url(self):
+        """
+        `<ApplicationUrl>`-element should link straight to the apartment's page
+        (e.g. asuntotuotanto.hel.fi/asuntohaku/haso/city-street-23/A42)
+        """
+        elastic_apartment = ApartmentDocumentFactory(
+            project_street_address="Test street 123",
+            apartment_number="A12",
+            url="https://foo.bar/test-street-123/A12",
+        )
+
+        mapped_apartment = map_oikotie_apartment(elastic_apartment)
+
+        assert mapped_apartment.application_url == "https://foo.bar/test-street-123/A12"
+
     @pytest.mark.parametrize(
         "description,link,project_link,expected",
         [
