@@ -951,4 +951,47 @@ Haetut asunnot:\n"""
     )
     assert response.status_code != 201
 
-    pass
+@pytest.mark.parametrize(
+    "application_type", (ApplicationType.HITAS, ApplicationType.HASO)
+)
+@pytest.mark.django_db
+def test_drupal_user_can_only_delete_own_application(
+    elastic_single_project_with_apartments,
+    api_client,
+    application_type
+):
+    application_owner_profile = ProfileFactory()
+    apartment = ApartmentDocumentFactory()
+
+    application_deleter_profile = ProfileFactory()
+    api_client.credentials(
+        HTTP_AUTHORIZATION=f"Bearer {_create_token(application_deleter_profile)}"
+    )
+    application = ApplicationFactory(
+        customer=CustomerFactory(
+            primary_profile=application_owner_profile
+        ),
+        type=application_type,
+    )
+    ApplicationApartmentFactory.create_application_with_apartments(
+        [apartment.uuid], application
+    )
+
+    response = api_client.delete(
+            reverse(
+                "application_form:application-delete",
+                kwargs={"application_uuid": application.external_uuid}
+            ),
+    )
+
+    assert response.status_code == 403
+    api_client.credentials(
+        HTTP_AUTHORIZATION=f"Bearer {_create_token(application_owner_profile)}"
+    )
+    response = api_client.delete(
+            reverse(
+                "application_form:application-delete",
+                kwargs={"application_uuid": application.external_uuid}
+            ),
+    )
+    assert response.status_code == 204
