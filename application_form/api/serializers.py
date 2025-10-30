@@ -8,7 +8,11 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.fields import IntegerField, UUIDField
 
-from apartment.elastic.queries import get_apartment_project_uuid, get_project
+from apartment.elastic.queries import (
+    get_apartment_project_uuid,
+    get_apartment_uuids,
+    get_project,
+)
 from apartment.enums import OwnershipType
 from apartment_application_service.settings import (
     METADATA_HANDLER_INFORMATION,
@@ -141,6 +145,29 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
                 > project.project_application_end_time
             )
         is_haso = project.project_ownership_type.lower() == OwnershipType.HASO.value
+
+        profile = self.context["request"].user.profile
+
+        # Users who have a reservation with the
+        # state 'offered', 'offer_accepted' or 'sold' in a project
+        # shouldn't be allowed to create further applications to it.
+        reservations_in_project = ApartmentReservation.objects.filter(
+            application_apartment__application__customer__primary_profile__id=profile.id,  # noqa: E501
+            apartment_uuid__in=get_apartment_uuids(project.project_uuid),
+            state__in=[
+                ApartmentReservationState.OFFERED,
+                ApartmentReservationState.OFFER_ACCEPTED,
+                ApartmentReservationState.SOLD,
+            ],
+        )
+
+        if reservations_in_project.exists():
+            raise serializers.ValidationError(
+                {
+                    "detail": "User already has offered or sold apartment in this project"  # noqa: E501
+                },
+                code=400,
+            )
 
         if is_submitted_late and (
             not project.project_can_apply_afterwards or not is_haso

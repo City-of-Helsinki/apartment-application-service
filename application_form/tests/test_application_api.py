@@ -951,4 +951,84 @@ Haetut asunnot:\n"""
     )
     assert response.status_code != 201
 
-    pass
+
+@pytest.mark.parametrize(
+    "application_type", (ApplicationType.HITAS, ApplicationType.HASO)
+)
+@pytest.mark.django_db
+def test_drupal_user_can_only_delete_own_application(
+    elastic_single_project_with_apartments, api_client, application_type
+):
+    application_owner_profile = ProfileFactory()
+    apartment = ApartmentDocumentFactory()
+
+    application_deleter_profile = ProfileFactory()
+    api_client.credentials(
+        HTTP_AUTHORIZATION=f"Bearer {_create_token(application_deleter_profile)}"
+    )
+    application = ApplicationFactory(
+        customer=CustomerFactory(primary_profile=application_owner_profile),
+        type=application_type,
+    )
+    ApplicationApartmentFactory.create_application_with_apartments(
+        [apartment.uuid], application
+    )
+
+    response = api_client.delete(
+        reverse(
+            "application_form:application-delete",
+            kwargs={"application_uuid": application.external_uuid},
+        ),
+    )
+
+    assert response.status_code == 403
+    api_client.credentials(
+        HTTP_AUTHORIZATION=f"Bearer {_create_token(application_owner_profile)}"
+    )
+    response = api_client.delete(
+        reverse(
+            "application_form:application-delete",
+            kwargs={"application_uuid": application.external_uuid},
+        ),
+    )
+    assert response.status_code == 204
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "reservation_state",
+    (
+        ApartmentReservationState.OFFERED,
+        ApartmentReservationState.OFFER_ACCEPTED,
+        ApartmentReservationState.SOLD,
+    ),
+)
+def test_application_to_already_reserved_project(
+    api_client, elastic_single_project_with_apartments, reservation_state
+):
+    """
+    Users who have a reservation with the state 'offered', 'offer_accepted' or 'sold'
+    in a project shouldn't be allowed to create further applications to it.
+    """
+    apartment: ApartmentDocument = elastic_single_project_with_apartments[0]
+
+    profile: Profile = ProfileFactory()
+    customer = CustomerFactory(primary_profile=profile)
+    ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        customer=customer,
+        state=reservation_state,
+        application_apartment=ApplicationApartmentFactory(
+            apartment_uuid=apartment.uuid,
+            application=ApplicationFactory(customer=customer, applicants_count=1),
+        ),
+    )
+
+    data = create_application_data(profile, apartments=[apartment])
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
+
+    response = api_client.post(
+        reverse("application_form:application-list"), data, format="json"
+    )
+
+    assert response.status_code == 400
