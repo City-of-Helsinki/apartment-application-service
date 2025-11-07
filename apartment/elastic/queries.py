@@ -1,3 +1,4 @@
+from typing import List
 from django.core.exceptions import ObjectDoesNotExist
 from elasticsearch_dsl import search
 
@@ -75,7 +76,7 @@ def get_apartments(project_uuid=None, include_project_fields=False):
     return response
 
 
-def get_apartment_uuids(project_uuid):
+def get_apartment_uuids(project_uuid) -> List[str]:
     search = ApartmentDocument.search()
 
     # Filters
