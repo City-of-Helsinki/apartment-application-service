@@ -1,4 +1,5 @@
 from typing import List
+
 from django.core.exceptions import ObjectDoesNotExist
 from elasticsearch_dsl import search
 

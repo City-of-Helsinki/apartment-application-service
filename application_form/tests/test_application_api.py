@@ -951,14 +951,13 @@ Haetut asunnot:\n"""
     )
     assert response.status_code != 201
 
+
 @pytest.mark.parametrize(
     "application_type", (ApplicationType.HITAS, ApplicationType.HASO)
 )
 @pytest.mark.django_db
 def test_drupal_user_can_only_delete_own_application(
-    elastic_single_project_with_apartments,
-    api_client,
-    application_type
+    elastic_single_project_with_apartments, api_client, application_type
 ):
     application_owner_profile = ProfileFactory()
     apartment = ApartmentDocumentFactory()
@@ -968,9 +967,7 @@ def test_drupal_user_can_only_delete_own_application(
         HTTP_AUTHORIZATION=f"Bearer {_create_token(application_deleter_profile)}"
     )
     application = ApplicationFactory(
-        customer=CustomerFactory(
-            primary_profile=application_owner_profile
-        ),
+        customer=CustomerFactory(primary_profile=application_owner_profile),
         type=application_type,
     )
     ApplicationApartmentFactory.create_application_with_apartments(
@@ -978,10 +975,10 @@ def test_drupal_user_can_only_delete_own_application(
     )
 
     response = api_client.delete(
-            reverse(
-                "application_form:application-delete",
-                kwargs={"application_uuid": application.external_uuid}
-            ),
+        reverse(
+            "application_form:application-delete",
+            kwargs={"application_uuid": application.external_uuid},
+        ),
     )
 
     assert response.status_code == 403
@@ -989,23 +986,25 @@ def test_drupal_user_can_only_delete_own_application(
         HTTP_AUTHORIZATION=f"Bearer {_create_token(application_owner_profile)}"
     )
     response = api_client.delete(
-            reverse(
-                "application_form:application-delete",
-                kwargs={"application_uuid": application.external_uuid}
-            ),
+        reverse(
+            "application_form:application-delete",
+            kwargs={"application_uuid": application.external_uuid},
+        ),
     )
     assert response.status_code == 204
 
+
 @pytest.mark.django_db
-@pytest.mark.parametrize("reservation_state", (
-    ApartmentReservationState.OFFERED,
-    ApartmentReservationState.OFFER_ACCEPTED,
-    ApartmentReservationState.SOLD,
-))
+@pytest.mark.parametrize(
+    "reservation_state",
+    (
+        ApartmentReservationState.OFFERED,
+        ApartmentReservationState.OFFER_ACCEPTED,
+        ApartmentReservationState.SOLD,
+    ),
+)
 def test_application_to_already_reserved_project(
-    api_client,
-    elastic_single_project_with_apartments,
-    reservation_state
+    api_client, elastic_single_project_with_apartments, reservation_state
 ):
     """
     Users who have a reservation with the state 'offered', 'offer_accepted' or 'sold'
@@ -1015,20 +1014,15 @@ def test_application_to_already_reserved_project(
 
     profile: Profile = ProfileFactory()
     customer = CustomerFactory(primary_profile=profile)
-    reservation = ApartmentReservationFactory(
+    ApartmentReservationFactory(
         apartment_uuid=apartment.uuid,
         customer=customer,
         state=reservation_state,
         application_apartment=ApplicationApartmentFactory(
             apartment_uuid=apartment.uuid,
-            application=ApplicationFactory(
-                customer=customer,
-                applicants_count=1
-            )
-        )
+            application=ApplicationFactory(customer=customer, applicants_count=1),
+        ),
     )
-    print(f"profile_id: {profile.id} customer_id: {customer.id}")
-    print(ApartmentReservation.objects.values( "application_apartment__application__customer__primary_profile__id" ))
 
     data = create_application_data(profile, apartments=[apartment])
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
