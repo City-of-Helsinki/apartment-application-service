@@ -1075,7 +1075,6 @@ class XlsxSalesReportExportService(XlsxExportService):
             .first()
         )
 
-
     def _get_apartment_date_of_sale(
         self, apartment: ApartmentDocument
     ) -> Union[datetime, None]:
