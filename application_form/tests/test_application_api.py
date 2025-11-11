@@ -677,6 +677,67 @@ def test_get_apartment_states_filter(
 
 
 @pytest.mark.django_db
+def test_late_submit_application_post_existing_application_gets_canceled(
+    api_client,
+    elasticsearch,
+):
+    """
+    Late submitting an application should cancel the existing application
+    instead of deleting it.
+    """
+
+    apartments = generate_apartments(
+        elasticsearch,
+        2,
+        {
+            "project_can_apply_afterwards": True,
+            "project_ownership_type": OwnershipType.HASO.value,
+        },
+    )
+    first_application_apartment = apartments[0]
+    second_application_apartment = apartments[1]
+    profile = ProfileFactory()
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
+    first_application_data = create_application_data(
+        profile, apartments=[first_application_apartment]
+    )
+
+    response = api_client.post(
+        reverse("application_form:application-list"),
+        first_application_data,
+        format="json",
+    )
+    first_application: Application = Application.objects.get(
+        external_uuid=response.json()["application_uuid"]
+    )
+
+    second_application_data = create_application_data(
+        profile, apartments=[second_application_apartment]
+    )
+    response = api_client.post(
+        reverse("application_form:application-list"),
+        second_application_data,
+        format="json",
+    )
+    first_reservation = ApartmentReservation.objects.get(
+        apartment_uuid=apartments[0].uuid,
+        application_apartment=first_application.application_apartments.first(),
+    )
+    second_application: Application = Application.objects.get(
+        external_uuid=response.json()["application_uuid"]
+    )
+    second_reservation = ApartmentReservation.objects.get(
+        apartment_uuid=apartments[0].uuid,
+        application_apartment=second_application.application_apartments.first(),
+    )
+
+    assert first_reservation.state == ApartmentReservationState.CANCELED
+    assert second_reservation.state != ApartmentReservationState.CANCELED
+
+    pass
+
+
+@pytest.mark.django_db
 def test_application_post_haso_submitted_late_end_of_queue(
     # add_application_to_queues_mock, api_client, elasticsearch
     drupal_server_api_client,
