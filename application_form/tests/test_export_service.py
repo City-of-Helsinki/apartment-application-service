@@ -147,7 +147,7 @@ def _expected_hitas_ownership(reservation):
 
 
 def _expected_haso_revaluation_values(columns, reservation):
-    """Вернёт список значений для HASO-колонок в порядке их появления в columns."""
+    """Returns a list of values ​​for HASO columns in the order they appear in columns."""
     haso_keys = {
         "haso_original_ao_payment",
         "haso_luovutushinta",

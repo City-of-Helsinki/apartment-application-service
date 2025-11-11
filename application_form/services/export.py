@@ -301,10 +301,10 @@ class ApplicantMailingListExportService(CSVExportService):
             if is_haso:
                 columns += _HASO_REVAL_COLUMNS
         except Exception:
-            # safety: если не удалось получить apartment из ES — просто пропускаем
+            # safety: Safety: If you can't get an apartment from ES, just skip it.
             pass
 
-        # append ROO payment columns только для SOLD + HASO
+        # append ROO payment columns only for SOLD + HASO
         if self.add_roo_columns:
             columns += self.COLUMNS_ROO_PAYMENTS
 
