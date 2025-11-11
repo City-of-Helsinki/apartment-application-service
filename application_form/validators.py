@@ -1,12 +1,13 @@
 from datetime import date, datetime
 from typing import List, Tuple, Union
 from uuid import UUID
-from django.utils import timezone
+
 from django.conf import settings
-from apartment.enums import OwnershipType
+from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apartment.elastic.queries import get_apartment_uuids, get_project
+from apartment.enums import OwnershipType
 from application_form import error_codes
 from application_form.models import Applicant
 
@@ -83,14 +84,9 @@ class ProjectApplicantValidator:
                 datetime.now().replace(tzinfo=timezone.get_default_timezone())
                 > project.project_application_end_time
             )
-            is_haso = (
-                project.project_ownership_type.lower() == OwnershipType.HASO.value
-            )
-            if (
-                is_submitted_late and is_haso and project.project_can_apply_afterwards
-            ):
+            is_haso = project.project_ownership_type.lower() == OwnershipType.HASO.value
+            if is_submitted_late and is_haso and project.project_can_apply_afterwards:
                 return
-            
 
         apartment_uuids = get_apartment_uuids(project_uuid)
         # We fetch the project's all DOBs and SSN suffixes first and then check those in

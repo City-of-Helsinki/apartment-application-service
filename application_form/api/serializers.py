@@ -136,7 +136,7 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
                 validated_data.get("apartments")[0]["identifier"]
             ).project_uuid
         )
-        apartment_uuids = [apt["identifier"] for apt in validated_data.get("apartments")]
+
         is_submitted_late = False
 
         if project.project_application_end_time:
@@ -196,12 +196,12 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
             project_reservations_to_cancel = project_reservations.exclude(
                 application_apartment__in=application.application_apartments.all()
             )
-            
+
             for reservation in project_reservations_to_cancel:
                 reservation.set_state(
                     ApartmentReservationState.CANCELED,
-                    comment=f"Peruttu ja korvattu jälkihakemuksella, varaus id: {new_reservation.pk}",
-                    replaced_by=new_reservation
+                    comment=f"Peruttu ja korvattu jälkihakemuksella, varaus id: {new_reservation.pk}",  # noqa: E501
+                    replaced_by=new_reservation,
                 )
 
             send_sales_notification_email(
