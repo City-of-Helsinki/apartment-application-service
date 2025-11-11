@@ -1074,7 +1074,7 @@ class XlsxSalesReportExportService(XlsxExportService):
             .order_by("-id")
             .first()
         )
-        pass
+
 
     def _get_apartment_date_of_sale(
         self, apartment: ApartmentDocument
