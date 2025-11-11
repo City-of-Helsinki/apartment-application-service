@@ -1,11 +1,12 @@
-from datetime import date
+from datetime import date, datetime
 from typing import List, Tuple, Union
 from uuid import UUID
-
+from django.utils import timezone
 from django.conf import settings
+from apartment.enums import OwnershipType
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
-from apartment.elastic.queries import get_apartment_uuids
+from apartment.elastic.queries import get_apartment_uuids, get_project
 from application_form import error_codes
 from application_form.models import Applicant
 
@@ -75,6 +76,22 @@ class ProjectApplicantValidator:
         if not date_of_birth_and_ssn_suffix:
             return
 
+        # late_submitted applications have separate handling
+        project = get_project(project_uuid)
+        if project.project_application_end_time:
+            is_submitted_late = (
+                datetime.now().replace(tzinfo=timezone.get_default_timezone())
+                > project.project_application_end_time
+            )
+            is_haso = (
+                project.project_ownership_type.lower() == OwnershipType.HASO.value
+            )
+            if (
+                is_submitted_late and is_haso and project.project_can_apply_afterwards
+            ):
+                return
+            
+
         apartment_uuids = get_apartment_uuids(project_uuid)
         # We fetch the project's all DOBs and SSN suffixes first and then check those in
         # Python to make sure Postgres won't end up decrypting all applicants in the
@@ -84,6 +101,7 @@ class ProjectApplicantValidator:
                 application__application_apartments__apartment_uuid__in=apartment_uuids
             ).values_list("date_of_birth", "ssn_suffix")
         )
+
         for date_of_birth, ssn_suffix in date_of_birth_and_ssn_suffix:
             if (date_of_birth, ssn_suffix) in project_applicants:
                 raise PermissionDenied(

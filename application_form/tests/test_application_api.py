@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from typing import List
 from unittest.mock import MagicMock, patch
 
+from application_form.services.queue import add_application_to_queues
 import pytest
 from django.urls import reverse
 from django.utils import timezone
@@ -583,7 +584,8 @@ def test_get_apartment_states(
         state=ApartmentReservationState.RESERVED,
         list_position=2,
     )
-    cancelled_reservation.set_state(ApartmentReservationState.CANCELED)
+    cancelled_reservation.set_state(ApartmentReservationState.CANCELED
+                                    )
     assert (
         ApartmentReservation.objects.filter(
             apartment_uuid=haso_apartments[2].uuid
@@ -602,7 +604,8 @@ def test_get_apartment_states(
         apartment_uuid=haso_apartments[3].uuid
     )
     assert reserved_reservations.count() == 1
-    reserved_reservations[0].set_state(ApartmentReservationState.CANCELED)
+    reserved_reservations[0].set_state(ApartmentReservationState.CANCELED
+                                       )
 
     response = drupal_server_api_client.get(
         reverse("application_form:apartment_states"),
@@ -656,7 +659,8 @@ def test_get_apartment_states_filter(
     # Sold some apartment in different date time
     with freeze_time("2020-02-02"):
         for sold_reservation in sold_reservations_1:
-            sold_reservation.set_state(ApartmentReservationState.SOLD)
+            sold_reservation.set_state(ApartmentReservationState.SOLD
+                                       )
             sold_reservation.save()
     with freeze_time("2020-02-04"):
         for sold_reservation in sold_reservations_2:
@@ -675,6 +679,60 @@ def test_get_apartment_states_filter(
     assert response.status_code == 200
     assert response.data == {}
 
+@pytest.mark.django_db
+def test_late_submit_application_post_existing_application_gets_canceled(
+    api_client,
+    elasticsearch,
+):
+    """
+    Late submitting an application should cancel the existing application instead of deleting.
+    """
+    application_end_time = (datetime.now()+timedelta(days=2)).replace(
+        tzinfo=timezone.get_default_timezone()
+    )
+    apartments = generate_apartments(
+        elasticsearch,
+        2,
+        {
+            "project_can_apply_afterwards": True, 
+            "project_ownership_type": OwnershipType.HASO.value
+        }
+    )
+    first_application_apartment = apartments[0]
+    second_application_apartment = apartments[1]
+    profile = ProfileFactory()
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
+    first_application_data = create_application_data(
+        profile, apartments=[first_application_apartment]
+    )
+
+    response = api_client.post(
+        reverse("application_form:application-list"),
+        first_application_data,
+        format="json"
+    )
+    first_application: Application = Application.objects.get(
+        external_uuid=response.json()["application_uuid"]
+    )
+
+    second_application_data = create_application_data(
+        profile,
+        apartments=[second_application_apartment]
+    )
+    response = api_client.post(
+        reverse("application_form:application-list"), second_application_data, format="json"
+    )
+    first_reservation = ApartmentReservation.objects.get(
+        apartment_uuid=apartments[0].uuid,
+        application_apartment=first_application.application_apartments.first()
+    )
+    second_application: Application = Application.objects.get(
+        external_uuid=response.json()["application_uuid"]
+    )
+
+    assert first_reservation.state == ApartmentReservationState.CANCELED
+
+    pass
 
 @pytest.mark.django_db
 def test_application_post_haso_submitted_late_end_of_queue(

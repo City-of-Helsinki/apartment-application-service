@@ -136,7 +136,7 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
                 validated_data.get("apartments")[0]["identifier"]
             ).project_uuid
         )
-
+        apartment_uuids = [apt["identifier"] for apt in validated_data.get("apartments")]
         is_submitted_late = False
 
         if project.project_application_end_time:
@@ -146,6 +146,8 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
             )
         is_haso = project.project_ownership_type.lower() == OwnershipType.HASO.value
 
+        project_apartment_uuids = get_apartment_uuids(project.project_uuid)
+
         profile = self.context["request"].user.profile
 
         # Users who have a reservation with the
@@ -153,7 +155,7 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
         # shouldn't be allowed to create further applications to it.
         reservations_in_project = ApartmentReservation.objects.filter(
             application_apartment__application__customer__primary_profile__id=profile.id,  # noqa: E501
-            apartment_uuid__in=get_apartment_uuids(project.project_uuid),
+            apartment_uuid__in=project_apartment_uuids,
             state__in=[
                 ApartmentReservationState.OFFERED,
                 ApartmentReservationState.OFFER_ACCEPTED,
@@ -184,6 +186,24 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
         )
 
         if is_submitted_late and is_haso and project.project_can_apply_afterwards:
+            # find pre-existing reservation for profile, apartments, cancel it
+            project_reservations = ApartmentReservation.objects.filter(
+                apartment_uuid__in=project_apartment_uuids,
+                application_apartment__application__customer__primary_profile__id=profile.id,  # noqa: E501
+            )
+            new_reservation = project_reservations.last()
+
+            project_reservations_to_cancel = project_reservations.exclude(
+                application_apartment__in=application.application_apartments.all()
+            )
+            
+            for reservation in project_reservations_to_cancel:
+                reservation.set_state(
+                    ApartmentReservationState.CANCELED,
+                    comment=f"Peruttu ja korvattu jälkihakemuksella, varaus id: {new_reservation.pk}",
+                    replaced_by=new_reservation
+                )
+
             send_sales_notification_email(
                 application,
                 project,
