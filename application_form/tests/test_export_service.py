@@ -147,7 +147,9 @@ def _expected_hitas_ownership(reservation):
 
 
 def _expected_haso_revaluation_values(columns, reservation):
-    """Returns a list of values ​​for HASO columns in the order they appear in columns."""
+    """
+    Returns a list of values ​​for HASO columns in the order they appear in columns.
+    """
     haso_keys = {
         "haso_original_ao_payment",
         "haso_luovutushinta",
@@ -765,15 +767,18 @@ def test_export_terminated_sales_rows():
         terminated_sales_apartments, is_hitas=True
     )
 
-    assert terminated_subtotal_row == [
+    expected_terminated_subtotal_row = [
         "Puretut yhteensä",
         Decimal(sum(apt.sales_price for apt in terminated_sales_apartments) / 100),
         Decimal(
             sum(apt.debt_free_sales_price for apt in terminated_sales_apartments) / 100
         ),
         "",
+        "",
+        4,
         export_service.HIGHLIGHT_COLOR,
     ]
+    assert terminated_subtotal_row == expected_terminated_subtotal_row
 
     total_terminated_row = export_service._get_total_terminated_row(apartments)
 

@@ -790,6 +790,8 @@ class XlsxSalesReportExportService(XlsxExportService):
         row = [
             f"{verb} yhteensä",
             *self._get_apartment_price_sum_cells(terminated_apartments, is_hitas),
+            "",
+            len(terminated_apartments),
             self.HIGHLIGHT_COLOR,
         ]
 
