@@ -392,6 +392,7 @@ def _find_winning_candidates(applications: QuerySet) -> QuerySet:
 
 
 def delete_application(application: Application):
+
     for application_apartment in application.application_apartments.all():
         ApartmentReservation.objects.filter(
             application_apartment=application_apartment
