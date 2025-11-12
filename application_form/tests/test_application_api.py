@@ -727,7 +727,7 @@ def test_late_submit_application_post_existing_application_gets_canceled(
         external_uuid=response.json()["application_uuid"]
     )
     second_reservation = ApartmentReservation.objects.get(
-        apartment_uuid=apartments[0].uuid,
+        apartment_uuid=apartments[1].uuid,
         application_apartment=second_application.application_apartments.first(),
     )
 
