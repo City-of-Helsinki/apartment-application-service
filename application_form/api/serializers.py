@@ -34,6 +34,7 @@ from application_form.models import (
     Offer,
 )
 from application_form.services.application import (
+    cancel_reservation,
     create_application,
     send_sales_notification_email,
 )
@@ -196,12 +197,11 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
             project_reservations_to_cancel = project_reservations.exclude(
                 application_apartment__in=application.application_apartments.all()
             )
-
             for reservation in project_reservations_to_cancel:
-                reservation.set_state(
-                    ApartmentReservationState.CANCELED,
+                cancel_reservation(
+                    reservation,
                     comment=f"Peruttu ja korvattu jälkihakemuksella, varaus id: {new_reservation.pk}",  # noqa: E501
-                    replaced_by=new_reservation,
+                    cancellation_reason=ApartmentReservationCancellationReason.CANCELED,
                 )
 
             send_sales_notification_email(
