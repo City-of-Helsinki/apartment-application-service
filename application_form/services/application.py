@@ -1,12 +1,15 @@
 import logging
 import uuid
 from datetime import date
-from typing import Iterable, List, Optional
+from typing import Iterable, List, Optional, Union
 
 from django.contrib.auth import get_user_model
+from django.core.mail import EmailMessage
 from django.db import transaction
 from django.db.models import QuerySet
+from django.template.loader import render_to_string
 
+from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import get_apartment
 from application_form.enums import (
     ApartmentQueueChangeEventType,
@@ -47,6 +50,7 @@ def cancel_reservation(
     If the reservation has already won the apartment, then the winner for the apartment
     will be recalculated.
     """
+
     was_reserved = (
         apartment_reservation.state is not ApartmentReservationState.SUBMITTED
     )
@@ -83,7 +87,9 @@ def cancel_reservation(
 
 @transaction.atomic
 def create_application(
-    application_data: dict, user: Optional[User] = None
+    application_data: dict,
+    user: Optional[User] = None,
+    submitted_late: bool = False,
 ) -> Application:
     _logger.debug(
         "Creating a new application with external UUID %s",
@@ -115,7 +121,9 @@ def create_application(
         handler_information=data.pop("handler_information"),
         method_of_arrival=data.pop("method_of_arrival"),
         sender_names=data.pop("sender_names"),
+        submitted_late=submitted_late,
     )
+
     Applicant.objects.create(
         first_name=applicant_data["first_name"],
         last_name=applicant_data["last_name"],
@@ -158,6 +166,7 @@ def create_application(
     _logger.debug(
         "Application created with external UUID %s", application_data["external_uuid"]
     )
+
     add_application_to_queues(application, user=user)
     return application
 
@@ -383,6 +392,7 @@ def _find_winning_candidates(applications: QuerySet) -> QuerySet:
 
 
 def delete_application(application: Application):
+
     for application_apartment in application.application_apartments.all():
         ApartmentReservation.objects.filter(
             application_apartment=application_apartment
@@ -392,3 +402,33 @@ def delete_application(application: Application):
     application.applicants.all().delete()
 
     application.delete()
+
+
+def send_sales_notification_email(
+    application: Application,
+    project: ApartmentDocument,
+    application_apartment_uuids: List[Union[uuid.UUID, str]],
+):
+    primary_profile = application.customer.primary_profile
+
+    email_subject = f"Jälkihakemus {project.project_housing_company}"
+    apartments = [get_apartment(uuid) for uuid in application_apartment_uuids]
+
+    # render body with Django's template engine for cleaner code
+    email_body = render_to_string(
+        "email_late_application.html",
+        context={
+            "project": project,
+            "applied_apartments": apartments,
+            "primary_profile": primary_profile,
+        },
+    )
+
+    msg = EmailMessage(
+        subject=email_subject,
+        body=email_body,
+        to=[project.project_estate_agent_email],
+    )
+
+    msg.send()
+    pass
