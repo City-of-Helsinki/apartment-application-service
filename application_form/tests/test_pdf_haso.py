@@ -5,18 +5,15 @@ from decimal import Decimal
 
 import pytest
 
-from apartment.enums import OwnershipType
-from apartment.tests.factories import ApartmentDocumentFactory
 from apartment_application_service.pdf import PDFCurrencyField as CF
-from application_form.tests.factories import ApartmentReservationFactory
 from users.tests.factories import UserFactory
 
-from ..pdf.haso import (
-    create_haso_contract_pdf_from_data,
-    get_haso_contract_pdf_data,
-    HasoContractPDFData,
+from ..pdf.haso import create_haso_contract_pdf_from_data, HasoContractPDFData
+from .pdf_utils import (
+    get_cleaned_pdf_texts,
+    remove_pdf_id,
+    set_up_contract_pdf_test_data,
 )
-from .pdf_utils import get_cleaned_pdf_texts, remove_pdf_id
 
 # This variable should be normally False, but can be set temporarily to
 # True to override the expected test result PDF file.  This is useful
@@ -84,17 +81,21 @@ class TestHasoContractPdfFromData(unittest.TestCase):
         assert self.pdf_content
 
     @pytest.mark.django_db
+    def test_payment_recipient_field_goes_on_pdf(self):
+
+        pass
+
+    @pytest.mark.django_db
     def test_salesperson_signing_info_is_formatted_correctly(self):
         """Assert that the chosen salesperson's name and signing time/place get passed
         correctly to the HASO contract PDF generation.
         Small test mainly for TDD purposes."""
-        apt = ApartmentDocumentFactory(project_ownership_type=OwnershipType.HASO.value)
-        res = ApartmentReservationFactory(apartment_uuid=apt.uuid)
+
         salesperson = UserFactory(first_name="Markku", last_name="Myyjä")
         paid_place = "Helsinki"
         paid_time = "10.9.2025"
-        pdf_data = get_haso_contract_pdf_data(
-            res,
+
+        pdf_data = set_up_contract_pdf_test_data(
             salesperson=salesperson,
             sales_price_paid_place=paid_place,
             sales_price_paid_time=paid_time,

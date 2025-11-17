@@ -1,9 +1,64 @@
 import pytest
 from django.utils.translation import gettext_lazy as _
 
+from apartment.enums import OwnershipType
+from apartment.tests.factories import ApartmentDocumentFactory
+from application_form.tests.factories import ApartmentReservationFactory
 from customer.tests.factories import CustomerFactory
-from invoicing.pdf import _get_payer_name_and_address
+from invoicing.enums import InstallmentType
+from invoicing.pdf import (
+    _get_payer_name_and_address,
+    get_invoice_pdf_data_from_installment,
+)
+from invoicing.tests.factories import ApartmentInstallmentFactory
 from users.tests.factories import ProfileFactory
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("ownership_type", (OwnershipType.HASO, OwnershipType.HITAS))
+def test_pdf_payment_recipients_set_correctly(ownership_type):
+    apartment = ApartmentDocumentFactory(
+        project_ownership_type=ownership_type.value,
+        project_payment_recipient="Payment recipient",
+        project_payment_recipient_final="Final payment recipient",
+    )
+    reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
+
+    first_installment_type = InstallmentType.PAYMENT_1
+    final_installment_type = InstallmentType.PAYMENT_7
+
+    if ownership_type == OwnershipType.HASO:
+        first_installment_type = InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT
+        final_installment_type = InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT_3
+
+    first_installment = ApartmentInstallmentFactory(
+        apartment_reservation=reservation,
+        value=100_000,
+        type=first_installment_type,
+    )
+
+    final_installment = ApartmentInstallmentFactory(
+        apartment_reservation=reservation,
+        value=100_000,
+        type=final_installment_type,
+    )
+
+    first_installment_pdf_data = get_invoice_pdf_data_from_installment(
+        first_installment
+    )
+    final_installment_pdf_data = get_invoice_pdf_data_from_installment(
+        final_installment
+    )
+
+    assert first_installment_pdf_data.recipient == apartment.project_payment_recipient
+    assert (
+        final_installment_pdf_data.recipient
+        == apartment.project_payment_recipient_final
+    )  # noqa: E501
+
+    # assert the final payment still gets the final recipient
+
+    pass
 
 
 @pytest.mark.django_db
