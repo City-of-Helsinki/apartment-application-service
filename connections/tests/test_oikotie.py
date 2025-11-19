@@ -347,18 +347,18 @@ class TestOikotieMapper:
 
     def test_oikotie_map_correct_price_info(self):
         """
-        Get `ApartmentDocument.release_payment` for HASO apartments and
+        Get `ApartmentDocument.right_of_occupancy_payment` for HASO apartments and
         `ApartmentDocument.sales_price` for HITAS apartments.
         """
-        release_payment = 1000
+        right_of_occupancy_payment = 1000
         sales_price = 2000
 
-        expected_release_payment = Decimal(release_payment / 100)
+        expected_right_of_occupancy_payment = Decimal(right_of_occupancy_payment / 100)
         expected_sales_price = Decimal(sales_price / 100)
 
         haso_apartment = ApartmentMinimalFactory(
             project_ownership_type=OwnershipType.HASO.value,
-            release_payment=release_payment,
+            right_of_occupancy_payment=right_of_occupancy_payment,
             sales_price=0,
         )
         hitas_apartment = ApartmentMinimalFactory(
@@ -368,7 +368,7 @@ class TestOikotieMapper:
         )
 
         assert map_sales_price(hitas_apartment).value == expected_sales_price
-        assert map_sales_price(haso_apartment).value == expected_release_payment
+        assert map_sales_price(haso_apartment).value == expected_right_of_occupancy_payment
 
         pass
 

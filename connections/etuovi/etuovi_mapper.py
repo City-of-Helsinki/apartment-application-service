@@ -499,7 +499,7 @@ def map_apartment_to_item(elastic_apartment: ApartmentDocument) -> Item:
         elastic_apartment.project_ownership_type.lower() == OwnershipType.HASO.value
     )
 
-    debtfreeprice_key = "release_payment" if is_haso else "debt_free_sales_price"
+    debtfreeprice_key = "right_of_occupancy_payment" if is_haso else "debt_free_sales_price"
 
     item_dict = {
         "buildyear": getattr(elastic_apartment, "project_construction_year", None),

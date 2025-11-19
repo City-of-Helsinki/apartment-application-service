@@ -1,3 +1,4 @@
+from decimal import Decimal
 import os
 from uuid import UUID
 
@@ -36,6 +37,38 @@ class TestEtuoviMapper:
         apartment = ApartmentMinimalFactory()
         item = map_apartment_to_item(apartment)
         check_dataclass_typing(item)
+
+
+    def test_etuovi_map_correct_price_info(self):
+        """
+        Get `ApartmentDocument.right_of_occupancy_payment` for HASO apartments and
+        `ApartmentDocument.sales_price` for HITAS apartments.
+        """
+        right_of_occupancy_payment = 1000
+        sales_price = 2000
+        debt_free_sales_price = 2500
+
+        expected_right_of_occupancy_payment = Decimal(right_of_occupancy_payment / 100)
+        expected_sales_price = Decimal(sales_price / 100)
+        expected_debt_free_sales_price = Decimal(debt_free_sales_price / 100)
+
+        haso_apartment = ApartmentDocumentFactory(
+            project_ownership_type=OwnershipType.HASO.value,
+            right_of_occupancy_payment=right_of_occupancy_payment,
+            sales_price=0,
+        )
+        hitas_apartment = ApartmentDocumentFactory(
+            project_ownership_type=OwnershipType.HITAS.value,
+            debt_free_sales_price=debt_free_sales_price,
+            sales_price=sales_price,
+            release_payment=0,
+        )
+        haso_item = map_apartment_to_item(haso_apartment)
+        hitas_item = map_apartment_to_item(hitas_apartment)
+
+        assert haso_item.debtfreeprice == expected_right_of_occupancy_payment
+        assert hitas_item.debtfreeprice == expected_debt_free_sales_price
+        assert hitas_item.price == expected_sales_price
 
     def test_elastic_to_etuovi_missing_apartment_project_holding_type(self):
         try:
