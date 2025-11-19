@@ -286,7 +286,7 @@ def map_sales_price(elastic_apartment: ElasticApartment) -> Optional[SalesPrice]
     price_value = elastic_apartment.sales_price
 
     if elastic_apartment.project_ownership_type == OwnershipType.HASO.value:
-        price_value = elastic_apartment.release_payment
+        price_value = elastic_apartment.right_of_occupancy_payment
 
     if price_value is not None:
         return SalesPrice(
