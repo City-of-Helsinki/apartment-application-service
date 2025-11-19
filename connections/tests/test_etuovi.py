@@ -38,7 +38,6 @@ class TestEtuoviMapper:
         item = map_apartment_to_item(apartment)
         check_dataclass_typing(item)
 
-
     def test_etuovi_map_correct_price_info(self):
         """
         Get `ApartmentDocument.right_of_occupancy_payment` for HASO apartments and

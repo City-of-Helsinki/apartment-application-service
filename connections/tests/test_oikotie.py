@@ -368,7 +368,9 @@ class TestOikotieMapper:
         )
 
         assert map_sales_price(hitas_apartment).value == expected_sales_price
-        assert map_sales_price(haso_apartment).value == expected_right_of_occupancy_payment
+        assert (
+            map_sales_price(haso_apartment).value == expected_right_of_occupancy_payment
+        )
 
         pass
 
