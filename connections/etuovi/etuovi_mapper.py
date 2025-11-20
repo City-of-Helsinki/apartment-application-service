@@ -59,9 +59,7 @@ def map_decimal(
         return None
 
 
-def map_price(
-    elastic_apartment: ApartmentDocument, field_name: str
-) -> Decimal:
+def map_price(elastic_apartment: ApartmentDocument, field_name: str) -> Decimal:
     """
     Returns the Decimal of an ElasticSearch price field. The prices
     are saved as cents in ElasticSearch so convert the value to Euros.
