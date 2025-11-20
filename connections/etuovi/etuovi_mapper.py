@@ -61,7 +61,7 @@ def map_decimal(
 
 def map_price(
     elastic_apartment: ApartmentDocument, field_name: str
-) -> Optional[Decimal]:
+) -> Decimal:
     """
     Returns the Decimal of an ElasticSearch price field. The prices
     are saved as cents in ElasticSearch so convert the value to Euros.
@@ -69,7 +69,7 @@ def map_price(
     elastic_value = getattr(elastic_apartment, field_name, None)
     if elastic_value is not None:
         return convert_price_from_cents_to_eur(elastic_value)
-    return None
+    return Decimal(0)
 
 
 def get_showing_datetime_with_index(
