@@ -59,9 +59,7 @@ def map_decimal(
         return None
 
 
-def map_price(
-    elastic_apartment: ApartmentDocument, field_name: str
-) -> Optional[Decimal]:
+def map_price(elastic_apartment: ApartmentDocument, field_name: str) -> Decimal:
     """
     Returns the Decimal of an ElasticSearch price field. The prices
     are saved as cents in ElasticSearch so convert the value to Euros.
@@ -69,7 +67,7 @@ def map_price(
     elastic_value = getattr(elastic_apartment, field_name, None)
     if elastic_value is not None:
         return convert_price_from_cents_to_eur(elastic_value)
-    return None
+    return Decimal(0)
 
 
 def get_showing_datetime_with_index(
@@ -499,7 +497,9 @@ def map_apartment_to_item(elastic_apartment: ApartmentDocument) -> Item:
         elastic_apartment.project_ownership_type.lower() == OwnershipType.HASO.value
     )
 
-    debtfreeprice_key = "release_payment" if is_haso else "debt_free_sales_price"
+    debtfreeprice_key = (
+        "right_of_occupancy_payment" if is_haso else "debt_free_sales_price"
+    )
 
     item_dict = {
         "buildyear": getattr(elastic_apartment, "project_construction_year", None),
