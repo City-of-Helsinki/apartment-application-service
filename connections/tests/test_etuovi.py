@@ -1,5 +1,5 @@
-from decimal import Decimal
 import os
+from decimal import Decimal
 from uuid import UUID
 
 import pytest
