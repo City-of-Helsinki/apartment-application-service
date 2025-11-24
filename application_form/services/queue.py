@@ -4,8 +4,9 @@ from typing import Optional
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from django.db.models import F
+from django.db.models import F, Max
 
+from apartment.elastic.documents import ApartmentDocument
 from application_form.enums import (
     ApartmentQueueChangeEventType,
     ApartmentReservationCancellationReason,
@@ -33,6 +34,7 @@ def add_application_to_queues(
     """
 
     for application_apartment in application.application_apartments.all():
+
         apartment_uuid = application_apartment.apartment_uuid
         with lock_table(ApartmentReservation):
             if application.type == ApplicationType.HASO:
@@ -63,12 +65,22 @@ def add_application_to_queues(
                     )
                 except IndexError:
                     queue_position = 1
-                list_position = (
-                    ApartmentReservation.objects.filter(
-                        apartment_uuid=apartment_uuid
-                    ).count()
-                    + 1
+
+                apartment_reservations = ApartmentReservation.objects.filter(
+                    apartment_uuid=apartment_uuid
                 )
+                if not apartment_reservations.exists():
+                    list_position = 1
+                else:
+                    # Use Max("list_position") instead of reservation count
+                    # to fix a corner case where the queue has an empty gap in
+                    # list_positions
+                    list_position = (
+                        apartment_reservations.aggregate(
+                            max_list_position=Max("list_position")
+                        )["max_list_position"]
+                        + 1
+                    )
             else:
                 raise ValueError(f"unsupported application type {application.type}")
 
@@ -88,6 +100,7 @@ def add_application_to_queues(
                 submitted_late=application.submitted_late,
             )
             apartment_reservation.save(user=user)
+
             apartment_reservation.queue_change_events.create(
                 type=ApartmentQueueChangeEventType.ADDED,
                 comment=comment,
@@ -128,6 +141,41 @@ def remove_reservation_from_queue(
     )
 
     return state_change_event
+
+
+def remove_queue_gaps(apartment: ApartmentDocument):
+    """Goes through `ApartmentReservation` rows and removes any gaps in the
+    `queue_position` and `list_position` numbers.
+
+    Orders the reservations by queue_position, loops through them
+    and assigns iterator+1 as the `ApartmentReservation.queue_position`-attribute
+    removing the gaps and preserving the current order.
+
+    e.g. queue_positions `<empty> -> 2. -> <empty> -> 4. -> 5.`
+    become `1. -> 2. -> 3.`
+
+    DOES NOT help if the order of the queue needs to be recalculated entirely, e.g.
+    in a situation where a late submitted reservation is changed to a regular one and
+    its position should be changed to reflect that.
+
+    Args:
+        apartment (ApartmentDocument): The apartment whose queue is being modified
+    """
+    reservations = ApartmentReservation.objects.filter(
+        apartment_uuid=apartment.uuid
+    ).order_by("queue_position")
+
+    # workaround:
+    # list_position has an unique_together constraint with apartment_uuid
+    # it also cannot be NULL
+    # so we just temporarily move the list_positions out of the way
+    # so we can set them into order with their queue_positions
+    reservations.update(list_position=F("list_position") + 10000)
+
+    for idx, res in enumerate(reservations, 1):
+        res.set_state(state=res.state, queue_position=idx)
+        res.list_position = idx
+        res.save()
 
 
 def _calculate_queue_position(

@@ -25,6 +25,7 @@ from application_form.models import (
 )
 from application_form.services.queue import (
     add_application_to_queues,
+    remove_queue_gaps,
     remove_reservation_from_queue,
 )
 from audit_log import audit_logging
@@ -168,6 +169,7 @@ def create_application(
     )
 
     add_application_to_queues(application, user=user)
+
     return application
 
 
@@ -402,6 +404,7 @@ def delete_application(application: Application):
     application.applicants.all().delete()
 
     application.delete()
+    remove_queue_gaps(get_apartment(application_apartment.apartment_uuid))
 
 
 def send_sales_notification_email(

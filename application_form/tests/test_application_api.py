@@ -737,6 +737,151 @@ def test_late_submit_application_post_existing_application_gets_canceled(
     pass
 
 
+@pytest.mark.parametrize(
+    "application_type", (ApplicationType.HITAS, ApplicationType.HASO)
+)
+@pytest.mark.django_db
+def test_deleting_application_doesnt_leave_empty_queue_positions(
+    api_client,
+    application_type,
+    elasticsearch,
+):
+    """
+    Deleting an application via `applications/delete/<uuid>`-endpoint shouldn't
+    leave an empty position in the apartment queue.
+    """
+
+    # create a few applications+reservations
+    application_count = 4
+    apartment = ApartmentDocumentFactory(
+        project_application_end_time=datetime.now().replace(
+            tzinfo=timezone.get_default_timezone()
+        )
+        + timedelta(days=1)
+    )
+
+    application_uuids = []
+
+    for idx in range(application_count):
+        profile = ProfileFactory()
+
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
+        data = create_application_data(
+            profile,
+            application_type=application_type,
+            apartments=[apartment],
+        )
+        data["right_of_residence"] = idx + 1000
+        response = api_client.post(
+            reverse("application_form:application-list"), data, format="json"
+        )
+        application_uuids.append(response.json()["application_uuid"])
+
+    # delete first and third application
+    for idx in [0, 2]:
+        application_uuid_to_delete = application_uuids[idx]
+
+        deleter_profile = Application.objects.get(
+            external_uuid=application_uuid_to_delete,
+        ).customer.primary_profile
+
+        api_client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {_create_token(deleter_profile)}"
+        )
+
+        response = api_client.delete(
+            reverse(
+                "application_form:application-delete",
+                kwargs={"application_uuid": application_uuid_to_delete},
+            ),
+        )
+
+    reservation_queue_positions = ApartmentReservation.objects.filter(
+        application_apartment__application__external_uuid__in=application_uuids
+    ).values_list("queue_position", flat=True)
+
+    # assert there are no gaps in queue positions
+    last_idx = len(reservation_queue_positions) - 1
+
+    for idx, qp in enumerate(reservation_queue_positions):
+        if idx == last_idx:
+            continue
+
+        next_qp = reservation_queue_positions[idx + 1]
+        assert next_qp == qp + 1
+
+
+@pytest.mark.parametrize(
+    "application_type", (ApplicationType.HITAS, ApplicationType.HASO)
+)
+@pytest.mark.django_db
+def test_skipped_position_in_hitas_queue_doesnt_cause_error(
+    api_client, elasticsearch, application_type
+):
+    """
+    Corner cases where the queue for a HITAS apartment
+    where `ApartmentReservation.queue_position` goes like
+    `<empty>, 2., 3., 4.` can cause creating new reservation to crash.
+
+    Make sure that it doesn't happen.
+    (ASU-1814)
+    """
+
+    apartment_properties = {
+        "apartment_state_of_sale": ApartmentStateOfSale.FOR_SALE.value,
+        "_language": "fi",
+        "project_ownership_type": application_type.value,
+        "project_can_apply_afterwards": True,
+        "project_application_end_time": (
+            datetime.now().replace(tzinfo=timezone.get_default_timezone())
+        )
+        + timedelta(days=1),
+    }
+
+    apartments = generate_apartments(elasticsearch, 1, apartment_properties)
+
+    profile = ProfileFactory()
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
+    data = create_application_data(
+        profile,
+        application_type=application_type,
+        apartments=apartments,
+    )
+    response = api_client.post(
+        reverse("application_form:application-list"), data, format="json"
+    )
+    assert response.status_code == 201
+    assert response.data == {"application_uuid": data["application_uuid"]}
+    first_application = Application.objects.get(external_uuid=data["application_uuid"])
+    first_reservation = ApartmentReservation.objects.get(
+        application_apartment__application=first_application
+    )
+
+    first_reservation.set_state(state=first_reservation.state, queue_position=2)
+    first_reservation.list_position = 2
+    first_reservation.save()
+
+    second_profile = ProfileFactory()
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(second_profile)}")
+    data = create_application_data(
+        second_profile, application_type=ApplicationType.HITAS, apartments=apartments
+    )
+    response = api_client.post(
+        reverse("application_form:application-list"), data, format="json"
+    )
+
+    first_reservation = ApartmentReservation.objects.get(
+        application_apartment__application__external_uuid=data["application_uuid"]
+    )
+
+    assert response.status_code == 201
+    assert response.data == {"application_uuid": data["application_uuid"]}
+    assert first_reservation.queue_position == 3
+    assert first_reservation.list_position == 3
+
+    pass
+
+
 @pytest.mark.django_db
 def test_application_post_haso_submitted_late_end_of_queue(
     # add_application_to_queues_mock, api_client, elasticsearch
