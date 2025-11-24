@@ -4,7 +4,8 @@ from typing import Optional
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from django.db.models import F
+from django.db.utils import IntegrityError
+from django.db.models import F, Max
 
 from application_form.enums import (
     ApartmentQueueChangeEventType,
@@ -33,6 +34,7 @@ def add_application_to_queues(
     """
 
     for application_apartment in application.application_apartments.all():
+
         apartment_uuid = application_apartment.apartment_uuid
         with lock_table(ApartmentReservation):
             if application.type == ApplicationType.HASO:
@@ -63,12 +65,21 @@ def add_application_to_queues(
                     )
                 except IndexError:
                     queue_position = 1
-                list_position = (
-                    ApartmentReservation.objects.filter(
+
+                # possible race condition here
+                # reservation maybe gets deleted while this is running due to Drupal calling /delete endpoint?
+                apartment_reservations = ApartmentReservation.objects.filter(
                         apartment_uuid=apartment_uuid
-                    ).count()
-                    + 1
                 )
+                if not apartment_reservations.exists():
+                    list_position = 1
+                else:
+                    list_position = (
+                        apartment_reservations.aggregate(
+                            max_list_position=Max("list_position")
+                        )["max_list_position"] + 1
+                    )
+
             else:
                 raise ValueError(f"unsupported application type {application.type}")
 
@@ -88,6 +99,7 @@ def add_application_to_queues(
                 submitted_late=application.submitted_late,
             )
             apartment_reservation.save(user=user)
+
             apartment_reservation.queue_change_events.create(
                 type=ApartmentQueueChangeEventType.ADDED,
                 comment=comment,
