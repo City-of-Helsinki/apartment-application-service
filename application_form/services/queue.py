@@ -7,6 +7,7 @@ from django.db import transaction
 from django.db.utils import IntegrityError
 from django.db.models import F, Max
 
+from apartment.elastic.documents import ApartmentDocument
 from application_form.enums import (
     ApartmentQueueChangeEventType,
     ApartmentReservationCancellationReason,
@@ -79,7 +80,6 @@ def add_application_to_queues(
                             max_list_position=Max("list_position")
                         )["max_list_position"] + 1
                     )
-
             else:
                 raise ValueError(f"unsupported application type {application.type}")
 
@@ -141,6 +141,37 @@ def remove_reservation_from_queue(
 
     return state_change_event
 
+def remove_queue_gaps(apartment: ApartmentDocument):
+    """Checks the `ApartmentReservation.queue_position` 
+    and `ApartmentReservation.list_position` properties on all reservations
+    in an apartment's queue and removes any gaps in the numbers.
+    
+    Essentially just moves all reservations up a number if the position before them is empty
+    e.g. queue_positions `1. -> 2. -> <empty> -> 4. -> 5.`
+    become `1. -> 2. -> 3. -> 4.`
+
+    Args:
+        apartment (ApartmentDocument): The apartment whose queue is being modified
+    """
+    reservations = sorted(ApartmentReservation.objects.filter(
+        apartment_uuid=apartment.uuid
+    ), key=lambda x: x.right_of_residence_ordering_number)
+    last_index = len(reservations) - 1
+
+    new_queue_positions = []
+
+    for idx, res in enumerate(reservations):
+
+        new_queue_positions.append(
+            (res, idx+1)
+        )
+
+
+    for res, new_queue_position in new_queue_positions:
+        res.set_state(state=res.state, queue_position=new_queue_position)
+
+        res.list_position = new_queue_position
+        res.save()
 
 def _calculate_queue_position(
     apartment_uuid: uuid.UUID,

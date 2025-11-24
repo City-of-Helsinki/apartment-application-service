@@ -765,10 +765,6 @@ def test_deleting_application_doesnt_leave_empty_queue_positions(
     for idx in range(application_count):
         profile = ProfileFactory()
 
-        # keep profile to generate Bearer token to delete its application
-        if idx == 0:
-            first_profile = profile
-
         api_client.credentials(
             HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}"
         )
@@ -777,6 +773,7 @@ def test_deleting_application_doesnt_leave_empty_queue_positions(
             application_type=application_type,
             apartments=[apartment],
         )
+        data["right_of_residence"] = idx+1000
         response = api_client.post(
             reverse("application_form:application-list"), data, format="json"
         )
@@ -818,10 +815,14 @@ def test_deleting_application_doesnt_leave_empty_queue_positions(
         assert next_qp == qp+1
 
 
+@pytest.mark.parametrize(
+    "application_type", (ApplicationType.HITAS, ApplicationType.HASO)
+)
 @pytest.mark.django_db
 def test_skipped_position_in_hitas_queue_doesnt_cause_error(
     api_client,
     elasticsearch,
+    application_type
 ):
     """
     Corner cases where the queue for a HITAS apartment 
@@ -836,7 +837,7 @@ def test_skipped_position_in_hitas_queue_doesnt_cause_error(
     apartment_properties = {
         "apartment_state_of_sale": ApartmentStateOfSale.FOR_SALE.value,
         "_language": "fi",
-        "project_ownership_type": OwnershipType.HITAS.value,
+        "project_ownership_type": application_type.value,
         "project_can_apply_afterwards": True,
         "project_application_end_time": (
             datetime.now().replace(tzinfo=timezone.get_default_timezone())
@@ -850,7 +851,7 @@ def test_skipped_position_in_hitas_queue_doesnt_cause_error(
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
     data = create_application_data(
         profile,
-        application_type=ApplicationType.HITAS,  # TODO: parametrize
+        application_type=application_type,
         apartments=apartments,
     )
     response = api_client.post(

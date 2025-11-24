@@ -2,6 +2,8 @@ import logging
 from unittest.mock import Mock
 
 from django.db.models import QuerySet
+from apartment.elastic.queries import get_apartment
+from apartment.tests.factories import ApartmentDocumentFactory
 from pytest import mark, raises
 
 from apartment.enums import OwnershipType
@@ -17,6 +19,7 @@ from application_form.models.reservation import (
 from application_form.services.application import get_ordered_applications
 from application_form.services.queue import (
     add_application_to_queues,
+    remove_queue_gaps,
     remove_reservation_from_queue,
 )
 from application_form.tests.conftest import generate_apartments, sell_apartments
@@ -427,3 +430,45 @@ def test_add_haso_application_to_queue_with_a_cancelled_reservation(
         .queue_position
         == 1
     )
+
+@mark.parametrize(
+    "application_type", (ApplicationType.HITAS, ApplicationType.HASO)
+)
+@mark.django_db
+def test_remove_queue_gaps(elastic_project_with_5_apartments, application_type):
+    apartment = ApartmentDocumentFactory()
+    first_apartment_uuid = apartment.uuid
+    
+    # create some applications+reservations
+
+    # add gaps in queue_positions (missing 1., 3., 6. and 7.)
+    gap_indexes = [0, 2, 5, 6]
+    qp = 1
+    for idx in range(10):
+        app = ApplicationFactory(type=application_type, right_of_residence=idx)
+        app.application_apartments.create(
+            apartment_uuid=first_apartment_uuid, priority_number=1
+        )
+        if idx in gap_indexes:
+            continue
+
+        res = ApartmentReservationFactory(
+            apartment_uuid=first_apartment_uuid,
+            state=ApartmentReservationState.SUBMITTED,
+            queue_position=idx+1,
+            list_position=idx+1,
+        )
+
+    # assert there are no gaps in queue positions
+    remove_queue_gaps(get_apartment(first_apartment_uuid))
+
+    reservation_queue_positions = ApartmentReservation.objects.filter( apartment_uuid=first_apartment_uuid ).order_by("queue_position").values_list("queue_position", flat=True)
+    last_idx = len(reservation_queue_positions)-1
+    for idx, qp in enumerate(reservation_queue_positions):
+        if idx == last_idx:
+            continue
+
+        next_qp = reservation_queue_positions[idx+1]
+        assert next_qp == qp+1
+
+
