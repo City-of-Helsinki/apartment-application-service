@@ -4,7 +4,6 @@ from typing import Optional
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from django.db.utils import IntegrityError
 from django.db.models import F, Max
 
 from apartment.elastic.documents import ApartmentDocument
@@ -67,18 +66,20 @@ def add_application_to_queues(
                 except IndexError:
                     queue_position = 1
 
-                # possible race condition here
-                # reservation maybe gets deleted while this is running due to Drupal calling /delete endpoint?
                 apartment_reservations = ApartmentReservation.objects.filter(
-                        apartment_uuid=apartment_uuid
+                    apartment_uuid=apartment_uuid
                 )
                 if not apartment_reservations.exists():
                     list_position = 1
                 else:
+                    # Use Max("list_position") instead of reservation count
+                    # to fix a corner case where the queue has an empty gap in
+                    # list_positions
                     list_position = (
                         apartment_reservations.aggregate(
                             max_list_position=Max("list_position")
-                        )["max_list_position"] + 1
+                        )["max_list_position"]
+                        + 1
                     )
             else:
                 raise ValueError(f"unsupported application type {application.type}")
@@ -141,16 +142,21 @@ def remove_reservation_from_queue(
 
     return state_change_event
 
+
 def remove_queue_gaps(apartment: ApartmentDocument):
-    """Checks the `ApartmentReservation.queue_position` 
-    and `ApartmentReservation.list_position` removes any gaps in the numbers.
-    
-    Basically just orders the reservations by queue_position, loops through them
+    """Goes through `ApartmentReservation` rows and removes any gaps in the
+    `queue_position` and `list_position` numbers.
+
+    Orders the reservations by queue_position, loops through them
     and assigns iterator+1 as the `ApartmentReservation.queue_position`-attribute
     removing the gaps and preserving the current order.
 
-    e.g. queue_positions `1. -> 2. -> <empty> -> 4. -> 5.`
-    become `1. -> 2. -> 3. -> 4.`
+    e.g. queue_positions `<empty> -> 2. -> <empty> -> 4. -> 5.`
+    become `1. -> 2. -> 3.`
+
+    DOES NOT help if the order of the queue needs to be recalculated entirely, e.g.
+    in a situation where a late submitted reservation is changed to a regular one and
+    its position should be changed to reflect that.
 
     Args:
         apartment (ApartmentDocument): The apartment whose queue is being modified
@@ -159,13 +165,7 @@ def remove_queue_gaps(apartment: ApartmentDocument):
         apartment_uuid=apartment.uuid
     ).order_by("queue_position")
 
-    new_queue_positions = []
-
     for idx, res in enumerate(reservations, 1):
-
-        new_queue_positions.append(
-            (res, idx+1)
-        )
         res.set_state(state=res.state, queue_position=idx)
 
         res.list_position = idx

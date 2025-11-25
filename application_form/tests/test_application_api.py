@@ -751,13 +751,13 @@ def test_deleting_application_doesnt_leave_empty_queue_positions(
     leave an empty position in the apartment queue.
     """
 
-
     # create a few applications+reservations
     application_count = 4
     apartment = ApartmentDocumentFactory(
         project_application_end_time=datetime.now().replace(
             tzinfo=timezone.get_default_timezone()
-        )+timedelta(days=1)
+        )
+        + timedelta(days=1)
     )
 
     application_uuids = []
@@ -765,21 +765,17 @@ def test_deleting_application_doesnt_leave_empty_queue_positions(
     for idx in range(application_count):
         profile = ProfileFactory()
 
-        api_client.credentials(
-            HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}"
-        )
+        api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
         data = create_application_data(
             profile,
             application_type=application_type,
             apartments=[apartment],
         )
-        data["right_of_residence"] = idx+1000
+        data["right_of_residence"] = idx + 1000
         response = api_client.post(
             reverse("application_form:application-list"), data, format="json"
         )
-        application_uuids.append(
-            response.json()["application_uuid"]
-        )
+        application_uuids.append(response.json()["application_uuid"])
 
     # delete first and third application
     for idx in [0, 2]:
@@ -805,14 +801,14 @@ def test_deleting_application_doesnt_leave_empty_queue_positions(
     ).values_list("queue_position", flat=True)
 
     # assert there are no gaps in queue positions
-    last_idx = len(reservation_queue_positions)-1
+    last_idx = len(reservation_queue_positions) - 1
 
     for idx, qp in enumerate(reservation_queue_positions):
         if idx == last_idx:
             continue
 
-        next_qp = reservation_queue_positions[idx+1]
-        assert next_qp == qp+1
+        next_qp = reservation_queue_positions[idx + 1]
+        assert next_qp == qp + 1
 
 
 @pytest.mark.parametrize(
@@ -820,19 +816,16 @@ def test_deleting_application_doesnt_leave_empty_queue_positions(
 )
 @pytest.mark.django_db
 def test_skipped_position_in_hitas_queue_doesnt_cause_error(
-    api_client,
-    elasticsearch,
-    application_type
+    api_client, elasticsearch, application_type
 ):
     """
-    Corner cases where the queue for a HITAS apartment 
+    Corner cases where the queue for a HITAS apartment
     where `ApartmentReservation.queue_position` goes like
     `<empty>, 2., 3., 4.` can cause creating new reservation to crash.
 
     Make sure that it doesn't happen.
     (ASU-1814)
     """
-
 
     apartment_properties = {
         "apartment_state_of_sale": ApartmentStateOfSale.FOR_SALE.value,

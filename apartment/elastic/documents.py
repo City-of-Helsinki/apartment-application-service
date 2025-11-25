@@ -206,13 +206,14 @@ class ApartmentDocument(ReadOnlyDocument):
             ]
 
         properties_to_print += [
-            "nid", 
+            "nid",
             "uuid",
             "apartment_address",
         ]
 
         properties_str = ", ".join(
-            f"{prop_name}='{getattr(self, prop_name)}'" for prop_name in properties_to_print
+            f"{prop_name}='{getattr(self, prop_name)}'"
+            for prop_name in properties_to_print
         )
         return f"ApartmentDocument({properties_str})"
 

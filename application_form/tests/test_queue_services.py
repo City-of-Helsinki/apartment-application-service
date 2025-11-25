@@ -431,14 +431,13 @@ def test_add_haso_application_to_queue_with_a_cancelled_reservation(
         == 1
     )
 
-@mark.parametrize(
-    "application_type", (ApplicationType.HITAS, ApplicationType.HASO)
-)
+
+@mark.parametrize("application_type", (ApplicationType.HITAS, ApplicationType.HASO))
 @mark.django_db
 def test_remove_queue_gaps(elastic_project_with_5_apartments, application_type):
     apartment = ApartmentDocumentFactory()
     first_apartment_uuid = apartment.uuid
-    
+
     # create some applications+reservations
 
     # add gaps in queue_positions (missing 1., 3., 6. and 7.)
@@ -455,20 +454,23 @@ def test_remove_queue_gaps(elastic_project_with_5_apartments, application_type):
         ApartmentReservationFactory(
             apartment_uuid=first_apartment_uuid,
             state=ApartmentReservationState.SUBMITTED,
-            queue_position=idx+1,
-            list_position=idx+1,
+            queue_position=idx + 1,
+            list_position=idx + 1,
         )
 
     # assert there are no gaps in queue positions
     remove_queue_gaps(get_apartment(first_apartment_uuid))
 
-    reservation_queue_positions = ApartmentReservation.objects.filter( apartment_uuid=first_apartment_uuid ).order_by("queue_position").values_list("queue_position", flat=True)
-    last_idx = len(reservation_queue_positions)-1
+    reservation_queue_positions = (
+        ApartmentReservation.objects.filter(apartment_uuid=first_apartment_uuid)
+        .order_by("queue_position")
+        .values_list("queue_position", flat=True)
+    )
+
+    last_idx = len(reservation_queue_positions) - 1
     for idx, qp in enumerate(reservation_queue_positions):
         if idx == last_idx:
             continue
 
-        next_qp = reservation_queue_positions[idx+1]
-        assert next_qp == qp+1
-
-
+        next_qp = reservation_queue_positions[idx + 1]
+        assert next_qp == qp + 1
