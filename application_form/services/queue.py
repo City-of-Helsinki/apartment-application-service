@@ -143,35 +143,34 @@ def remove_reservation_from_queue(
 
 def remove_queue_gaps(apartment: ApartmentDocument):
     """Checks the `ApartmentReservation.queue_position` 
-    and `ApartmentReservation.list_position` properties on all reservations
-    in an apartment's queue and removes any gaps in the numbers.
+    and `ApartmentReservation.list_position` removes any gaps in the numbers.
     
-    Essentially just moves all reservations up a number if the position before them is empty
+    Basically just orders the reservations by queue_position, loops through them
+    and assigns iterator+1 as the `ApartmentReservation.queue_position`-attribute
+    removing the gaps and preserving the current order.
+
     e.g. queue_positions `1. -> 2. -> <empty> -> 4. -> 5.`
     become `1. -> 2. -> 3. -> 4.`
 
     Args:
         apartment (ApartmentDocument): The apartment whose queue is being modified
     """
-    reservations = sorted(ApartmentReservation.objects.filter(
+    reservations = ApartmentReservation.objects.filter(
         apartment_uuid=apartment.uuid
-    ), key=lambda x: x.right_of_residence_ordering_number)
-    last_index = len(reservations) - 1
+    ).order_by("queue_position")
 
     new_queue_positions = []
 
-    for idx, res in enumerate(reservations):
+    for idx, res in enumerate(reservations, 1):
 
         new_queue_positions.append(
             (res, idx+1)
         )
+        res.set_state(state=res.state, queue_position=idx)
 
-
-    for res, new_queue_position in new_queue_positions:
-        res.set_state(state=res.state, queue_position=new_queue_position)
-
-        res.list_position = new_queue_position
+        res.list_position = idx
         res.save()
+
 
 def _calculate_queue_position(
     apartment_uuid: uuid.UUID,

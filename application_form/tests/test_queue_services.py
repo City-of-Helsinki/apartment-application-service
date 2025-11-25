@@ -444,7 +444,7 @@ def test_remove_queue_gaps(elastic_project_with_5_apartments, application_type):
     # add gaps in queue_positions (missing 1., 3., 6. and 7.)
     gap_indexes = [0, 2, 5, 6]
     qp = 1
-    for idx in range(10):
+    for idx in range(12):
         app = ApplicationFactory(type=application_type, right_of_residence=idx)
         app.application_apartments.create(
             apartment_uuid=first_apartment_uuid, priority_number=1
