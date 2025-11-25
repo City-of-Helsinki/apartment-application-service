@@ -2,11 +2,11 @@ import logging
 from unittest.mock import Mock
 
 from django.db.models import QuerySet
-from apartment.elastic.queries import get_apartment
-from apartment.tests.factories import ApartmentDocumentFactory
 from pytest import mark, raises
 
+from apartment.elastic.queries import get_apartment
 from apartment.enums import OwnershipType
+from apartment.tests.factories import ApartmentDocumentFactory
 from application_form.enums import (
     ApartmentQueueChangeEventType,
     ApartmentReservationState,
