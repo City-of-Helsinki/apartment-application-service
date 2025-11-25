@@ -452,7 +452,7 @@ def test_remove_queue_gaps(elastic_project_with_5_apartments, application_type):
         if idx in gap_indexes:
             continue
 
-        res = ApartmentReservationFactory(
+        ApartmentReservationFactory(
             apartment_uuid=first_apartment_uuid,
             state=ApartmentReservationState.SUBMITTED,
             queue_position=idx+1,
