@@ -439,10 +439,10 @@ def test_remove_queue_gaps(elastic_project_with_5_apartments, application_type):
     first_apartment_uuid = apartment.uuid
 
     # create some applications+reservations
-
     # add gaps in queue_positions (missing 1., 3., 6. and 7.)
     gap_indexes = [0, 2, 5, 6]
-    qp = 1
+    reservations = []
+
     for idx in range(12):
         app = ApplicationFactory(type=application_type, right_of_residence=idx)
         app.application_apartments.create(
@@ -451,12 +451,20 @@ def test_remove_queue_gaps(elastic_project_with_5_apartments, application_type):
         if idx in gap_indexes:
             continue
 
-        ApartmentReservationFactory(
-            apartment_uuid=first_apartment_uuid,
-            state=ApartmentReservationState.SUBMITTED,
-            queue_position=idx + 1,
-            list_position=idx + 1,
+        reservations.append(
+            ApartmentReservationFactory(
+                apartment_uuid=first_apartment_uuid,
+                state=ApartmentReservationState.SUBMITTED,
+                queue_position=idx + 1,
+                list_position=idx + 1,
+            )
         )
+
+    # if list_position is out of order, can get unique_together constraint errors
+    # swap two indexes to cause this out of orderness for test
+    res = reservations[6]
+    res.list_position = 1
+    res.save()
 
     # assert there are no gaps in queue positions
     remove_queue_gaps(get_apartment(first_apartment_uuid))
@@ -468,6 +476,7 @@ def test_remove_queue_gaps(elastic_project_with_5_apartments, application_type):
     )
 
     last_idx = len(reservation_queue_positions) - 1
+
     for idx, qp in enumerate(reservation_queue_positions):
         if idx == last_idx:
             continue

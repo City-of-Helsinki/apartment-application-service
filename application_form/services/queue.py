@@ -165,9 +165,15 @@ def remove_queue_gaps(apartment: ApartmentDocument):
         apartment_uuid=apartment.uuid
     ).order_by("queue_position")
 
+    # workaround:
+    # list_position has an unique_together constraint with apartment_uuid
+    # it also cannot be NULL
+    # so we just temporarily move the list_positions out of the way
+    # so we can set them into order with their queue_positions
+    reservations.update(list_position=F("list_position") + 10000)
+
     for idx, res in enumerate(reservations, 1):
         res.set_state(state=res.state, queue_position=idx)
-
         res.list_position = idx
         res.save()
 

@@ -206,7 +206,6 @@ class ApartmentDocument(ReadOnlyDocument):
             ]
 
         properties_to_print += [
-            "nid",
             "uuid",
             "apartment_address",
         ]
