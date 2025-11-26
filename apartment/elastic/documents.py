@@ -191,6 +191,29 @@ class ApartmentDocument(ReadOnlyDocument):
     class Index:
         name = settings.APARTMENT_INDEX_NAME
 
+    def __repr__(self):
+        return self.__str__()
+
+    def __str__(self):
+        properties_to_print = []
+
+        if self.project_uuid:
+            properties_to_print += [
+                "project_uuid",
+                "project_housing_company",
+            ]
+
+        properties_to_print += [
+            "uuid",
+            "apartment_address",
+        ]
+
+        properties_str = ", ".join(
+            f"{prop_name}='{getattr(self, prop_name)}'"
+            for prop_name in properties_to_print
+        )
+        return f"ApartmentDocument({properties_str})"
+
     @property
     def current_right_of_occupancy_payment(self):
         """
