@@ -45,9 +45,9 @@ echo "Compile messages to make translations work"
 echo "Fetch schemas"
 mkdir -p $OIKOTIE_SCHEMA_DIR
 (cd $OIKOTIE_SCHEMA_DIR \
-&& curl -O $OIKOTIE_APARTMENTS_BATCH_SCHEMA_URL \
-&& curl -O $OIKOTIE_APARTMENTS_UPDATE_SCHEMA_URL \
-&& curl -O $OIKOTIE_HOUSINGCOMPANIES_BATCH_SCHEMA_URL)
+&& curl --retry 5 --retry-delay 2 -O $OIKOTIE_APARTMENTS_BATCH_SCHEMA_URL \
+&& curl --retry 5 --retry-delay 2 -O $OIKOTIE_APARTMENTS_UPDATE_SCHEMA_URL \
+&& curl --retry 5 --retry-delay 2 -O $OIKOTIE_HOUSINGCOMPANIES_BATCH_SCHEMA_URL)
 
 # Start server
 if [[ ! -z "$@" ]]; then
