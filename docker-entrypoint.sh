@@ -49,6 +49,8 @@ mkdir -p $OIKOTIE_SCHEMA_DIR
 && curl --retry 5 --retry-delay 2 -O $OIKOTIE_APARTMENTS_UPDATE_SCHEMA_URL \
 && curl --retry 5 --retry-delay 2 -O $OIKOTIE_HOUSINGCOMPANIES_BATCH_SCHEMA_URL)
 
+cd /app
+
 # Start server
 if [[ ! -z "$@" ]]; then
     "$@"
