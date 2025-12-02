@@ -97,8 +97,8 @@ def decrypt_factory(
 
 # regex to detect sensitive data such as national identification number
 SENTRY_SENSITIVE_PATTERNS = [
-    # Finnish National Identification Number: DDMMYY[+-A]ZZZC
-    (re.compile(r'(\b\d{6})?[-+A]\d{3}[0-9A-Z]\b', re.IGNORECASE), "[FILTERED_NATIONAL_IDENTIFICATION_NUMBER]"),
+    # Finnish National Identification Number: DDMMYY[+-ABCDEFYXWVU]ZZZC
+    (re.compile(r'(?:\b\d{6})?[-+ABCDEFYXWVU]\d{3}[0-9A-Z]\b', re.IGNORECASE), "[FILTERED_NATIONAL_IDENTIFICATION_NUMBER]"),  # noqa: E501
 ]
 def scrub_sensitive_payload(event, hint):
     """Sentry before_send hook to recursively scrub sensitive data from event payloads.
