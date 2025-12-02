@@ -1,4 +1,5 @@
 import importlib
+import re
 from typing import Callable, Iterable, Tuple
 
 from django.db.models import Model
@@ -92,3 +93,46 @@ def decrypt_factory(
         return decrypt_and_update_models
 
     return decrypt_reverse_factory(), decrypt_reverse_factory(True)
+
+
+# regex to detect sensitive data such as national identification number
+SENTRY_SENSITIVE_PATTERNS = [
+    # Finnish National Identification Number: DDMMYY[+-A]ZZZC
+    (re.compile(r'(\b\d{6})?[-+A]\d{3}[0-9A-Z]\b', re.IGNORECASE), "[FILTERED_NATIONAL_IDENTIFICATION_NUMBER]"),
+]
+def scrub_sensitive_payload(event, hint):
+    """Sentry before_send hook to recursively scrub sensitive data from event payloads.
+
+    Args:
+        event (dict): The Sentry event dictionary containing exception info, stacktrace, contexts, etc.
+        hint (dict): A dictionary containing origin data (e.g., the original exception object).
+
+    Returns:
+        dict: The modified event dictionary with sensitive patterns redacted.
+    """
+
+    def recursive_scrub(item):
+        """Helper to traverse dicts, lists, and strings."""
+        
+        # If it's a string, apply ALL patterns in sequence
+        if isinstance(item, str):
+            scrubbed_item = item
+            for pattern, replacement in SENTRY_SENSITIVE_PATTERNS:
+                # If the pattern is found, substitute it
+                if pattern.search(scrubbed_item):
+                    scrubbed_item = pattern.sub(replacement, scrubbed_item)
+            return scrubbed_item
+        
+        # If it's a dictionary, recurse into values (preserve keys)
+        if isinstance(item, dict):
+            return {key: recursive_scrub(value) for key, value in item.items()}
+            
+        # If it's a list/tuple, recurse into elements
+        if isinstance(item, (list, tuple)):
+            return [recursive_scrub(element) for element in item]
+            
+        # Return primitives (int, float, None, bool) as-is
+        return item
+
+    # Apply the recursive scrubbing to the entire event dictionary
+    return recursive_scrub(event)

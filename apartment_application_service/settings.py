@@ -5,8 +5,9 @@ import environ
 import sentry_sdk
 from django.utils.translation import gettext_lazy as _
 from sentry_sdk.integrations.django import DjangoIntegration
+from sentry_sdk.scrubber import EventScrubber, DEFAULT_DENYLIST
 
-from .utils import is_module_available
+from .utils import is_module_available, scrub_sensitive_payload
 from .version import get_version
 
 checkout_dir = environ.Path(__file__) - 2
@@ -146,10 +147,15 @@ if env.str("DEFAULT_FROM_EMAIL"):
 SENTRY_DSN = env.str("SENTRY_DSN")
 SENTRY_ENVIRONMENT = env("SENTRY_ENVIRONMENT")
 if SENTRY_DSN and SENTRY_ENVIRONMENT:
+    # scrub ssn_suffix
+    custom_denylist = DEFAULT_DENYLIST + ["ssn_suffix"]
+
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         release=get_version(),
         environment=SENTRY_ENVIRONMENT,
+        before_send=scrub_sensitive_payload,
+        event_scrubber=EventScrubber(denylist=custom_denylist),
         integrations=[DjangoIntegration()],
     )
 

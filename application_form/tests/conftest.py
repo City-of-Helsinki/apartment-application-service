@@ -7,6 +7,7 @@ from unittest.mock import Mock
 
 from django.conf import settings
 from django.utils import timezone
+from apartment_application_service.utils import scrub_sensitive_payload
 from elasticsearch.helpers.test import get_test_client
 from elasticsearch_dsl.connections import add_connection
 from factory.faker import faker
@@ -48,10 +49,41 @@ from users.tests.conftest import (  # noqa: F401
     user_api_client,
 )
 
+import pytest
+import sentry_sdk
+from sentry_sdk.scrubber import EventScrubber, DEFAULT_DENYLIST
+from unittest.mock import MagicMock
+
 faker.config.DEFAULT_LOCALE = "fi_FI"
 
 
 _logger = logging.getLogger()
+
+@pytest.fixture
+def mock_sentry():
+    """
+    Initializes Sentry with a Mock transport.
+
+    Acquire sentry transport in tests with:
+
+    ```
+    sentry_client = sentry_sdk.Hub.current.client
+    sentry_client.transport = MagicMock()
+    ```
+    """
+
+    # Define our custom scrubber settings
+    custom_denylist = DEFAULT_DENYLIST + ["ssn_suffix"]
+    
+    sentry_sdk.init(
+        # We need a dummy DSN to satisfy the init, but nothing is sent
+        dsn="https://examplePublicKey@o0.ingest.sentry.io/0",
+        before_send=scrub_sensitive_payload,
+        transport=MagicMock(),
+        # The configuration we are testing
+        event_scrubber=EventScrubber(denylist=custom_denylist),
+        send_default_pii=True, # Enable PII to ensure variables are even captured
+    )
 
 
 def setup_elasticsearch():
