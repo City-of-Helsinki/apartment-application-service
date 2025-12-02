@@ -3,15 +3,17 @@ import string
 import uuid
 from datetime import timedelta
 from typing import Dict, List, Tuple, Union
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock
 
+import pytest
+import sentry_sdk
 from django.conf import settings
 from django.utils import timezone
-from apartment_application_service.utils import scrub_sensitive_payload
 from elasticsearch.helpers.test import get_test_client
 from elasticsearch_dsl.connections import add_connection
 from factory.faker import faker
 from pytest import fixture
+from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
 
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import get_apartments, get_project
@@ -21,6 +23,7 @@ from apartment_application_service.settings import (
     METADATA_HASO_PROCESS_NUMBER,
     METADATA_HITAS_PROCESS_NUMBER,
 )
+from apartment_application_service.utils import scrub_sensitive_payload
 from application_form.api.serializers import ApplicationSerializer
 from application_form.enums import (
     ApartmentReservationState,
@@ -49,15 +52,11 @@ from users.tests.conftest import (  # noqa: F401
     user_api_client,
 )
 
-import pytest
-import sentry_sdk
-from sentry_sdk.scrubber import EventScrubber, DEFAULT_DENYLIST
-from unittest.mock import MagicMock
-
 faker.config.DEFAULT_LOCALE = "fi_FI"
 
 
 _logger = logging.getLogger()
+
 
 @pytest.fixture
 def mock_sentry():
@@ -74,7 +73,7 @@ def mock_sentry():
 
     # Define our custom scrubber settings
     custom_denylist = DEFAULT_DENYLIST + ["ssn_suffix"]
-    
+
     sentry_sdk.init(
         # We need a dummy DSN to satisfy the init, but nothing is sent
         dsn="https://examplePublicKey@o0.ingest.sentry.io/0",
@@ -82,7 +81,7 @@ def mock_sentry():
         transport=MagicMock(),
         # The configuration we are testing
         event_scrubber=EventScrubber(denylist=custom_denylist),
-        send_default_pii=True, # Enable PII to ensure variables are even captured
+        send_default_pii=True,  # Enable PII to ensure variables are even captured
     )
 
 

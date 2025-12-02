@@ -98,14 +98,21 @@ def decrypt_factory(
 # regex to detect sensitive data such as national identification number
 SENTRY_SENSITIVE_PATTERNS = [
     # Finnish National Identification Number: DDMMYY[+-ABCDEFYXWVU]ZZZC
-    (re.compile(r'(?:\b\d{6})?[-+ABCDEFYXWVU]\d{3}[0-9A-Z]\b', re.IGNORECASE), "[FILTERED_NATIONAL_IDENTIFICATION_NUMBER]"),  # noqa: E501
+    (
+        re.compile(r"(?:\b\d{6})?[-+ABCDEFYXWVU]\d{3}[0-9A-Z]\b", re.IGNORECASE),
+        "[FILTERED_NATIONAL_IDENTIFICATION_NUMBER]",
+    ),  # noqa: E501
 ]
+
+
 def scrub_sensitive_payload(event, hint):
     """Sentry before_send hook to recursively scrub sensitive data from event payloads.
 
     Args:
-        event (dict): The Sentry event dictionary containing exception info, stacktrace, contexts, etc.
-        hint (dict): A dictionary containing origin data (e.g., the original exception object).
+        event (dict): The Sentry event dictionary containing exception info,
+            stacktrace, contexts, etc.
+        hint (dict): A dictionary containing origin data
+            (e.g., the original exception object).
 
     Returns:
         dict: The modified event dictionary with sensitive patterns redacted.
@@ -113,7 +120,7 @@ def scrub_sensitive_payload(event, hint):
 
     def recursive_scrub(item):
         """Helper to traverse dicts, lists, and strings."""
-        
+
         # If it's a string, apply ALL patterns in sequence
         if isinstance(item, str):
             scrubbed_item = item
@@ -122,15 +129,15 @@ def scrub_sensitive_payload(event, hint):
                 if pattern.search(scrubbed_item):
                     scrubbed_item = pattern.sub(replacement, scrubbed_item)
             return scrubbed_item
-        
+
         # If it's a dictionary, recurse into values (preserve keys)
         if isinstance(item, dict):
             return {key: recursive_scrub(value) for key, value in item.items()}
-            
+
         # If it's a list/tuple, recurse into elements
         if isinstance(item, (list, tuple)):
             return [recursive_scrub(element) for element in item]
-            
+
         # Return primitives (int, float, None, bool) as-is
         return item
 

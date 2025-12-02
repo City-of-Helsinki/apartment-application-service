@@ -5,7 +5,7 @@ import environ
 import sentry_sdk
 from django.utils.translation import gettext_lazy as _
 from sentry_sdk.integrations.django import DjangoIntegration
-from sentry_sdk.scrubber import EventScrubber, DEFAULT_DENYLIST
+from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
 
 from .utils import is_module_available, scrub_sensitive_payload
 from .version import get_version
