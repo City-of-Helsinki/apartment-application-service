@@ -146,9 +146,10 @@ if env.str("DEFAULT_FROM_EMAIL"):
 
 SENTRY_DSN = env.str("SENTRY_DSN")
 SENTRY_ENVIRONMENT = env("SENTRY_ENVIRONMENT")
+SENTRY_CUSTOM_DENYLIST = DEFAULT_DENYLIST + ["ssn_suffix"]
+
 if SENTRY_DSN and SENTRY_ENVIRONMENT:
     # scrub ssn_suffix
-    SENTRY_CUSTOM_DENYLIST = DEFAULT_DENYLIST + ["ssn_suffix"]
 
     sentry_sdk.init(
         dsn=SENTRY_DSN,
