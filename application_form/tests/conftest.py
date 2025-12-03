@@ -3,14 +3,17 @@ import string
 import uuid
 from datetime import timedelta
 from typing import Dict, List, Tuple, Union
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock
 
+import pytest
+import sentry_sdk
 from django.conf import settings
 from django.utils import timezone
 from elasticsearch.helpers.test import get_test_client
 from elasticsearch_dsl.connections import add_connection
 from factory.faker import faker
 from pytest import fixture
+from sentry_sdk.scrubber import EventScrubber
 
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import get_apartments, get_project
@@ -20,6 +23,7 @@ from apartment_application_service.settings import (
     METADATA_HASO_PROCESS_NUMBER,
     METADATA_HITAS_PROCESS_NUMBER,
 )
+from apartment_application_service.utils import scrub_sensitive_payload
 from application_form.api.serializers import ApplicationSerializer
 from application_form.enums import (
     ApartmentReservationState,
@@ -52,6 +56,33 @@ faker.config.DEFAULT_LOCALE = "fi_FI"
 
 
 _logger = logging.getLogger()
+
+
+@pytest.fixture(autouse=True)
+def mock_sentry():
+    """
+    Initializes Sentry with a Mock transport.
+
+    Acquire sentry transport in tests with:
+
+    ```
+    sentry_client = sentry_sdk.Hub.current.client
+    sentry_client.transport = MagicMock()
+    ```
+    """
+    mock_transport = MagicMock()
+    # Define our custom scrubber settings
+    mock_sentry = sentry_sdk.init(
+        # We need a dummy DSN to satisfy the init, but nothing is sent
+        dsn="https://examplePublicKey@o0.ingest.sentry.io/0",
+        before_send=scrub_sensitive_payload,
+        transport=mock_transport,
+        # The configuration we are testing
+        event_scrubber=EventScrubber(denylist=settings.SENTRY_CUSTOM_DENYLIST),
+        send_default_pii=True,  # Enable PII to ensure variables are even captured
+    )
+
+    yield mock_sentry
 
 
 def setup_elasticsearch():
