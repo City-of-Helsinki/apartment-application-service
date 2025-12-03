@@ -14,6 +14,16 @@ Simple tests to validate Sentry SDK scrubs sensitive info such as ssn suffixes
 fake_ssn_suffix = "-9101"
 fake_user_name = "matti"
 
+
+"""
+uuids with a dash and three numbers+a character in them,
+resembling an SSN suffix (e.g. -8401)
+"""
+uuid_test_cases = [
+    "b1377ac0-ad05-4f21-9401-13ee78b4740d",
+    "b1377ac0-ad05-4f21-910T-13ee78b4740d",
+]
+
 ssn_test_cases = [
     "010190-923A",
     "010190+923A",
@@ -72,6 +82,25 @@ def create_sentry_test_event(function: Callable) -> dict:
     event = sentry_client.transport.capture_event.call_args[0][0]
     return event
 
+def get_sentry_frame_from_event(event: dict) -> dict:
+    frames = event["exception"]["values"][0]["stacktrace"]["frames"]
+
+    # Find the frame where our test function ran (usually the last one)
+    target_frame = frames[-1]
+    return target_frame
+
+@pytest.mark.parametrize("fake_uuid", uuid_test_cases)
+def test_sentry_uuid_not_scrubbed(mock_sentry, fake_uuid):
+    """
+    uuid4 can contain parts that resemble Finnish SSN suffixes, 
+    e.g. "b1377ac0-ad05-4f21-8401-13ee78b4740d" contains "-8401" which can be
+    the suffix of a Finnish SSN and would result in the value getting censored
+    which would make debugging more difficult.
+    """
+    event = create_sentry_test_event(lambda: sentry_test_func(fake_uuid))
+    target_frame = get_sentry_frame_from_event(event)
+
+    assert fake_uuid in target_frame["vars"]["sensitive_value"]
 
 @pytest.mark.parametrize("sensitive_value", ssn_test_cases)
 def test_sentry_ssn_suffix_scrubbed_from_local_variables(
@@ -83,10 +112,7 @@ def test_sentry_ssn_suffix_scrubbed_from_local_variables(
     """
 
     event = create_sentry_test_event(lambda: sentry_test_func(sensitive_value))
-    frames = event["exception"]["values"][0]["stacktrace"]["frames"]
-
-    # Find the frame where our test function ran (usually the last one)
-    target_frame = frames[-1]
+    target_frame = get_sentry_frame_from_event(event)
 
     # Verify the sensitive variable is scrubbed
     assert "sensitive_value" in target_frame["vars"]
@@ -111,7 +137,7 @@ def test_sentry_ssn_suffix_scrubbed_from_extra_context(
 
     # Set context explicitly (similar to how Django sets request data)
     sentry_sdk.set_context(
-        "my_data", {"username": "matti", "ssn_suffix": fake_ssn_suffix}
+        "my_data", {"username": "matti", "ssn_suffix": sensitive_value}
     )
 
     sentry_sdk.capture_message("User login event")
