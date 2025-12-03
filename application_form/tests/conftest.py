@@ -72,15 +72,13 @@ def mock_sentry():
     """
 
     # Define our custom scrubber settings
-    custom_denylist = DEFAULT_DENYLIST + ["ssn_suffix"]
-
     sentry_sdk.init(
         # We need a dummy DSN to satisfy the init, but nothing is sent
         dsn="https://examplePublicKey@o0.ingest.sentry.io/0",
         before_send=scrub_sensitive_payload,
         transport=MagicMock(),
         # The configuration we are testing
-        event_scrubber=EventScrubber(denylist=custom_denylist),
+        event_scrubber=EventScrubber(denylist=settings.SENTRY_CUSTOM_DENYLIST),
         send_default_pii=True,  # Enable PII to ensure variables are even captured
     )
 

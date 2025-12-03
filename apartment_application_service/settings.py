@@ -148,14 +148,14 @@ SENTRY_DSN = env.str("SENTRY_DSN")
 SENTRY_ENVIRONMENT = env("SENTRY_ENVIRONMENT")
 if SENTRY_DSN and SENTRY_ENVIRONMENT:
     # scrub ssn_suffix
-    custom_denylist = DEFAULT_DENYLIST + ["ssn_suffix"]
+    SENTRY_CUSTOM_DENYLIST = DEFAULT_DENYLIST + ["ssn_suffix"]
 
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         release=get_version(),
         environment=SENTRY_ENVIRONMENT,
         before_send=scrub_sensitive_payload,
-        event_scrubber=EventScrubber(denylist=custom_denylist),
+        event_scrubber=EventScrubber(denylist=SENTRY_CUSTOM_DENYLIST),
         integrations=[DjangoIntegration()],
     )
 
