@@ -70,7 +70,6 @@ def create_sentry_test_event(function: Callable) -> dict:
     """
     sentry_client = sentry_sdk.Hub.current.client
     sentry_client.transport = MagicMock()
-
     # call the given callable wrapped into sentry_sdk exception handling
     try:
         function()

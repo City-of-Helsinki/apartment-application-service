@@ -58,7 +58,7 @@ faker.config.DEFAULT_LOCALE = "fi_FI"
 _logger = logging.getLogger()
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def mock_sentry():
     """
     Initializes Sentry with a Mock transport.
@@ -70,17 +70,19 @@ def mock_sentry():
     sentry_client.transport = MagicMock()
     ```
     """
-
+    mock_transport = MagicMock()
     # Define our custom scrubber settings
-    sentry_sdk.init(
+    mock_sentry = sentry_sdk.init(
         # We need a dummy DSN to satisfy the init, but nothing is sent
         dsn="https://examplePublicKey@o0.ingest.sentry.io/0",
         before_send=scrub_sensitive_payload,
-        transport=MagicMock(),
+        transport=mock_transport,
         # The configuration we are testing
         event_scrubber=EventScrubber(denylist=settings.SENTRY_CUSTOM_DENYLIST),
         send_default_pii=True,  # Enable PII to ensure variables are even captured
     )
+
+    yield mock_sentry
 
 
 def setup_elasticsearch():
