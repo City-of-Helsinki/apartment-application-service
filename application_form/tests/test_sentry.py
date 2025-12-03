@@ -82,6 +82,7 @@ def create_sentry_test_event(function: Callable) -> dict:
     event = sentry_client.transport.capture_event.call_args[0][0]
     return event
 
+
 def get_sentry_frame_from_event(event: dict) -> dict:
     frames = event["exception"]["values"][0]["stacktrace"]["frames"]
 
@@ -89,10 +90,11 @@ def get_sentry_frame_from_event(event: dict) -> dict:
     target_frame = frames[-1]
     return target_frame
 
+
 @pytest.mark.parametrize("fake_uuid", uuid_test_cases)
-def test_sentry_uuid_not_scrubbed(mock_sentry, fake_uuid):
+def test_sentry_uuid_not_scrubbed(fake_uuid):
     """
-    uuid4 can contain parts that resemble Finnish SSN suffixes, 
+    uuid4 can contain parts that resemble Finnish SSN suffixes,
     e.g. "b1377ac0-ad05-4f21-8401-13ee78b4740d" contains "-8401" which can be
     the suffix of a Finnish SSN and would result in the value getting censored
     which would make debugging more difficult.
@@ -102,10 +104,9 @@ def test_sentry_uuid_not_scrubbed(mock_sentry, fake_uuid):
 
     assert fake_uuid in target_frame["vars"]["sensitive_value"]
 
+
 @pytest.mark.parametrize("sensitive_value", ssn_test_cases)
-def test_sentry_ssn_suffix_scrubbed_from_local_variables(
-    mock_sentry, sensitive_value  # noqa: F811
-):
+def test_sentry_ssn_suffix_scrubbed_from_local_variables(sensitive_value):
     """
     Verifies that a local variable named 'ssn_suffix' is replaced
     with [FILTERED_NATIONAL_IDENTIFICATION_NUMBER] in the stack trace.
@@ -125,9 +126,7 @@ def test_sentry_ssn_suffix_scrubbed_from_local_variables(
 
 
 @pytest.mark.parametrize("sensitive_value", ssn_test_cases)
-def test_sentry_ssn_suffix_scrubbed_from_extra_context(
-    mock_sentry, sensitive_value  # noqa: F811
-):
+def test_sentry_ssn_suffix_scrubbed_from_extra_context(sensitive_value):
     """
     Verifies that 'ssn_suffix' is scrubbed if it appears in
     dictionaries/context data (simulating request.data).

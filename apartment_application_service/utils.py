@@ -98,7 +98,7 @@ def decrypt_factory(
 # regex to detect sensitive data such as national identification number
 SENTRY_SENSITIVE_PATTERNS = [
     # Finnish National Identification Number: DDMMYY[+-ABCDEFYXWVU]ZZZC
-    # (?!-) = negative lookahead to prevent capturing 
+    # (?!-) = negative lookahead to prevent capturing
     # parts of uuids such as "-910T" in b1377ac0-ad05-4f21-910T-13ee78b4740d
     (
         re.compile(r"(?:\b\d{6})?[-+ABCDEFYXWVU]\d{3}[0-9A-Z]\b(?!-)", re.IGNORECASE),

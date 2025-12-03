@@ -13,7 +13,7 @@ from elasticsearch.helpers.test import get_test_client
 from elasticsearch_dsl.connections import add_connection
 from factory.faker import faker
 from pytest import fixture
-from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
+from sentry_sdk.scrubber import EventScrubber
 
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import get_apartments, get_project
