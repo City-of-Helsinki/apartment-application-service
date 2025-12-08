@@ -106,10 +106,12 @@ class ProjectExportApplicantsAPIView(APIView):
         csv_file = export_services.get_csv_string()
         project_address = project.project_street_address
 
-        file_name = quote(format_lazy(
-            _("[Project {title}] Applicants information"),
-            title=project_address,
-        ).replace(" ", "_"))
+        file_name = quote(
+            format_lazy(
+                _("[Project {title}] Applicants information"),
+                title=project_address,
+            ).replace(" ", "_")
+        )
         response = HttpResponse(csv_file, content_type="text/csv; charset=utf-8-sig")
         response["Content-Disposition"] = "attachment; filename={file_name}.csv".format(
             file_name=file_name
@@ -165,10 +167,12 @@ class ProjectExportLotteryResultsAPIView(APIView):
             raise ValidationError("Project lottery has not happened yet")
         export_services = ProjectLotteryResultExportService(project)
         csv_file = export_services.get_csv_string()
-        file_name = quote(format_lazy(
-            _("[Project {title}] Lottery result"),
-            title=project.project_street_address,
-        ).replace(" ", "_"))
+        file_name = quote(
+            format_lazy(
+                _("[Project {title}] Lottery result"),
+                title=project.project_street_address,
+            ).replace(" ", "_")
+        )
         response = HttpResponse(csv_file, content_type="text/csv; charset=utf-8-sig")
         response["Content-Disposition"] = "attachment; filename={file_name}.csv".format(
             file_name=file_name

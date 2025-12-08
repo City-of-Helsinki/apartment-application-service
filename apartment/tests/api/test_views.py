@@ -2,11 +2,9 @@ import uuid
 from datetime import datetime, timedelta
 from urllib.parse import quote, urlencode
 
-from application_form.tests.conftest import generate_apartments
 import pytest
 from django.urls import reverse
 
-from apartment.elastic.queries import get_project
 from apartment.models import ProjectExtraData
 from apartment.tests.factories import ApartmentDocumentFactory
 from application_form.enums import (
@@ -18,6 +16,7 @@ from application_form.models import ApartmentReservation
 from application_form.services.application import cancel_reservation
 from application_form.services.lottery.machine import distribute_apartments
 from application_form.services.queue import add_application_to_queues
+from application_form.tests.conftest import generate_apartments
 from application_form.tests.factories import (
     ApartmentReservationFactory,
     ApplicationApartmentFactory,
@@ -475,9 +474,9 @@ def test_export_applicants_csv_per_project(
     """
     Test export applicants information to CSV
     """
-    project =  generate_apartments(elasticsearch, 1, {
-        "project_street_address": "Test street 23, test road 40"
-    })[0]
+    project = generate_apartments(
+        elasticsearch, 1, {"project_street_address": "Test street 23, test road 40"}
+    )[0]
     project_uuid = project.project_uuid
 
     data = {"project_uuid": uuid.uuid4()}
@@ -535,9 +534,9 @@ def test_export_lottery_result_csv_per_project(
     """
     Test export applicants information to CSV
     """
-    apartments =  generate_apartments(elasticsearch, 5, {
-        "project_street_address": "Test street 23, test road 40"
-    })
+    apartments = generate_apartments(
+        elasticsearch, 5, {"project_street_address": "Test street 23, test road 40"}
+    )
     project = apartments[0]
     project_uuid = project.project_uuid
 
@@ -571,8 +570,7 @@ def test_export_lottery_result_csv_per_project(
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8-sig"
 
     assert (
-        quote(project.project_street_address.replace(" ", "_"))
-        in content_disposition
+        quote(project.project_street_address.replace(" ", "_")) in content_disposition
     )
 
     assert "," not in content_disposition
