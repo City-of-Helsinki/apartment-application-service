@@ -1,7 +1,8 @@
 import uuid
 from datetime import datetime, timedelta
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
+from application_form.tests.conftest import generate_apartments
 import pytest
 from django.urls import reverse
 
@@ -469,13 +470,15 @@ def test_export_applicants_csv_per_project_unauthorized(
 
 @pytest.mark.django_db
 def test_export_applicants_csv_per_project(
-    sales_ui_salesperson_api_client, elastic_project_with_5_apartments
+    sales_ui_salesperson_api_client, elasticsearch
 ):
     """
     Test export applicants information to CSV
     """
-    project_uuid, apartments = elastic_project_with_5_apartments
-    project = get_project(project_uuid)
+    project =  generate_apartments(elasticsearch, 1, {
+        "project_street_address": "Test street 23, test road 40"
+    })[0]
+    project_uuid = project.project_uuid
 
     data = {"project_uuid": uuid.uuid4()}
     response = sales_ui_salesperson_api_client.get(
@@ -489,11 +492,17 @@ def test_export_applicants_csv_per_project(
         reverse("apartment:project-detail-export-applicant", kwargs=data),
         format="json",
     )
+
+    content_disposition_header = response.headers["Content-Disposition"]
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8-sig"
     assert (
-        project.project_street_address.replace(" ", "_")
-        in response.headers["Content-Disposition"]
+        quote(project.project_street_address.replace(" ", "_"))
+        in content_disposition_header
     )
+
+    # comma in Content-Disposition isn't allowed
+    # see: https://stackoverflow.com/a/23868112
+    assert "," not in content_disposition_header
     assert response.status_code == 200
 
 
@@ -521,13 +530,16 @@ def test_export_lottery_result_csv_per_project_unauthorized(
 
 @pytest.mark.django_db
 def test_export_lottery_result_csv_per_project(
-    sales_ui_salesperson_api_client, elastic_project_with_5_apartments
+    sales_ui_salesperson_api_client, elasticsearch
 ):
     """
     Test export applicants information to CSV
     """
-    project_uuid, apartments = elastic_project_with_5_apartments
-    project = get_project(project_uuid)
+    apartments =  generate_apartments(elasticsearch, 5, {
+        "project_street_address": "Test street 23, test road 40"
+    })
+    project = apartments[0]
+    project_uuid = project.project_uuid
 
     data = {"project_uuid": uuid.uuid4()}
     response = sales_ui_salesperson_api_client.get(
@@ -554,11 +566,16 @@ def test_export_lottery_result_csv_per_project(
         reverse("apartment:project-detail-lottery-result", kwargs=data),
         format="json",
     )
+
+    content_disposition = response.headers["Content-Disposition"]
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8-sig"
+
     assert (
-        project.project_street_address.replace(" ", "_")
-        in response.headers["Content-Disposition"]
+        quote(project.project_street_address.replace(" ", "_"))
+        in content_disposition
     )
+
+    assert "," not in content_disposition
     assert response.status_code == 200
 
 
