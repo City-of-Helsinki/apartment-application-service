@@ -418,7 +418,7 @@ def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:
         "key": elastic_apartment.uuid,
         "vendor_identifier": settings.OIKOTIE_VENDOR_ID,
         "mode_of_habitation": map_mode_of_habitation(elastic_apartment),
-        "street_address": elastic_apartment.project_street_address,
+        "street_address": elastic_apartment.apartment_address,
         "city": map_city(elastic_apartment),
         "estate": map_estate(elastic_apartment),
         "postal_code": getattr(elastic_apartment, "project_postal_code", None),
