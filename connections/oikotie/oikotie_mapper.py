@@ -492,9 +492,7 @@ def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:
             elastic_apartment, "project_estate_agent_phone", None
         ),
         "contact_request_email": getattr(
-            elastic_apartment, 
-            "project_estate_agent_email", 
-            None
+            elastic_apartment, "project_estate_agent_email", None
         ),
         "showing_date1": map_showing_date1(elastic_apartment),
         "showing_start_time1": map_showing_start_time(elastic_apartment, 0),
