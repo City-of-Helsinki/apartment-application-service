@@ -42,13 +42,12 @@ class TestEtuoviMapper:
         apartment = ApartmentMinimalFactory(
             project_street_address="Street road 123",
             apartment_address="Street road 123 A 5",
-            apartment_number="A5"
+            apartment_number="A5",
         )
 
         mapped_etuovi_apartment = map_apartment_to_item(apartment)
         assert mapped_etuovi_apartment.street == "Street road 123 A 5"
         assert mapped_etuovi_apartment.roomnumber == "A5"
-
 
     def test_etuovi_map_correct_price_info(self):
         """

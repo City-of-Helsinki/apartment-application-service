@@ -241,7 +241,6 @@ class TestOikotieMapper:
             "Missing project_street_address should have thrown a ValueError"
         )
 
-
     def test_elastic_to_oikotie_apartment_address(self):
         elastic_apartment = ApartmentMinimalFactory(
             apartment_address="Street road 123 A 5",
@@ -249,7 +248,6 @@ class TestOikotieMapper:
         )
         mapped_apartment = map_oikotie_apartment(elastic_apartment)
         assert mapped_apartment.street_address == "Street road 123 A 5"
-
 
     def test_elastic_to_oikotie_missing__housing_company__project_postal_code(self):
         try:
