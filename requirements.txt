@@ -61,8 +61,8 @@ django-enumfields==2.1.1
     # via -r requirements.in
 django-environ==0.11.2
     # via -r requirements.in
-django-etuovi==0.2.1
-    # via -r requirements.in
+django-etuovi==0.2.2
+    via -r requirements.in
 django-helusers==0.13.0
     # via -r requirements.in
 django-oikotie @ git+https://github.com/City-of-Helsinki/django-oikotie.git@version_0_2_2
