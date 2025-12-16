@@ -539,11 +539,12 @@ def map_apartment_to_item(elastic_apartment: ApartmentDocument) -> Item:
         "rc_parkingspace_count": getattr(
             elastic_apartment, "project_parkingplace_count", None
         ),
+        "roomnumber": getattr(elastic_apartment, "apartment_number", None),
         "roomcount": getattr(elastic_apartment, "room_count", None),
         "scontact": map_scontacts(elastic_apartment),
         "showingdate": map_showing_date(elastic_apartment, 0),
         "showing_date2": map_showing_date(elastic_apartment, 1),
-        "street": getattr(elastic_apartment, "project_street_address", None),
+        "street": getattr(elastic_apartment, "apartment_address", None),
         "supplier_source_itemcode": settings.ETUOVI_SUPPLIER_SOURCE_ITEMCODE,
         "text": map_texts(elastic_apartment),
         "town": getattr(elastic_apartment, "project_city", None),
