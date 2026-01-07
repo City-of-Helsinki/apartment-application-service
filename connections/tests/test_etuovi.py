@@ -141,9 +141,9 @@ class TestApartmentFetchingFromElasticAndMapping:
     @pytest.mark.usefixtures("not_sending_etuovi_ftp", "elastic_apartments")
     def test_mapped_etuovi_saved_to_database_with_publish_updated(self):
         call_command("send_etuovi_xml_file")
-        etuovi_mapped = MappedApartment.objects.filter(mapped_etuovi=True).values_list(
-            "apartment_uuid", flat=True
-        )
+        etuovi_mapped = MappedApartment.objects.filter(
+            mapped_etuovi=True, last_mapped_to_etuovi__isnull=False
+        ).values_list("apartment_uuid", flat=True)
         expected = list(
             map(UUID, get_elastic_apartments_for_sale_published_on_etuovi_uuids())
         )
@@ -165,7 +165,7 @@ class TestApartmentFetchingFromElasticAndMapping:
 
         call_command("send_etuovi_xml_file")
         etuovi_mapped_new = MappedApartment.objects.filter(
-            mapped_etuovi=True
+            mapped_etuovi=True, last_mapped_to_etuovi__isnull=False
         ).values_list("apartment_uuid", flat=True)
 
         assert etuovi_mapped_new != etuovi_mapped
