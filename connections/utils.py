@@ -2,7 +2,8 @@ import logging
 import re
 from collections.abc import Callable
 from decimal import Decimal, ROUND_HALF_UP
-from typing import Union
+from enum import Enum
+from typing import List, Type, Union
 
 from django.conf import settings
 from django.utils.html import strip_tags
@@ -115,3 +116,26 @@ def clean_html_tags_from_text(text: str) -> str:
     text = strip_tags(text)
 
     return text
+
+
+def validate_apartment_required_fields(
+    apartment: "ApartmentDocument", required_fields_enum: Type[Enum]  # noqa: F821
+) -> List[str]:
+    """
+    Validates that an apartment has all required fields.
+
+    Args:
+        apartment: ApartmentDocument instance
+        required_fields_enum: Enum class with required field names
+
+    Returns:
+        List of missing field machine names (empty if all fields are present)
+    """
+    missing_fields: List[str] = []
+    for field_enum in required_fields_enum:
+        # Use the enum member name to check the apartment attribute
+        field_name = field_enum.name
+        # Return the enum member name (machine name) in the missing fields list
+        if not getattr(apartment, field_name, None):
+            missing_fields.append(field_name)
+    return missing_fields
