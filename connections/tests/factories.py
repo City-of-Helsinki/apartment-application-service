@@ -32,6 +32,8 @@ class ApartmentMinimalFactory(ElasticFactory):
         length=3, chars=string.ascii_letters + string.digits
     )
 
+    apartment_address = factory.Faker("street_address")
+
     # optional fields for vendors
     project_district = fuzzy.FuzzyText()
     project_realty_id = fuzzy.FuzzyText()

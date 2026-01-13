@@ -38,6 +38,17 @@ class TestEtuoviMapper:
         item = map_apartment_to_item(apartment)
         check_dataclass_typing(item)
 
+    def test_etuovi_map_apartment_address_and_number(self):
+        apartment = ApartmentMinimalFactory(
+            project_street_address="Street road 123",
+            apartment_address="Street road 123 A 5",
+            apartment_number="A5",
+        )
+
+        mapped_etuovi_apartment = map_apartment_to_item(apartment)
+        assert mapped_etuovi_apartment.street == "Street road 123 A 5"
+        assert mapped_etuovi_apartment.roomnumber == "A5"
+
     def test_etuovi_map_correct_price_info(self):
         """
         Get `ApartmentDocument.right_of_occupancy_payment` for HASO apartments and

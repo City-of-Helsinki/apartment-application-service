@@ -418,7 +418,7 @@ def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:
         "key": elastic_apartment.uuid,
         "vendor_identifier": settings.OIKOTIE_VENDOR_ID,
         "mode_of_habitation": map_mode_of_habitation(elastic_apartment),
-        "street_address": elastic_apartment.project_street_address,
+        "street_address": elastic_apartment.apartment_address,
         "city": map_city(elastic_apartment),
         "estate": map_estate(elastic_apartment),
         "postal_code": getattr(elastic_apartment, "project_postal_code", None),
@@ -490,6 +490,9 @@ def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:
         ),
         "estate_agent_telephone": getattr(
             elastic_apartment, "project_estate_agent_phone", None
+        ),
+        "contact_request_email": getattr(
+            elastic_apartment, "project_estate_agent_email", None
         ),
         "showing_date1": map_showing_date1(elastic_apartment),
         "showing_start_time1": map_showing_start_time(elastic_apartment, 0),

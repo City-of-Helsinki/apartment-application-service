@@ -138,6 +138,14 @@ class TestOikotieMapper:
         oikotie_real_estate_agent = map_real_estate_agent(elastic_apartment)
         check_dataclass_typing(oikotie_real_estate_agent)
 
+    def test_elastic_to_oikotie_map_contact_request_email(self):
+        """Should be the project_estate_agent_email"""
+        elastic_apartment = ApartmentDocumentFactory(
+            project_estate_agent_email="eric@mail.com"
+        )
+        mapped_apartment = map_oikotie_apartment(elastic_apartment)
+        assert mapped_apartment.contact_request_email == "eric@mail.com"
+
     def test_elastic_to_oikotie__sales_price__mapping_types(self):
         elastic_apartment = ApartmentDocumentFactory()
         oikotie_sales_price = map_sales_price(elastic_apartment)
@@ -240,6 +248,14 @@ class TestOikotieMapper:
         raise Exception(
             "Missing project_street_address should have thrown a ValueError"
         )
+
+    def test_elastic_to_oikotie_apartment_address(self):
+        elastic_apartment = ApartmentMinimalFactory(
+            apartment_address="Street road 123 A 5",
+            project_street_address="Street road 123",
+        )
+        mapped_apartment = map_oikotie_apartment(elastic_apartment)
+        assert mapped_apartment.street_address == "Street road 123 A 5"
 
     def test_elastic_to_oikotie_missing__housing_company__project_postal_code(self):
         try:
