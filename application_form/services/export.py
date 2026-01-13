@@ -574,7 +574,8 @@ class XlsxSalesReportExportService(XlsxExportService):
 
         # cast uuidfield to charfield for comparison
         self.sold_apartment_uuids = (
-            state_events.annotate(
+            state_events.filter(state=ApartmentReservationState.SOLD)
+            .annotate(
                 auuid=Cast("reservation__apartment_uuid", output_field=CharField())
             )
             .order_by()
