@@ -10,7 +10,6 @@ from django.contrib.auth import get_user_model
 from django.db.models import QuerySet
 from django.utils import timezone
 from freezegun import freeze_time
-from application_form.tests.conftest import generate_apartments
 
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import (
@@ -40,7 +39,7 @@ from application_form.services.export import (
 )
 from application_form.services.lottery.machine import distribute_apartments
 from application_form.services.queue import add_application_to_queues
-from application_form.tests.conftest import sell_apartments
+from application_form.tests.conftest import generate_apartments, sell_apartments
 from application_form.tests.factories import (
     ApartmentReservationFactory,
     ApartmentReservationStateChangeEventFactory,
@@ -433,10 +432,9 @@ def test_sale_report_debug_asu_1834(elasticsearch):
     # Cancel sales of first half of apartment sales in 2025
     with freeze_time("2025-02-10"):
         for apt in sold_apts_2024:
-            active_reservations = (
-                ApartmentReservation.objects.filter(apartment_uuid=apt.uuid)
-                .active()
-            )
+            active_reservations = ApartmentReservation.objects.filter(
+                apartment_uuid=apt.uuid
+            ).active()
             cancel_reservation(
                 apartment_reservation=active_reservations[0],
                 cancellation_reason=ApartmentReservationCancellationReason.TERMINATED,
@@ -460,8 +458,7 @@ def test_sale_report_debug_asu_1834(elasticsearch):
         reservation__apartment_uuid__in=[apt.uuid for apt in all_apartments],
     )
     project_uuids = [
-        str(pr.project_uuid)
-        for pr in [sold_apts_2024_project, sold_apts_2025_project]
+        str(pr.project_uuid) for pr in [sold_apts_2024_project, sold_apts_2025_project]
     ]
     export_service = XlsxSalesReportExportService(
         sold_state_events_2025,
