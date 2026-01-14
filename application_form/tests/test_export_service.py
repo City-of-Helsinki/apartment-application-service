@@ -39,7 +39,7 @@ from application_form.services.export import (
 )
 from application_form.services.lottery.machine import distribute_apartments
 from application_form.services.queue import add_application_to_queues
-from application_form.tests.conftest import sell_apartments
+from application_form.tests.conftest import generate_apartments, sell_apartments
 from application_form.tests.factories import (
     ApartmentReservationFactory,
     ApartmentReservationStateChangeEventFactory,
@@ -395,6 +395,79 @@ def test_export_applicants_mailing_list_haso_payments(
     assert len(csv_lines[0]) == expected_column_count
 
     pass
+
+
+@pytest.mark.django_db
+def test_sale_report_debug_asu_1834(elasticsearch):
+    """
+    Debug ticket ASU-1834:
+
+    Apartments that have ApartmentReservationStateChangeEvents with state=CANCELED and
+    state=SOLD can show up in reports made by XlsxSalesReportExportService even if the
+    state=SOLD events are outside of the QuerySet.
+    """
+    # Create two projects and 5 apartments each
+    sold_apts_2024 = generate_apartments(
+        elasticsearch,
+        5,
+        {"project_application_end_time": datetime(2024, 1, 1)},
+    )
+    sold_apts_2025 = generate_apartments(
+        elasticsearch,
+        5,
+        {"project_application_end_time": datetime(2025, 1, 2)},
+    )
+    sold_apts_2024_project = sold_apts_2024[0]
+    sold_apts_2025_project = sold_apts_2025[0]
+
+    all_apartments = sold_apts_2024 + sold_apts_2025
+
+    # Sell first half of apartments in 2024
+    with freeze_time("2024-06-15"):
+        sell_apartments(
+            sold_apts_2024_project.project_uuid,
+            len(sold_apts_2024),
+        )
+
+    # Cancel sales of first half of apartment sales in 2025
+    with freeze_time("2025-02-10"):
+        for apt in sold_apts_2024:
+            active_reservations = ApartmentReservation.objects.filter(
+                apartment_uuid=apt.uuid
+            ).active()
+            cancel_reservation(
+                apartment_reservation=active_reservations[0],
+                cancellation_reason=ApartmentReservationCancellationReason.TERMINATED,
+            )
+
+    # Sell rest of apartments in 2025
+    with freeze_time("2025-05-10"):
+        sell_apartments(
+            sold_apts_2025_project.project_uuid,
+            len(sold_apts_2025),
+        )
+
+    start = datetime(2025, 1, 1)
+    end = datetime(2025, 12, 31)
+    sold_state_events_2025 = ApartmentReservationStateChangeEvent.objects.filter(
+        state__in=[
+            ApartmentReservationState.SOLD,
+            ApartmentReservationState.CANCELED,
+        ],
+        timestamp__date__range=[start, end],
+        reservation__apartment_uuid__in=[apt.uuid for apt in all_apartments],
+    )
+    project_uuids = [
+        str(pr.project_uuid) for pr in [sold_apts_2024_project, sold_apts_2025_project]
+    ]
+    export_service = XlsxSalesReportExportService(
+        sold_state_events_2025,
+        project_uuids,
+    )
+
+    sold_apartments = export_service._get_sold_apartments(all_apartments)
+
+    assert sold_apartments == sold_apts_2025
 
 
 @pytest.mark.django_db
