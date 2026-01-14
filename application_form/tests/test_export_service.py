@@ -401,32 +401,23 @@ def test_export_applicants_mailing_list_haso_payments(
 @pytest.mark.django_db
 def test_sale_report_debug_asu_1834(elasticsearch):
     """
-    Debug ticket ASU-1834 where Apartments that have ApartmentReservationStateChangeEvents with 
-    state=CANCELED and state=SOLD can show up in reports made by XlsxSalesReportExportService
-    even if the state=SOLD events are outside of the QuerySet.
+    Debug ticket ASU-1834:
 
-    - Create 5 hitas apartments
-    - with freezegun.freeze_time() sell two of them in year 2024
-    - with freezegun.freeze_time() those two sales in year 2025
-    - with freezegun.freeze_time() sell the remaining three apartments in year 2025
-    - generate report with XlsxSalesReportExportService
-    - assert that the report shows the two apartments that were sold in year 2024 but their rows have no sale date
-
-    Test for ASU-1834: Apartments with SOLD events out of range shouldn't have sale date in report.
-    - Create 5 apartments in 1 project.
-    - Sell A1, A2 in 2024
-    - Cancel A1, A2 and resell them in 2025
-    - Sell A3, A4, A5 directly in 2025
-    - Generate report for 'sold' apartments between 2025-01-01 and 2025-12-31
-    - In report, A1 and A2 rows should have no sale date
+    Apartments that have ApartmentReservationStateChangeEvents with state=CANCELED and
+    state=SOLD can show up in reports made by XlsxSalesReportExportService even if the
+    state=SOLD events are outside of the QuerySet.
     """
     # Create two projects and 5 apartments each
-    sold_apts_2024 = generate_apartments(elasticsearch, 5, {
-        "project_application_end_time": datetime(2024, 1, 1),
-    } )
-    sold_apts_2025 = generate_apartments(elasticsearch, 5, {
-        "project_application_end_time": datetime(2025, 1, 2),
-    } )
+    sold_apts_2024 = generate_apartments(
+        elasticsearch,
+        5,
+        {"project_application_end_time": datetime(2024, 1, 1)},
+    )
+    sold_apts_2025 = generate_apartments(
+        elasticsearch,
+        5,
+        {"project_application_end_time": datetime(2025, 1, 2)},
+    )
     sold_apts_2024_project = sold_apts_2024[0]
     sold_apts_2025_project = sold_apts_2025[0]
 
@@ -434,39 +425,51 @@ def test_sale_report_debug_asu_1834(elasticsearch):
 
     # Sell first half of apartments in 2024
     with freeze_time("2024-06-15"):
-        sell_apartments(sold_apts_2024_project.project_uuid, len(sold_apts_2024))
-
+        sell_apartments(
+            sold_apts_2024_project.project_uuid,
+            len(sold_apts_2024),
+        )
 
     # Cancel sales of first half of apartment sales in 2025
     with freeze_time("2025-02-10"):
         for apt in sold_apts_2024:
-
-            active_reservations = ApartmentReservation.objects.filter(
-                apartment_uuid=apt.uuid
-            ).active()
-
-            cancel_reservation(apartment_reservation=active_reservations[0], cancellation_reason=ApartmentReservationCancellationReason.TERMINATED)
-
+            active_reservations = (
+                ApartmentReservation.objects.filter(apartment_uuid=apt.uuid)
+                .active()
+            )
+            cancel_reservation(
+                apartment_reservation=active_reservations[0],
+                cancellation_reason=ApartmentReservationCancellationReason.TERMINATED,
+            )
 
     # Sell rest of apartments in 2025
     with freeze_time("2025-05-10"):
-        sell_apartments(sold_apts_2025_project.project_uuid, len(sold_apts_2025))
+        sell_apartments(
+            sold_apts_2025_project.project_uuid,
+            len(sold_apts_2025),
+        )
 
     start = datetime(2025, 1, 1)
     end = datetime(2025, 12, 31)
     sold_state_events_2025 = ApartmentReservationStateChangeEvent.objects.filter(
-        state__in=[ApartmentReservationState.SOLD, ApartmentReservationState.CANCELED],
+        state__in=[
+            ApartmentReservationState.SOLD,
+            ApartmentReservationState.CANCELED,
+        ],
         timestamp__date__range=[start, end],
         reservation__apartment_uuid__in=[apt.uuid for apt in all_apartments],
     )
-    project_uuids = [str(pr.project_uuid) for pr in [sold_apts_2024_project, sold_apts_2025_project]]
-    export_service = XlsxSalesReportExportService(sold_state_events_2025, project_uuids)
+    project_uuids = [
+        str(pr.project_uuid)
+        for pr in [sold_apts_2024_project, sold_apts_2025_project]
+    ]
+    export_service = XlsxSalesReportExportService(
+        sold_state_events_2025,
+        project_uuids,
+    )
 
-    # cant seem to get sold_apts_2024 apartments to show up as sold apartment rows
-    # maybe the "irtisanotut"-subheader just doesnt show up causing confusion with user?
     sold_apartments = export_service._get_sold_apartments(all_apartments)
 
-    import ipdb; ipdb.set_trace()
     assert sold_apartments == sold_apts_2025
 
 
