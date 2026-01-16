@@ -1,5 +1,6 @@
+
 from enum import Enum
-from typing import Type
+from typing import List, Type
 
 from apartment.enums import OwnershipType
 
@@ -70,32 +71,19 @@ class OikotieApartmentRequiredFields(Enum):
     maintenance_fee = "maintenance_fee"
     water_fee = "water_fee"
     parking_fee = "parking_fee"
-    debt_free_sales_price = "debt_free_sales_price"
-    sales_price = "sales_price"
     url = "url"
 
 
 class OikotieApartmentRequiredFieldsHITAS(Enum):
-    """Oikotie required fields for HITAS apartments (includes debt_free_sales_price)"""
-    living_area = "living_area"
-    financing_fee = "financing_fee"
-    maintenance_fee = "maintenance_fee"
-    water_fee = "water_fee"
-    parking_fee = "parking_fee"
+    """Oikotie required fields for HITAS apartments"""
     debt_free_sales_price = "debt_free_sales_price"
     sales_price = "sales_price"
-    url = "url"
 
 
-class OikotieApartmentRequiredFieldsNonHITAS(Enum):
-    """Oikotie required fields for non-HITAS apartments (excludes debt_free_sales_price)"""
-    living_area = "living_area"
-    financing_fee = "financing_fee"
-    maintenance_fee = "maintenance_fee"
-    water_fee = "water_fee"
-    parking_fee = "parking_fee"
-    sales_price = "sales_price"
-    url = "url"
+class OikotieApartmentRequiredFieldsHASO(Enum):
+    """Oikotie required fields for HASO apartments"""
+    right_of_occupancy_payment = "right_of_occupancy_payment"
+    release_payment = "release_payment"
 
 
 class EtuoviApartmentRequiredFields(Enum):
@@ -104,33 +92,21 @@ class EtuoviApartmentRequiredFields(Enum):
     project_postal_code = "project_postal_code"
     project_city = "project_city"
     room_count = "room_count"
-    debt_free_sales_price = "debt_free_sales_price"
-    right_of_occupancy_payment = "right_of_occupancy_payment"
 
 
 class EtuoviApartmentRequiredFieldsHITAS(Enum):
     """Etuovi required fields for HITAS apartments (includes debt_free_sales_price, excludes right_of_occupancy_payment)"""
-    project_holding_type = "project_holding_type"
-    project_building_type = "project_building_type"
-    project_postal_code = "project_postal_code"
-    project_city = "project_city"
-    room_count = "room_count"
     debt_free_sales_price = "debt_free_sales_price"
 
 
 class EtuoviApartmentRequiredFieldsHASO(Enum):
     """Etuovi required fields for HASO apartments (includes right_of_occupancy_payment, excludes debt_free_sales_price)"""
-    project_holding_type = "project_holding_type"
-    project_building_type = "project_building_type"
-    project_postal_code = "project_postal_code"
-    project_city = "project_city"
-    room_count = "room_count"
     right_of_occupancy_payment = "right_of_occupancy_payment"
 
 
 def get_etuovi_required_fields_for_ownership_type(
     ownership_type: str,
-) -> Type[Enum]:
+) -> List[str]:
     """
     Returns the appropriate Etuovi required fields enum based on ownership type.
 
@@ -138,24 +114,25 @@ def get_etuovi_required_fields_for_ownership_type(
         ownership_type: Project ownership type (e.g., "HITAS", "HASO")
 
     Returns:
-        Enum class with required fields for the ownership type
+        List of required fields for the ownership type
     """
+    base_enum_class = EtuoviApartmentRequiredFields 
     if not ownership_type:
-        return EtuoviApartmentRequiredFields
+        return base_enum_class._member_names_
 
     ownership_type_lower = ownership_type.lower()
-    if ownership_type_lower == OwnershipType.HASO.value:
-        return EtuoviApartmentRequiredFieldsHASO
-    elif ownership_type_lower == OwnershipType.HITAS.value:
-        return EtuoviApartmentRequiredFieldsHITAS
+    if ownership_type_lower == OwnershipType.HITAS.value:
+        enum_class = EtuoviApartmentRequiredFieldsHITAS
     else:
-        # For other ownership types, use base enum (includes both fields)
-        return EtuoviApartmentRequiredFields
+        # For non-HITAS (HASO, PUOLIHITAS, etc.), exclude debt_free_sales_price
+        enum_class = EtuoviApartmentRequiredFieldsHASO
+
+    return base_enum_class._member_names_ + enum_class._member_names_
 
 
 def get_oikotie_required_fields_for_ownership_type(
     ownership_type: str,
-) -> Type[Enum]:
+) -> List[str]:
     """
     Returns the appropriate Oikotie required fields enum based on ownership type.
 
@@ -163,14 +140,17 @@ def get_oikotie_required_fields_for_ownership_type(
         ownership_type: Project ownership type (e.g., "HITAS", "HASO")
 
     Returns:
-        Enum class with required fields for the ownership type
+        List of required fields for the ownership type
     """
+    base_enum_class = OikotieApartmentRequiredFields 
     if not ownership_type:
-        return OikotieApartmentRequiredFields
+        return base_enum_class._member_names_
 
     ownership_type_lower = ownership_type.lower()
     if ownership_type_lower == OwnershipType.HITAS.value:
-        return OikotieApartmentRequiredFieldsHITAS
+        enum_class = OikotieApartmentRequiredFieldsHITAS
     else:
         # For non-HITAS (HASO, PUOLIHITAS, etc.), exclude debt_free_sales_price
-        return OikotieApartmentRequiredFieldsNonHITAS
+        enum_class = OikotieApartmentRequiredFieldsHASO
+
+    return base_enum_class._member_names_ + enum_class._member_names_
