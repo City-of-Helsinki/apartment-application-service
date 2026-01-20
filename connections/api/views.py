@@ -31,6 +31,20 @@ class Connections(ModelViewSet):
     permission_classes = [IsAuthenticated, IsDrupalServer]
     authentication_classes = [DrupalAuthentication]
 
+
+    @action(methods=["get"], detail=False, url_path="get_mapped_apartments")
+    def get_mapped_apartments(self, request):
+        apartment_uuids = MappedApartment.objects.filter(
+            mapped_etuovi=True, mapped_oikotie=True
+        ).values_list("apartment_uuid", flat=True)
+        apartment_uuids = [str(i) for i in apartment_uuids]
+
+        return Response(
+            apartment_uuids,
+            content_type="application/json",
+            status=status.HTTP_200_OK,
+        )
+
     @action(methods=["get"], detail=False, url_path="integration_status")
     def integration_status(self, request):
         apartments_to_etuovi = get_apartments_for_etuovi()
@@ -44,11 +58,12 @@ class Connections(ModelViewSet):
         # Validate Etuovi apartments
         for apartment in apartments_to_etuovi:
             ownership_type = getattr(apartment, "project_ownership_type", None)
-            required_fields_enum = get_etuovi_required_fields_for_ownership_type(
+            required_fields = get_etuovi_required_fields_for_ownership_type(
                 ownership_type
             )
+            # import ipdb; ipdb.set_trace()
             missing_fields = validate_apartment_required_fields(
-                apartment, required_fields_enum
+                apartment, required_fields
             )
             apartment_data = {
                 "uuid": str(apartment.uuid),
@@ -72,19 +87,23 @@ class Connections(ModelViewSet):
         for apartment in apartments_to_oikotie:
             ownership_type = getattr(apartment, "project_ownership_type", None)
             
+            required_fields_housing_company = get_oikotie_required_fields_for_ownership_type(
+                ownership_type
+            )
+            
             # Validate housing company required fields
             missing_housing_company_fields = validate_apartment_required_fields(
-                apartment, OikotieHousingCompanyRequiredFields
+                apartment, required_fields_housing_company
             )
             
             # Validate apartment required fields
-            required_fields_enum = get_oikotie_required_fields_for_ownership_type(
+            required_fields_apartment = get_oikotie_required_fields_for_ownership_type(
                 ownership_type
             )
             missing_apartment_fields = validate_apartment_required_fields(
-                apartment, required_fields_enum
+                apartment, required_fields_apartment
             )
-            
+
             # Combine missing fields from both validations
             missing_fields = missing_housing_company_fields + missing_apartment_fields
             

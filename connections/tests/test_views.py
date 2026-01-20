@@ -31,29 +31,32 @@ class TestValidateApartmentRequiredFields:
         apartment.field2 = "value2"
         apartment.field3 = 123
 
-        class TestEnum(Enum):
-            field1 = "field1"
-            field2 = "field2"
-            field3 = "field3"
+        test_fields = [
+            "field1",
+            "field2",
+            "field3",
+        ]
 
-        missing_fields = validate_apartment_required_fields(apartment, TestEnum)
+        missing_fields = validate_apartment_required_fields(apartment, test_fields)
         assert missing_fields == []
 
     def test_validate_some_fields_missing(self):
         """Test validation when some required fields are missing"""
-        apartment = Mock()
+        apartment = Mock(spec=[])
         apartment.field1 = "value1"
         apartment.field2 = None  # Missing
         apartment.field3 = ""  # Missing (empty string is falsy)
         # field4 not set at all
 
-        class TestEnum(Enum):
-            field1 = "field1"
-            field2 = "field2"
-            field3 = "field3"
-            field4 = "field4"
+        test_fields = [
+            "field1",
+            "field2",
+            "field3",
+            "field4",
+        ]
 
-        missing_fields = validate_apartment_required_fields(apartment, TestEnum)
+
+        missing_fields = validate_apartment_required_fields(apartment, test_fields)
         assert len(missing_fields) == 3
         assert "field2" in missing_fields
         assert "field3" in missing_fields
@@ -62,14 +65,15 @@ class TestValidateApartmentRequiredFields:
 
     def test_validate_all_fields_missing(self):
         """Test validation when all required fields are missing"""
-        apartment = Mock()
+        apartment = Mock(spec=[])
 
-        class TestEnum(Enum):
-            field1 = "field1"
-            field2 = "field2"
-            field3 = "field3"
+        test_fields = [
+            "field1",
+            "field2",
+            "field3",
+        ]
 
-        missing_fields = validate_apartment_required_fields(apartment, TestEnum)
+        missing_fields = validate_apartment_required_fields(apartment, test_fields)
         assert missing_fields == ["field1", "field2", "field3"]
 
     def test_validate_with_etuovi_enum(self):
@@ -84,7 +88,7 @@ class TestValidateApartmentRequiredFields:
         apartment.right_of_occupancy_payment = 50000
 
         missing_fields = validate_apartment_required_fields(
-            apartment, EtuoviApartmentRequiredFields
+            apartment, EtuoviApartmentRequiredFields._member_names_
         )
         assert missing_fields == []
 
@@ -101,7 +105,7 @@ class TestValidateApartmentRequiredFields:
         apartment.url = "https://example.com"
 
         missing_fields = validate_apartment_required_fields(
-            apartment, OikotieApartmentRequiredFields
+            apartment, OikotieApartmentRequiredFields._member_names_
         )
         assert missing_fields == []
 
@@ -114,14 +118,15 @@ class TestValidateApartmentRequiredFields:
         apartment.field4 = []  # Falsy
         apartment.field5 = "value"  # Truthy
 
-        class TestEnum(Enum):
-            field1 = "field1"
-            field2 = "field2"
-            field3 = "field3"
-            field4 = "field4"
-            field5 = "field5"
+        test_fields = [
+            "field1",
+            "field2",
+            "field3",
+            "field4",
+            "field5",
+        ]
 
-        missing_fields = validate_apartment_required_fields(apartment, TestEnum)
+        missing_fields = validate_apartment_required_fields(apartment, test_fields)
         assert len(missing_fields) == 4
         assert "field1" in missing_fields
         assert "field2" in missing_fields

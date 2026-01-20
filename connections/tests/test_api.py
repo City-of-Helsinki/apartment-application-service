@@ -26,26 +26,26 @@ class TestConnectionsApis:
     @pytest.mark.usefixtures(
         "not_sending_oikotie_ftp", "not_sending_etuovi_ftp", "elastic_apartments"
     )
-    def test_get_mapped_apartments(self, api_client):
+    def test_get_mapped_apartments(self, drupal_server_api_client):
         expected = get_elastic_apartments_for_sale_published_uuids()
 
         call_command("send_etuovi_xml_file")
         call_command("send_oikotie_xml_file")
 
-        response = api_client.get("/v1/connections/get_mapped_apartments", follow=True)
+        response = drupal_server_api_client.get("/v1/connections/get_mapped_apartments", follow=True)
 
         assert response.data == expected
 
     @pytest.mark.usefixtures(
         "not_sending_oikotie_ftp", "not_sending_etuovi_ftp", "elastic_apartments"
     )
-    def test_get_new_published_apartments(self, api_client):
+    def test_get_new_published_apartments(self, drupal_server_api_client):
         expected = get_elastic_apartments_for_sale_published_uuids()
 
         call_command("send_etuovi_xml_file")
         call_command("send_oikotie_xml_file")
 
-        response = api_client.get("/v1/connections/get_mapped_apartments", follow=True)
+        response = drupal_server_api_client.get("/v1/connections/get_mapped_apartments", follow=True)
 
         assert sorted(response.data) == sorted(expected)
 
@@ -57,7 +57,7 @@ class TestConnectionsApis:
         call_command("send_etuovi_xml_file")
         call_command("send_oikotie_xml_file")
 
-        response_new = api_client.get(
+        response_new = drupal_server_api_client.get(
             "/v1/connections/get_mapped_apartments", follow=True
         )
 
@@ -68,20 +68,20 @@ class TestConnectionsApis:
     @pytest.mark.usefixtures(
         "not_sending_oikotie_ftp", "not_sending_etuovi_ftp", "elastic_apartments"
     )
-    def test_apartments_for_sale_need_FOR_SALE_flag(self, api_client):
+    def test_apartments_for_sale_need_FOR_SALE_flag(self, drupal_server_api_client):
         expected = get_elastic_apartments_not_for_sale()
 
         call_command("send_etuovi_xml_file")
         call_command("send_oikotie_xml_file")
 
-        response = api_client.get("/v1/connections/get_mapped_apartments", follow=True)
+        response = drupal_server_api_client.get("/v1/connections/get_mapped_apartments", follow=True)
 
         assert set(expected) not in set(response.data)
 
     @pytest.mark.usefixtures(
         "not_sending_oikotie_ftp", "not_sending_etuovi_ftp", "elastic_apartments"
     )
-    def test_no_mapped_apartments(self, api_client):
+    def test_no_mapped_apartments(self, drupal_server_api_client):
         """
         if no apartments are mapped should return empty list
         """
@@ -90,7 +90,7 @@ class TestConnectionsApis:
         call_command("send_etuovi_xml_file")
         call_command("send_oikotie_xml_file")
 
-        response = api_client.get("/v1/connections/get_mapped_apartments", follow=True)
+        response = drupal_server_api_client.get("/v1/connections/get_mapped_apartments", follow=True)
 
         assert response.data == []
 
@@ -274,6 +274,7 @@ class TestConnectionsApis:
             url="https://example.com/apartment",
             project_coordinate_lat=60.1699,
             project_coordinate_lon=24.9384,
+            project_ownership_type="HITAS",
         )
 
         response = drupal_server_api_client.get(

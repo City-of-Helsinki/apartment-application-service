@@ -119,22 +119,20 @@ def clean_html_tags_from_text(text: str) -> str:
 
 
 def validate_apartment_required_fields(
-    apartment: "ApartmentDocument", required_fields_enum: Type[Enum]  # noqa: F821
+    apartment: "ApartmentDocument", required_fields: List[str]  # noqa: F821
 ) -> List[str]:
     """
     Validates that an apartment has all required fields.
 
     Args:
         apartment: ApartmentDocument instance
-        required_fields_enum: Enum class with required field names
+        required_fields: List of required field machine names
 
     Returns:
         List of missing field machine names (empty if all fields are present)
     """
     missing_fields: List[str] = []
-    for field_enum in required_fields_enum:
-        # Use the enum member name to check the apartment attribute
-        field_name = field_enum.name
+    for field_name in required_fields:
         # Return the enum member name (machine name) in the missing fields list
         if not getattr(apartment, field_name, None):
             missing_fields.append(field_name)
