@@ -158,6 +158,7 @@ if SENTRY_DSN and SENTRY_ENVIRONMENT:
         before_send=scrub_sensitive_payload,
         event_scrubber=EventScrubber(denylist=SENTRY_CUSTOM_DENYLIST),
         integrations=[DjangoIntegration()],
+        send_default_pii=True,
     )
 
 var_root = env.path("VAR_ROOT")
