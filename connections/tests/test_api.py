@@ -245,6 +245,7 @@ class TestConnectionsApis:
             project_city="Helsinki",
             room_count=None,  # Missing
             debt_free_sales_price=200000,
+            project_ownership_type="HASO",
             right_of_occupancy_payment=None,  # Missing
         )
 
