@@ -2,19 +2,16 @@
 Unit tests for connections service helper functions
 """
 
-from enum import Enum
 from unittest.mock import Mock, patch
 
-from apartment.enums import OwnershipType
 import pytest  # noqa: F401
 
+from apartment.enums import OwnershipType
 from connections.enums import (
     EtuoviApartmentRequiredFields,
-    OikotieApartmentRequiredFields,
-    OikotieApartmentRequiredFieldsHASO,
-    OikotieApartmentRequiredFieldsHITAS,
     get_etuovi_required_fields_for_ownership_type,
     get_oikotie_required_fields_for_ownership_type,
+    OikotieApartmentRequiredFields,
 )
 from connections.etuovi.services import get_apartments_for_etuovi
 from connections.oikotie.services import get_apartments_for_oikotie
@@ -54,7 +51,6 @@ class TestValidateApartmentRequiredFields:
             "field3",
             "field4",
         ]
-
 
         missing_fields = validate_apartment_required_fields(apartment, test_fields)
         assert len(missing_fields) == 3
@@ -197,14 +193,20 @@ class TestGetOikotieRequiredFieldsForOwnershipType:
     """Test get_oikotie_required_fields_for_ownership_type function"""
 
     @pytest.mark.parametrize(
-        "ownership_type,expected_price_field", [
-            [OwnershipType.HASO, "right_of_occupancy_payment"], 
-            [OwnershipType.HITAS,"debt_free_sales_price"]
-        ]
+        "ownership_type,expected_price_field",
+        [
+            [OwnershipType.HASO, "right_of_occupancy_payment"],
+            [OwnershipType.HITAS, "debt_free_sales_price"],
+        ],
     )
-    def test_returns_correct_price_field_for_ownership_type(self, ownership_type, expected_price_field):
+    def test_returns_correct_price_field_for_ownership_type(
+        self, ownership_type, expected_price_field
+    ):
         """Test that function returns the correct required fields for ownership type"""
 
-        assert expected_price_field in get_oikotie_required_fields_for_ownership_type(ownership_type.value)
-        assert expected_price_field in get_etuovi_required_fields_for_ownership_type(ownership_type.value)
-
+        assert expected_price_field in get_oikotie_required_fields_for_ownership_type(
+            ownership_type.value
+        )
+        assert expected_price_field in get_etuovi_required_fields_for_ownership_type(
+            ownership_type.value
+        )

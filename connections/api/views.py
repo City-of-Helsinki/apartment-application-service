@@ -9,7 +9,6 @@ from rest_framework.viewsets import ModelViewSet
 from application_form.permissions import DrupalAuthentication, IsDrupalServer
 from connections.api.serializers import MappedApartmentSerializer
 from connections.enums import (
-    OikotieHousingCompanyRequiredFields,
     get_etuovi_required_fields_for_ownership_type,
     get_oikotie_required_fields_for_ownership_type,
 )
@@ -30,7 +29,6 @@ class Connections(ModelViewSet):
     serializer_class = MappedApartmentSerializer
     permission_classes = [IsAuthenticated, IsDrupalServer]
     authentication_classes = [DrupalAuthentication]
-
 
     @action(methods=["get"], detail=False, url_path="get_mapped_apartments")
     def get_mapped_apartments(self, request):
@@ -61,7 +59,7 @@ class Connections(ModelViewSet):
             required_fields = get_etuovi_required_fields_for_ownership_type(
                 ownership_type
             )
-            # import ipdb; ipdb.set_trace()
+
             missing_fields = validate_apartment_required_fields(
                 apartment, required_fields
             )
@@ -71,9 +69,7 @@ class Connections(ModelViewSet):
                 "project_housing_company": getattr(
                     apartment, "project_housing_company", None
                 ),
-                "apartment_address": getattr(
-                    apartment, "apartment_address", None
-                ),
+                "apartment_address": getattr(apartment, "apartment_address", None),
                 "project_url": getattr(apartment, "project_url", None),
                 "url": getattr(apartment, "url", None),
                 "missing_fields": missing_fields if missing_fields else [],
@@ -86,16 +82,16 @@ class Connections(ModelViewSet):
         # Validate Oikotie apartments
         for apartment in apartments_to_oikotie:
             ownership_type = getattr(apartment, "project_ownership_type", None)
-            
-            required_fields_housing_company = get_oikotie_required_fields_for_ownership_type(
-                ownership_type
+
+            required_fields_housing_company = (
+                get_oikotie_required_fields_for_ownership_type(ownership_type)
             )
-            
+
             # Validate housing company required fields
             missing_housing_company_fields = validate_apartment_required_fields(
                 apartment, required_fields_housing_company
             )
-            
+
             # Validate apartment required fields
             required_fields_apartment = get_oikotie_required_fields_for_ownership_type(
                 ownership_type
@@ -106,16 +102,14 @@ class Connections(ModelViewSet):
 
             # Combine missing fields from both validations
             missing_fields = missing_housing_company_fields + missing_apartment_fields
-            
+
             apartment_data = {
                 "uuid": str(apartment.uuid),
                 "project_uuid": getattr(apartment, "project_uuid", None),
                 "project_housing_company": getattr(
                     apartment, "project_housing_company", None
                 ),
-                "apartment_address": getattr(
-                    apartment, "apartment_address", None
-                ),
+                "apartment_address": getattr(apartment, "apartment_address", None),
                 "project_url": getattr(apartment, "project_url", None),
                 "url": getattr(apartment, "url", None),
                 "missing_fields": missing_fields if missing_fields else [],

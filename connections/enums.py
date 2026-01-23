@@ -1,6 +1,5 @@
-
 from enum import Enum
-from typing import List, Type
+from typing import List
 
 from apartment.enums import OwnershipType
 
@@ -76,12 +75,14 @@ class OikotieApartmentRequiredFields(Enum):
 
 class OikotieApartmentRequiredFieldsHITAS(Enum):
     """Oikotie required fields for HITAS apartments"""
+
     debt_free_sales_price = "debt_free_sales_price"
     sales_price = "sales_price"
 
 
 class OikotieApartmentRequiredFieldsHASO(Enum):
     """Oikotie required fields for HASO apartments"""
+
     right_of_occupancy_payment = "right_of_occupancy_payment"
     release_payment = "release_payment"
 
@@ -95,12 +96,16 @@ class EtuoviApartmentRequiredFields(Enum):
 
 
 class EtuoviApartmentRequiredFieldsHITAS(Enum):
-    """Etuovi required fields for HITAS apartments (includes debt_free_sales_price, excludes right_of_occupancy_payment)"""
+    """Etuovi required fields for HITAS apartments (includes debt_free_sales_price,
+    excludes right_of_occupancy_payment)"""
+
     debt_free_sales_price = "debt_free_sales_price"
 
 
 class EtuoviApartmentRequiredFieldsHASO(Enum):
-    """Etuovi required fields for HASO apartments (includes right_of_occupancy_payment, excludes debt_free_sales_price)"""
+    """Etuovi required fields for HASO apartments (includes right_of_occupancy_payment,
+    excludes debt_free_sales_price)"""
+
     right_of_occupancy_payment = "right_of_occupancy_payment"
 
 
@@ -116,7 +121,7 @@ def get_etuovi_required_fields_for_ownership_type(
     Returns:
         List of required fields for the ownership type
     """
-    base_enum_class = EtuoviApartmentRequiredFields 
+    base_enum_class = EtuoviApartmentRequiredFields
     if not ownership_type:
         return base_enum_class._member_names_
 
@@ -142,7 +147,7 @@ def get_oikotie_required_fields_for_ownership_type(
     Returns:
         List of required fields for the ownership type
     """
-    base_enum_class = OikotieApartmentRequiredFields 
+    base_enum_class = OikotieApartmentRequiredFields
     if not ownership_type:
         return base_enum_class._member_names_
 

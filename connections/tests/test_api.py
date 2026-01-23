@@ -26,26 +26,36 @@ class TestConnectionsApis:
     @pytest.mark.usefixtures(
         "not_sending_oikotie_ftp", "not_sending_etuovi_ftp", "elastic_apartments"
     )
-    def test_get_mapped_apartments(self, drupal_server_api_client):
+    def test_get_mapped_apartments(
+        self,
+        drupal_server_api_client,  # noqa: F811
+    ):
         expected = get_elastic_apartments_for_sale_published_uuids()
 
         call_command("send_etuovi_xml_file")
         call_command("send_oikotie_xml_file")
 
-        response = drupal_server_api_client.get("/v1/connections/get_mapped_apartments", follow=True)
+        response = drupal_server_api_client.get(
+            "/v1/connections/get_mapped_apartments", follow=True
+        )
 
         assert response.data == expected
 
     @pytest.mark.usefixtures(
         "not_sending_oikotie_ftp", "not_sending_etuovi_ftp", "elastic_apartments"
     )
-    def test_get_new_published_apartments(self, drupal_server_api_client):
+    def test_get_new_published_apartments(
+        self,
+        drupal_server_api_client,  # noqa: F811
+    ):
         expected = get_elastic_apartments_for_sale_published_uuids()
 
         call_command("send_etuovi_xml_file")
         call_command("send_oikotie_xml_file")
 
-        response = drupal_server_api_client.get("/v1/connections/get_mapped_apartments", follow=True)
+        response = drupal_server_api_client.get(
+            "/v1/connections/get_mapped_apartments", follow=True
+        )
 
         assert sorted(response.data) == sorted(expected)
 
@@ -68,20 +78,28 @@ class TestConnectionsApis:
     @pytest.mark.usefixtures(
         "not_sending_oikotie_ftp", "not_sending_etuovi_ftp", "elastic_apartments"
     )
-    def test_apartments_for_sale_need_FOR_SALE_flag(self, drupal_server_api_client):
+    def test_apartments_for_sale_need_FOR_SALE_flag(
+        self,
+        drupal_server_api_client,  # noqa: F811
+    ):
         expected = get_elastic_apartments_not_for_sale()
 
         call_command("send_etuovi_xml_file")
         call_command("send_oikotie_xml_file")
 
-        response = drupal_server_api_client.get("/v1/connections/get_mapped_apartments", follow=True)
+        response = drupal_server_api_client.get(
+            "/v1/connections/get_mapped_apartments", follow=True
+        )
 
         assert set(expected) not in set(response.data)
 
     @pytest.mark.usefixtures(
         "not_sending_oikotie_ftp", "not_sending_etuovi_ftp", "elastic_apartments"
     )
-    def test_no_mapped_apartments(self, drupal_server_api_client):
+    def test_no_mapped_apartments(
+        self,
+        drupal_server_api_client,  # noqa: F811
+    ):
         """
         if no apartments are mapped should return empty list
         """
@@ -90,7 +108,9 @@ class TestConnectionsApis:
         call_command("send_etuovi_xml_file")
         call_command("send_oikotie_xml_file")
 
-        response = drupal_server_api_client.get("/v1/connections/get_mapped_apartments", follow=True)
+        response = drupal_server_api_client.get(
+            "/v1/connections/get_mapped_apartments", follow=True
+        )
 
         assert response.data == []
 
@@ -126,8 +146,7 @@ class TestConnectionsApis:
 
     @pytest.mark.usefixtures("elastic_apartments")
     def test_get_integration_status_authorized(
-        self,
-        drupal_server_api_client  # noqa: F811
+        self, drupal_server_api_client  # noqa: F811
     ):
         """Test that authorized request returns 200 status code"""
         response = drupal_server_api_client.get(
@@ -143,8 +162,7 @@ class TestConnectionsApis:
 
     @pytest.mark.usefixtures("elastic_apartments")
     def test_integration_status_response_structure(
-        self,
-        drupal_server_api_client  # noqa: F811
+        self, drupal_server_api_client  # noqa: F811
     ):
         """Test that response has correct structure"""
         response = drupal_server_api_client.get(
@@ -202,9 +220,7 @@ class TestConnectionsApis:
         )
 
         assert response.status_code == 200
-        success_uuids = [
-            item["uuid"] for item in response.data["etuovi"]["success"]
-        ]
+        success_uuids = [item["uuid"] for item in response.data["etuovi"]["success"]]
         assert str(apartment.uuid) in success_uuids
         assert str(apartment.uuid) not in [
             item["uuid"] for item in response.data["etuovi"]["fail"]
@@ -237,9 +253,7 @@ class TestConnectionsApis:
         )
 
         assert response.status_code == 200
-        success_uuids = [
-            item["uuid"] for item in response.data["etuovi"]["success"]
-        ]
+        success_uuids = [item["uuid"] for item in response.data["etuovi"]["success"]]
         assert str(apartment.uuid) not in success_uuids
 
         fail_items = [
@@ -282,9 +296,7 @@ class TestConnectionsApis:
         )
 
         assert response.status_code == 200
-        success_uuids = [
-            item["uuid"] for item in response.data["oikotie"]["success"]
-        ]
+        success_uuids = [item["uuid"] for item in response.data["oikotie"]["success"]]
         assert str(apartment.uuid) in success_uuids
         assert str(apartment.uuid) not in [
             item["uuid"] for item in response.data["oikotie"]["fail"]
@@ -318,9 +330,7 @@ class TestConnectionsApis:
         )
 
         assert response.status_code == 200
-        success_uuids = [
-            item["uuid"] for item in response.data["oikotie"]["success"]
-        ]
+        success_uuids = [item["uuid"] for item in response.data["oikotie"]["success"]]
         assert str(apartment.uuid) not in success_uuids
 
         fail_items = [
@@ -439,8 +449,7 @@ class TestConnectionsApis:
 
     @pytest.mark.usefixtures("elastic_apartments")
     def test_integration_status_handles_empty_results(
-        self,
-        drupal_server_api_client  # noqa: F811
+        self, drupal_server_api_client  # noqa: F811
     ):
         """Test that endpoint handles case when no apartments match criteria"""
         # Make all apartments sold

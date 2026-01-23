@@ -2,8 +2,7 @@ import logging
 import re
 from collections.abc import Callable
 from decimal import Decimal, ROUND_HALF_UP
-from enum import Enum
-from typing import List, Type, Union
+from typing import List, Union
 
 from django.conf import settings
 from django.utils.html import strip_tags
