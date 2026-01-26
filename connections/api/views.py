@@ -8,6 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
+from drf_spectacular.types import OpenApiTypes
 from application_form.permissions import DrupalAuthentication, IsDrupalServer
 from connections.api.serializers import MappedApartmentSerializer
 from connections.enums import (
@@ -45,6 +46,102 @@ class Connections(ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
+
+    from drf_spectacular.utils import extend_schema, OpenApiExample
+
+    @extend_schema(
+        summary="List integration status",
+        description=(
+            "Retrieve a list of apartment UUIDs that have been mapped to Etuovi and Oikotie integrations."
+        ),
+        responses={
+            (200, "application/json"): OpenApiTypes.OBJECT
+        },
+        examples=[
+            OpenApiExample(
+                "Integration status example",
+                value={
+                    "etuovi": {
+                        "success": [
+                            {
+                                "uuid": "uuid-etuovi-success-1",
+                                "project_uuid": "project-uuid-1",
+                                "project_housing_company": "Housing Company One",
+                                "apartment_address": "Street 1 A 1",
+                                "project_url": "https://asuntotuotanto.docker.so/projects/one",
+                                "url": "https://asuntotuotanto.docker.so/apartments/one",
+                                "missing_fields": [],
+                                "last_mapped": {
+                                    "etuovi": "2024-05-10T11:00:00.000Z",
+                                    "oikotie": "2024-05-09T09:30:00.000Z"
+                                },
+                            },
+                            {
+                                "uuid": "uuid-etuovi-success-2",
+                                "project_uuid": "project-uuid-2",
+                                "project_housing_company": "Housing Company Two",
+                                "apartment_address": "Street 2 B 2",
+                                "project_url": "https://asuntotuotanto.docker.so/projects/two",
+                                "url": "https://asuntotuotanto.docker.so/apartments/two",
+                                "missing_fields": [],
+                                "last_mapped": {
+                                    "etuovi": "2024-05-08T14:00:00.000Z",
+                                    "oikotie": "2024-05-08T13:00:00.000Z"
+                                },
+                            },
+                        ],
+                        "fail": [
+                            {
+                                "uuid": "uuid-etuovi-failure-1",
+                                "project_uuid": "project-uuid-3",
+                                "project_housing_company": "Housing Company Three",
+                                "apartment_address": "Street 3 C 3",
+                                "project_url": "https://asuntotuotanto.docker.so/projects/three",
+                                "url": "https://asuntotuotanto.docker.so/apartments/three",
+                                "missing_fields": ["url"],
+                                "last_mapped": {
+                                    "etuovi": None,
+                                    "oikotie": None,
+                                },
+                            }
+                        ]
+                    },
+                    "oikotie": {
+                        "success": [
+                            {
+                                "uuid": "uuid-oikotie-success-1",
+                                "project_uuid": "project-uuid-2",
+                                "project_housing_company": "Housing Company Two",
+                                "apartment_address": "Street 2 B 2",
+                                "project_url": "https://project-example.fi/two",
+                                "url": "https://apartment-example.fi/two",
+                                "missing_fields": [],
+                                "last_mapped": {
+                                    "etuovi": "2024-05-08T14:00:00.000Z",
+                                    "oikotie": "2024-05-08T13:00:00.000Z"
+                                },
+                            }
+                        ],
+                        "fail": [
+                            {
+                                "uuid": "uuid-oikotie-failure-1",
+                                "project_uuid": "project-uuid-4",
+                                "project_housing_company": "Housing Company Four",
+                                "apartment_address": "Street 4 D 4",
+                                "project_url": "https://project-example.fi/four",
+                                "url": None,
+                                "missing_fields": ["url"],
+                                "last_mapped": {
+                                    "etuovi": "2024-05-08T14:00:00.000Z",
+                                    "oikotie": None,
+                                },
+                            }
+                        ]
+                    }
+                },
+            ),
+        ],
+    )
     @action(methods=["get"], detail=False, url_path="integration_status")
     def integration_status(self, request):
         apartments_to_etuovi = get_apartments_for_etuovi()
