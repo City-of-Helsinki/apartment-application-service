@@ -116,10 +116,7 @@ class Connections(ModelViewSet):
                                 "project_url": "https://project-example.fi/two",
                                 "url": "https://apartment-example.fi/two",
                                 "missing_fields": [],
-                                "last_mapped": {
-                                    "etuovi": "2024-05-08T14:00:00.000Z",
-                                    "oikotie": "2024-05-08T13:00:00.000Z"
-                                },
+                                "last_mapped": "2024-05-08T14:00:00.000Z",
                             }
                         ],
                         "fail": [
@@ -131,11 +128,8 @@ class Connections(ModelViewSet):
                                 "project_url": "https://project-example.fi/four",
                                 "url": None,
                                 "missing_fields": ["url"],
-                                "last_mapped": {
-                                    "etuovi": "2024-05-08T14:00:00.000Z",
-                                    "oikotie": None,
-                                },
-                            }
+                                "last_mapped": "2024-05-08T14:00:00.000Z",
+                            },
                         ]
                     }
                 },
@@ -190,7 +184,7 @@ class Connections(ModelViewSet):
                 "missing_fields": missing_fields if missing_fields else [],
                 "last_mapped": apartments_last_mapped_dict.get(
                     str(apartment.uuid), {"etuovi": None, "oikotie": None}
-                ),
+                )["etuovi"],
             }
 
             if missing_fields:
@@ -234,7 +228,7 @@ class Connections(ModelViewSet):
                 "missing_fields": missing_fields if missing_fields else [],
                 "last_mapped": apartments_last_mapped_dict.get(
                     str(apartment.uuid), {"etuovi": None, "oikotie": None}
-                ),
+                )["oikotie"],
             }
 
             if missing_fields:

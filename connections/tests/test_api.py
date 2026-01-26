@@ -1,3 +1,6 @@
+import datetime
+from connections.etuovi.services import get_apartments_for_etuovi
+from connections.oikotie.services import get_apartments_for_oikotie
 import pytest
 from django.core.management import call_command
 from django.urls import reverse
@@ -166,9 +169,11 @@ class TestConnectionsApis:
         self, drupal_server_api_client  # noqa: F811
     ):
         """Test that response has correct structure"""
+
         response = drupal_server_api_client.get(
             reverse("connections:Connections-integration-status")
         )
+
 
         assert response.status_code == 200
         data = response.data
@@ -189,13 +194,14 @@ class TestConnectionsApis:
                 assert "uuid" in fail_item
                 assert "missing_fields" in fail_item
                 assert isinstance(fail_item["missing_fields"], list)
-                assert isinstance(fail_item["last_mapped"], dict)
+                assert "last_mapped" in fail_item
             # Check success items structure (should match fail items structure)
             for success_item in data[integration]["success"]:
                 assert "uuid" in success_item
                 assert "missing_fields" in success_item
                 assert isinstance(success_item["missing_fields"], list)
-                assert isinstance(success_item["last_mapped"], dict)
+                assert "last_mapped" in success_item
+
 
     @pytest.mark.usefixtures("elastic_apartments", "not_sending_etuovi_ftp")
     def test_integration_status_etuovi_with_all_required_fields(
@@ -235,10 +241,13 @@ class TestConnectionsApis:
             item["uuid"] for item in response.data["etuovi"]["fail"]
         ]
         assert (
-            response.data["etuovi"]["success"][0]["last_mapped"]["etuovi"] is not None
+            isinstance(
+                response.data["etuovi"]["success"][0]["last_mapped"], 
+                datetime.datetime
+            )
         )
-        assert response.data["etuovi"]["success"][0]["last_mapped"]["oikotie"] is None
-        # import ipdb; ipdb.set_trace()
+        assert response.data["etuovi"]["success"][0]["last_mapped"] is not None
+
         apartment.delete(refresh=True)
 
     @pytest.mark.usefixtures("elastic_apartments")
@@ -324,9 +333,12 @@ class TestConnectionsApis:
             item["uuid"] for item in response.data["oikotie"]["fail"]
         ]
         assert (
-            response.data["oikotie"]["success"][0]["last_mapped"]["oikotie"] is not None
+            isinstance(
+                response.data["oikotie"]["success"][0]["last_mapped"], 
+                datetime.datetime
+            )
         )
-        assert response.data["oikotie"]["success"][0]["last_mapped"]["etuovi"] is None
+        assert response.data["oikotie"]["success"][0]["last_mapped"] is not None
 
         apartment.delete(refresh=True)
 
