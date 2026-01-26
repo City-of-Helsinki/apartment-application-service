@@ -1,5 +1,7 @@
 import logging
+from typing import Any
 
+from django.db.models import Q
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -48,6 +50,22 @@ class Connections(ModelViewSet):
         apartments_to_etuovi = get_apartments_for_etuovi()
         apartments_to_oikotie = get_apartments_for_oikotie()
 
+        apartments_last_mapped = MappedApartment.objects.filter(
+            Q(last_mapped_to_etuovi__isnull=False)
+            | Q(last_mapped_to_oikotie__isnull=False)
+        ).values_list(
+            "apartment_uuid", "last_mapped_to_etuovi", "last_mapped_to_oikotie"
+        )
+
+        apartments_last_mapped_dict: dict[str, dict[str, Any]] = dict(
+            (
+                str(apartment_uuid),
+                {"etuovi": last_mapped_to_etuovi, "oikotie": last_mapped_to_oikotie},
+            )
+            for apartment_uuid, last_mapped_to_etuovi, last_mapped_to_oikotie
+            in apartments_last_mapped
+        )
+
         apartments = {
             "etuovi": {"success": [], "fail": []},
             "oikotie": {"success": [], "fail": []},
@@ -73,7 +91,11 @@ class Connections(ModelViewSet):
                 "project_url": getattr(apartment, "project_url", None),
                 "url": getattr(apartment, "url", None),
                 "missing_fields": missing_fields if missing_fields else [],
+                "last_mapped": apartments_last_mapped_dict.get(
+                    str(apartment.uuid), {"etuovi": None, "oikotie": None}
+                ),
             }
+
             if missing_fields:
                 apartments["etuovi"]["fail"].append(apartment_data)
             else:
@@ -113,7 +135,11 @@ class Connections(ModelViewSet):
                 "project_url": getattr(apartment, "project_url", None),
                 "url": getattr(apartment, "url", None),
                 "missing_fields": missing_fields if missing_fields else [],
+                "last_mapped": apartments_last_mapped_dict.get(
+                    str(apartment.uuid), {"etuovi": None, "oikotie": None}
+                ),
             }
+
             if missing_fields:
                 apartments["oikotie"]["fail"].append(apartment_data)
             else:

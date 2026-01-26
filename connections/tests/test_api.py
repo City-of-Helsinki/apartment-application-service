@@ -3,6 +3,7 @@ from django.core.management import call_command
 from django.urls import reverse
 
 from connections.enums import ApartmentStateOfSale
+from connections.models import MappedApartment
 from connections.tests.factories import ApartmentMinimalFactory
 from connections.tests.utils import (
     get_elastic_apartments_for_sale_only_uuids,
@@ -188,14 +189,15 @@ class TestConnectionsApis:
                 assert "uuid" in fail_item
                 assert "missing_fields" in fail_item
                 assert isinstance(fail_item["missing_fields"], list)
-
+                assert isinstance(fail_item["last_mapped"], dict)
             # Check success items structure (should match fail items structure)
             for success_item in data[integration]["success"]:
                 assert "uuid" in success_item
                 assert "missing_fields" in success_item
                 assert isinstance(success_item["missing_fields"], list)
+                assert isinstance(success_item["last_mapped"], dict)
 
-    @pytest.mark.usefixtures("elastic_apartments")
+    @pytest.mark.usefixtures("elastic_apartments", "not_sending_etuovi_ftp")
     def test_integration_status_etuovi_with_all_required_fields(
         self, drupal_server_api_client  # noqa: F811
     ):
@@ -215,6 +217,13 @@ class TestConnectionsApis:
             right_of_occupancy_payment=50000,
         )
 
+        # send etuovi xml file to update last_mapped_to_etuovi field for this apartment
+        call_command("send_etuovi_xml_file")
+        apartment_last_mapped_to_etuovi = MappedApartment.objects.get(
+            apartment_uuid=apartment.uuid
+        ).last_mapped_to_etuovi
+        assert apartment_last_mapped_to_etuovi is not None
+
         response = drupal_server_api_client.get(
             reverse("connections:Connections-integration-status")
         )
@@ -225,7 +234,11 @@ class TestConnectionsApis:
         assert str(apartment.uuid) not in [
             item["uuid"] for item in response.data["etuovi"]["fail"]
         ]
-
+        assert (
+            response.data["etuovi"]["success"][0]["last_mapped"]["etuovi"] is not None
+        )
+        assert response.data["etuovi"]["success"][0]["last_mapped"]["oikotie"] is None
+        # import ipdb; ipdb.set_trace()
         apartment.delete(refresh=True)
 
     @pytest.mark.usefixtures("elastic_apartments")
@@ -268,7 +281,7 @@ class TestConnectionsApis:
 
         apartment.delete(refresh=True)
 
-    @pytest.mark.usefixtures("elastic_apartments")
+    @pytest.mark.usefixtures("elastic_apartments", "not_sending_oikotie_ftp")
     def test_integration_status_oikotie_with_all_required_fields(
         self, drupal_server_api_client  # noqa: F811
     ):
@@ -292,6 +305,14 @@ class TestConnectionsApis:
             project_ownership_type="HITAS",
         )
 
+        # send oikotie xml file to update last_mapped_to_oikotie for this apartment
+        call_command("send_oikotie_xml_file")
+
+        apartment_last_mapped_to_oikotie = MappedApartment.objects.get(
+            apartment_uuid=apartment.uuid
+        ).last_mapped_to_oikotie
+        assert apartment_last_mapped_to_oikotie is not None
+
         response = drupal_server_api_client.get(
             reverse("connections:Connections-integration-status")
         )
@@ -302,6 +323,10 @@ class TestConnectionsApis:
         assert str(apartment.uuid) not in [
             item["uuid"] for item in response.data["oikotie"]["fail"]
         ]
+        assert (
+            response.data["oikotie"]["success"][0]["last_mapped"]["oikotie"] is not None
+        )
+        assert response.data["oikotie"]["success"][0]["last_mapped"]["etuovi"] is None
 
         apartment.delete(refresh=True)
 

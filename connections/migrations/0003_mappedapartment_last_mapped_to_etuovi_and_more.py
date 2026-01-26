@@ -6,37 +6,31 @@ from django.db import migrations, models
 def set_last_mapped_to_fields(apps, schema_editor):
     MappedApartment = apps.get_model("connections", "MappedApartment")
     # Set last_mapped_to_etuovi where needed
-    from django.db.models import Case, When, F, DateTimeField
+    from django.db.models import Case, DateTimeField, F, When
 
     # Use the later of created_at or updated_at for last_mapped_to_etuovi
-    MappedApartment.objects.filter(
-        mapped_etuovi=True
-    ).update(
+    MappedApartment.objects.filter(mapped_etuovi=True).update(
         last_mapped_to_etuovi=Case(
             When(
-                updated_at__gt=F('created_at'),
-                then=F('updated_at'),
+                updated_at__gt=F("created_at"),
+                then=F("updated_at"),
             ),
-            default=F('created_at'),
+            default=F("created_at"),
             output_field=DateTimeField(),
         )
     )
 
     # Use the later of created_at or updated_at for last_mapped_to_oikotie
-    MappedApartment.objects.filter(
-        mapped_oikotie=True
-    ).update(
+    MappedApartment.objects.filter(mapped_oikotie=True).update(
         last_mapped_to_oikotie=Case(
             When(
-                updated_at__gt=F('created_at'),
-                then=F('updated_at'),
+                updated_at__gt=F("created_at"),
+                then=F("updated_at"),
             ),
-            default=F('created_at'),
+            default=F("created_at"),
             output_field=DateTimeField(),
         )
     )
-
-
 
 
 class Migration(migrations.Migration):
@@ -49,17 +43,16 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="mappedapartment",
             name="last_mapped_to_etuovi",
-            field=models.DateTimeField(blank=True, null=True, auto_now_add=True),
+            field=models.DateTimeField(blank=True, null=True),
         ),
         migrations.AddField(
             model_name="mappedapartment",
             name="last_mapped_to_oikotie",
-            field=models.DateTimeField(blank=True, null=True, auto_now_add=True),
+            field=models.DateTimeField(blank=True, null=True),
         ),
-        migrations.RunPython(set_last_mapped_to_fields, reverse_code=migrations.RunPython.noop),
+        migrations.RunPython(
+            set_last_mapped_to_fields, reverse_code=migrations.RunPython.noop
+        ),
     ]
 
-
     from django.db import migrations
-
-
