@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Optional
+from typing import Iterator, Optional
 
 from django.conf import settings
 from django_etuovi.etuovi import create_xml_file
@@ -11,6 +11,24 @@ from connections.etuovi.etuovi_mapper import map_apartment_to_item
 from connections.utils import map_document
 
 _logger = logging.getLogger(__name__)
+
+
+def get_apartments_for_etuovi() -> Iterator[ApartmentDocument]:
+    """
+    Returns raw ApartmentDocument objects where publish_on_etuovi=True
+    and apartment_state_of_sale != SOLD
+
+    Returns:
+        Iterator[ApartmentDocument]: Iterator of ApartmentDocument objects
+    """
+    s_obj = (
+        ApartmentDocument.search()
+        .filter("term", _language="fi")
+        .exclude("term", apartment_state_of_sale__keyword=ApartmentStateOfSale.SOLD)
+        .filter("term", publish_on_etuovi=True)
+    )
+    s_obj.execute()
+    return s_obj.scan()
 
 
 def fetch_apartments_for_sale(verbose: bool = False) -> list:

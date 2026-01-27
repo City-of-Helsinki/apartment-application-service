@@ -2,6 +2,7 @@ import logging
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
+from django.utils import timezone
 from django_etuovi.etuovi import send_items
 
 from connections.etuovi.services import create_xml, fetch_apartments_for_sale
@@ -50,11 +51,16 @@ class Command(BaseCommand):
                 raise e
 
         MappedApartment.objects.exclude(
-            pk__in=[item.cust_itemcode for item in items]
+            apartment_uuid__in=[item.cust_itemcode for item in items]
         ).update(mapped_etuovi=False)
 
         for item in items:
+            # Avoid IntegrityError by not setting last_mapped_to_etuovi in the lookup,
+            # and only updating it as a default
             MappedApartment.objects.update_or_create(
                 apartment_uuid=item.cust_itemcode,
-                defaults={"mapped_etuovi": True},
+                defaults={
+                    "mapped_etuovi": True,
+                    "last_mapped_to_etuovi": timezone.now(),
+                },
             )
