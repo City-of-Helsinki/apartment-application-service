@@ -151,8 +151,7 @@ class Connections(ModelViewSet):
                 str(apartment_uuid),
                 {"etuovi": last_mapped_to_etuovi, "oikotie": last_mapped_to_oikotie},
             )
-            for apartment_uuid, last_mapped_to_etuovi, last_mapped_to_oikotie
-            in apartments_last_mapped
+            for apartment_uuid, last_mapped_to_etuovi, last_mapped_to_oikotie in apartments_last_mapped  # noqa: E501 black formatter wants it to be this way but Flake8 doesnt
         )
 
         apartments = {
