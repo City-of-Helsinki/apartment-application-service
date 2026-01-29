@@ -1,3 +1,4 @@
+import random
 import string
 from dataclasses import dataclass
 from datetime import date, timedelta
@@ -51,13 +52,20 @@ def clear_apartment_store():
 
 
 def add_to_store(apartments: Iterable[ApartmentData]):
-    APARTMENT_STORE.extend(apartments)
+    existing = {str(apartment.uuid) for apartment in APARTMENT_STORE}
+    for apartment in apartments:
+        if str(apartment.uuid) in existing:
+            continue
+        APARTMENT_STORE.append(apartment)
+        existing.add(str(apartment.uuid))
 
 
 def get_apartments_from_store(project_uuid: Optional[str] = None) -> List[ApartmentData]:
     if project_uuid is None:
         return list(APARTMENT_STORE)
-    return [apt for apt in APARTMENT_STORE if apt.project_uuid == project_uuid]
+    return [
+        apt for apt in APARTMENT_STORE if str(apt.project_uuid) == str(project_uuid)
+    ]
 
 
 def get_apartment_uuids_from_store(project_uuid: str) -> List[str]:
@@ -84,9 +92,13 @@ def get_projects_from_store() -> List[ApartmentData]:
 
 def get_project_from_store(project_uuid: str) -> ApartmentData:
     for apartment in APARTMENT_STORE:
-        if apartment.project_uuid == project_uuid:
+        if str(apartment.project_uuid) == str(project_uuid):
             return _project_from_apartment(apartment)
     raise KeyError("Project not found")
+
+
+def _fake_business_id() -> str:
+    return "".join(random.choice(string.digits) for _ in range(7)) + "-0"
 
 
 class ApartmentDocumentFactory(factory.Factory):
@@ -103,7 +115,7 @@ class ApartmentDocumentFactory(factory.Factory):
     project_street_address = factory.Faker("street_address")
     project_postal_code = fuzzy.FuzzyText(length=6, chars=string.digits)
     project_city = "Helsinki"
-    project_contract_business_id = factory.Faker("business_id")
+    project_contract_business_id = factory.LazyFunction(_fake_business_id)
     project_district = fuzzy.FuzzyText()
     project_realty_id = fuzzy.FuzzyText()
     project_construction_year = fuzzy.FuzzyInteger(2000, 3000)
@@ -116,6 +128,7 @@ class ApartmentDocumentFactory(factory.Factory):
     project_state_of_sale = fuzzy.FuzzyChoice(
         ["PRE_MARKETING", "FOR_SALE", "PROCESSING", "READY"]
     )
+    project_can_apply_afterwards = Faker("boolean")
 
     project_has_elevator = True
     project_has_sauna = True
@@ -142,17 +155,18 @@ class ApartmentDocumentFactory(factory.Factory):
     project_premarketing_end_time = fuzzy.FuzzyDateTime(timezone.now())
     project_application_start_time = fuzzy.FuzzyDateTime(timezone.now())
     project_application_end_time = fuzzy.FuzzyDateTime(timezone.now())
-    project_material_choice_dl = fuzzy.FuzzyDate(date.today())
-    project_shareholder_meeting_date = fuzzy.FuzzyDate(date.today())
+    project_material_choice_dl = fuzzy.FuzzyDateTime(timezone.now())
+    project_shareholder_meeting_date = fuzzy.FuzzyDateTime(timezone.now())
     project_estimated_completion = fuzzy.FuzzyText()
-    project_estimated_completion_date = fuzzy.FuzzyDate(date.today())
-    project_completion_date = fuzzy.FuzzyDate(date.today())
-    project_possession_transfer_date = fuzzy.FuzzyDate(date.today())
+    project_estimated_completion_date = fuzzy.FuzzyDateTime(timezone.now())
+    project_completion_date = fuzzy.FuzzyDateTime(timezone.now())
+    project_possession_transfer_date = fuzzy.FuzzyDateTime(timezone.now())
 
     project_attachment_urls = factory.List([fuzzy.FuzzyText() for _ in range(2)])
     project_main_image_url = fuzzy.FuzzyText()
     project_image_urls = factory.List([fuzzy.FuzzyText() for _ in range(2)])
     project_virtual_presentation_url = fuzzy.FuzzyText()
+    project_url = fuzzy.FuzzyText()
 
     project_acc_salesperson = fuzzy.FuzzyText()
     project_acc_financeofficer = fuzzy.FuzzyText()
@@ -165,6 +179,13 @@ class ApartmentDocumentFactory(factory.Factory):
 
     project_coordinate_lat = fuzzy.FuzzyFloat(-90, 90)
     project_coordinate_lon = fuzzy.FuzzyFloat(-180, 180)
+
+    project_barred_bank_account = fuzzy.FuzzyText()
+    project_regular_bank_account = fuzzy.FuzzyText()
+    project_payment_recipient = fuzzy.FuzzyText()
+    project_payment_recipient_final = fuzzy.FuzzyText()
+    project_published = Faker("boolean")
+    project_archived = Faker("boolean")
 
     project_use_complete_contract = False
 
@@ -196,6 +217,7 @@ class ApartmentDocumentFactory(factory.Factory):
     condition = "Uusi"
     kitchen_appliances = fuzzy.FuzzyText()
     has_yard = True
+    has_terrace = False
     has_balcony = True
     balcony_description = fuzzy.FuzzyText()
     bathroom_appliances = fuzzy.FuzzyText()
@@ -220,46 +242,41 @@ class ApartmentDocumentFactory(factory.Factory):
     services_description = fuzzy.FuzzyText()
     additional_information = fuzzy.FuzzyText()
     application_url = fuzzy.FuzzyText()
+    floor_plan_image = fuzzy.FuzzyText()
     image_urls = factory.List([fuzzy.FuzzyText() for _ in range(2)])
+    title = fuzzy.FuzzyText()
+    site_owner = fuzzy.FuzzyText()
+    services = factory.List([fuzzy.FuzzyText() for _ in range(2)])
     publish_on_etuovi = Faker("boolean")
     publish_on_oikotie = Faker("boolean")
     right_of_occupancy_payment = fuzzy.FuzzyInteger(0, 999)
     right_of_occupancy_fee = fuzzy.FuzzyInteger(0, 999)
     release_payment = fuzzy.FuzzyInteger(0, 999)
+    apartment_published = Faker("boolean")
     project_contract_apartment_completion_selection_1 = Faker("boolean")
-    project_contract_apartment_completion_selection_1_date = fuzzy.FuzzyDate(
-        start_date=timezone.localdate() - timedelta(days=7),
-        end_date=timezone.localdate() - timedelta(days=1),
+    project_contract_apartment_completion_selection_1_date = fuzzy.FuzzyDateTime(
+        timezone.now()
     )
     project_contract_apartment_completion_selection_2 = Faker("boolean")
-    project_contract_apartment_completion_selection_2_start = fuzzy.FuzzyDate(
-        start_date=timezone.localdate() - timedelta(days=7),
-        end_date=timezone.localdate() - timedelta(days=1),
+    project_contract_apartment_completion_selection_2_start = fuzzy.FuzzyDateTime(
+        timezone.now()
     )
-    project_contract_apartment_completion_selection_2_end = fuzzy.FuzzyDate(
-        start_date=timezone.localdate() + timedelta(days=1),
-        end_date=timezone.localdate() + timedelta(days=7),
+    project_contract_apartment_completion_selection_2_end = fuzzy.FuzzyDateTime(
+        timezone.now()
     )
     project_contract_apartment_completion_selection_3 = Faker("boolean")
-    project_contract_apartment_completion_selection_3_date = fuzzy.FuzzyDate(
-        start_date=timezone.localdate() - timedelta(days=7),
-        end_date=timezone.localdate() - timedelta(days=1),
+    project_contract_apartment_completion_selection_3_date = fuzzy.FuzzyDateTime(
+        timezone.now()
     )
     project_contract_depositary = fuzzy.FuzzyText()
-    project_contract_estimated_handover_date_start = fuzzy.FuzzyDate(
-        start_date=timezone.localdate() - timedelta(days=7),
-        end_date=timezone.localdate() - timedelta(days=1),
+    project_contract_estimated_handover_date_start = fuzzy.FuzzyDateTime(
+        timezone.now()
     )
-    project_contract_estimated_handover_date_end = fuzzy.FuzzyDate(
-        start_date=timezone.localdate() + timedelta(days=1),
-        end_date=timezone.localdate() + timedelta(days=7),
-    )
+    project_contract_estimated_handover_date_end = fuzzy.FuzzyDateTime(timezone.now())
     project_contract_customer_document_handover = fuzzy.FuzzyText()
     project_contract_bill_of_sale_terms = fuzzy.FuzzyText()
-    project_contract_material_selection_date = fuzzy.FuzzyDate(
-        start_date=timezone.localdate() - timedelta(days=7),
-        end_date=timezone.localdate() - timedelta(days=1),
-    )
+    project_contract_combined_terms = fuzzy.FuzzyText()
+    project_contract_material_selection_date = fuzzy.FuzzyDateTime(timezone.now())
     project_contract_material_selection_description = fuzzy.FuzzyText()
     project_contract_material_selection_later = Faker("boolean")
     project_contract_other_terms = fuzzy.FuzzyText()
@@ -271,8 +288,11 @@ class ApartmentDocumentFactory(factory.Factory):
 
     project_contract_collateral_type = fuzzy.FuzzyText()
     project_contract_default_collateral = fuzzy.FuzzyText()
-    project_contract_construction_permit_requested = fuzzy.FuzzyDate(
-        start_date=timezone.localdate() - timedelta(days=7),
-        end_date=timezone.localdate() - timedelta(days=1),
-    )
+    project_contract_construction_permit_requested = fuzzy.FuzzyDateTime(timezone.now())
+
+    @factory.post_generation
+    def _store(self, create, extracted, **kwargs):
+        if not create or extracted is False:
+            return
+        add_to_store([self])
     project_documents_delivered = fuzzy.FuzzyText()

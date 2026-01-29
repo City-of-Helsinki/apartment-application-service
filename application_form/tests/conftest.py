@@ -198,7 +198,7 @@ def elastic_project_with_n_apartments(elasticsearch, apartment_count: int):
     apartments_in_staircase = 4
     letter_index = 0
     apartment_index = 0
-    for idx in range(apartment_count):
+    for idx in range(apartment_count - 1):
 
         apartment_index += 1
 
@@ -345,6 +345,19 @@ def mock_apartment_queries(monkeypatch):
         except KeyError:
             raise ObjectDoesNotExist("Project does not exist in REST API.")
 
+    def _get_apartment(apartment_uuid, include_project_fields=False):
+        for apartment in get_apartments_from_store():
+            if str(apartment.uuid) == str(apartment_uuid):
+                if include_project_fields:
+                    return apartment
+                data = {
+                    key: value
+                    for key, value in apartment.__dict__.items()
+                    if not key.startswith("project_")
+                }
+                return ApartmentData(**data)
+        raise ObjectDoesNotExist("Apartment does not exist in REST API.")
+
     def _get_apartment_uuids(project_uuid):
         return get_apartment_uuids_from_store(project_uuid)
 
@@ -356,14 +369,28 @@ def mock_apartment_queries(monkeypatch):
         return apartments
 
     from apartment.elastic import queries
+    from application_form.services import application as application_service
+    from application_form.services import offer as offer_service
+    from application_form.services import reservation as reservation_service
     from application_form.services.lottery import haso as haso_service
+    from application_form.services.lottery import hitas as hitas_service
+    from application_form.services.lottery import utils as lottery_utils
 
     monkeypatch.setattr(queries, "get_apartments", _get_apartments)
     monkeypatch.setattr(queries, "get_projects", _get_projects)
     monkeypatch.setattr(queries, "get_project", _get_project)
+    monkeypatch.setattr(queries, "get_apartment", _get_apartment)
     monkeypatch.setattr(queries, "get_apartment_uuids", _get_apartment_uuids)
     monkeypatch.setattr(queries, "apartment_query", _apartment_query)
+    monkeypatch.setattr(application_service, "get_apartment", _get_apartment)
+    monkeypatch.setattr(reservation_service, "get_apartment", _get_apartment)
+    monkeypatch.setattr(offer_service, "get_apartment", _get_apartment)
+    monkeypatch.setattr(offer_service, "get_apartment_uuids", _get_apartment_uuids)
+    monkeypatch.setattr(lottery_utils, "get_project", _get_project)
+    monkeypatch.setattr(lottery_utils, "get_apartment_uuids", _get_apartment_uuids)
     monkeypatch.setattr(haso_service, "get_apartment_uuids", _get_apartment_uuids)
+    monkeypatch.setattr(hitas_service, "get_apartment", _get_apartment)
+    monkeypatch.setattr(hitas_service, "get_apartment_uuids", _get_apartment_uuids)
 
 
 def sell_apartments(

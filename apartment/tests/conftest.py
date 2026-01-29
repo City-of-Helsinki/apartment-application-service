@@ -2,6 +2,7 @@ import random
 import string
 
 import faker.config
+from django.core.exceptions import ObjectDoesNotExist
 from factory import Faker
 from faker import providers
 from pytest import fixture
@@ -10,6 +11,10 @@ from apartment.tests.factories import (
     ApartmentDocumentFactory,
     add_to_store,
     clear_apartment_store,
+    get_apartment_uuids_from_store,
+    get_apartments_from_store,
+    get_project_from_store,
+    get_projects_from_store,
 )
 from users.tests.conftest import (  # noqa: F401
     api_client,
@@ -44,6 +49,50 @@ def clear_store_between_tests():
     clear_apartment_store()
     yield
     clear_apartment_store()
+
+
+@fixture(autouse=True)
+def mock_apartment_queries(monkeypatch):
+    def _get_apartments(project_uuid=None, include_project_fields=False):
+        apartments = get_apartments_from_store(project_uuid)
+        if include_project_fields:
+            return apartments
+        stripped = []
+        for apartment in apartments:
+            data = {
+                key: value
+                for key, value in apartment.__dict__.items()
+                if not key.startswith("project_")
+            }
+            stripped.append(apartment.__class__(**data))
+        return stripped
+
+    def _get_projects():
+        return get_projects_from_store()
+
+    def _get_project(project_uuid):
+        try:
+            return get_project_from_store(project_uuid)
+        except KeyError as exc:
+            raise ObjectDoesNotExist("Project does not exist in REST API.") from exc
+
+    def _get_apartment_uuids(project_uuid):
+        return get_apartment_uuids_from_store(project_uuid)
+
+    from apartment.api import views as apartment_views
+    from apartment.elastic import queries
+
+    monkeypatch.setattr(queries, "get_apartments", _get_apartments)
+    monkeypatch.setattr(queries, "get_projects", _get_projects)
+    monkeypatch.setattr(queries, "get_project", _get_project)
+    monkeypatch.setattr(queries, "get_apartment_uuids", _get_apartment_uuids)
+
+    monkeypatch.setattr(apartment_views, "get_apartments", _get_apartments)
+    monkeypatch.setattr(apartment_views, "get_projects", _get_projects)
+    monkeypatch.setattr(apartment_views, "get_project", _get_project)
+    monkeypatch.setattr(
+        apartment_views, "get_apartment_uuids", _get_apartment_uuids
+    )
 
 
 @fixture
