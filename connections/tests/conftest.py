@@ -2,13 +2,12 @@ import os
 import shutil
 
 from django.conf import settings
-from elasticsearch.helpers.test import get_test_client
-from elasticsearch_dsl.connections import add_connection
 from pytest import fixture
 from rest_framework.test import APIClient
 
 import connections
 from connections.enums import ApartmentStateOfSale
+from apartment.tests.factories import APARTMENT_STORE, add_to_store, clear_apartment_store
 from connections.tests.factories import ApartmentMinimalFactory
 
 
@@ -38,25 +37,11 @@ def api_client():
     return api_client
 
 
-def setup_elasticsearch():
-    test_client = get_test_client()
-    add_connection("default", test_client)
-    if test_client.indices.exists(index=settings.APARTMENT_INDEX_NAME):
-        test_client.indices.delete(index=settings.APARTMENT_INDEX_NAME)
-    test_client.indices.create(index=settings.APARTMENT_INDEX_NAME)
-    return test_client
-
-
-def teardown_elasticsearch(test_client):
-    if test_client.indices.exists(index=settings.APARTMENT_INDEX_NAME):
-        test_client.indices.delete(index=settings.APARTMENT_INDEX_NAME)
-
-
-@fixture(scope="module")
+@fixture
 def elasticsearch():
-    test_client = setup_elasticsearch()
-    yield test_client
-    teardown_elasticsearch(test_client)
+    clear_apartment_store()
+    yield None
+    clear_apartment_store()
 
 
 @fixture
@@ -92,15 +77,9 @@ def elastic_apartments(elasticsearch):
         + for_sale_etuovi
         + only_for_sale
     )
+    add_to_store(elastic_apartments)
 
     yield elastic_apartments
-
-    for apartment in elastic_apartments:
-        if apartment.exists(apartment.meta.id):
-            # apartment data can be changed on unit tests which affects version control
-            # in ElasticSearch
-            apartment_latest = apartment.get(apartment.meta.id)
-            apartment_latest.delete(refresh=True)
 
 
 @fixture
@@ -180,8 +159,69 @@ def invalid_data_elastic_apartments_for_sale(elastic_apartments):
         elastic_apartment_2,
         elastic_apartment_3,
     ]
+    add_to_store(apartments)
 
     yield apartments
 
-    for apartment in apartments:
-        apartment.delete(refresh=True)
+
+@fixture(autouse=True)
+def mock_connections_apartment_search(monkeypatch):
+    from connections.enums import ApartmentStateOfSale
+    from connections.etuovi import services as etuovi_services
+    from connections.oikotie import services as oikotie_services
+    from connections.utils import map_document
+    from connections.etuovi.etuovi_mapper import map_apartment_to_item
+    from connections.oikotie.oikotie_mapper import (
+        map_oikotie_apartment,
+        map_oikotie_housing_company,
+    )
+
+    def _etuovi_source():
+        return [
+            apt
+            for apt in APARTMENT_STORE
+            if apt._language == "fi"
+            and apt.apartment_state_of_sale == ApartmentStateOfSale.FOR_SALE
+            and apt.publish_on_etuovi is True
+        ]
+
+    def _oikotie_source():
+        return [
+            apt
+            for apt in APARTMENT_STORE
+            if apt._language == "fi"
+            and apt.apartment_state_of_sale == ApartmentStateOfSale.FOR_SALE
+            and apt.publish_on_oikotie is True
+        ]
+
+    def _etuovi_fetch_apartments_for_sale(verbose=False):
+        items = []
+        for hit in _etuovi_source():
+            apartment = map_document(hit, map_apartment_to_item)
+            if apartment:
+                items.append(apartment)
+        return items
+
+    def _oikotie_fetch_apartments_for_sale():
+        apartments = []
+        housing_companies = []
+        for hit in _oikotie_source():
+            apartment = map_document(hit, map_oikotie_apartment)
+            housing = map_document(hit, map_oikotie_housing_company)
+            if apartment and housing:
+                apartments.append(apartment)
+                housing_companies.append(housing)
+        return apartments, housing_companies
+
+    monkeypatch.setattr(
+        etuovi_services, "get_apartments_for_etuovi", lambda: _etuovi_source()
+    )
+    monkeypatch.setattr(
+        etuovi_services, "fetch_apartments_for_sale", _etuovi_fetch_apartments_for_sale
+    )
+    monkeypatch.setattr(
+        oikotie_services, "get_apartments_for_oikotie", lambda: _oikotie_source()
+    )
+    monkeypatch.setattr(
+        oikotie_services, "fetch_apartments_for_sale", _oikotie_fetch_apartments_for_sale
+    )

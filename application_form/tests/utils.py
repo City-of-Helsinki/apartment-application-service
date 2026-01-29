@@ -6,8 +6,7 @@ from typing import List, Tuple
 
 from django.utils import timezone
 
-from apartment.elastic.documents import ApartmentDocument
-from apartment.elastic.queries import apartment_query
+from apartment.tests.factories import ApartmentData, get_apartments_from_store
 from connections.enums import ApartmentStateOfSale
 from users.models import Profile
 
@@ -15,9 +14,12 @@ _logger = logging.getLogger(__name__)
 
 
 def get_for_sale_elastic_apartments():
-    return apartment_query(
-        _language="fi", apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE
-    )
+    return [
+        apt
+        for apt in get_apartments_from_store()
+        if apt._language == "fi"
+        and apt.apartment_state_of_sale == ApartmentStateOfSale.FOR_SALE
+    ]
 
 
 def get_elastic_apartments_with_application_time_left():
@@ -29,7 +31,7 @@ def get_elastic_apartments_with_application_time_left():
 
 
 def get_elastic_apartments_uuids(
-    apartments: List[ApartmentDocument],
+    apartments: List[ApartmentData],
 ) -> Tuple[uuid.UUID, List[uuid.UUID]]:
     """Extract project_uuid and uuids from `ApartmentDocument` objects.
 

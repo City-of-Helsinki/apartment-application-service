@@ -4,14 +4,14 @@ from typing import List
 import factory
 from factory import Faker, fuzzy
 
-from apartment.tests.factories import ApartmentDocumentTest, ElasticFactory
+from apartment.tests.factories import ApartmentDocumentFactory
 from connections.enums import ApartmentStateOfSale, ProjectStateOfSale
 from connections.oikotie.field_mapper import NEW_DEVELOPMENT_STATUS_MAPPING
 
 
-class ApartmentMinimalFactory(ElasticFactory):
+class ApartmentMinimalFactory(ApartmentDocumentFactory):
     class Meta:
-        model = ApartmentDocumentTest
+        model = ApartmentDocumentFactory._meta.model
 
     _language = fuzzy.FuzzyChoice(["en", "fi"])
     project_id = fuzzy.FuzzyInteger(0, 999)
@@ -61,7 +61,7 @@ class ApartmentMinimalFactory(ElasticFactory):
         for_sale=False,
         published_on_etuovi=False,
         published_on_oikotie=False,
-    ) -> List[ApartmentDocumentTest]:
+    ) -> List[ApartmentDocumentFactory._meta.model]:
         if for_sale:
             for_sale = ApartmentStateOfSale.FOR_SALE
         else:
@@ -77,7 +77,9 @@ class ApartmentMinimalFactory(ElasticFactory):
         ]
 
     @classmethod
-    def create_for_sale_batch(cls, size: int) -> List[ApartmentDocumentTest]:
+    def create_for_sale_batch(
+        cls, size: int
+    ) -> List[ApartmentDocumentFactory._meta.model]:
         return [
             cls.create(
                 publish_on_etuovi=True,

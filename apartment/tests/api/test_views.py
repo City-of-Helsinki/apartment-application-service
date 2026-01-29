@@ -6,7 +6,10 @@ import pytest
 from django.urls import reverse
 
 from apartment.models import ProjectExtraData
-from apartment.tests.factories import ApartmentDocumentFactory
+from apartment.tests.factories import ApartmentDocumentFactory, add_to_store
+def _store_apartment(apartment):
+    add_to_store([apartment])
+    return apartment
 from application_form.enums import (
     ApartmentReservationCancellationReason,
     ApartmentReservationState,
@@ -768,7 +771,7 @@ def _build_url_with_query_params(base_url, query_params):
 
 @pytest.mark.django_db
 def test_get_project_extra_data_endpoint_unauthorized(user_api_client):
-    apartment = ApartmentDocumentFactory()
+    apartment = _store_apartment(ApartmentDocumentFactory())
     project_uuid = apartment.project_uuid
 
     url = reverse(
@@ -784,7 +787,7 @@ def test_get_project_extra_data_endpoint_unauthorized(user_api_client):
 def test_get_project_extra_data_endpoint(
     sales_ui_salesperson_api_client, has_extra_data_instance
 ):
-    apartment = ApartmentDocumentFactory()
+    apartment = _store_apartment(ApartmentDocumentFactory())
     project_uuid = apartment.project_uuid
 
     if has_extra_data_instance:
@@ -810,7 +813,7 @@ def test_get_project_extra_data_endpoint(
 
 @pytest.mark.django_db
 def test_put_project_extra_data_endpoint_unauthorized(user_api_client):
-    apartment = ApartmentDocumentFactory()
+    apartment = _store_apartment(ApartmentDocumentFactory())
     project_uuid = apartment.project_uuid
 
     data = {
@@ -831,7 +834,7 @@ def test_put_project_extra_data_endpoint_unauthorized(user_api_client):
 def test_put_project_extra_data_endpoint(
     sales_ui_salesperson_api_client, has_extra_data_instance
 ):
-    apartment = ApartmentDocumentFactory()
+    apartment = _store_apartment(ApartmentDocumentFactory())
     project_uuid = apartment.project_uuid
 
     if has_extra_data_instance:
@@ -865,7 +868,7 @@ def test_put_project_extra_data_endpoint(
 def test_get_project_extra_data_endpoint_non_existing_project(
     sales_ui_salesperson_api_client,
 ):
-    ApartmentDocumentFactory()
+    _store_apartment(ApartmentDocumentFactory())
     project_uuid = uuid.uuid4()
 
     url = reverse("apartment:project-detail", kwargs={"project_uuid": project_uuid})
@@ -879,7 +882,7 @@ def test_get_project_extra_data_endpoint_non_existing_project(
 def test_get_project_detail_extra_data_field(
     sales_ui_salesperson_api_client, has_extra_data_instance
 ):
-    apartment = ApartmentDocumentFactory()
+    apartment = _store_apartment(ApartmentDocumentFactory())
     project_uuid = apartment.project_uuid
 
     if has_extra_data_instance:

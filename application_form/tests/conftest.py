@@ -8,16 +8,23 @@ from unittest.mock import MagicMock, Mock
 import pytest
 import sentry_sdk
 from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
-from elasticsearch.helpers.test import get_test_client
-from elasticsearch_dsl.connections import add_connection
 from factory.faker import faker
 from pytest import fixture
 from sentry_sdk.scrubber import EventScrubber
 
-from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import get_apartments, get_project
-from apartment.tests.factories import ApartmentDocumentFactory
+from apartment.tests.factories import (
+    ApartmentData,
+    ApartmentDocumentFactory,
+    add_to_store,
+    clear_apartment_store,
+    get_apartment_uuids_from_store,
+    get_apartments_from_store,
+    get_project_from_store,
+    get_projects_from_store,
+)
 from apartment_application_service.settings import (
     METADATA_HANDLER_INFORMATION,
     METADATA_HASO_PROCESS_NUMBER,
@@ -85,30 +92,25 @@ def mock_sentry():
     yield mock_sentry
 
 
-def setup_elasticsearch():
-    test_client = get_test_client()
-    add_connection("default", test_client)
-    if test_client.indices.exists(index=settings.APARTMENT_INDEX_NAME):
-        test_client.indices.delete(index=settings.APARTMENT_INDEX_NAME)
-    test_client.indices.create(index=settings.APARTMENT_INDEX_NAME)
-    return test_client
+@pytest.fixture(autouse=True)
+def clear_store_between_tests():
+    clear_apartment_store()
+    yield
+    clear_apartment_store()
 
 
-def teardown_elasticsearch(test_client):
-    if test_client.indices.exists(index=settings.APARTMENT_INDEX_NAME):
-        test_client.indices.delete(index=settings.APARTMENT_INDEX_NAME)
-
-
-@fixture(scope="module")
+@fixture
 def elasticsearch():
-    test_client = setup_elasticsearch()
-    yield test_client
-    teardown_elasticsearch(test_client)
+    clear_apartment_store()
+    yield None
+    clear_apartment_store()
 
 
-@fixture(scope="module")
+@fixture
 def elastic_apartments(elasticsearch):
-    yield ApartmentMinimalFactory.create_for_sale_batch(10)
+    apartments = ApartmentMinimalFactory.create_for_sale_batch(10)
+    add_to_store(apartments)
+    yield apartments
 
 
 @fixture
@@ -133,6 +135,7 @@ def generate_apartments(elasticsearch, apartment_count: int, apartment_kwargs: D
                 )
             )
 
+    add_to_store(apartments)
     return apartments
 
 
@@ -149,9 +152,6 @@ def elastic_single_project_with_apartments(elasticsearch):
         },
     )
     yield apartments
-
-    for apartment in apartments:
-        apartment.delete(refresh=True)
 
 
 @fixture
@@ -193,6 +193,7 @@ def elastic_project_with_n_apartments(elasticsearch, apartment_count: int):
     apartments = []
 
     apartment = ApartmentDocumentFactory()
+    apartments.append(apartment)
 
     apartments_in_staircase = 4
     letter_index = 0
@@ -214,10 +215,8 @@ def elastic_project_with_n_apartments(elasticsearch, apartment_count: int):
             letter_index += 1
             apartment_index = 0
 
+    add_to_store(apartments)
     yield apartments
-
-    for apartment in apartments:
-        apartment.delete(refresh=True)
 
 
 @fixture
@@ -233,10 +232,8 @@ def elastic_hitas_project_with_5_apartments(elasticsearch):
                 project_uuid=apartment.project_uuid, project_ownership_type="Hitas"
             )
         )
+    add_to_store(apartments)
     yield apartment.project_uuid, apartments
-
-    for apartment in apartments:
-        apartment.delete(refresh=True)
 
 
 @fixture
@@ -249,10 +246,8 @@ def elastic_hitas_project_with_tiny_and_big_apartment(elasticsearch):
         project_ownership_type="Hitas",
         room_count=10,
     )
+    add_to_store([tiny_apartment, big_apartment])
     yield tiny_apartment.project_uuid, tiny_apartment, big_apartment
-
-    tiny_apartment.delete(refresh=True)
-    big_apartment.delete(refresh=True)
 
 
 @fixture
@@ -270,28 +265,24 @@ def elastic_hitas_project_with_3_tiny_apartments(elasticsearch):
                 room_count=1,
             )
         )
+    add_to_store(apartments)
     yield apartment.project_uuid, apartments
-
-    for apartment in apartments:
-        apartment.delete(refresh=True)
 
 
 @fixture
 def elastic_hitas_project_with_apartment_room_count_2(elasticsearch):
     apartment = ApartmentDocumentFactory(project_ownership_type="Hitas", room_count=2)
+    add_to_store([apartment])
 
     yield apartment.project_uuid, apartment
-
-    apartment.delete(refresh=True)
 
 
 @fixture
 def elastic_hitas_project_with_apartment_room_count_10(elasticsearch):
     apartment = ApartmentDocumentFactory(project_ownership_type="Hitas", room_count=10)
+    add_to_store([apartment])
 
     yield apartment.project_uuid, apartment
-
-    apartment.delete(refresh=True)
 
 
 @fixture
@@ -307,10 +298,8 @@ def elastic_haso_project_with_5_apartments(elasticsearch):
                 project_uuid=apartment.project_uuid, project_ownership_type="Haso"
             )
         )
+    add_to_store(apartments)
     yield apartment.project_uuid, apartments
-
-    for apartment in apartments:
-        apartment.delete(refresh=True)
 
 
 @fixture
@@ -318,8 +307,8 @@ def elastic_project_application_time_active():
     apartment = ApartmentDocumentFactory(
         project_application_end_time=timezone.now() + timedelta(days=1)
     )
+    add_to_store([apartment])
     yield apartment.project_uuid, apartment
-    apartment.delete(refresh=True)
 
 
 @fixture
@@ -328,8 +317,8 @@ def elastic_hitas_project_application_end_time_finished(elasticsearch):
         project_ownership_type="Hitas",
         project_application_end_time=timezone.now() - timedelta(days=1),
     )
+    add_to_store([apartment])
     yield apartment.project_uuid, apartment
-    apartment.delete(refresh=True)
 
 
 @fixture
@@ -338,13 +327,48 @@ def elastic_haso_project_application_end_time_finished(elasticsearch):
         project_ownership_type="Haso",
         project_application_end_time=timezone.now() - timedelta(days=1),
     )
+    add_to_store([apartment])
     yield apartment.project_uuid, apartment
-    apartment.delete(refresh=True)
+
+
+@pytest.fixture(autouse=True)
+def mock_apartment_queries(monkeypatch):
+    def _get_apartments(project_uuid=None, include_project_fields=False):
+        return get_apartments_from_store(project_uuid)
+
+    def _get_projects():
+        return get_projects_from_store()
+
+    def _get_project(project_uuid):
+        try:
+            return get_project_from_store(project_uuid)
+        except KeyError:
+            raise ObjectDoesNotExist("Project does not exist in REST API.")
+
+    def _get_apartment_uuids(project_uuid):
+        return get_apartment_uuids_from_store(project_uuid)
+
+    def _apartment_query(**kwargs):
+        apartments = get_apartments_from_store()
+        for key, value in kwargs.items():
+            if isinstance(value, (str, bool)):
+                apartments = [apt for apt in apartments if getattr(apt, key) == value]
+        return apartments
+
+    from apartment.elastic import queries
+    from application_form.services.lottery import haso as haso_service
+
+    monkeypatch.setattr(queries, "get_apartments", _get_apartments)
+    monkeypatch.setattr(queries, "get_projects", _get_projects)
+    monkeypatch.setattr(queries, "get_project", _get_project)
+    monkeypatch.setattr(queries, "get_apartment_uuids", _get_apartment_uuids)
+    monkeypatch.setattr(queries, "apartment_query", _apartment_query)
+    monkeypatch.setattr(haso_service, "get_apartment_uuids", _get_apartment_uuids)
 
 
 def sell_apartments(
     project_uuid: str, sell_count: int
-) -> Tuple[ApartmentDocument, List[ApartmentDocument]]:
+) -> Tuple[ApartmentData, List[ApartmentData]]:
     """Sets the state of apartments in the given project to SOLD and creates
     the necessary ApartmentReservationStateChangeEvent objects into test db.
 
@@ -406,7 +430,7 @@ def create_application_data(
     profile,
     application_type=ApplicationType.HASO,
     num_applicants=2,
-    apartments: Union[List[ApartmentDocument], None] = None,
+    apartments: Union[List[ApartmentData], None] = None,
 ):
     # Fetch apartments if needed
     if not apartments:

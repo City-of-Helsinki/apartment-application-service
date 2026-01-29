@@ -14,6 +14,7 @@ from connections.tests.utils import (
     make_apartments_sold_in_elastic,
     publish_elastic_apartments,
 )
+from apartment.tests.factories import add_to_store
 from users.tests.conftest import (  # noqa: F401, F811
     drupal_salesperson_api_client,
     drupal_server_api_client,
@@ -219,6 +220,7 @@ class TestConnectionsApis:
             debt_free_sales_price=200000,
             right_of_occupancy_payment=50000,
         )
+        add_to_store([apartment])
 
         # send etuovi xml file to update last_mapped_to_etuovi field for this apartment
         call_command("send_etuovi_xml_file")
@@ -264,6 +266,7 @@ class TestConnectionsApis:
             project_ownership_type="HASO",
             right_of_occupancy_payment=None,  # Missing
         )
+        add_to_store([apartment])
 
         response = drupal_server_api_client.get(
             reverse("connections:Connections-integration-status")
@@ -307,6 +310,7 @@ class TestConnectionsApis:
             project_coordinate_lon=24.9384,
             project_ownership_type="HITAS",
         )
+        add_to_store([apartment])
 
         # send oikotie xml file to update last_mapped_to_oikotie for this apartment
         call_command("send_oikotie_xml_file")
@@ -353,6 +357,7 @@ class TestConnectionsApis:
             url=None,  # Missing
             living_area=None,  # Missing
         )
+        add_to_store([apartment])
 
         response = drupal_server_api_client.get(
             reverse("connections:Connections-integration-status")
@@ -401,6 +406,7 @@ class TestConnectionsApis:
             sales_price=250000,
             url="https://example.com/apartment",
         )
+        add_to_store([apartment])
 
         response = drupal_server_api_client.get(
             reverse("connections:Connections-integration-status")
@@ -452,6 +458,7 @@ class TestConnectionsApis:
             sales_price=250000,
             url="https://example.com/apartment",
         )
+        add_to_store([apartment])
 
         response = drupal_server_api_client.get(
             reverse("connections:Connections-integration-status")
