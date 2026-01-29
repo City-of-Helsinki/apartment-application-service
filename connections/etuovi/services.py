@@ -1,11 +1,11 @@
 import logging
 import os
-from typing import Iterator, Optional
+from typing import Iterable, Optional
 
 from django.conf import settings
 from django_etuovi.etuovi import create_xml_file
 
-from apartment.elastic.documents import ApartmentDocument
+from apartment.elastic.queries import get_apartments
 from connections.enums import ApartmentStateOfSale
 from connections.etuovi.etuovi_mapper import map_apartment_to_item
 from connections.utils import map_document
@@ -13,7 +13,7 @@ from connections.utils import map_document
 _logger = logging.getLogger(__name__)
 
 
-def get_apartments_for_etuovi() -> Iterator[ApartmentDocument]:
+def get_apartments_for_etuovi() -> Iterable:
     """
     Returns raw ApartmentDocument objects where publish_on_etuovi=True
     and apartment_state_of_sale != SOLD
@@ -21,28 +21,15 @@ def get_apartments_for_etuovi() -> Iterator[ApartmentDocument]:
     Returns:
         Iterator[ApartmentDocument]: Iterator of ApartmentDocument objects
     """
-    s_obj = (
-        ApartmentDocument.search()
-        .filter("term", _language="fi")
-        .exclude("term", apartment_state_of_sale__keyword=ApartmentStateOfSale.SOLD)
-        .filter("term", publish_on_etuovi=True)
-    )
-    s_obj.execute()
-    return s_obj.scan()
+
+    return get_apartments( _language="fi", apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE, publish_on_etuovi=True, include_project_fields=True, )
 
 
 def fetch_apartments_for_sale(verbose: bool = False) -> list:
     """
     Fetch apartments for sale from elasticsearch and map them for Etuovi
     """
-    s_obj = (
-        ApartmentDocument.search()
-        .filter("term", _language="fi")
-        .exclude("term", apartment_state_of_sale__keyword=ApartmentStateOfSale.SOLD)
-        .filter("term", publish_on_etuovi=True)
-    )
-    s_obj.execute()
-    scan = s_obj.scan()
+    scan = get_apartments_for_etuovi()
 
     items = []
 

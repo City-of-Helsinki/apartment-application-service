@@ -6,7 +6,6 @@ from typing import List, Union
 
 from django.conf import settings
 from django.utils.html import strip_tags
-from elasticsearch_dsl import connections
 from lxml import etree
 
 _logger = logging.getLogger(__name__)
@@ -14,20 +13,9 @@ _logger = logging.getLogger(__name__)
 
 def create_elastic_connection() -> None:
     """
-    Creates the ElasticSearch connection with the url provided in the settings.
-    The ElasticSearch connection needs to be established before it can be accessed.
+    Deprecated: no-op for legacy ElasticSearch connection setup.
     """
-    http_auth = None
-    if settings.ELASTICSEARCH_USERNAME and settings.ELASTICSEARCH_PASSWORD:
-        http_auth = (settings.ELASTICSEARCH_USERNAME, settings.ELASTICSEARCH_PASSWORD)
-
-    connections.create_connection(
-        hosts=[settings.ELASTICSEARCH_URL],
-        port=settings.ELASTICSEARCH_PORT,
-        http_auth=http_auth,
-        # transfer to using ES via Openshift service, which uses self-signed certs
-        verify_certs=False,
-    )
+    _logger.info("ElasticSearch connection setup is disabled for REST search API.")
 
 
 def convert_price_from_cents_to_eur(price: int) -> Decimal:
