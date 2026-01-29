@@ -12,6 +12,7 @@ from connections.enums import (
     get_etuovi_required_fields_for_ownership_type,
     get_oikotie_required_fields_for_ownership_type,
     OikotieApartmentRequiredFields,
+    ApartmentStateOfSale,
 )
 from connections.etuovi.services import get_apartments_for_etuovi
 from connections.oikotie.services import get_apartments_for_oikotie
@@ -134,24 +135,19 @@ class TestValidateApartmentRequiredFields:
 class TestGetApartmentsForEtuovi:
     """Test get_apartments_for_etuovi function"""
 
-    @patch("connections.etuovi.services.ApartmentDocument")
-    def test_filters_correctly(self, mock_apartment_document):
+    @patch("connections.etuovi.services.get_apartments")
+    def test_filters_correctly(self, mock_get_apartments):
         """Test that function filters apartments correctly"""
-        mock_search_obj = Mock()
-        mock_search_obj.filter.return_value = mock_search_obj
-        mock_search_obj.exclude.return_value = mock_search_obj
-        mock_search_obj.execute.return_value = None
-        mock_search_obj.scan.return_value = iter([Mock(), Mock()])
-        mock_apartment_document.search.return_value = mock_search_obj
+        mock_get_apartments.return_value = [Mock(), Mock()]
 
         result = get_apartments_for_etuovi()
 
-        # Verify search chain is called correctly
-        mock_apartment_document.search.assert_called_once()
-        assert mock_search_obj.filter.call_count == 2  # _language and publish_on_etuovi
-        mock_search_obj.exclude.assert_called_once()
-        mock_search_obj.execute.assert_called_once()
-        mock_search_obj.scan.assert_called_once()
+        mock_get_apartments.assert_called_once_with(
+            _language="fi",
+            apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE,
+            publish_on_etuovi=True,
+            include_project_fields=True,
+        )
 
         # Verify result is iterable
         assert hasattr(result, "__iter__")
@@ -162,26 +158,19 @@ class TestGetApartmentsForEtuovi:
 class TestGetApartmentsForOikotie:
     """Test get_apartments_for_oikotie function"""
 
-    @patch("connections.oikotie.services.ApartmentDocument")
-    def test_filters_correctly(self, mock_apartment_document):
+    @patch("connections.oikotie.services.get_apartments")
+    def test_filters_correctly(self, mock_get_apartments):
         """Test that function filters apartments correctly"""
-        mock_search_obj = Mock()
-        mock_search_obj.filter.return_value = mock_search_obj
-        mock_search_obj.exclude.return_value = mock_search_obj
-        mock_search_obj.execute.return_value = None
-        mock_search_obj.scan.return_value = iter([Mock(), Mock()])
-        mock_apartment_document.search.return_value = mock_search_obj
+        mock_get_apartments.return_value = [Mock(), Mock()]
 
         result = get_apartments_for_oikotie()
 
-        # Verify search chain is called correctly
-        mock_apartment_document.search.assert_called_once()
-        assert (
-            mock_search_obj.filter.call_count == 2
-        )  # _language and publish_on_oikotie
-        mock_search_obj.exclude.assert_called_once()
-        mock_search_obj.execute.assert_called_once()
-        mock_search_obj.scan.assert_called_once()
+        mock_get_apartments.assert_called_once_with(
+            _language="fi",
+            apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE,
+            publish_on_oikotie=True,
+            include_project_fields=True,
+        )
 
         # Verify result is iterable
         assert hasattr(result, "__iter__")

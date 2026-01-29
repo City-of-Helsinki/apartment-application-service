@@ -82,6 +82,46 @@ def elastic_apartments(elasticsearch):
     yield elastic_apartments
 
 
+@fixture(autouse=True)
+def mock_apartment_queries(monkeypatch):
+    from apartment.elastic import queries
+
+    def _get_apartments(project_uuid=None, include_project_fields=False, **filters):
+        apartments = list(APARTMENT_STORE)
+        if project_uuid:
+            apartments = [
+                apt for apt in apartments if str(apt.project_uuid) == str(project_uuid)
+            ]
+        for key, value in filters.items():
+            if isinstance(value, (str, bool)):
+                apartments = [apt for apt in apartments if getattr(apt, key) == value]
+        if include_project_fields:
+            return apartments
+        stripped = []
+        for apartment in apartments:
+            data = {
+                key: value
+                for key, value in apartment.__dict__.items()
+                if not key.startswith("project_")
+            }
+            stripped.append(apartment.__class__(**data))
+        return stripped
+
+    def _get_apartment_uuids(project_uuid):
+        return [
+            apt.uuid
+            for apt in APARTMENT_STORE
+            if str(apt.project_uuid) == str(project_uuid)
+        ]
+
+    def _apartment_query(**kwargs):
+        return _get_apartments(**kwargs)
+
+    monkeypatch.setattr(queries, "get_apartments", _get_apartments)
+    monkeypatch.setattr(queries, "get_apartment_uuids", _get_apartment_uuids)
+    monkeypatch.setattr(queries, "apartment_query", _apartment_query)
+
+
 @fixture
 def validate_against_schema_true(monkeypatch):
     """

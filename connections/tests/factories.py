@@ -1,3 +1,4 @@
+import random
 import string
 from typing import List
 
@@ -7,6 +8,10 @@ from factory import Faker, fuzzy
 from apartment.tests.factories import ApartmentDocumentFactory
 from connections.enums import ApartmentStateOfSale, ProjectStateOfSale
 from connections.oikotie.field_mapper import NEW_DEVELOPMENT_STATUS_MAPPING
+
+
+def _fake_business_id() -> str:
+    return "".join(random.choice(string.digits) for _ in range(7)) + "-0"
 
 
 class ApartmentMinimalFactory(ApartmentDocumentFactory):
@@ -24,7 +29,7 @@ class ApartmentMinimalFactory(ApartmentDocumentFactory):
     project_street_address = fuzzy.FuzzyText()
     project_postal_code = fuzzy.FuzzyText(length=6, chars=string.digits)
     project_city = "Helsinki"
-    project_contract_business_id = factory.Faker("business_id")
+    project_contract_business_id = factory.LazyFunction(_fake_business_id)
     project_building_type = "BLOCK_OF_FLATS"
     project_estate_agent = fuzzy.FuzzyText()
     project_estate_agent_email = Faker("email")
