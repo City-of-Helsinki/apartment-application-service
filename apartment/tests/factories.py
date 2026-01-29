@@ -43,6 +43,13 @@ class ApartmentData:
             self.uuid, self.right_of_occupancy_payment
         )
 
+    def reservation_right_of_occupancy_payment(self, reservation_id: int):
+        from cost_index.utils import reservation_right_of_occupancy_payment
+
+        return reservation_right_of_occupancy_payment(
+            reservation_id, self.uuid, self.right_of_occupancy_payment
+        )
+
 
 APARTMENT_STORE: List[ApartmentData] = []
 
