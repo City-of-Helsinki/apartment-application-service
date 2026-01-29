@@ -6,6 +6,43 @@ from cost_index.utils import (
     reservation_right_of_occupancy_payment,
 )
 
+# Float and Long field names in ApartmentDocument (API may return '' or None)
+APARTMENT_DOCUMENT_FLOAT_FIELDS = frozenset(
+    {
+        "project_coordinate_lat",
+        "project_coordinate_lon",
+        "project_site_area",
+        "living_area",
+    }
+)
+APARTMENT_DOCUMENT_LONG_FIELDS = frozenset(
+    {
+        "project_id",
+        "project_apartment_count",
+        "project_parkingplace_count",
+        "floor",
+        "floor_max",
+        "room_count",
+        "sales_price",
+        "debt_free_sales_price",
+        "loan_share",
+        "price_m2",
+        "housing_company_fee",
+        "financing_fee",
+        "maintenance_fee",
+        "water_fee",
+        "parking_fee",
+        "stock_start_number",
+        "stock_end_number",
+        "right_of_occupancy_payment",
+        "right_of_occupancy_fee",
+        "right_of_occupancy_deposit",
+        "release_payment",
+        "field_index_adjusted_right_of_oc",
+        "field_alteration_work",
+    }
+)
+
 
 class ReadOnlyDocument(Document):
     @classmethod
@@ -23,6 +60,7 @@ class ReadOnlyDocument(Document):
 
 
 class ApartmentDocument(ReadOnlyDocument):
+
     project_id = Long(required=True)
     project_uuid = Keyword(required=True)
 

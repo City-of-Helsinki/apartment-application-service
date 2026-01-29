@@ -1,28 +1,15 @@
-from datetime import date, datetime
-
-import pytest
-
-from apartment.tests.factories import ApartmentDocumentFactory, ApartmentDocumentTest
+from apartment.tests.factories import ApartmentDocumentFactory
 
 
-@pytest.mark.usefixtures("client")
 class TestApartmentModel:
-    def test_apartment_index_has_data(client):
-        apartment = ApartmentDocumentFactory(_id=42)
-        apartment.save()
+    def test_apartment_factory_has_fields(self):
+        apartment = ApartmentDocumentFactory()
 
-        at = ApartmentDocumentTest.get(id=42)
-
-        fields = ApartmentDocumentTest._doc_type.mapping.properties.properties
-        for field in fields:
-            input_value = getattr(apartment, field)
-            index_value = getattr(at, field)
-            if isinstance(input_value, datetime):
-                # This if is needed, because datetime is also a date
-                pass  # datetimes should be OK
-            elif isinstance(input_value, date):
-                # elasticsearch-dsl does not support plain date values in the index.
-                # If 2020-01-01 is saved to the index,
-                # it will return 2020-01-01 00:00:00.
-                index_value = index_value.date()
-            assert input_value == index_value
+        for field in (
+            "uuid",
+            "project_uuid",
+            "project_housing_company",
+            "apartment_address",
+            "apartment_number",
+        ):
+            assert getattr(apartment, field)

@@ -6,7 +6,7 @@ from django.db import transaction
 from pytest import fixture, mark
 from rest_framework.exceptions import ValidationError
 
-from apartment.tests.factories import ApartmentDocumentFactory
+from apartment.tests.factories import add_to_store, ApartmentDocumentFactory
 from application_form.enums import (
     ApartmentReservationCancellationReason,
     ApartmentReservationState,
@@ -205,6 +205,7 @@ def test_canceling_application_sets_application_state_to_canceled_and_queue_posi
 @pytest.mark.django_db
 def test_late_reservation_user():
     apartment = ApartmentDocumentFactory(project_ownership_type="Haso")
+    add_to_store([apartment])
     customer = CustomerFactory(right_of_residence=None)
 
     # calling create_late_application with with a customer with
@@ -222,6 +223,7 @@ def test_late_reservation_user():
 def test_haso_application_without_reservation_order():
 
     apartment = ApartmentDocumentFactory(project_ownership_type="Haso")
+    add_to_store([apartment])
 
     with transaction.atomic():
         reservation_without_application_4 = create_late_reservation(

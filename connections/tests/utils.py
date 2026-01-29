@@ -1,18 +1,11 @@
-from django.conf import settings
-from elasticsearch_dsl import Search, UpdateByQuery
-from elasticsearch_dsl.connections import get_connection
-
-from apartment.elastic.documents import ApartmentDocument
+from apartment.tests.factories import APARTMENT_STORE
 from connections.enums import ApartmentStateOfSale
 
 
 def make_apartments_sold_in_elastic() -> None:
-    s_obj = ApartmentDocument.search().filter(
-        "term", apartment_state_of_sale__keyword=ApartmentStateOfSale.FOR_SALE
-    )
-    s_obj.delete()
-
-    get_connection().indices.refresh(index=settings.APARTMENT_INDEX_NAME)
+    for apartment in APARTMENT_STORE:
+        if apartment.apartment_state_of_sale == ApartmentStateOfSale.FOR_SALE:
+            apartment.apartment_state_of_sale = ApartmentStateOfSale.SOLD
 
 
 def get_elastic_apartments_for_sale_published_on_etuovi_uuids(
@@ -22,21 +15,16 @@ def get_elastic_apartments_for_sale_published_on_etuovi_uuids(
     Get apartments for sale and published only on Etuovi
     If oikotie_published is False exclude apartments published on Oikotie
     """
-    s_obj = (
-        ApartmentDocument.search()
-        .filter("term", _language__keyword="fi")
-        .filter("term", apartment_state_of_sale__keyword=ApartmentStateOfSale.FOR_SALE)
-        .filter("term", publish_on_etuovi=True)
-    )
+    apartments = [
+        apt
+        for apt in APARTMENT_STORE
+        if apt._language == "fi"
+        and apt.apartment_state_of_sale == ApartmentStateOfSale.FOR_SALE
+        and apt.publish_on_etuovi is True
+    ]
     if only_etuovi_published:
-        s_obj = s_obj.filter("term", publish_on_oikotie=False)
-
-    s_obj.execute()
-    scan = s_obj.scan()
-    uuids = []
-    for hit in scan:
-        uuids.append(hit.uuid)
-    return uuids
+        apartments = [apt for apt in apartments if apt.publish_on_oikotie is False]
+    return [apt.uuid for apt in apartments]
 
 
 def get_elastic_apartments_not_sold_published_on_oikotie_uuids(
@@ -46,21 +34,16 @@ def get_elastic_apartments_not_sold_published_on_oikotie_uuids(
     Get apartments where apartment_state_of_sale != "SOLD" and published on Oikotie
     If etuovi_published is False exclude apartments published on Etuovi
     """
-    s_obj = (
-        ApartmentDocument.search()
-        .filter("term", _language="fi")
-        .exclude("term", apartment_state_of_sale__keyword=ApartmentStateOfSale.SOLD)
-        .filter("term", publish_on_oikotie=True)
-    )
+    apartments = [
+        apt
+        for apt in APARTMENT_STORE
+        if apt._language == "fi"
+        and apt.apartment_state_of_sale != ApartmentStateOfSale.SOLD
+        and apt.publish_on_oikotie is True
+    ]
     if only_oikotie_published:
-        s_obj = s_obj.filter("term", publish_on_etuovi=False)
-
-    s_obj.execute()
-    scan = s_obj.scan()
-    uuids = []
-    for hit in scan:
-        uuids.append(hit.uuid)
-    return uuids
+        apartments = [apt for apt in apartments if apt.publish_on_etuovi is False]
+    return [apt.uuid for apt in apartments]
 
 
 def get_elastic_apartments_for_sale_published_on_oikotie_uuids(
@@ -70,95 +53,72 @@ def get_elastic_apartments_for_sale_published_on_oikotie_uuids(
     Get apartments for sale and published on Oikotie
     If etuovi_published is False exclude apartments published on Etuovi
     """
-    s_obj = (
-        ApartmentDocument.search()
-        .filter("term", _language__keyword="fi")
-        .filter("term", apartment_state_of_sale__keyword=ApartmentStateOfSale.FOR_SALE)
-        .filter("term", publish_on_oikotie=True)
-    )
+    apartments = [
+        apt
+        for apt in APARTMENT_STORE
+        if apt._language == "fi"
+        and apt.apartment_state_of_sale == ApartmentStateOfSale.FOR_SALE
+        and apt.publish_on_oikotie is True
+    ]
     if only_oikotie_published:
-        s_obj = s_obj.filter("term", publish_on_etuovi=False)
-
-    s_obj.execute()
-    scan = s_obj.scan()
-    uuids = []
-    for hit in scan:
-        uuids.append(hit.uuid)
-    return uuids
+        apartments = [apt for apt in apartments if apt.publish_on_etuovi is False]
+    return [apt.uuid for apt in apartments]
 
 
 def get_elastic_apartments_for_sale_published_uuids() -> list:
     """
     Get apartments for sale and published both on Oikotie and Etuovi
     """
-    s_obj = (
-        ApartmentDocument.search()
-        .filter("term", _language__keyword="fi")
-        .filter("term", apartment_state_of_sale__keyword=ApartmentStateOfSale.FOR_SALE)
-        .filter("term", publish_on_etuovi=True)
-        .filter("term", publish_on_oikotie=True)
-    )
-
-    s_obj.execute()
-    scan = s_obj.scan()
-    uuids = []
-    for hit in scan:
-        uuids.append(hit.uuid)
-    return uuids
+    apartments = [
+        apt
+        for apt in APARTMENT_STORE
+        if apt._language == "fi"
+        and apt.apartment_state_of_sale == ApartmentStateOfSale.FOR_SALE
+        and apt.publish_on_etuovi is True
+        and apt.publish_on_oikotie is True
+    ]
+    return [apt.uuid for apt in apartments]
 
 
 def get_elastic_apartments_for_sale_only_uuids() -> list:
     """
     Get apartments only for sale but not to published
     """
-    s_obj = (
-        ApartmentDocument.search()
-        .filter("term", _language__keyword="fi")
-        .filter("term", apartment_state_of_sale__keyword=ApartmentStateOfSale.FOR_SALE)
-        .filter("term", publish_on_etuovi=False)
-        .filter("term", publish_on_oikotie=False)
-    )
-
-    s_obj.execute()
-    scan = s_obj.scan()
-    uuids = []
-    for hit in scan:
-        uuids.append(hit.uuid)
-    return uuids
+    apartments = [
+        apt
+        for apt in APARTMENT_STORE
+        if apt._language == "fi"
+        and apt.apartment_state_of_sale == ApartmentStateOfSale.FOR_SALE
+        and apt.publish_on_etuovi is False
+        and apt.publish_on_oikotie is False
+    ]
+    return [apt.uuid for apt in apartments]
 
 
 def get_elastic_apartments_not_for_sale():
     """
     Get apartments not for sale but with published flags
     """
-    s_obj = (
-        ApartmentDocument.search()
-        .filter("term", publish_on_oikotie=True)
-        .filter("term", publish_on_etuovi=True)
-        .filter("term", apartment_state_of_sale__keyword=ApartmentStateOfSale.RESERVED)
-    )
-    s_obj.execute()
-    scan = s_obj.scan()
-    uuids = []
-    for hit in scan:
-        uuids.append(hit.uuid)
-    return uuids
+    apartments = [
+        apt
+        for apt in APARTMENT_STORE
+        if apt.publish_on_oikotie is True
+        and apt.publish_on_etuovi is True
+        and apt.apartment_state_of_sale == ApartmentStateOfSale.RESERVED
+    ]
+    return [apt.uuid for apt in apartments]
 
 
 def get_elastic_apartments_for_sale_project_uuids() -> list:
     """Used only in oikotie tests for fetching expected housing companies"""
-    s_obj = (
-        ApartmentDocument.search()
-        .filter("term", _language__keyword="fi")
-        .filter("term", apartment_state_of_sale__keyword=ApartmentStateOfSale.FOR_SALE)
-        .filter("term", publish_on_oikotie=True)
-    )
-    s_obj.execute()
-    scan = s_obj.scan()
-    uuids = []
-    for hit in scan:
-        uuids.append(str(hit.project_uuid))
-    return uuids
+    apartments = [
+        apt
+        for apt in APARTMENT_STORE
+        if apt._language == "fi"
+        and apt.apartment_state_of_sale == ApartmentStateOfSale.FOR_SALE
+        and apt.publish_on_oikotie is True
+    ]
+    return [str(apt.project_uuid) for apt in apartments]
 
 
 def publish_elastic_apartments(
@@ -168,38 +128,25 @@ def publish_elastic_apartments(
     Sets flags publish_on_oikotie or/and publish_on_etuovi to true
     for apartments in elasticsearch provided as list of uuids
     """
-    u_obj = UpdateByQuery(
-        index=settings.APARTMENT_INDEX_NAME,
-    ).filter("terms", uuid__keyword=uuids)
+    for apartment in APARTMENT_STORE:
+        if apartment.uuid not in uuids:
+            continue
+        if publish_to_etuovi:
+            apartment.publish_on_etuovi = True
+        if publish_to_oikotie:
+            apartment.publish_on_oikotie = True
 
-    if publish_to_etuovi and publish_to_oikotie:
-        u_obj = u_obj.script(
-            source="ctx._source.publish_on_oikotie=true; "
-            "ctx._source.publish_on_etuovi=true"
-        )
-    elif publish_to_oikotie:
-        u_obj = u_obj.script(source="ctx._source.publish_on_oikotie=true")
-    elif publish_to_etuovi:
-        u_obj = u_obj.script(source="ctx._source.publish_on_etuovi=true")
-    u_obj.execute()
-
-    get_connection().indices.refresh(index=settings.APARTMENT_INDEX_NAME)
-
-    s_obj = (
-        Search(index=settings.APARTMENT_INDEX_NAME)
-        .filter("term", _language__keyword="fi")
-        .filter("term", apartment_state_of_sale__keyword=ApartmentStateOfSale.FOR_SALE)
-    )
+    apartments = [
+        apt
+        for apt in APARTMENT_STORE
+        if apt._language == "fi"
+        and apt.apartment_state_of_sale == ApartmentStateOfSale.FOR_SALE
+    ]
     if publish_to_oikotie:
-        s_obj = s_obj.filter("term", publish_on_oikotie=publish_to_oikotie)
+        apartments = [apt for apt in apartments if apt.publish_on_oikotie]
     if publish_to_etuovi:
-        s_obj = s_obj.filter("term", publish_on_etuovi=publish_to_etuovi)
-    scan = s_obj.scan()
-    uuids = []
-
-    for hit in scan:
-        uuids.append(hit.uuid)
-    return uuids
+        apartments = [apt for apt in apartments if apt.publish_on_etuovi]
+    return [apt.uuid for apt in apartments]
 
 
 def unpublish_elastic_oikotie_apartments(uuids: list) -> list:
@@ -207,11 +154,6 @@ def unpublish_elastic_oikotie_apartments(uuids: list) -> list:
     Sets flag publish_on_oikotieto to false for apartments
     in elasticsearch provided as list of uuids
     """
-    u_obj = UpdateByQuery(
-        index=settings.APARTMENT_INDEX_NAME,
-    ).filter("terms", uuid__keyword=uuids)
-
-    u_obj = u_obj.script(source="ctx._source.publish_on_oikotie=false")
-    u_obj.execute()
-
-    get_connection().indices.refresh(index=settings.APARTMENT_INDEX_NAME)
+    for apartment in APARTMENT_STORE:
+        if apartment.uuid in uuids:
+            apartment.publish_on_oikotie = False
