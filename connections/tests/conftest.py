@@ -259,6 +259,7 @@ def mock_connections_apartment_search(monkeypatch):
     monkeypatch.setattr(
         etuovi_services, "fetch_apartments_for_sale", _etuovi_fetch_apartments_for_sale
     )
+
     monkeypatch.setattr(
         oikotie_services, "get_apartments_for_oikotie", lambda: _oikotie_source()
     )

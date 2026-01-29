@@ -1,12 +1,12 @@
 import logging
 import os
-from typing import Iterator, Optional, Tuple
+from typing import Iterable, Optional, Tuple
 
 from django.conf import settings
 from django_oikotie.oikotie import create_apartments, create_housing_companies
 from django_oikotie.utils import validate_against_schema
 
-from apartment.elastic.documents import ApartmentDocument
+from apartment.elastic.queries import get_apartments
 from connections.enums import ApartmentStateOfSale
 from connections.oikotie.oikotie_mapper import (
     map_oikotie_apartment,
@@ -17,7 +17,7 @@ from connections.utils import map_document
 _logger = logging.getLogger(__name__)
 
 
-def get_apartments_for_oikotie() -> Iterator[ApartmentDocument]:
+def get_apartments_for_oikotie() -> Iterable:
     """
     Returns raw ApartmentDocument objects where publish_on_oikotie=True
     and apartment_state_of_sale != SOLD
@@ -25,28 +25,19 @@ def get_apartments_for_oikotie() -> Iterator[ApartmentDocument]:
     Returns:
         Iterator[ApartmentDocument]: Iterator of ApartmentDocument objects
     """
-    s_obj = (
-        ApartmentDocument.search()
-        .filter("term", _language="fi")
-        .exclude("term", apartment_state_of_sale__keyword=ApartmentStateOfSale.SOLD)
-        .filter("term", publish_on_oikotie=True)
+    return get_apartments(
+        _language="fi",
+        apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE,
+        publish_on_oikotie=True,
+        include_project_fields=True,
     )
-    s_obj.execute()
-    return s_obj.scan()
 
 
 def fetch_apartments_for_sale() -> Tuple[list, list]:
     """
     Fetch apartments for sale from elasticsearch and map them for Oikotie
     """
-    s_obj = (
-        ApartmentDocument.search()
-        .filter("term", _language="fi")
-        .exclude("term", apartment_state_of_sale__keyword=ApartmentStateOfSale.SOLD)
-        .filter("term", publish_on_oikotie=True)
-    )
-    s_obj.execute()
-    scan = s_obj.scan()
+    scan = get_apartments_for_oikotie()
     apartments = []
     housing_companies = []
 

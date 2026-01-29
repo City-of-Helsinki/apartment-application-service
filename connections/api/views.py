@@ -15,9 +15,7 @@ from connections.enums import (
     get_etuovi_required_fields_for_ownership_type,
     get_oikotie_required_fields_for_ownership_type,
 )
-from connections.etuovi.services import get_apartments_for_etuovi
 from connections.models import MappedApartment
-from connections.oikotie.services import get_apartments_for_oikotie
 from connections.utils import validate_apartment_required_fields
 
 _logger = logging.getLogger(__name__)
@@ -136,6 +134,11 @@ class Connections(ModelViewSet):
     )
     @action(methods=["get"], detail=False, url_path="integration_status")
     def integration_status(self, request):
+        # importing here allows fixtures to load before the tests
+        # TODO: figure out why monkeypatch cannot overwrite the functions
+        from connections.etuovi.services import get_apartments_for_etuovi
+        from connections.oikotie.services import get_apartments_for_oikotie
+
         apartments_to_etuovi = get_apartments_for_etuovi()
         apartments_to_oikotie = get_apartments_for_oikotie()
 
