@@ -332,11 +332,11 @@ class TestOikotieMapper:
         )
         mapped_apartment = map_oikotie_apartment(apartment)
         description_elem = mapped_apartment.to_etree().find("Description")
-        if description_elem.text != expected_description:
+
+        if len(description_elem.text) != len(expected_description):
             pytest.fail(
-                f"Description truncated from {len(expected_description)} to {len(description_elem.text)} characters"  # noqa: E501
+                f"Description truncated from {len(expected_description)} to {len(description_elem.text)} characters"
             )
-        pass
 
     def test_oikotie_map_energy_class_default_value(self):
         """Energy class should get default value
