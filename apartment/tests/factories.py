@@ -1,42 +1,97 @@
 import string
+from dataclasses import dataclass
 from datetime import date, timedelta
+from typing import Iterable, List, Optional
 
 import factory
-from django.conf import settings
 from django.utils import timezone
-from elasticsearch_dsl import Document
 from factory import Faker, fuzzy
 
-from apartment.elastic.documents import ApartmentDocument
 
-datetime_string_format = "%Y-%m-%dT%H:%M:%S%z"
+@dataclass
+class ApartmentData:
+    """Simple data container for apartment/project fields in tests."""
+
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
+    def __getitem__(self, item):
+        return getattr(self, item)
+
+    @property
+    def current_right_of_occupancy_payment(self):
+        from cost_index.utils import current_right_of_occupancy_payment
+
+        return current_right_of_occupancy_payment(
+            self.uuid,
+            self.right_of_occupancy_payment,
+        )
+
+    def delete(self, refresh: bool = False):
+        for index, apartment in enumerate(list(APARTMENT_STORE)):
+            if apartment is self or getattr(apartment, "uuid", None) == self.uuid:
+                del APARTMENT_STORE[index]
+                break
+
+    @property
+    def current_right_of_occupancy_payment(self):
+        from cost_index.utils import current_right_of_occupancy_payment
+
+        return current_right_of_occupancy_payment(
+            self.uuid, self.right_of_occupancy_payment
+        )
 
 
-class ApartmentDocumentTest(ApartmentDocument):
-    def save(self, **kwargs):
-        return Document.save(self, **kwargs)
-
-    def update(self, **fields):
-        return Document.update(self, **fields)
-
-    def delete(self, **kwargs):
-        return Document.delete(self, **kwargs)
-
-    class Index:
-        name = settings.TEST_APARTMENT_INDEX_NAME
+APARTMENT_STORE: List[ApartmentData] = []
 
 
-class ElasticFactory(factory.Factory):
-    @factory.post_generation
-    def save_to_elastic(obj, create, extracted, **kwargs):
-        if not create:
-            return
-        obj.save(refresh="true")
+def clear_apartment_store():
+    APARTMENT_STORE.clear()
 
 
-class ApartmentDocumentFactory(ElasticFactory):
+def add_to_store(apartments: Iterable[ApartmentData]):
+    APARTMENT_STORE.extend(apartments)
+
+
+def get_apartments_from_store(project_uuid: Optional[str] = None) -> List[ApartmentData]:
+    if project_uuid is None:
+        return list(APARTMENT_STORE)
+    return [apt for apt in APARTMENT_STORE if apt.project_uuid == project_uuid]
+
+
+def get_apartment_uuids_from_store(project_uuid: str) -> List[str]:
+    return [apt.uuid for apt in get_apartments_from_store(project_uuid)]
+
+
+def _project_from_apartment(apartment: ApartmentData) -> ApartmentData:
+    project_fields = {
+        key: value
+        for key, value in apartment.__dict__.items()
+        if key.startswith("project_")
+    }
+    project_fields["project_uuid"] = apartment.project_uuid
+    project_fields["project_id"] = apartment.project_id
+    return ApartmentData(**project_fields)
+
+
+def get_projects_from_store() -> List[ApartmentData]:
+    projects = {}
+    for apartment in APARTMENT_STORE:
+        projects.setdefault(apartment.project_uuid, _project_from_apartment(apartment))
+    return list(projects.values())
+
+
+def get_project_from_store(project_uuid: str) -> ApartmentData:
+    for apartment in APARTMENT_STORE:
+        if apartment.project_uuid == project_uuid:
+            return _project_from_apartment(apartment)
+    raise KeyError("Project not found")
+
+
+class ApartmentDocumentFactory(factory.Factory):
     class Meta:
-        model = ApartmentDocumentTest
+        model = ApartmentData
 
     _language = fuzzy.FuzzyChoice(["en", "fi", "sv"])
     project_id = fuzzy.FuzzyInteger(0, 999)
@@ -81,12 +136,8 @@ class ApartmentDocumentFactory(ElasticFactory):
     project_accessibility = fuzzy.FuzzyText()
     project_smoke_free = fuzzy.FuzzyText()
 
-    project_publication_start_time = (
-        fuzzy.FuzzyDateTime(timezone.now()).fuzz().strftime(datetime_string_format)
-    )
-    project_publication_end_time = (
-        fuzzy.FuzzyDateTime(timezone.now()).fuzz().strftime(datetime_string_format)
-    )
+    project_publication_start_time = fuzzy.FuzzyDateTime(timezone.now())
+    project_publication_end_time = fuzzy.FuzzyDateTime(timezone.now())
     project_premarketing_start_time = fuzzy.FuzzyDateTime(timezone.now())
     project_premarketing_end_time = fuzzy.FuzzyDateTime(timezone.now())
     project_application_start_time = fuzzy.FuzzyDateTime(timezone.now())
@@ -96,7 +147,7 @@ class ApartmentDocumentFactory(ElasticFactory):
     project_estimated_completion = fuzzy.FuzzyText()
     project_estimated_completion_date = fuzzy.FuzzyDate(date.today())
     project_completion_date = fuzzy.FuzzyDate(date.today())
-    project_posession_transfer_date = fuzzy.FuzzyDate(date.today())
+    project_possession_transfer_date = fuzzy.FuzzyDate(date.today())
 
     project_attachment_urls = factory.List([fuzzy.FuzzyText() for _ in range(2)])
     project_main_image_url = fuzzy.FuzzyText()
@@ -115,7 +166,7 @@ class ApartmentDocumentFactory(ElasticFactory):
     project_coordinate_lat = fuzzy.FuzzyFloat(-90, 90)
     project_coordinate_lon = fuzzy.FuzzyFloat(-180, 180)
 
-    project_use_complete_contact = False
+    project_use_complete_contract = False
 
     apartment_state_of_sale = fuzzy.FuzzyChoice(
         [
@@ -138,10 +189,7 @@ class ApartmentDocumentFactory(ElasticFactory):
     floor = fuzzy.FuzzyInteger(0, 999)
     floor_max = fuzzy.FuzzyInteger(0, 999)
     showing_times = factory.List(
-        [
-            fuzzy.FuzzyDateTime(timezone.now()).fuzz().strftime(datetime_string_format)
-            for _ in range(2)
-        ]
+        [fuzzy.FuzzyDateTime(timezone.now()) for _ in range(2)]
     )
     apartment_structure = fuzzy.FuzzyText()
     room_count = fuzzy.FuzzyInteger(0, 999)
