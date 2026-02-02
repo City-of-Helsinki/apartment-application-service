@@ -1,5 +1,6 @@
 from typing import Dict, Iterable, List, Optional, Tuple
 
+from apartment.elastic.documents import ApartmentDocument
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 
@@ -72,7 +73,8 @@ def _to_results(
     for source in sources:
         if not include_project_fields:
             source = _strip_project_fields(source)
-        results.append(SearchResult(source))
+        results.append(ApartmentDocument(**source))
+
     return results
 
 

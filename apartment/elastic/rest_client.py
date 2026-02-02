@@ -8,6 +8,7 @@ from django.conf import settings
 _logger = logging.getLogger(__name__)
 
 
+# TODO: implement access token caching and refresh from database
 class DrupalSearchClient:
     def __init__(self):
         self._access_token: Optional[str] = None

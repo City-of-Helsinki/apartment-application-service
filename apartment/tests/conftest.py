@@ -6,6 +6,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from factory import Faker
 from faker import providers
 from pytest import fixture
+from connections.tests.conftest import _mock_fetch_all
 
 from apartment.tests.factories import (
     ApartmentDocumentFactory,
@@ -53,6 +54,8 @@ def clear_store_between_tests():
 
 @fixture(autouse=True)
 def mock_apartment_queries(monkeypatch):
+
+
     def _get_apartments(project_uuid=None, include_project_fields=False):
         apartments = get_apartments_from_store(project_uuid)
         if include_project_fields:
@@ -82,17 +85,8 @@ def mock_apartment_queries(monkeypatch):
     from apartment.api import views as apartment_views
     from apartment.elastic import queries
 
-    monkeypatch.setattr(queries, "get_apartments", _get_apartments)
-    monkeypatch.setattr(queries, "get_projects", _get_projects)
-    monkeypatch.setattr(queries, "get_project", _get_project)
-    monkeypatch.setattr(queries, "get_apartment_uuids", _get_apartment_uuids)
+    monkeypatch.setattr(queries, "_fetch_all", _mock_fetch_all)
 
-    monkeypatch.setattr(apartment_views, "get_apartments", _get_apartments)
-    monkeypatch.setattr(apartment_views, "get_projects", _get_projects)
-    monkeypatch.setattr(apartment_views, "get_project", _get_project)
-    monkeypatch.setattr(
-        apartment_views, "get_apartment_uuids", _get_apartment_uuids
-    )
 
 
 @fixture

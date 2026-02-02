@@ -58,6 +58,7 @@ from users.tests.conftest import (  # noqa: F401
     sales_ui_salesperson_api_client,
     user_api_client,
 )
+from connections.tests.conftest import _mock_fetch_all
 
 faker.config.DEFAULT_LOCALE = "fi_FI"
 
@@ -376,21 +377,22 @@ def mock_apartment_queries(monkeypatch):
     from application_form.services.lottery import hitas as hitas_service
     from application_form.services.lottery import utils as lottery_utils
 
-    monkeypatch.setattr(queries, "get_apartments", _get_apartments)
-    monkeypatch.setattr(queries, "get_projects", _get_projects)
-    monkeypatch.setattr(queries, "get_project", _get_project)
-    monkeypatch.setattr(queries, "get_apartment", _get_apartment)
-    monkeypatch.setattr(queries, "get_apartment_uuids", _get_apartment_uuids)
-    monkeypatch.setattr(queries, "apartment_query", _apartment_query)
-    monkeypatch.setattr(application_service, "get_apartment", _get_apartment)
-    monkeypatch.setattr(reservation_service, "get_apartment", _get_apartment)
-    monkeypatch.setattr(offer_service, "get_apartment", _get_apartment)
-    monkeypatch.setattr(offer_service, "get_apartment_uuids", _get_apartment_uuids)
-    monkeypatch.setattr(lottery_utils, "get_project", _get_project)
-    monkeypatch.setattr(lottery_utils, "get_apartment_uuids", _get_apartment_uuids)
-    monkeypatch.setattr(haso_service, "get_apartment_uuids", _get_apartment_uuids)
-    monkeypatch.setattr(hitas_service, "get_apartment", _get_apartment)
-    monkeypatch.setattr(hitas_service, "get_apartment_uuids", _get_apartment_uuids)
+    monkeypatch.setattr(queries, "_fetch_all", _mock_fetch_all)
+    # monkeypatch.setattr(queries, "get_apartments", _get_apartments)
+    # monkeypatch.setattr(queries, "get_projects", _get_projects)
+    # monkeypatch.setattr(queries, "get_project", _get_project)
+    # monkeypatch.setattr(queries, "get_apartment", _get_apartment)
+    # monkeypatch.setattr(queries, "get_apartment_uuids", _get_apartment_uuids)
+    # monkeypatch.setattr(queries, "apartment_query", _apartment_query)
+    # monkeypatch.setattr(application_service, "get_apartment", _get_apartment)
+    # monkeypatch.setattr(reservation_service, "get_apartment", _get_apartment)
+    # monkeypatch.setattr(offer_service, "get_apartment", _get_apartment)
+    # monkeypatch.setattr(offer_service, "get_apartment_uuids", _get_apartment_uuids)
+    # monkeypatch.setattr(lottery_utils, "get_project", _get_project)
+    # monkeypatch.setattr(lottery_utils, "get_apartment_uuids", _get_apartment_uuids)
+    # monkeypatch.setattr(haso_service, "get_apartment_uuids", _get_apartment_uuids)
+    # monkeypatch.setattr(hitas_service, "get_apartment", _get_apartment)
+    # monkeypatch.setattr(hitas_service, "get_apartment_uuids", _get_apartment_uuids)
 
 
 def sell_apartments(
