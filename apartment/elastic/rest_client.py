@@ -25,13 +25,18 @@ class DrupalSearchClient:
         if self._access_token and now < self._token_expires_at:
             return self._access_token
 
+        headers = {"Content-Type": "application/x-www-form-urlencoded"}
+        data = {
+            "grant_type": "client_credentials",
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "scope": "rest_client",
+        }
+
         response = requests.post(
             token_url,
-            data={
-                "grant_type": "client_credentials",
-                "client_id": client_id,
-                "client_secret": client_secret,
-            },
+            data=data,
+            headers=headers,
             timeout=settings.DRUPAL_SEARCH_API_TIMEOUT,
             verify=settings.DRUPAL_SEARCH_API_VERIFY_SSL,
         )
@@ -61,6 +66,7 @@ class DrupalSearchClient:
             timeout=settings.DRUPAL_SEARCH_API_TIMEOUT,
             verify=settings.DRUPAL_SEARCH_API_VERIFY_SSL,
         )
+
         if response.status_code >= 400:
             _logger.error(
                 "Drupal search API request failed: %s %s (%s)",
