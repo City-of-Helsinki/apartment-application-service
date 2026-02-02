@@ -85,6 +85,24 @@ def test_project_list_get(sales_ui_salesperson_api_client):
     response = sales_ui_salesperson_api_client.get(
         reverse("apartment:project-list"), format="json"
     )
+
+    assert response.status_code == 200
+    assert len(response.data) > 0
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("elastic_apartments")
+def test_project_list_handle_missing_fields(sales_ui_salesperson_api_client):
+    project = ApartmentDocumentFactory()
+    del project.project_holding_type
+
+    # FIXME: ValueError: could not convert string to float: ''
+    project.project_coordinate_lat = ""
+    add_to_store([project])
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("apartment:project-list"), format="json"
+    )
+
     assert response.status_code == 200
     assert len(response.data) > 0
 

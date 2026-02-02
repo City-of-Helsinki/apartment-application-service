@@ -368,7 +368,11 @@ def test_remove_reservation_without_queue_positio_bug_ASU_1672(
     with caplog.at_level(logging.INFO, logger="application_form.services.queue"):
         remove_reservation_from_queue(reservation)
 
-    assert caplog.records[0].levelname == "WARNING"
+    assert any(
+        record.levelname == "WARNING"
+        and record.name == "application_form.services.queue"
+        for record in caplog.records
+    )
     assert first_apartment_uuid in caplog.text
 
 

@@ -1,6 +1,7 @@
 import os
 import shutil
 
+from apartment.tests.utils import TestDrupalSearchClient
 from django.conf import settings
 from pytest import fixture
 from rest_framework.test import APIClient
@@ -82,44 +83,22 @@ def elastic_apartments(elasticsearch):
     yield elastic_apartments
 
 
+
+def _mock_fetch_all(path: str, params: dict):
+    client = TestDrupalSearchClient()
+
+    return [
+        hit["_source"]
+        for hit in client.get(path, params=params).get("hits", {}).get("hits", [])
+    ]
+
 @fixture(autouse=True)
 def mock_apartment_queries(monkeypatch):
     from apartment.elastic import queries
+    from apartment.tests.utils import TestDrupalSearchClient
 
-    def _get_apartments(project_uuid=None, include_project_fields=False, **filters):
-        apartments = list(APARTMENT_STORE)
-        if project_uuid:
-            apartments = [
-                apt for apt in apartments if str(apt.project_uuid) == str(project_uuid)
-            ]
-        for key, value in filters.items():
-            if isinstance(value, (str, bool)):
-                apartments = [apt for apt in apartments if getattr(apt, key) == value]
-        if include_project_fields:
-            return apartments
-        stripped = []
-        for apartment in apartments:
-            data = {
-                key: value
-                for key, value in apartment.__dict__.items()
-                if not key.startswith("project_")
-            }
-            stripped.append(apartment.__class__(**data))
-        return stripped
 
-    def _get_apartment_uuids(project_uuid):
-        return [
-            apt.uuid
-            for apt in APARTMENT_STORE
-            if str(apt.project_uuid) == str(project_uuid)
-        ]
-
-    def _apartment_query(**kwargs):
-        return _get_apartments(**kwargs)
-
-    monkeypatch.setattr(queries, "get_apartments", _get_apartments)
-    monkeypatch.setattr(queries, "get_apartment_uuids", _get_apartment_uuids)
-    monkeypatch.setattr(queries, "apartment_query", _apartment_query)
+    monkeypatch.setattr(queries, "_fetch_all", _mock_fetch_all)
 
 
 @fixture
@@ -253,16 +232,16 @@ def mock_connections_apartment_search(monkeypatch):
                 housing_companies.append(housing)
         return apartments, housing_companies
 
-    monkeypatch.setattr(
-        etuovi_services, "get_apartments_for_etuovi", lambda: _etuovi_source()
-    )
-    monkeypatch.setattr(
-        etuovi_services, "fetch_apartments_for_sale", _etuovi_fetch_apartments_for_sale
-    )
+    # monkeypatch.setattr(
+    #     etuovi_services, "get_apartments_for_etuovi", lambda: _etuovi_source()
+    # )
+    # monkeypatch.setattr(
+    #     etuovi_services, "fetch_apartments_for_sale", _etuovi_fetch_apartments_for_sale
+    # )
 
-    monkeypatch.setattr(
-        oikotie_services, "get_apartments_for_oikotie", lambda: _oikotie_source()
-    )
-    monkeypatch.setattr(
-        oikotie_services, "fetch_apartments_for_sale", _oikotie_fetch_apartments_for_sale
-    )
+    # monkeypatch.setattr(
+    #     oikotie_services, "get_apartments_for_oikotie", lambda: _oikotie_source()
+    # )
+    # monkeypatch.setattr(
+    #     oikotie_services, "fetch_apartments_for_sale", _oikotie_fetch_apartments_for_sale
+    # )

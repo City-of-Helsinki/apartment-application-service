@@ -684,6 +684,7 @@ def test_export_project_with_no_sales_shows_on_report():
 
     export_service = XlsxSalesReportExportService(sales_events, project_uuids)
     export_service.get_rows()
+
     unsold_project_rows = export_service._get_project_rows(
         get_project(unsold_apartment.project_uuid),
         get_apartments(unsold_apartments_project.project_uuid, True),

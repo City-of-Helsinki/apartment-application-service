@@ -86,6 +86,8 @@ class ProjectAPIView(APIView):
             ProjectDocumentListSerializer if many else ProjectDocumentDetailSerializer
         )
 
+
+        #FIXME: doesnt work if any field is missing
         serializer = serializer_class(project_data, many=many)
         return Response(serializer.data)
 
