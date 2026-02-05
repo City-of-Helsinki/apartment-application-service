@@ -149,16 +149,22 @@ class ProjectDocumentSerializerBase(serializers.Serializer):
     archived = serializers.BooleanField(source="project_archived")
 
     def to_representation(self, instance):
-        data = instance.__dict__.get("_d_")
-        if data is None and isinstance(instance, dict):
-            data = instance
+        if isinstance(instance, dict):
+            for field in self.fields.values():
+                source = field.source or field.field_name
+                if source == "*" or "." in source:
+                    continue
+                instance.setdefault(source, None)
 
+            for key, value in list(instance.items()):
+                if value == "":
+                    instance[key] = None
+            return super().to_representation(instance)
+
+        data = instance.__dict__.get("_d_")
         if data is not None:
             for field in data.keys():
-                if isinstance(instance, dict):
-                    if instance.get(field) == "":
-                        instance[field] = None
-                elif getattr(instance, field, None) == "":
+                if getattr(instance, field, None) == "":
                     setattr(instance, field, None)
 
         return super().to_representation(instance)
