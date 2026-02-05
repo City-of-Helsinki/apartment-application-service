@@ -78,6 +78,10 @@ def _to_results(
     return results
 
 
+def _to_project_results(sources: Iterable[Dict]) -> List[SearchResult]:
+    return [SearchResult(source) for source in sources]
+
+
 def apartment_query(**kwargs):
     sources = _fetch_all("apartments", params=kwargs)
     return _to_results(sources, include_project_fields=True)
@@ -85,7 +89,7 @@ def apartment_query(**kwargs):
 
 def project_query(**kwargs):
     sources = _fetch_all("projects", params=kwargs)
-    return _to_results(sources, include_project_fields=True)
+    return _to_project_results(sources)
 
 
 def get_apartment(apartment_uuid, include_project_fields=False):
@@ -125,11 +129,12 @@ def get_project(project_uuid):
         "projects",
         params={"project_uuid": str(project_uuid), "limit": 1},
     )
+
     if not sources:
         raise ObjectDoesNotExist("Project does not exist in Drupal search API.")
-    return _to_results(sources[:1], include_project_fields=True)[0]
+    return _to_project_results(sources[:1])[0]
 
 
 def get_projects(**filters):
     sources = _fetch_all("projects", params=filters)
-    return _to_results(sources, include_project_fields=True)
+    return _to_project_results(sources)

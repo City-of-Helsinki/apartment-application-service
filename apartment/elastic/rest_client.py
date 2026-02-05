@@ -55,7 +55,10 @@ class DrupalSearchClient:
     def get(self, path: str, params: Optional[Dict[str, str]] = None) -> Dict:
         base_url = settings.DRUPAL_SEARCH_API_BASE_URL.rstrip("/")
         url = f"{base_url}/{path.lstrip('/')}"
-        headers = {"Accept": "application/json"}
+        headers = {
+            "Accept": "application/json",
+            "Accept-Language": settings.LANGUAGE_CODE,
+        }
         token = self._get_access_token()
         if token:
             headers["Authorization"] = f"Bearer {token}"
