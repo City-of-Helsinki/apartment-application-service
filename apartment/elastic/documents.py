@@ -23,6 +23,23 @@ class ReadOnlyDocument(Document):
 
 
 class ApartmentDocument(ReadOnlyDocument):
+    # def __init__(self, *args, **kwargs):
+
+    #     super().__init__(*args, **kwargs)
+    #     fields = {
+    #         name
+    #         for name in [key for key, field, default_val in self._ObjectBase__list_fields()]
+    #         if not name.startswith("_")
+    #     }
+
+    #     for f in fields:
+    #         value = kwargs.get(f, None)
+    #         if value == "":
+    #             value = None
+    #         kwargs[f] = value
+
+
+
     project_id = Long(required=True)
     project_uuid = Keyword(required=True)
 

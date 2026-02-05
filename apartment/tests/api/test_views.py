@@ -89,6 +89,37 @@ def test_project_list_get(sales_ui_salesperson_api_client):
     assert response.status_code == 200
     assert len(response.data) > 0
 
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("elastic_apartments")
+def test_get_correct_project_data(sales_ui_salesperson_api_client):
+    project = ApartmentDocumentFactory()
+    add_to_store([project])
+    response = sales_ui_salesperson_api_client.get(
+        reverse("apartment:project-detail", kwargs={"project_uuid": project.project_uuid}), format="json"
+    )
+    assert response.status_code == 200
+
+    assert response.data["uuid"] == str(project.project_uuid)
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("elastic_apartments")
+def test_project_list_some_fields_are_empty(sales_ui_salesperson_api_client):
+    project = ApartmentDocumentFactory(
+        project_description="Project description",
+    )
+    add_to_store([project])
+    print(project.project_uuid)
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("apartment:project-list"),
+        format="json",
+    )
+
+    project_data = [pr for pr in response.data if pr["uuid"] == str(project.project_uuid)][0]
+    assert project_data["description"] == "Project description"
+    assert response.status_code == 200
+
 @pytest.mark.django_db
 @pytest.mark.usefixtures("elastic_apartments")
 def test_project_list_handle_missing_fields(sales_ui_salesperson_api_client):
@@ -97,6 +128,7 @@ def test_project_list_handle_missing_fields(sales_ui_salesperson_api_client):
 
     # FIXME: ValueError: could not convert string to float: ''
     project.project_coordinate_lat = ""
+
     add_to_store([project])
 
     response = sales_ui_salesperson_api_client.get(
@@ -105,6 +137,11 @@ def test_project_list_handle_missing_fields(sales_ui_salesperson_api_client):
 
     assert response.status_code == 200
     assert len(response.data) > 0
+    project_data = next(
+        data for data in response.data if data["uuid"] == str(project.project_uuid)
+    )
+    assert project_data["coordinate_lat"] is None
+    assert project_data["holding_type"] is None
 
 
 @pytest.mark.django_db
