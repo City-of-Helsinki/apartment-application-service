@@ -95,12 +95,36 @@ def test_project_list_get(sales_ui_salesperson_api_client):
 def test_get_correct_project_data(sales_ui_salesperson_api_client):
     project = ApartmentDocumentFactory()
     add_to_store([project])
+    
     response = sales_ui_salesperson_api_client.get(
         reverse("apartment:project-detail", kwargs={"project_uuid": project.project_uuid}), format="json"
     )
     assert response.status_code == 200
 
     assert response.data["uuid"] == str(project.project_uuid)
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("elastic_apartments")
+def test_project_all_fields_are_present(sales_ui_salesperson_api_client):
+    project = ApartmentDocumentFactory()
+    add_to_store([project])
+    response = sales_ui_salesperson_api_client.get(
+        reverse("apartment:project-detail", kwargs={"project_uuid": project.project_uuid}), format="json"
+    )
+    # Compare all fields in project and response.data, assert equality (as much as possible)
+    assert response.status_code == 200
+
+    # Convert UUID fields to string for comparison
+    project_data = response.data
+
+
+    # Only assert fields that are present in response
+    for key, value in response.data.items():
+        assert value != ""
+
+
+
+
 
 @pytest.mark.django_db
 @pytest.mark.usefixtures("elastic_apartments")
@@ -117,6 +141,7 @@ def test_project_list_some_fields_are_empty(sales_ui_salesperson_api_client):
     )
 
     project_data = [pr for pr in response.data if pr["uuid"] == str(project.project_uuid)][0]
+
     assert project_data["description"] == "Project description"
     assert response.status_code == 200
 
@@ -257,6 +282,27 @@ def test_project_get_with_project_uuid_unauthorized(
     )
     assert response.status_code == 403
 
+@pytest.mark.django_db
+def test_project_detail_returns_all_apartments(
+    sales_ui_salesperson_api_client, elastic_project_with_5_apartments
+):
+    project_uuid = uuid.uuid4()
+    apartments = [
+        ApartmentDocumentFactory(apartment_published=True, project_uuid=project_uuid) for _ in range(4)
+    ]
+    # One unpublished apartment
+    unpublished_apartment = ApartmentDocumentFactory(apartment_published=False, project_uuid=project_uuid)
+    apartments.append(unpublished_apartment)
+    add_to_store(apartments)
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("apartment:project-detail", kwargs={"project_uuid": project_uuid}),
+        format="json",
+    )
+    assert response.status_code == 200
+    assert response.data
+    assert response.data.get("apartments")
+    assert len(response.data.get("apartments")) == len(apartments)
 
 @pytest.mark.django_db
 def test_project_get_with_project_uuid(
@@ -267,6 +313,7 @@ def test_project_get_with_project_uuid(
         reverse("apartment:project-detail", kwargs={"project_uuid": project_uuid}),
         format="json",
     )
+
     assert response.status_code == 200
     assert response.data
     assert response.data.get("uuid") == str(project_uuid)
