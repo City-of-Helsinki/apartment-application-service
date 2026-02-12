@@ -110,6 +110,7 @@ class SalesApartmentReservationSerializer(ApartmentReservationSerializerBase):
     customer = CustomerCompactSerializer()
     cancellation_reason = serializers.SerializerMethodField()
     cancellation_timestamp = serializers.SerializerMethodField()
+    sold_timestamp = serializers.SerializerMethodField()
     revaluation = ApartmentRevaluationSerializer()
 
     class Meta(ApartmentReservationSerializerBase.Meta):
@@ -117,6 +118,7 @@ class SalesApartmentReservationSerializer(ApartmentReservationSerializerBase):
             "customer",
             "cancellation_reason",
             "cancellation_timestamp",
+            "sold_timestamp",
             "revaluation",
         )
         read_only_fields = fields
@@ -143,6 +145,18 @@ class SalesApartmentReservationSerializer(ApartmentReservationSerializerBase):
                     obj.state_change_events.filter(
                         state=ApartmentReservationState.CANCELED
                     )
+                    .latest("timestamp")
+                    .timestamp
+                )
+            except ObjectDoesNotExist:
+                return None
+        return None
+
+    def get_sold_timestamp(self, obj):
+        if obj.state == ApartmentReservationState.SOLD:
+            try:
+                return (
+                    obj.state_change_events.filter(state=ApartmentReservationState.SOLD)
                     .latest("timestamp")
                     .timestamp
                 )
