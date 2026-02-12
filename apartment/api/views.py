@@ -114,7 +114,6 @@ class ProjectAPIView(APIView):
         apartment_sale_state_counts = get_project_apartment_sale_state_counts(
             project_uuids
         )
-
         serializer = serializer_class(
             project_data,
             many=many,

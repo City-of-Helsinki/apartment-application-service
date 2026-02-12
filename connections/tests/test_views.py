@@ -8,11 +8,11 @@ import pytest  # noqa: F401
 
 from apartment.enums import OwnershipType
 from connections.enums import (
+    ApartmentStateOfSale,
     EtuoviApartmentRequiredFields,
     get_etuovi_required_fields_for_ownership_type,
     get_oikotie_required_fields_for_ownership_type,
     OikotieApartmentRequiredFields,
-    ApartmentStateOfSale,
 )
 from connections.etuovi.services import get_apartments_for_etuovi
 from connections.oikotie.services import get_apartments_for_oikotie

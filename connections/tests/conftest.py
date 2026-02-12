@@ -1,14 +1,18 @@
 import os
 import shutil
 
-from apartment.tests.utils import TestDrupalSearchClient
 from django.conf import settings
 from pytest import fixture
 from rest_framework.test import APIClient
 
 import connections
+from apartment.tests.factories import (
+    add_to_store,
+    APARTMENT_STORE,
+    clear_apartment_store,
+)
+from apartment.tests.utils import TestDrupalSearchClient
 from connections.enums import ApartmentStateOfSale
-from apartment.tests.factories import APARTMENT_STORE, add_to_store, clear_apartment_store
 from connections.tests.factories import ApartmentMinimalFactory
 
 
@@ -83,7 +87,6 @@ def elastic_apartments(elasticsearch):
     yield elastic_apartments
 
 
-
 def _mock_fetch_all(path: str, params: dict):
     client = TestDrupalSearchClient()
 
@@ -92,11 +95,10 @@ def _mock_fetch_all(path: str, params: dict):
         for hit in client.get(path, params=params).get("hits", {}).get("hits", [])
     ]
 
+
 @fixture(autouse=True)
 def mock_apartment_queries(monkeypatch):
     from apartment.elastic import queries
-    from apartment.tests.utils import TestDrupalSearchClient
-
 
     monkeypatch.setattr(queries, "_fetch_all", _mock_fetch_all)
 
@@ -186,14 +188,12 @@ def invalid_data_elastic_apartments_for_sale(elastic_apartments):
 @fixture(autouse=True)
 def mock_connections_apartment_search(monkeypatch):
     from connections.enums import ApartmentStateOfSale
-    from connections.etuovi import services as etuovi_services
-    from connections.oikotie import services as oikotie_services
-    from connections.utils import map_document
     from connections.etuovi.etuovi_mapper import map_apartment_to_item
     from connections.oikotie.oikotie_mapper import (
         map_oikotie_apartment,
         map_oikotie_housing_company,
     )
+    from connections.utils import map_document
 
     def _etuovi_source():
         return [
@@ -231,17 +231,3 @@ def mock_connections_apartment_search(monkeypatch):
                 apartments.append(apartment)
                 housing_companies.append(housing)
         return apartments, housing_companies
-
-    # monkeypatch.setattr(
-    #     etuovi_services, "get_apartments_for_etuovi", lambda: _etuovi_source()
-    # )
-    # monkeypatch.setattr(
-    #     etuovi_services, "fetch_apartments_for_sale", _etuovi_fetch_apartments_for_sale
-    # )
-
-    # monkeypatch.setattr(
-    #     oikotie_services, "get_apartments_for_oikotie", lambda: _oikotie_source()
-    # )
-    # monkeypatch.setattr(
-    #     oikotie_services, "fetch_apartments_for_sale", _oikotie_fetch_apartments_for_sale
-    # )

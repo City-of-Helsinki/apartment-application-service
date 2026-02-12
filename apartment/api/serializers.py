@@ -188,6 +188,7 @@ class ProjectDocumentSerializerBase(serializers.Serializer):
 
         return super().to_representation(instance)
 
+
 class ProjectDocumentListSerializer(ProjectDocumentSerializerBase):
     pass
 

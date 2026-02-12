@@ -1,7 +1,6 @@
 import random
 import string
 from dataclasses import dataclass
-from datetime import date, timedelta
 from typing import Iterable, List, Optional
 
 import factory
@@ -19,15 +18,6 @@ class ApartmentData:
 
     def __getitem__(self, item):
         return getattr(self, item)
-
-    @property
-    def current_right_of_occupancy_payment(self):
-        from cost_index.utils import current_right_of_occupancy_payment
-
-        return current_right_of_occupancy_payment(
-            self.uuid,
-            self.right_of_occupancy_payment,
-        )
 
     def delete(self, refresh: bool = False):
         for index, apartment in enumerate(list(APARTMENT_STORE)):
@@ -67,7 +57,9 @@ def add_to_store(apartments: Iterable[ApartmentData]):
         existing.add(str(apartment.uuid))
 
 
-def get_apartments_from_store(project_uuid: Optional[str] = None) -> List[ApartmentData]:
+def get_apartments_from_store(
+    project_uuid: Optional[str] = None,
+) -> List[ApartmentData]:
     if project_uuid is None:
         return list(APARTMENT_STORE)
     return [
@@ -276,9 +268,7 @@ class ApartmentDocumentFactory(factory.Factory):
         timezone.now()
     )
     project_contract_depositary = fuzzy.FuzzyText()
-    project_contract_estimated_handover_date_start = fuzzy.FuzzyDateTime(
-        timezone.now()
-    )
+    project_contract_estimated_handover_date_start = fuzzy.FuzzyDateTime(timezone.now())
     project_contract_estimated_handover_date_end = fuzzy.FuzzyDateTime(timezone.now())
     project_contract_customer_document_handover = fuzzy.FuzzyText()
     project_contract_bill_of_sale_terms = fuzzy.FuzzyText()
@@ -302,4 +292,5 @@ class ApartmentDocumentFactory(factory.Factory):
         if not create or extracted is False:
             return
         add_to_store([self])
+
     project_documents_delivered = fuzzy.FuzzyText()

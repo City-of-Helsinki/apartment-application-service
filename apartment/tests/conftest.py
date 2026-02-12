@@ -6,17 +6,17 @@ from django.core.exceptions import ObjectDoesNotExist
 from factory import Faker
 from faker import providers
 from pytest import fixture
-from connections.tests.conftest import _mock_fetch_all
 
 from apartment.tests.factories import (
-    ApartmentDocumentFactory,
     add_to_store,
+    ApartmentDocumentFactory,
     clear_apartment_store,
     get_apartment_uuids_from_store,
     get_apartments_from_store,
     get_project_from_store,
     get_projects_from_store,
 )
+from connections.tests.conftest import _mock_fetch_all
 from users.tests.conftest import (  # noqa: F401
     api_client,
     drupal_salesperson_api_client,
@@ -55,7 +55,6 @@ def clear_store_between_tests():
 @fixture(autouse=True)
 def mock_apartment_queries(monkeypatch):
 
-
     def _get_apartments(project_uuid=None, include_project_fields=False):
         apartments = get_apartments_from_store(project_uuid)
         if include_project_fields:
@@ -82,11 +81,10 @@ def mock_apartment_queries(monkeypatch):
     def _get_apartment_uuids(project_uuid):
         return get_apartment_uuids_from_store(project_uuid)
 
-    from apartment.api import views as apartment_views
+    # from apartment.api import views as apartment_views
     from apartment.elastic import queries
 
     monkeypatch.setattr(queries, "_fetch_all", _mock_fetch_all)
-
 
 
 @fixture
