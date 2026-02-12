@@ -1,9 +1,10 @@
 import datetime
-from unittest.mock import patch
+
 import pytest
 from django.core.management import call_command
 from django.urls import reverse
 
+from apartment.tests.factories import add_to_store
 from connections.enums import ApartmentStateOfSale
 from connections.models import MappedApartment
 from connections.tests.factories import ApartmentMinimalFactory
@@ -14,7 +15,6 @@ from connections.tests.utils import (
     make_apartments_sold_in_elastic,
     publish_elastic_apartments,
 )
-from apartment.tests.factories import add_to_store
 from users.tests.conftest import (  # noqa: F401, F811
     drupal_salesperson_api_client,
     drupal_server_api_client,

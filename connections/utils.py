@@ -4,7 +4,6 @@ from collections.abc import Callable
 from decimal import Decimal, ROUND_HALF_UP
 from typing import List, Union
 
-from django.conf import settings
 from django.utils.html import strip_tags
 from lxml import etree
 

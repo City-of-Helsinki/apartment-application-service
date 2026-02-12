@@ -3,7 +3,7 @@ from django.db import transaction
 from pytest import fixture, mark
 from rest_framework.exceptions import ValidationError
 
-from apartment.tests.factories import ApartmentDocumentFactory, add_to_store
+from apartment.tests.factories import add_to_store, ApartmentDocumentFactory
 from application_form.enums import (
     ApartmentReservationCancellationReason,
     ApartmentReservationState,

@@ -8,7 +8,6 @@ from unittest.mock import MagicMock, Mock
 import pytest
 import sentry_sdk
 from django.conf import settings
-from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 from factory.faker import faker
 from pytest import fixture
@@ -20,10 +19,6 @@ from apartment.tests.factories import (
     ApartmentDocumentFactory,
     add_to_store,
     clear_apartment_store,
-    get_apartment_uuids_from_store,
-    get_apartments_from_store,
-    get_project_from_store,
-    get_projects_from_store,
 )
 from apartment_application_service.settings import (
     METADATA_HANDLER_INFORMATION,
@@ -334,65 +329,12 @@ def elastic_haso_project_application_end_time_finished(elasticsearch):
 
 @pytest.fixture(autouse=True)
 def mock_apartment_queries(monkeypatch):
-    def _get_apartments(project_uuid=None, include_project_fields=False):
-        return get_apartments_from_store(project_uuid)
-
-    def _get_projects():
-        return get_projects_from_store()
-
-    def _get_project(project_uuid):
-        try:
-            return get_project_from_store(project_uuid)
-        except KeyError:
-            raise ObjectDoesNotExist("Project does not exist in REST API.")
-
-    def _get_apartment(apartment_uuid, include_project_fields=False):
-        for apartment in get_apartments_from_store():
-            if str(apartment.uuid) == str(apartment_uuid):
-                if include_project_fields:
-                    return apartment
-                data = {
-                    key: value
-                    for key, value in apartment.__dict__.items()
-                    if not key.startswith("project_")
-                }
-                return ApartmentData(**data)
-        raise ObjectDoesNotExist("Apartment does not exist in REST API.")
-
-    def _get_apartment_uuids(project_uuid):
-        return get_apartment_uuids_from_store(project_uuid)
-
-    def _apartment_query(**kwargs):
-        apartments = get_apartments_from_store()
-        for key, value in kwargs.items():
-            if isinstance(value, (str, bool)):
-                apartments = [apt for apt in apartments if getattr(apt, key) == value]
-        return apartments
-
+    """
+    Patch apartment.elastic.queries._fetch_all with the test double.
+    Separate helper functions are defined outside for clarity and reduced complexity.
+    """
     from apartment.elastic import queries
-    from application_form.services import application as application_service
-    from application_form.services import offer as offer_service
-    from application_form.services import reservation as reservation_service
-    from application_form.services.lottery import haso as haso_service
-    from application_form.services.lottery import hitas as hitas_service
-    from application_form.services.lottery import utils as lottery_utils
-
     monkeypatch.setattr(queries, "_fetch_all", _mock_fetch_all)
-    # monkeypatch.setattr(queries, "get_apartments", _get_apartments)
-    # monkeypatch.setattr(queries, "get_projects", _get_projects)
-    # monkeypatch.setattr(queries, "get_project", _get_project)
-    # monkeypatch.setattr(queries, "get_apartment", _get_apartment)
-    # monkeypatch.setattr(queries, "get_apartment_uuids", _get_apartment_uuids)
-    # monkeypatch.setattr(queries, "apartment_query", _apartment_query)
-    # monkeypatch.setattr(application_service, "get_apartment", _get_apartment)
-    # monkeypatch.setattr(reservation_service, "get_apartment", _get_apartment)
-    # monkeypatch.setattr(offer_service, "get_apartment", _get_apartment)
-    # monkeypatch.setattr(offer_service, "get_apartment_uuids", _get_apartment_uuids)
-    # monkeypatch.setattr(lottery_utils, "get_project", _get_project)
-    # monkeypatch.setattr(lottery_utils, "get_apartment_uuids", _get_apartment_uuids)
-    # monkeypatch.setattr(haso_service, "get_apartment_uuids", _get_apartment_uuids)
-    # monkeypatch.setattr(hitas_service, "get_apartment", _get_apartment)
-    # monkeypatch.setattr(hitas_service, "get_apartment_uuids", _get_apartment_uuids)
 
 
 def sell_apartments(

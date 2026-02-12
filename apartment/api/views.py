@@ -87,7 +87,7 @@ class ProjectAPIView(APIView):
         )
 
         serializer = serializer_class(project_data, many=many)
-        
+
         return Response(serializer.data)
 
 

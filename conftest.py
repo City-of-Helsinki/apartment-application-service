@@ -1,8 +1,6 @@
 import pytest
 
-from apartment.tests.factories import (
-    clear_apartment_store,
-)
+from apartment.tests.factories import clear_apartment_store
 
 
 @pytest.fixture(autouse=True)
@@ -24,5 +22,3 @@ def mock_search_api(monkeypatch):
         queries, "DrupalSearchClient", TestDrupalSearchClient, raising=True
     )
     queries._client = None
-
-

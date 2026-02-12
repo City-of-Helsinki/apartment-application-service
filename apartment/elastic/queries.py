@@ -1,9 +1,9 @@
 from typing import Dict, Iterable, List, Optional, Tuple
 
-from apartment.elastic.documents import ApartmentDocument
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 
+from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.rest_client import DrupalSearchClient
 
 
@@ -37,9 +37,7 @@ def _parse_hits(payload: Dict) -> Tuple[List[Dict], Optional[int]]:
 
 def _strip_project_fields(source: Dict) -> Dict:
     return {
-        key: value
-        for key, value in source.items()
-        if not key.startswith("project_")
+        key: value for key, value in source.items() if not key.startswith("project_")
     }
 
 
@@ -107,9 +105,7 @@ def get_apartment_project_uuid(apartment_uuid):
     return SearchResult({"project_uuid": apartment.project_uuid})
 
 
-def get_apartments(
-    project_uuid=None, include_project_fields=False, **filters
-):
+def get_apartments(project_uuid=None, include_project_fields=False, **filters):
     if project_uuid:
         filters["project_uuid"] = str(project_uuid)
     sources = _fetch_all("apartments", params=filters)

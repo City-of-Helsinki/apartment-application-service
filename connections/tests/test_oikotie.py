@@ -335,7 +335,7 @@ class TestOikotieMapper:
 
         if len(description_elem.text) != len(expected_description):
             pytest.fail(
-                f"Description truncated from {len(expected_description)} to {len(description_elem.text)} characters"
+                f"Description truncated from {len(expected_description)} to {len(description_elem.text)} characters"  # noqa: E501
             )
 
     def test_oikotie_map_energy_class_default_value(self):

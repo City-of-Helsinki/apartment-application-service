@@ -22,7 +22,12 @@ def get_apartments_for_etuovi() -> Iterable:
         Iterator[ApartmentDocument]: Iterator of ApartmentDocument objects
     """
 
-    return get_apartments( _language="fi", apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE, publish_on_etuovi=True, include_project_fields=True, )
+    return get_apartments(
+        _language="fi",
+        apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE,
+        publish_on_etuovi=True,
+        include_project_fields=True,
+    )
 
 
 def fetch_apartments_for_sale(verbose: bool = False) -> list:
