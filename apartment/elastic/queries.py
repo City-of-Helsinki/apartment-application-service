@@ -77,7 +77,7 @@ def _to_results(
 
 
 def _to_project_results(sources: Iterable[Dict]) -> List[SearchResult]:
-    return [SearchResult(source) for source in sources]
+    return [ApartmentDocument(**source) for source in sources]
 
 
 def apartment_query(**kwargs):
