@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Dict, Optional
+from typing import Any, Dict, Optional
 
 import requests
 from django.conf import settings
@@ -52,9 +52,16 @@ class DrupalSearchClient:
         self._token_expires_at = now + max(expires_in - 30, 0)
         return token
 
-    def get(self, path: str, params: Optional[Dict[str, str]] = None) -> Dict:
+    def get(
+        self,
+        path: str,
+        params: Optional[Dict[str, Any]] = None,
+        timeout: Optional[int] = None,
+    ) -> Dict:
         base_url = settings.DRUPAL_SEARCH_API_BASE_URL.rstrip("/")
         url = f"{base_url}/{path.lstrip('/')}"
+        request_params: Dict[str, Any] = dict(params or {})
+        request_params = self._normalize_pagination_params(request_params)
         headers = {
             "Accept": "application/json",
             "Accept-Language": settings.LANGUAGE_CODE,
@@ -63,11 +70,26 @@ class DrupalSearchClient:
         if token:
             headers["Authorization"] = f"Bearer {token}"
 
+        request_timeout = (
+            timeout if timeout is not None else settings.DRUPAL_SEARCH_API_TIMEOUT
+        )
+
+        import logging
+
+        _logger = logging.getLogger(__name__)
+        _logger.debug(
+            "DrupalSearchClient GET request: url=%s, params=%s, headers=%s, timeout=%s",
+            url,
+            request_params,
+            {k: v for k, v in headers.items() if k != "Authorization"},
+            request_timeout,
+        )
+
         response = requests.get(
             url,
-            params=params,
+            params=request_params,
             headers=headers,
-            timeout=settings.DRUPAL_SEARCH_API_TIMEOUT,
+            timeout=request_timeout,
             verify=settings.DRUPAL_SEARCH_API_VERIFY_SSL,
         )
 
@@ -80,3 +102,30 @@ class DrupalSearchClient:
             )
         response.raise_for_status()
         return response.json()
+
+    def _normalize_pagination_params(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        size_value = params.pop("limit", None)
+        if size_value is not None and "size" not in params:
+            params["size"] = size_value
+
+        if "page" in params:
+            return params
+
+        offset_value = params.pop("offset", None)
+        if offset_value is None:
+            return params
+
+        if "size" in params:
+            try:
+                size = int(params["size"])
+                offset = int(offset_value)
+            except (TypeError, ValueError):
+                params["from"] = offset_value
+                return params
+            if size > 0:
+                params["page"] = max(1, (offset // size) + 1)
+                return params
+
+        if "from" not in params:
+            params["from"] = offset_value
+        return params

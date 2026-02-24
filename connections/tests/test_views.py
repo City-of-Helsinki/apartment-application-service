@@ -5,7 +5,15 @@ Unit tests for connections service helper functions
 from unittest.mock import Mock, patch
 
 import pytest  # noqa: F401
+import time
+from conftest import integration_test
 
+from apartment.elastic.queries import (
+    get_apartment,
+    get_apartments,
+    get_project,
+    get_projects,
+)
 from apartment.enums import OwnershipType
 from connections.enums import (
     ApartmentStateOfSale,
@@ -17,6 +25,67 @@ from connections.enums import (
 from connections.etuovi.services import get_apartments_for_etuovi
 from connections.oikotie.services import get_apartments_for_oikotie
 from connections.utils import validate_apartment_required_fields
+
+
+@integration_test
+def test_fetch_all_adaptive_pagination():
+    """
+    Verify _fetch_all works with real Drupal API. Exercises adaptive
+    pagination (size=1000 with short timeout, fallback to size=100 on timeout).
+    Uses real DrupalSearchClient (no mock).
+    """
+    import apartment.elastic.queries as queries
+
+    queries._client = None
+
+    sources = queries._fetch_all(
+        "apartments",
+        params={
+            "project_ownership_type": "hitas",
+            "t": str(int(time.time())),
+        },
+    )
+    assert isinstance(sources, list)
+    for item in sources:
+        assert isinstance(item, dict)
+        assert "uuid" in item or "nid" in item
+
+@integration_test
+def test_drupal_search_api_integration():
+    """
+    Verify real Drupal Search API: fetch projects, single project,
+    size=1 apartments, then that apartment by uuid.
+    """
+    import apartment.elastic.queries as queries
+
+    queries._client = None
+
+
+    projects = get_projects(t=str(int(time.time())))
+    assert isinstance(projects, list)
+    if not projects:
+        pytest.skip("No projects in Drupal API")
+
+    project = projects[0]
+    project_uuid = getattr(project, "project_uuid", None) or project.get("project_uuid")
+    assert project_uuid
+
+    single_project = get_project(project_uuid)
+    assert single_project is not None
+    assert (getattr(single_project, "project_uuid", None) or single_project.get("project_uuid")) == project_uuid
+
+    apartments = get_apartments(limit=1, t=str(int(time.time())))
+    assert isinstance(apartments, list)
+    if not apartments:
+        pytest.skip("No apartments in Drupal API")
+
+    apartment = apartments[0]
+    apartment_uuid = getattr(apartment, "uuid", None) or apartment.get("uuid")
+    assert apartment_uuid
+
+    single_apartment = get_apartment(apartment_uuid)
+    assert single_apartment is not None
+    assert (getattr(single_apartment, "uuid", None) or single_apartment.get("uuid")) == apartment_uuid
 
 
 class TestValidateApartmentRequiredFields:

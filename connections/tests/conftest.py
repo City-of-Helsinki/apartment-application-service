@@ -97,7 +97,9 @@ def _mock_fetch_all(path: str, params: dict):
 
 
 @fixture(autouse=True)
-def mock_apartment_queries(monkeypatch):
+def mock_apartment_queries(request, monkeypatch):
+    if request.node.get_closest_marker("integration"):
+        return
     from apartment.elastic import queries
 
     monkeypatch.setattr(queries, "_fetch_all", _mock_fetch_all)
