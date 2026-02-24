@@ -53,35 +53,9 @@ def clear_store_between_tests():
 
 
 @fixture(autouse=True)
-def mock_apartment_queries(monkeypatch):
-
-    def _get_apartments(project_uuid=None, include_project_fields=False):
-        apartments = get_apartments_from_store(project_uuid)
-        if include_project_fields:
-            return apartments
-        stripped = []
-        for apartment in apartments:
-            data = {
-                key: value
-                for key, value in apartment.__dict__.items()
-                if not key.startswith("project_")
-            }
-            stripped.append(apartment.__class__(**data))
-        return stripped
-
-    def _get_projects():
-        return get_projects_from_store()
-
-    def _get_project(project_uuid):
-        try:
-            return get_project_from_store(project_uuid)
-        except KeyError as exc:
-            raise ObjectDoesNotExist("Project does not exist in REST API.") from exc
-
-    def _get_apartment_uuids(project_uuid):
-        return get_apartment_uuids_from_store(project_uuid)
-
-    # from apartment.api import views as apartment_views
+def mock_apartment_queries(request, monkeypatch):
+    if request.node.get_closest_marker("integration"):
+        return
     from apartment.elastic import queries
 
     monkeypatch.setattr(queries, "_fetch_all", _mock_fetch_all)

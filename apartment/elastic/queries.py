@@ -1,5 +1,6 @@
 from typing import Dict, Iterable, List, Optional, Tuple
 
+import requests
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 
@@ -42,24 +43,58 @@ def _strip_project_fields(source: Dict) -> Dict:
 
 
 def _fetch_all(path: str, params: Dict) -> List[Dict]:
-    offset = 0
-    limit = settings.DRUPAL_SEARCH_API_PAGE_SIZE
+    client = _get_client()
     sources: List[Dict] = []
     total: Optional[int] = None
-    client = _get_client()
 
-    while True:
+    # When caller sets explicit limit (e.g. get_apartment), use simple path.
+    if "limit" in params:
+        offset = 0
+        limit = int(params.get("limit", settings.DRUPAL_SEARCH_API_PAGE_SIZE))
         page_params = {**params, "offset": offset, "limit": limit}
         payload = client.get(path, params=page_params)
         page_sources, page_total = _parse_hits(payload)
-        if total is None:
-            total = page_total
+        return page_sources
+
+    # Adaptive pagination: try size=1000 with low timeout (cache probe).
+    initial_size = 1000
+    fallback_size = settings.DRUPAL_SEARCH_API_PAGE_SIZE
+    initial_timeout = settings.DRUPAL_SEARCH_API_INITIAL_TIMEOUT
+    full_timeout = settings.DRUPAL_SEARCH_API_TIMEOUT
+    page_sources: List[Dict] = []
+    limit = initial_size
+
+    try:
+        page_params = {**params, "limit": initial_size, "offset": 0}
+        payload = client.get(path, params=page_params, timeout=initial_timeout)
+        page_sources, total = _parse_hits(payload)
         sources.extend(page_sources)
-        if not page_sources or len(page_sources) < limit:
-            break
-        offset += limit
+        offset = initial_size
+    except requests.exceptions.Timeout:
+        try:
+            payload = client.get(path, params=page_params, timeout=full_timeout)
+            page_sources, total = _parse_hits(payload)
+            sources.extend(page_sources)
+            offset = initial_size
+        except requests.exceptions.Timeout:
+            limit = fallback_size
+            page_params = {**params, "limit": fallback_size, "offset": 0}
+            payload = client.get(path, params=page_params)
+            page_sources, total = _parse_hits(payload)
+            sources.extend(page_sources)
+            offset = fallback_size
+
+    while True:
         if total is not None and offset >= total:
             break
+        if not page_sources or len(page_sources) < limit:
+            break
+
+        page_params = {**params, "limit": limit, "offset": offset}
+        payload = client.get(path, params=page_params)
+        page_sources, _ = _parse_hits(payload)
+        sources.extend(page_sources)
+        offset += limit
 
     return sources
 

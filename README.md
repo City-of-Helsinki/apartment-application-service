@@ -75,6 +75,28 @@ If you have the `make` command available, you can use the following commands to 
   collectstatic)
 
 
+## Tests
+
+Run the test suite with `make test` or `pytest`.
+
+Integration tests are skipped by default (they require external services like Drupal).
+To run them, pass the `--integration-tests` flag:
+
+```
+pytest --integration-tests
+```
+
+Mark tests as integration tests with the `@integration_test` decorator:
+
+```python
+from conftest import integration_test
+
+@integration_test
+def test_something_against_real_api():
+    ...
+```
+
+
 ## Keeping Python requirements up to date
 
 This project uses [`pip-tools`](https://github.com/jazzband/pip-tools)

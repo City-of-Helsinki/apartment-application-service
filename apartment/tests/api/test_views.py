@@ -35,6 +35,7 @@ def _store_apartment(apartment):
     return apartment
 
 
+
 @pytest.mark.django_db
 @pytest.mark.usefixtures("elastic_apartments")
 def test_apartment_list_get_unauthorized(
