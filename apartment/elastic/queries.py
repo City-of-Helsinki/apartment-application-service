@@ -126,10 +126,15 @@ def project_query(**kwargs):
 
 
 def get_apartment(apartment_uuid, include_project_fields=False):
-    sources = _fetch_all(
-        "apartments",
-        params={"uuid": str(apartment_uuid), "limit": 1},
-    )
+    """Fetch a single apartment by UUID via GET /apartments/{uuid}."""
+    client = _get_client()
+    try:
+        payload = client.get(f"apartments/{str(apartment_uuid)}")
+    except requests.exceptions.HTTPError as e:
+        if e.response is not None and e.response.status_code == 404:
+            raise ObjectDoesNotExist("Apartment does not exist in Drupal search API.") from e
+        raise
+    sources, _ = _parse_hits(payload)
     if not sources:
         raise ObjectDoesNotExist("Apartment does not exist in Drupal search API.")
     return _to_results(sources[:1], include_project_fields=include_project_fields)[0]
@@ -142,25 +147,31 @@ def get_apartment_project_uuid(apartment_uuid):
 
 def get_apartments(project_uuid=None, include_project_fields=False, **filters):
     if project_uuid:
-        filters["project_uuid"] = str(project_uuid)
-    sources = _fetch_all("apartments", params=filters)
+        sources = _fetch_all(
+            f"projects/{str(project_uuid)}/apartments", params=filters
+        )
+    else:
+        sources = _fetch_all("apartments", params=filters)
     return _to_results(sources, include_project_fields=include_project_fields)
 
 
 def get_apartment_uuids(project_uuid) -> List[str]:
     sources = _fetch_all(
-        "apartments",
-        params={"project_uuid": str(project_uuid)},
+        f"projects/{str(project_uuid)}/apartments", params={}
     )
     return [source.get("uuid") for source in sources if source.get("uuid")]
 
 
 def get_project(project_uuid):
-    sources = _fetch_all(
-        "projects",
-        params={"project_uuid": str(project_uuid), "limit": 1},
-    )
-
+    """Fetch a single project by UUID via GET /projects/{uuid}."""
+    client = _get_client()
+    try:
+        payload = client.get(f"projects/{str(project_uuid)}")
+    except requests.exceptions.HTTPError as e:
+        if e.response is not None and e.response.status_code == 404:
+            raise ObjectDoesNotExist("Project does not exist in Drupal search API.") from e
+        raise
+    sources, _ = _parse_hits(payload)
     if not sources:
         raise ObjectDoesNotExist("Project does not exist in Drupal search API.")
     return _to_project_results(sources[:1])[0]

@@ -25,9 +25,28 @@ class TestDrupalSearchClient(DrupalSearchClient):
 
     def _resolve_data(self, path: str, params: dict):
         stripped = path.rstrip("/")
-        if stripped == "apartments":
+        parts = stripped.split("/")
+
+        if parts[0] == "apartments":
+            if len(parts) == 2:
+                apartment_uuid = parts[1]
+                apts = [
+                    a for a in get_apartments_from_store()
+                    if str(a.uuid) == str(apartment_uuid)
+                ]
+                return apts[:1] if apts else []
             return get_apartments_from_store(params.get("project_uuid"))
-        if stripped == "projects":
+
+        if parts[0] == "projects":
+            if len(parts) == 2:
+                project_uuid = parts[1]
+                try:
+                    return [get_project_from_store(project_uuid)]
+                except KeyError:
+                    return []
+            if len(parts) == 3 and parts[2] == "apartments":
+                project_uuid = parts[1]
+                return get_apartments_from_store(project_uuid)
             project_uuid = params.get("project_uuid")
             if project_uuid:
                 try:
