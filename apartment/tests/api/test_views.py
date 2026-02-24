@@ -135,7 +135,6 @@ def test_project_list_some_fields_are_empty(sales_ui_salesperson_api_client):
         project_description="Project description",
     )
     add_to_store([project])
-    print(project.project_uuid)
 
     response = sales_ui_salesperson_api_client.get(
         reverse("apartment:project-list"),

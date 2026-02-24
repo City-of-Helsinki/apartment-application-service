@@ -9,7 +9,7 @@ from apartment.tests.factories import (
 
 
 class TestDrupalSearchClient(DrupalSearchClient):
-    def get(self, path: str, params: dict = None) -> dict:
+    def get(self, path: str, params: dict = None, timeout=None) -> dict:
         """
         Mock get() method to return apartment/project data from APARTMENT_STORE
         or get_projects_from_store.

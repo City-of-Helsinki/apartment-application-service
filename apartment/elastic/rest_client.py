@@ -109,6 +109,7 @@ class DrupalSearchClient:
             params["size"] = size_value
 
         if "page" in params:
+            params.pop("offset", None)
             return params
 
         offset_value = params.pop("offset", None)
