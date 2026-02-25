@@ -147,6 +147,25 @@ class ProjectDocumentSerializerBase(serializers.Serializer):
     regular_bank_account = serializers.CharField(source="project_regular_bank_account")
     published = serializers.BooleanField(source="project_published")
     archived = serializers.BooleanField(source="project_archived")
+    sold_apartment_count = serializers.SerializerMethodField()
+    free_apartment_count = serializers.SerializerMethodField()
+    reserved_apartment_count = serializers.SerializerMethodField()
+
+    def get_sold_apartment_count(self, obj):
+        return self._get_apartment_sale_state_count(obj, "sold_apartment_count")
+
+    def get_free_apartment_count(self, obj):
+        return self._get_apartment_sale_state_count(obj, "free_apartment_count")
+
+    def get_reserved_apartment_count(self, obj):
+        return self._get_apartment_sale_state_count(obj, "reserved_apartment_count")
+
+    def _get_apartment_sale_state_count(self, obj, count_key):
+        apartment_sale_state_counts = self.context.get(
+            "apartment_sale_state_counts", {}
+        )
+        project_uuid = str(obj.project_uuid)
+        return apartment_sale_state_counts.get(project_uuid, {}).get(count_key, 0)
 
 
 class ProjectDocumentListSerializer(ProjectDocumentSerializerBase):

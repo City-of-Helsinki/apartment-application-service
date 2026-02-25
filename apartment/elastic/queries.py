@@ -1,4 +1,4 @@
-from typing import List
+from typing import Dict, Iterable, List
 
 from django.core.exceptions import ObjectDoesNotExist
 from elasticsearch_dsl import search
@@ -128,6 +128,67 @@ def get_projects():
     response = search[0:count].execute()
 
     return response
+
+
+def get_project_apartment_sale_state_counts(
+    project_uuids: Iterable[str] = None,
+) -> Dict[str, Dict[str, int]]:
+    search = ApartmentDocument.search()
+
+    if project_uuids is not None:
+        project_uuids = list(project_uuids)
+        if not project_uuids:
+            return {}
+
+        search = search.filter(
+            "terms",
+            **{resolve_es_field("project_uuid"): project_uuids},
+        )
+
+    projects_agg = search.aggs.bucket(
+        "projects",
+        "terms",
+        field=resolve_es_field("project_uuid"),
+        size=10000,
+    )
+    projects_agg.bucket(
+        "states",
+        "terms",
+        field=resolve_es_field("apartment_state_of_sale"),
+        size=20,
+    )
+
+    response = search[0:0].execute()
+
+    counts_by_project_uuid = {}
+
+    for project_bucket in response.aggregations.projects.buckets:
+        sold_count = 0
+        reserved_count = 0
+        free_count = 0
+
+        for state_bucket in project_bucket.states.buckets:
+            state = state_bucket.key
+            count = state_bucket.doc_count
+
+            if state == "SOLD":
+                sold_count += count
+            elif state in {"RESERVED", "RESERVED_HASO"}:
+                reserved_count += count
+            elif state in {
+                "FOR_SALE",
+                "OPEN_FOR_APPLICATIONS",
+                "FREE_FOR_RESERVATIONS",
+            }:
+                free_count += count
+
+        counts_by_project_uuid[project_bucket.key] = {
+            "sold_apartment_count": sold_count,
+            "reserved_apartment_count": reserved_count,
+            "free_apartment_count": free_count,
+        }
+
+    return counts_by_project_uuid
 
 
 def _filter_apartments_with_keywords(**kwargs) -> search.Search:

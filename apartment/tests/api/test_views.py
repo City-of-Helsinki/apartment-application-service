@@ -87,6 +87,89 @@ def test_project_list_get(sales_ui_salesperson_api_client):
 
 
 @pytest.mark.django_db
+def test_project_list_contains_apartment_sale_state_counts(
+    sales_ui_salesperson_api_client, elasticsearch
+):
+    apartments = []
+    try:
+        first_apartment = ApartmentDocumentFactory(
+            apartment_state_of_sale="SOLD",
+            project_apartment_count=4,
+        )
+        apartments.append(first_apartment)
+
+        apartments.append(
+            ApartmentDocumentFactory(
+                project_uuid=first_apartment.project_uuid,
+                apartment_state_of_sale="RESERVED",
+                project_apartment_count=4,
+            )
+        )
+        apartments.append(
+            ApartmentDocumentFactory(
+                project_uuid=first_apartment.project_uuid,
+                apartment_state_of_sale="RESERVED_HASO",
+                project_apartment_count=4,
+            )
+        )
+        apartments.append(
+            ApartmentDocumentFactory(
+                project_uuid=first_apartment.project_uuid,
+                apartment_state_of_sale="FOR_SALE",
+                project_apartment_count=4,
+            )
+        )
+
+        response = sales_ui_salesperson_api_client.get(
+            reverse("apartment:project-list"), format="json"
+        )
+
+        assert response.status_code == 200
+
+        project = next(
+            item
+            for item in response.data
+            if item["uuid"] == str(first_apartment.project_uuid)
+        )
+        assert project["apartment_count"] == 4
+        assert project["sold_apartment_count"] == 1
+        assert project["reserved_apartment_count"] == 2
+        assert project["free_apartment_count"] == 1
+    finally:
+        for apartment in apartments:
+            apartment.delete(refresh=True)
+
+
+@pytest.mark.django_db
+def test_project_list_ignores_unknown_apartment_sale_states(
+    sales_ui_salesperson_api_client, elasticsearch
+):
+    apartment = ApartmentDocumentFactory(
+        apartment_state_of_sale="UNKNOWN_STATE",
+        project_apartment_count=1,
+    )
+
+    try:
+        response = sales_ui_salesperson_api_client.get(
+            reverse("apartment:project-list"), format="json"
+        )
+
+        assert response.status_code == 200
+
+        project = next(
+            item
+            for item in response.data
+            if item["uuid"] == str(apartment.project_uuid)
+        )
+        assert project["apartment_count"] == 1
+        assert project["sold_apartment_count"] == 0
+        assert project["reserved_apartment_count"] == 0
+        assert project["free_apartment_count"] == 0
+    finally:
+        apartment.delete(refresh=True)
+
+
+@pytest.mark.django_db
 @pytest.mark.usefixtures("elastic_apartments")
 def test_selected_project_list_get_unauthorized(user_api_client):
     response = user_api_client.get(
