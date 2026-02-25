@@ -64,11 +64,13 @@ def test_ssn_suffix_validator_invalid_control_character():
 
 
 @pytest.mark.django_db
-def test_project_applicant_validator(elastic_project_with_5_apartments):
+def test_project_applicant_validator(elastic_hitas_project_with_5_apartments):
     """
     Applicants can apply only once to the project.
+    Uses Hitas project to avoid validator early-return for late Haso submissions
+    (project_ownership_type, application_end_time, can_apply_afterwards are fuzzy).
     """
-    project_uuid, apartments = elastic_project_with_5_apartments
+    project_uuid, apartments = elastic_hitas_project_with_5_apartments
     first_apartment_uuid = apartments[0].uuid
 
     application = ApplicationFactory()
@@ -77,17 +79,16 @@ def test_project_applicant_validator(elastic_project_with_5_apartments):
         apartment_uuid=first_apartment_uuid, application=application
     )
 
-    # Both applicant exists
-    applicant_list = list()
-    for applicant in applicants:
-        applicant_list.append((applicant.date_of_birth, applicant.ssn_suffix))
+    applicant_list = [
+        (applicant.date_of_birth, applicant.ssn_suffix)
+        for applicant in applicants
+    ]
     validator = ProjectApplicantValidator()
+
     with pytest.raises(PermissionDenied):
         validator(project_uuid, applicant_list)
 
-    # Single applicant exists
     with pytest.raises(PermissionDenied):
         validator(project_uuid, applicant_list[1])
 
-    # Applicant not exists
     validator(project_uuid, (date(2000, 2, 29), "TAAAA"))
