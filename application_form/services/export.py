@@ -570,17 +570,19 @@ class XlsxSalesReportExportService(XlsxExportService):
         project_uuids: List[str],
     ):
         self.state_events = state_events
-        self.project_uuids = project_uuids
+        self.project_uuids = project_uuids or []
 
         # cast uuidfield to charfield for comparison
-        self.sold_apartment_uuids = (
-            state_events.annotate(
+        sold_uuids_qs = (
+            state_events.filter(state=ApartmentReservationState.SOLD)
+            .annotate(
                 auuid=Cast("reservation__apartment_uuid", output_field=CharField())
             )
             .order_by()
             .distinct()
             .values_list("auuid", flat=True)
         )
+        self.sold_apartment_uuids = [str(u) for u in sold_uuids_qs]
 
         self.projects = self._get_projects()
         _logger.info(
@@ -951,8 +953,9 @@ class XlsxSalesReportExportService(XlsxExportService):
         cancellation_reason: ApartmentReservationCancellationReason,
     ):
         apartment_uuids = [ap.uuid for ap in apartments]
-        filtered_apartment_uuids = (
-            self.state_events.filter(
+        filtered_uuids = set(
+            str(u)
+            for u in self.state_events.filter(
                 reservation__apartment_uuid__in=apartment_uuids,
                 cancellation_reason=cancellation_reason.value,
             )
@@ -960,13 +963,11 @@ class XlsxSalesReportExportService(XlsxExportService):
                 auuid=Cast("reservation__apartment_uuid", output_field=CharField())
             )
             .values_list("auuid", flat=True)
-            .values_list("auuid", flat=True)
         )
-
         return [
             apartment
             for apartment in apartments
-            if apartment.uuid in filtered_apartment_uuids
+            if str(apartment.uuid) in filtered_uuids
         ]
 
     def _get_sold_apartments(
@@ -981,11 +982,12 @@ class XlsxSalesReportExportService(XlsxExportService):
         Returns:
             List[ApartmentDocument]: filtered ApartmentDocument list
         """
-
+        based_on_state = self._get_sold_apartments_based_on_state(apartments)
+        sold_uuids_set = set(self.sold_apartment_uuids)
         return [
             apartment
-            for apartment in self._get_sold_apartments_based_on_state(apartments)
-            if apartment.uuid in self.sold_apartment_uuids
+            for apartment in based_on_state
+            if str(apartment.uuid) in sold_uuids_set
         ]
 
     def _get_sold_apartments_based_on_state(
