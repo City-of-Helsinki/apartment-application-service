@@ -22,6 +22,7 @@ from apartment.elastic.queries import (
     get_apartment_uuids,
     get_apartments,
     get_project,
+    get_project_apartment_sale_state_counts,
     get_projects,
 )
 from apartment.models import ProjectExtraData
@@ -86,7 +87,19 @@ class ProjectAPIView(APIView):
             ProjectDocumentListSerializer if many else ProjectDocumentDetailSerializer
         )
 
-        serializer = serializer_class(project_data, many=many)
+        projects = project_data if many else [project_data]
+        project_uuids = [str(project.project_uuid) for project in projects]
+        apartment_sale_state_counts = get_project_apartment_sale_state_counts(
+            project_uuids
+        )
+
+        serializer = serializer_class(
+            project_data,
+            many=many,
+            context={
+                "apartment_sale_state_counts": apartment_sale_state_counts,
+            },
+        )
         return Response(serializer.data)
 
 
@@ -197,7 +210,16 @@ class SaleReportSelectedProjectsAPIView(APIView):
             if project.project_uuid in included_project_uuids
         ]
 
-        serializer = ProjectDocumentListSerializer(project_data, many=True)
+        apartment_sale_state_counts = get_project_apartment_sale_state_counts(
+            [str(project.project_uuid) for project in project_data]
+        )
+        serializer = ProjectDocumentListSerializer(
+            project_data,
+            many=True,
+            context={
+                "apartment_sale_state_counts": apartment_sale_state_counts,
+            },
+        )
         return Response(serializer.data)
 
 
