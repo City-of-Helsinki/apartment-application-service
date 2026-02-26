@@ -4,6 +4,11 @@ from uuid import UUID
 
 import pytest
 from django.conf import settings
+
+from apartment.elastic.documents import (
+    APARTMENT_DOCUMENT_FLOAT_FIELDS,
+    APARTMENT_DOCUMENT_LONG_FIELDS,
+)
 from django.core.management import call_command
 from django_etuovi.utils.testing import check_dataclass_typing
 
@@ -423,6 +428,56 @@ class TestOikotieMapper:
         )
 
         pass
+
+
+# Float and Long fields used by Oikotie mapper (subset of ApartmentDocument)
+OIKOTIE_NUMERIC_FIELDS = (
+    APARTMENT_DOCUMENT_FLOAT_FIELDS
+    | APARTMENT_DOCUMENT_LONG_FIELDS
+) - {"project_id"}  # project_id not used in Oikotie output
+
+
+@pytest.mark.usefixtures("validate_against_schema_true")
+class TestOikotieNumericFieldEdgeCases:
+    """
+    Edge case: API may return '' or None for Float/Long fields.
+    Guards against TypeError: must be real number, not str when creating XML.
+    """
+
+    @pytest.mark.parametrize("field_name", sorted(OIKOTIE_NUMERIC_FIELDS))
+    def test_map_oikotie_apartment_coerces_empty_string_and_none_for_numeric_field(
+        self, field_name
+    ):
+        """'' and None for any Float/Long field map without raising."""
+        empty_apartment = ApartmentMinimalFactory(**{field_name: ""})
+        none_apartment = ApartmentMinimalFactory(**{field_name: None})
+
+        mapped_empty = map_oikotie_apartment(empty_apartment)
+        mapped_none = map_oikotie_apartment(none_apartment)
+
+        # Both should map; no TypeError. Specific field assertions depend on
+        # where the value flows. Key: no "must be real number, not str" error.
+        assert mapped_empty is not None
+        assert mapped_none is not None
+
+    def test_create_xml_apartment_file_handles_all_numeric_fields_empty_or_none(self):
+        """create_xml_apartment_file succeeds when all Float/Long fields are '' or None."""
+        overrides_empty = {f: "" for f in OIKOTIE_NUMERIC_FIELDS}
+        overrides_none = {f: None for f in OIKOTIE_NUMERIC_FIELDS}
+
+        apartment_empty = ApartmentMinimalFactory(**overrides_empty)
+        apartment_none = ApartmentMinimalFactory(**overrides_none)
+
+        mapped_empty = map_oikotie_apartment(apartment_empty)
+        mapped_none = map_oikotie_apartment(apartment_none)
+
+        result = create_xml_apartment_file([mapped_empty, mapped_none])
+
+        assert result is not None
+        assert "APT" in result
+        assert os.path.exists(
+            os.path.join(settings.APARTMENT_DATA_TRANSFER_PATH, result)
+        )
 
 
 @pytest.mark.django_db

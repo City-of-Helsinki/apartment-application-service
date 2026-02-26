@@ -90,7 +90,7 @@ def create_xml_apartment_file(apartments: list) -> Optional[str]:
 
         return ap_file
     except Exception as e:
-        _logger.error("Apartment XML not created:", {str(e)})
+        _logger.error("Apartment XML not created: %s", str(e))
         return None
 
 
@@ -122,5 +122,5 @@ def create_xml_housing_company_file(housing_companies: list) -> Optional[str]:
 
         return hc_file
     except Exception as e:
-        _logger.error("Housing company XML not created:", {str(e)})
+        _logger.error("Housing company XML not created: %s", str(e))
         return None

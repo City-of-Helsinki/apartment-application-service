@@ -36,12 +36,6 @@ def _parse_hits(payload: Dict) -> Tuple[List[Dict], Optional[int]]:
     return sources, total
 
 
-def _strip_project_fields(source: Dict) -> Dict:
-    return {
-        key: value for key, value in source.items() if not key.startswith("project_")
-    }
-
-
 def _fetch_all(path: str, params: Dict) -> List[Dict]:
     client = _get_client()
     sources: List[Dict] = []
@@ -104,8 +98,6 @@ def _to_results(
 ) -> List[SearchResult]:
     results = []
     for source in sources:
-        if not include_project_fields:
-            source = _strip_project_fields(source)
         results.append(ApartmentDocument(**source))
 
     return results

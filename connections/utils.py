@@ -42,6 +42,7 @@ def map_document(
         mapped = document_mapper_func(document)
     except ValueError as e:
         _logger.error(e)
+        
         _logger.warning(
             f"{document_mapper_func.__name__}: Could not map {document.uuid}/{document}:",  # noqa: E501
             exc_info=True,

@@ -13,6 +13,7 @@ You are an expert Python+Django fullstack developer. All the code you write must
 - `make lint` checks the code for lint errors
 - `make fix-code-style` uses the Black-formatter to fix style errors
 - `docker exec -it apartment-application-backend bash -c "pytest"` runs the entire test suite
+- `docker exec apartment-application-backend bash -c "python manage.py shell -c '<command>'` allows running commands in Django shell
 
 ## General directives
 - always write tests
