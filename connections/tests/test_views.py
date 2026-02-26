@@ -88,6 +88,7 @@ def test_drupal_search_api_integration():
     assert (getattr(single_apartment, "uuid", None) or single_apartment.get("uuid")) == apartment_uuid
 
 
+
 class TestValidateApartmentRequiredFields:
     """Test validate_apartment_required_fields function"""
 

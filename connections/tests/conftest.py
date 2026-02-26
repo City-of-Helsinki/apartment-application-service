@@ -117,7 +117,7 @@ def validate_against_schema_true(monkeypatch):
     `connections.oikotie.services`. Not the smartest solution but it works for
     the current use cases.
     """
-    # raise Exception("validate_against_schema_true raised this")
+
     monkeypatch.setattr(
         connections.oikotie.services, "validate_against_schema", lambda x, y: True
     )
