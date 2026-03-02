@@ -66,7 +66,6 @@ class OikotieHousingCompanyRequiredFields(Enum):
 
 class OikotieApartmentRequiredFields(Enum):
     living_area = "living_area"
-    financing_fee = "financing_fee"
     maintenance_fee = "maintenance_fee"
     water_fee = "water_fee"
     parking_fee = "parking_fee"
@@ -76,13 +75,13 @@ class OikotieApartmentRequiredFields(Enum):
 class OikotieApartmentRequiredFieldsHITAS(Enum):
     """Oikotie required fields for HITAS apartments"""
 
+    financing_fee = "financing_fee"
     debt_free_sales_price = "debt_free_sales_price"
     sales_price = "sales_price"
 
 
 class OikotieApartmentRequiredFieldsHASO(Enum):
     """Oikotie required fields for HASO apartments"""
-
     right_of_occupancy_payment = "right_of_occupancy_payment"
     release_payment = "release_payment"
 
