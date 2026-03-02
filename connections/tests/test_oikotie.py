@@ -162,6 +162,90 @@ class TestOikotieMapper:
         assert apartment_pictures[6].url == "https://test.example.com/project-3.jpg"
         assert apartment_pictures[7].url == "https://test.example.com/floorplan.png"
 
+    def test_elastic_to_oikotie__pictures__all_missing_returns_empty(self):
+        """When all image fields are missing, pictures list is empty."""
+        elastic_apartment = ApartmentDocumentFactory(
+            project_main_image_url=None,
+            project_image_urls=[],
+            image_urls=[],
+            floor_plan_image=None,
+        )
+        mapped_apartment = map_oikotie_apartment(elastic_apartment)
+        assert len(mapped_apartment.pictures) == 0
+
+    def test_elastic_to_oikotie__pictures__only_main_image(self):
+        """When only project_main_image_url is set, it is the sole picture."""
+        elastic_apartment = ApartmentDocumentFactory(
+            project_main_image_url="https://test.example.com/main.jpg",
+            project_image_urls=[],
+            image_urls=[],
+            floor_plan_image=None,
+        )
+        mapped_apartment = map_oikotie_apartment(elastic_apartment)
+        assert len(mapped_apartment.pictures) == 1
+        assert mapped_apartment.pictures[0].url == "https://test.example.com/main.jpg"
+        assert mapped_apartment.pictures[0].is_floor_plan is False
+
+    def test_elastic_to_oikotie__pictures__only_floor_plan(self):
+        """When only floor_plan_image is set, it is the sole picture."""
+        elastic_apartment = ApartmentDocumentFactory(
+            project_main_image_url=None,
+            project_image_urls=[],
+            image_urls=[],
+            floor_plan_image="https://test.example.com/floorplan.png",
+        )
+        mapped_apartment = map_oikotie_apartment(elastic_apartment)
+        assert len(mapped_apartment.pictures) == 1
+        assert mapped_apartment.pictures[0].url == "https://test.example.com/floorplan.png"
+        assert mapped_apartment.pictures[0].is_floor_plan is True
+
+    def test_elastic_to_oikotie__pictures__only_image_urls_no_project_images(self):
+        """When only image_urls is set, apartment images are mapped without main/project."""
+        elastic_apartment = ApartmentDocumentFactory(
+            project_main_image_url=None,
+            project_image_urls=[],
+            image_urls=[
+                "https://test.example.com/apartment-1.jpg",
+                "https://test.example.com/apartment-2.jpg",
+            ],
+            floor_plan_image=None,
+        )
+        mapped_apartment = map_oikotie_apartment(elastic_apartment)
+        assert len(mapped_apartment.pictures) == 2
+        assert mapped_apartment.pictures[0].url == "https://test.example.com/apartment-1.jpg"
+        assert mapped_apartment.pictures[1].url == "https://test.example.com/apartment-2.jpg"
+
+    def test_elastic_to_oikotie__pictures__only_project_image_urls_no_main(self):
+        """When only project_image_urls is set, project images are mapped without main."""
+        elastic_apartment = ApartmentDocumentFactory(
+            project_main_image_url=None,
+            project_image_urls=[
+                "https://test.example.com/project-1.jpg",
+                "https://test.example.com/project-2.jpg",
+            ],
+            image_urls=[],
+            floor_plan_image=None,
+        )
+        mapped_apartment = map_oikotie_apartment(elastic_apartment)
+        assert len(mapped_apartment.pictures) == 2
+        assert mapped_apartment.pictures[0].url == "https://test.example.com/project-1.jpg"
+        assert mapped_apartment.pictures[1].url == "https://test.example.com/project-2.jpg"
+
+    def test_elastic_to_oikotie__pictures__main_and_floor_plan_only(self):
+        """Main image and floor plan only, no apartment or project gallery."""
+        elastic_apartment = ApartmentDocumentFactory(
+            project_main_image_url="https://test.example.com/main.jpg",
+            project_image_urls=[],
+            image_urls=[],
+            floor_plan_image="https://test.example.com/floorplan.png",
+        )
+        mapped_apartment = map_oikotie_apartment(elastic_apartment)
+        assert len(mapped_apartment.pictures) == 2
+        assert mapped_apartment.pictures[0].url == "https://test.example.com/main.jpg"
+        assert mapped_apartment.pictures[0].is_floor_plan is False
+        assert mapped_apartment.pictures[1].url == "https://test.example.com/floorplan.png"
+        assert mapped_apartment.pictures[1].is_floor_plan is True
+
     def test_elastic_to_oikotie__real_estate_agent__mapping_types(self):
         elastic_apartment = ApartmentDocumentFactory()
         oikotie_real_estate_agent = map_real_estate_agent(elastic_apartment)

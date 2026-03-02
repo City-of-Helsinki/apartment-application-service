@@ -99,6 +99,51 @@ class TestEtuoviMapper:
         raise Exception("Missing project_building_type should have thrown a ValueError")
 
 
+class TestEtuoviImagesInXml:
+    """
+    Test that all image URLs (project_image_urls, image_urls, floor_plan_image) are
+    present in the generated Etuovi XML.
+    """
+
+    def test_all_images_present_in_etuovi_xml(self):
+        project_image_urls = [
+            "https://test.example.com/project-1.jpg",
+            "https://test.example.com/project-2.jpg",
+            "https://test.example.com/project-3.jpg",
+        ]
+        image_urls = [
+            "https://test.example.com/apartment-1.jpg",
+            "https://test.example.com/apartment-2.jpg",
+            "https://test.example.com/apartment-3.jpg",
+        ]
+        floor_plan_image = "https://test.example.com/floorplan.jpg"
+
+        elastic_apartment = ApartmentMinimalFactory(
+            project_main_image_url=project_image_urls[0],
+            project_image_urls=project_image_urls,
+            image_urls=image_urls,
+            floor_plan_image=floor_plan_image,
+        )
+
+        item = map_apartment_to_item(elastic_apartment)
+        file_name = create_xml([item])
+
+        assert file_name is not None
+
+        with open(
+            os.path.join(settings.APARTMENT_DATA_TRANSFER_PATH, file_name),
+            "r",
+            encoding="utf-8",
+        ) as f:
+            xml_content = f.read()
+
+        all_expected_urls = (
+            project_image_urls + image_urls + [floor_plan_image]
+        )
+        for url in all_expected_urls:
+            assert url in xml_content, f"URL {url} not found in Etuovi XML"
+
+
 @pytest.mark.usefixtures("client")
 @pytest.mark.django_db
 class TestApartmentFetchingFromElasticAndMapping:

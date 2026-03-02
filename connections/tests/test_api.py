@@ -27,7 +27,10 @@ from users.tests.conftest import (  # noqa: F401, F811
 @pytest.mark.django_db
 class TestConnectionsApis:
     @pytest.mark.usefixtures(
-        "not_sending_oikotie_ftp", "not_sending_etuovi_ftp", "elastic_apartments"
+        "not_sending_oikotie_ftp",
+        "not_sending_etuovi_ftp",
+        "elastic_apartments",
+        "validate_against_schema_true",
     )
     def test_get_mapped_apartments(
         self,
@@ -45,7 +48,10 @@ class TestConnectionsApis:
         assert response.data == expected
 
     @pytest.mark.usefixtures(
-        "not_sending_oikotie_ftp", "not_sending_etuovi_ftp", "elastic_apartments"
+        "not_sending_oikotie_ftp",
+        "not_sending_etuovi_ftp",
+        "elastic_apartments",
+        "validate_against_schema_true",
     )
     def test_get_new_published_apartments(
         self,
@@ -79,7 +85,10 @@ class TestConnectionsApis:
         assert len(response_new.data) - len(response.data) == 3
 
     @pytest.mark.usefixtures(
-        "not_sending_oikotie_ftp", "not_sending_etuovi_ftp", "elastic_apartments"
+        "not_sending_oikotie_ftp",
+        "not_sending_etuovi_ftp",
+        "elastic_apartments",
+        "validate_against_schema_true",
     )
     def test_apartments_for_sale_need_FOR_SALE_flag(
         self,
@@ -284,7 +293,11 @@ class TestConnectionsApis:
 
         apartment.delete(refresh=True)
 
-    @pytest.mark.usefixtures("elastic_apartments", "not_sending_oikotie_ftp")
+    @pytest.mark.usefixtures(
+        "elastic_apartments",
+        "not_sending_oikotie_ftp",
+        "validate_against_schema_true",
+    )
     def test_integration_status_oikotie_with_all_required_fields(
         self, drupal_server_api_client  # noqa: F811
     ):
