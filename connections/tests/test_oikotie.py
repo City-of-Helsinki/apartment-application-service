@@ -607,6 +607,8 @@ class TestOikotieImagesInXml:
 
         for url in expected_in_housing:
             assert url in hc_xml, f"URL {url} not found in housing company XML"
+
+
 @pytest.mark.django_db
 @pytest.mark.usefixtures("client")
 class TestApartmentFetchingFromElasticAndMapping:
