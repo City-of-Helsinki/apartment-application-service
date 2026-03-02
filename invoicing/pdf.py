@@ -110,7 +110,7 @@ def get_invoice_pdf_data_from_installment(
 
 
 def create_invoice_pdf_from_installments(
-    installments: Union[QuerySet, List[ApartmentInstallment]]
+    installments: Union[QuerySet, List[ApartmentInstallment]],
 ):
 
     invoice_pdf_data_list = []

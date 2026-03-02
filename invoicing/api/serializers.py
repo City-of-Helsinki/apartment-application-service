@@ -24,7 +24,7 @@ from ..utils import remove_exponent
 
 
 def is_installment_editable(
-    installment: Union[ProjectInstallmentTemplate, ApartmentInstallment]
+    installment: Union[ProjectInstallmentTemplate, ApartmentInstallment],
 ) -> bool:
     if isinstance(installment, ApartmentInstallment):
         return not bool(
