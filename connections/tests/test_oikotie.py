@@ -133,6 +133,35 @@ class TestOikotieMapper:
         oikotie_pictures = map_apartment_pictures(elastic_apartment)
         check_dataclass_typing(oikotie_pictures[0])
 
+    def test_elastic_to_oikotie__project_pictures_all_mapped(self):
+        elastic_apartment = ApartmentDocumentFactory(
+            project_image_urls=[
+                "https://test.example.com/project-1.jpg",
+                "https://test.example.com/project-2.jpg",
+                "https://test.example.com/project-3.jpg",
+            ],
+            image_urls=[
+                "https://test.example.com/apartment-1.jpg",
+                "https://test.example.com/apartment-2.jpg",
+                "https://test.example.com/apartment-3.jpg",
+            ],
+            floor_plan_image="https://test.example.com/floorplan.png",
+            project_main_image_url="https://test.example.com/project-main.jpg",
+        )
+        mapped_apartment = map_oikotie_apartment(elastic_apartment)
+        apartment_pictures = mapped_apartment.pictures
+
+        assert len(mapped_apartment.pictures) == 8
+
+        assert apartment_pictures[0].url == "https://test.example.com/project-main.jpg"
+        assert apartment_pictures[1].url == "https://test.example.com/apartment-1.jpg"
+        assert apartment_pictures[2].url == "https://test.example.com/apartment-2.jpg"
+        assert apartment_pictures[3].url == "https://test.example.com/apartment-3.jpg"
+        assert apartment_pictures[4].url == "https://test.example.com/project-1.jpg"
+        assert apartment_pictures[5].url == "https://test.example.com/project-2.jpg"
+        assert apartment_pictures[6].url == "https://test.example.com/project-3.jpg"
+        assert apartment_pictures[7].url == "https://test.example.com/floorplan.png"
+
     def test_elastic_to_oikotie__real_estate_agent__mapping_types(self):
         elastic_apartment = ApartmentDocumentFactory()
         oikotie_real_estate_agent = map_real_estate_agent(elastic_apartment)
@@ -425,6 +454,57 @@ class TestOikotieMapper:
         pass
 
 
+class TestOikotieImagesInXml:
+    """
+    Test that all image URLs (project_image_urls, image_urls, floor_plan_image) are
+    present in the generated Oikotie XML files.
+    """
+
+    @pytest.mark.usefixtures("validate_against_schema_true")
+    def test_all_images_present_in_oikotie_xml(self):
+        project_image_urls = [
+            "https://test.example.com/project-1.jpg",
+            "https://test.example.com/project-2.jpg",
+            "https://test.example.com/project-3.jpg",
+        ]
+        image_urls = [
+            "https://test.example.com/apartment-1.jpg",
+            "https://test.example.com/apartment-2.jpg",
+            "https://test.example.com/apartment-3.jpg",
+        ]
+        floor_plan_image = "https://test.example.com/floorplan.jpg"
+
+        elastic_apartment = ApartmentMinimalFactory(
+            project_main_image_url=project_image_urls[0],
+            project_image_urls=project_image_urls,
+            image_urls=image_urls,
+            floor_plan_image=floor_plan_image,
+        )
+
+        mapped_apartment = map_oikotie_apartment(elastic_apartment)
+        mapped_housing = map_oikotie_housing_company(elastic_apartment)
+
+        ap_file = create_xml_apartment_file([mapped_apartment])
+        hc_file = create_xml_housing_company_file([mapped_housing])
+
+        assert ap_file is not None
+        assert hc_file is not None
+
+        base_path = settings.APARTMENT_DATA_TRANSFER_PATH
+
+        with open(os.path.join(base_path, ap_file), "r", encoding="utf-8") as f:
+            ap_xml = f.read()
+        with open(os.path.join(base_path, hc_file), "r", encoding="utf-8") as f:
+            hc_xml = f.read()
+
+        expected_in_apartment = project_image_urls + image_urls + [floor_plan_image]
+        expected_in_housing = project_image_urls
+
+        for url in expected_in_apartment:
+            assert url in ap_xml, f"URL {url} not found in apartment XML"
+
+        for url in expected_in_housing:
+            assert url in hc_xml, f"URL {url} not found in housing company XML"
 @pytest.mark.django_db
 @pytest.mark.usefixtures("client")
 class TestApartmentFetchingFromElasticAndMapping:

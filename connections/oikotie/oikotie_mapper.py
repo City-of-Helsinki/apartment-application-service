@@ -120,8 +120,11 @@ def map_apartment_pictures(
             )
         )
 
-    image_urls = getattr(elastic_apartment, "image_urls", None)
-    if image_urls:
+    image_urls = [
+        *getattr(elastic_apartment, "image_urls", []),
+        *getattr(elastic_apartment, "project_image_urls", [])
+    ]
+    if len(image_urls) > 0:
         for idx, picture_url in enumerate(image_urls):
 
             pictures.append(
