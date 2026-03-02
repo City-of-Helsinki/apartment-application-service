@@ -137,9 +137,7 @@ class TestEtuoviImagesInXml:
         ) as f:
             xml_content = f.read()
 
-        all_expected_urls = (
-            project_image_urls + image_urls + [floor_plan_image]
-        )
+        all_expected_urls = project_image_urls + image_urls + [floor_plan_image]
         for url in all_expected_urls:
             assert url in xml_content, f"URL {url} not found in Etuovi XML"
 

@@ -121,9 +121,7 @@ def map_mode_of_habitation(
 
 
 def map_city(elastic_apartment: ElasticApartment) -> City:
-    project_city = ensure_str(
-        getattr(elastic_apartment, "project_city", None)
-    )
+    project_city = ensure_str(getattr(elastic_apartment, "project_city", None))
     if project_city in CITY_IDS.keys():
         return City(id=CITY_IDS[project_city], value=project_city)
     else:
@@ -131,9 +129,7 @@ def map_city(elastic_apartment: ElasticApartment) -> City:
 
 
 def map_energy_class(elastic_apartment: ElasticApartment) -> str:
-    energy_class = ensure_str(
-        getattr(elastic_apartment, "project_energy_class", None)
-    )
+    energy_class = ensure_str(getattr(elastic_apartment, "project_energy_class", None))
     if energy_class:
         return energy_class
     return "Lisätiedot kotisivulta"
@@ -181,9 +177,7 @@ def map_apartment_pictures(
                         url=url,
                     )
                 )
-    floor_plan_image = ensure_str(
-        getattr(elastic_apartment, "floor_plan_image", None)
-    )
+    floor_plan_image = ensure_str(getattr(elastic_apartment, "floor_plan_image", None))
     if floor_plan_image:
         pictures.append(
             ApartmentPicture(
@@ -482,9 +476,7 @@ def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:
             getattr(elastic_apartment, "project_postal_code", None)
         ),
         "post_office": ensure_str(getattr(elastic_apartment, "project_city", None)),
-        "region": ensure_str(
-            getattr(elastic_apartment, "project_district", None)
-        ),
+        "region": ensure_str(getattr(elastic_apartment, "project_district", None)),
         "latitude": getattr(elastic_apartment, "project_coordinate_lat", None),
         "longitude": getattr(elastic_apartment, "project_coordinate_lon", None),
         "description": form_description(elastic_apartment),
@@ -501,9 +493,7 @@ def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:
             getattr(elastic_apartment, "apartment_structure", None)
         ),
         "balcony": map_balcony(elastic_apartment),
-        "view": ensure_str(
-            getattr(elastic_apartment, "view_description", None)
-        ),
+        "view": ensure_str(getattr(elastic_apartment, "view_description", None)),
         "living_area": map_living_area(elastic_apartment),
         "real_estate_id": ensure_str(
             getattr(elastic_apartment, "project_realty_id", None)
@@ -526,9 +516,7 @@ def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:
         "lift": map_lift(elastic_apartment),
         "year_of_building": map_year_of_building(elastic_apartment),
         "heating": (
-            ", ".join(str(x) for x in heating_options)
-            if heating_options
-            else None
+            ", ".join(str(x) for x in heating_options) if heating_options else None
         ),
         "general_condition": map_general_condition(elastic_apartment),
         "site": map_site(elastic_apartment),
@@ -539,9 +527,7 @@ def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:
         "water_fee_explanation": ensure_str(
             getattr(elastic_apartment, "water_fee_explanation", None)
         ),
-        "other_fees": ensure_str(
-            getattr(elastic_apartment, "other_fees", None)
-        ),
+        "other_fees": ensure_str(getattr(elastic_apartment, "other_fees", None)),
         "car_parking_charge": map_car_parking_charge(elastic_apartment),
         "building_material": (
             ", ".join(str(x) for x in construction_materials)
@@ -589,9 +575,7 @@ def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:
         "time_of_completion": ensure_date(
             getattr(elastic_apartment, "project_completion_date", None)
         ),
-        "more_info_url": ensure_str(
-            getattr(elastic_apartment, "url", None)
-        ),
+        "more_info_url": ensure_str(getattr(elastic_apartment, "url", None)),
     }
 
     return Apartment(**apartment_field_dict)
@@ -618,12 +602,8 @@ def map_apartment(elastic_apartment: ElasticApartment) -> HousingCompanyApartmen
 
 
 def map_address(elastic_apartment: ElasticApartment) -> Address:
-    street = ensure_str(
-        getattr(elastic_apartment, "project_street_address", None)
-    )
-    postal_code = ensure_str(
-        getattr(elastic_apartment, "project_postal_code", None)
-    )
+    street = ensure_str(getattr(elastic_apartment, "project_street_address", None))
+    postal_code = ensure_str(getattr(elastic_apartment, "project_postal_code", None))
     city = ensure_str(getattr(elastic_apartment, "project_city", None))
     region = ensure_str(getattr(elastic_apartment, "project_district", None))
 
@@ -692,8 +672,7 @@ def map_project_housing_company(elastic_apartment: ElasticApartment) -> str:
         return project_housing_company
     else:
         raise ValueError(
-            _("could not map the project_housing_company %s")
-            % project_housing_company
+            _("could not map the project_housing_company %s") % project_housing_company
         )
 
 

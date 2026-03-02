@@ -74,7 +74,7 @@ def decrypt_and_update_generic(model: Model, fields, reverse=False):
 
 
 def decrypt_factory(
-    ops: Iterable[Tuple[str, str, Iterable[str]]]
+    ops: Iterable[Tuple[str, str, Iterable[str]]],
 ) -> Tuple[Callable, Callable]:
     """
     Utility function for generating the forward and reverse functions for

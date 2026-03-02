@@ -82,6 +82,7 @@ class OikotieApartmentRequiredFieldsHITAS(Enum):
 
 class OikotieApartmentRequiredFieldsHASO(Enum):
     """Oikotie required fields for HASO apartments"""
+
     right_of_occupancy_payment = "right_of_occupancy_payment"
     release_payment = "release_payment"
 
