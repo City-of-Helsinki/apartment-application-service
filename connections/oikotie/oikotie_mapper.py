@@ -3,7 +3,6 @@ from datetime import date, timedelta
 from typing import List, Optional, Union
 
 from django.conf import settings
-from elasticsearch_dsl.utils import AttrList
 from django.utils.translation import gettext_lazy as _
 from django_oikotie.enums import ApartmentType, NewDevelopmentStatusChoices
 from django_oikotie.xml_models.apartment import (
@@ -39,6 +38,7 @@ from django_oikotie.xml_models.housing_company import (
 from django_oikotie.xml_models.housing_company import Coordinates, HousingCompany
 from django_oikotie.xml_models.housing_company import Picture as HousingCompanyPicture
 from django_oikotie.xml_models.housing_company import RealEstateAgent
+from elasticsearch_dsl.utils import AttrList
 
 from apartment.elastic.documents import ApartmentDocument as ElasticApartment
 from apartment.enums import OwnershipType
