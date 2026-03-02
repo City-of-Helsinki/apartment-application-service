@@ -96,9 +96,9 @@ def map_apartment_type(elastic_apartment: ElasticApartment) -> ApartmentType:
     project_building_type = ensure_str(
         getattr(elastic_apartment, "project_building_type", None)
     )
-    if not project_building_type:
+    if project_building_type == "":
         project_building_type = "BLOCK_OF_FLATS"
-    if project_building_type in APARTMENT_TYPE_MAPPING.keys():
+    if project_building_type and project_building_type in APARTMENT_TYPE_MAPPING.keys():
         return APARTMENT_TYPE_MAPPING[project_building_type]
     else:
         raise ValueError(
