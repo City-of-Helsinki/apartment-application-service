@@ -5,7 +5,9 @@ Unit tests for connections service helper functions
 from unittest.mock import Mock, patch
 
 import pytest  # noqa: F401
+import requests
 import time
+from django.conf import settings
 from conftest import integration_test
 
 from apartment.elastic.queries import (
@@ -50,6 +52,7 @@ def test_fetch_all_adaptive_pagination():
         assert isinstance(item, dict)
         assert "uuid" in item or "nid" in item
 
+
 @integration_test
 def test_drupal_search_api_integration():
     """
@@ -59,7 +62,6 @@ def test_drupal_search_api_integration():
     import apartment.elastic.queries as queries
 
     queries._client = None
-
 
     projects = get_projects(t=str(int(time.time())))
     assert isinstance(projects, list)
@@ -72,7 +74,10 @@ def test_drupal_search_api_integration():
 
     single_project = get_project(project_uuid)
     assert single_project is not None
-    assert (getattr(single_project, "project_uuid", None) or single_project.get("project_uuid")) == project_uuid
+    assert (
+        getattr(single_project, "project_uuid", None)
+        or single_project.get("project_uuid")
+    ) == project_uuid
 
     apartments = get_apartments(limit=1, t=str(int(time.time())))
     assert isinstance(apartments, list)
@@ -85,8 +90,52 @@ def test_drupal_search_api_integration():
 
     single_apartment = get_apartment(apartment_uuid)
     assert single_apartment is not None
-    assert (getattr(single_apartment, "uuid", None) or single_apartment.get("uuid")) == apartment_uuid
+    assert (
+        getattr(single_apartment, "uuid", None) or single_apartment.get("uuid")
+    ) == apartment_uuid
 
+
+@integration_test
+def test_drupal_rest_api_oauth2_bruteforce_protection():
+    """
+    Five faulty OAuth2 token attempts to Drupal REST API should trigger
+    bruteforce protection (429 Too Many Requests on 6th attempt).
+    """
+    import apartment.elastic.queries as queries
+
+    queries._client = None
+
+    base_url = settings.DRUPAL_SEARCH_API_BASE_URL.rstrip("/")
+    url = f"{base_url}/fi/json/projects"
+    invalid_tokens = [
+        "invalid-token-1",
+        "invalid-token-2",
+        "invalid-token-3",
+        "invalid-token-4",
+        "invalid-token-5",
+    ]
+
+    for i, token in enumerate(invalid_tokens):
+        response = requests.get(
+            url,
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=10,
+            verify=settings.DRUPAL_SEARCH_API_VERIFY_SSL,
+        )
+        assert (
+            response.status_code == 401
+        ), f"Attempt {i + 1}: Expected 401, got {response.status_code}"
+
+    response = requests.get(
+        url,
+        headers={"Authorization": "Bearer invalid-token-6"},
+        timeout=10,
+        verify=settings.DRUPAL_SEARCH_API_VERIFY_SSL,
+    )
+    assert response.status_code == 429, (
+        f"Drupal REST API should block bruteforce after 5 failed attempts. "
+        f"Got {response.status_code} instead of 429."
+    )
 
 
 class TestValidateApartmentRequiredFields:
