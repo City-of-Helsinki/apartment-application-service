@@ -1,3 +1,4 @@
+from django.db import connection
 from django.http import HttpResponse
 from django.urls import include, path
 from django.views.decorators.http import require_http_methods
@@ -62,7 +63,12 @@ urlpatterns = [
 # Kubernetes liveness & readiness probes
 #
 @require_http_methods(["GET"])
-def healthz(*args, **kwargs):
+def health(*args, **kwargs):
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+    except Exception:
+        return HttpResponse(status=500)
     return HttpResponse(status=200)
 
 
@@ -71,4 +77,4 @@ def readiness(*args, **kwargs):
     return HttpResponse(status=200)
 
 
-urlpatterns += [path("healthz", healthz), path("readiness", readiness)]
+urlpatterns += [path("health", health), path("readiness", readiness)]
