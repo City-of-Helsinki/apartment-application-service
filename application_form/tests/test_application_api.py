@@ -677,6 +677,41 @@ def test_get_apartment_states_filter(
 
 
 @pytest.mark.django_db
+def test_get_apartment_states_returns_sold_when_any_reservation_sold(
+    drupal_server_api_client,
+    elastic_haso_project_with_5_apartments,
+):
+    """
+    Regression test for ASU-1832: Apartment with multiple reservations must return
+    SOLD when any reservation is SOLD, even if the most recent event is from a
+    different reservation (e.g. OFFERED).
+    """
+    haso_project_uuid, haso_apartments = elastic_haso_project_with_5_apartments
+    apartment = haso_apartments[0]
+
+    res1 = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        state=ApartmentReservationState.RESERVED,
+        list_position=1,
+    )
+    res2 = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        state=ApartmentReservationState.RESERVED,
+        list_position=2,
+    )
+    LotteryEventFactory.create(apartment_uuid=apartment.uuid)
+
+    res1.set_state(ApartmentReservationState.SOLD)
+    res2.set_state(ApartmentReservationState.OFFERED)
+
+    response = drupal_server_api_client.get(
+        reverse("application_form:apartment_states")
+    )
+    assert response.status_code == 200
+    assert response.data[str(apartment.uuid)] == ApartmentStateOfSale.SOLD
+
+
+@pytest.mark.django_db
 def test_late_submit_application_post_existing_application_gets_canceled(
     api_client,
     elasticsearch,
