@@ -1,4 +1,5 @@
 from django.http import HttpResponse
+from django.db import connections
 from django.urls import include, path
 from django.views.decorators.http import require_http_methods
 from drf_spectacular.views import (
@@ -63,6 +64,11 @@ urlpatterns = [
 #
 @require_http_methods(["GET"])
 def healthz(*args, **kwargs):
+    try:
+        with connections["default"].cursor() as cursor:
+            cursor.execute("SELECT 1")
+    except Exception:
+        return HttpResponse(status=500)
     return HttpResponse(status=200)
 
 
