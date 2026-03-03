@@ -1,3 +1,4 @@
+from django.db import connection
 from django.http import HttpResponse
 from django.urls import include, path
 from django.views.decorators.http import require_http_methods
@@ -63,6 +64,11 @@ urlpatterns = [
 #
 @require_http_methods(["GET"])
 def healthz(*args, **kwargs):
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+    except Exception:
+        return HttpResponse(status=500)
     return HttpResponse(status=200)
 
 
