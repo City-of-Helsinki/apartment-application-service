@@ -10,6 +10,60 @@ from application_form.enums import ApartmentReservationState
 from application_form.models import ApartmentReservation
 
 
+def _project_sale_state_counter_defaults() -> Dict[str, int]:
+    return {
+        "sold_apartment_count": 0,
+        "reserved_apartment_count": 0,
+        "free_apartment_count": 0,
+        "review_apartment_count": 0,
+        "reservation_agreement_apartment_count": 0,
+        "offered_apartment_count": 0,
+        "offer_accepted_apartment_count": 0,
+        "offer_expired_apartment_count": 0,
+        "accepted_by_municipality_apartment_count": 0,
+    }
+
+
+def _bucket_for_reservation_states(reservation_states: List) -> str:
+    if len(reservation_states) == 0:
+        return "free_apartment_count"
+
+    if len(reservation_states) > 1:
+        return "review_apartment_count"
+
+    reservation_state = reservation_states[0]
+    reservation_state_map = {
+        ApartmentReservationState.SOLD: "sold_apartment_count",
+        ApartmentReservationState.SOLD.value: "sold_apartment_count",
+        ApartmentReservationState.REVIEW: "review_apartment_count",
+        ApartmentReservationState.REVIEW.value: "review_apartment_count",
+        ApartmentReservationState.RESERVED: "reserved_apartment_count",
+        ApartmentReservationState.RESERVED.value: "reserved_apartment_count",
+        ApartmentReservationState.RESERVATION_AGREEMENT: (
+            "reservation_agreement_apartment_count"
+        ),
+        ApartmentReservationState.RESERVATION_AGREEMENT.value: (
+            "reservation_agreement_apartment_count"
+        ),
+        ApartmentReservationState.OFFERED: "offered_apartment_count",
+        ApartmentReservationState.OFFERED.value: "offered_apartment_count",
+        ApartmentReservationState.OFFER_ACCEPTED: "offer_accepted_apartment_count",
+        ApartmentReservationState.OFFER_ACCEPTED.value: (
+            "offer_accepted_apartment_count"
+        ),
+        ApartmentReservationState.OFFER_EXPIRED: "offer_expired_apartment_count",
+        ApartmentReservationState.OFFER_EXPIRED.value: "offer_expired_apartment_count",
+        ApartmentReservationState.ACCEPTED_BY_MUNICIPALITY: (
+            "accepted_by_municipality_apartment_count"
+        ),
+        ApartmentReservationState.ACCEPTED_BY_MUNICIPALITY.value: (
+            "accepted_by_municipality_apartment_count"
+        ),
+    }
+
+    return reservation_state_map.get(reservation_state, "review_apartment_count")
+
+
 def apartment_query(**kwargs):
     search = _filter_apartments_with_keywords(**kwargs)
     count = search.count()
@@ -175,114 +229,20 @@ def get_project_apartment_sale_state_counts(
 
     counts_by_project_uuid = {}
     for project_uuid, project_apartment_uuids in apartment_uuids_by_project.items():
-        sold_count = 0
-        reserved_count = 0
-        free_count = 0
-        review_count = 0
-        reservation_agreement_count = 0
-        offered_count = 0
-        offer_accepted_count = 0
-        offer_expired_count = 0
-        accepted_by_municipality_count = 0
+        project_counts = _project_sale_state_counter_defaults()
 
         for apartment_uuid in project_apartment_uuids:
             reservation_states = apartment_reservation_states.get(apartment_uuid, [])
+            bucket = _bucket_for_reservation_states(reservation_states)
+            project_counts[bucket] += 1
 
-            if len(reservation_states) == 0:
-                free_count += 1
-                continue
-
-            if len(reservation_states) == 1 and reservation_states[0] in {
-                ApartmentReservationState.SOLD,
-                ApartmentReservationState.SOLD.value,
-            }:
-                sold_count += 1
-                continue
-
-            if len(reservation_states) > 1:
-                review_count += 1
-                continue
-
-            if reservation_states[0] in {
-                ApartmentReservationState.REVIEW,
-                ApartmentReservationState.REVIEW.value,
-            }:
-                review_count += 1
-                continue
-
-            if reservation_states[0] in {
-                ApartmentReservationState.RESERVED,
-                ApartmentReservationState.RESERVED.value,
-            }:
-                reserved_count += 1
-                continue
-
-            if reservation_states[0] in {
-                ApartmentReservationState.RESERVATION_AGREEMENT,
-                ApartmentReservationState.RESERVATION_AGREEMENT.value,
-            }:
-                reservation_agreement_count += 1
-                continue
-
-            if reservation_states[0] in {
-                ApartmentReservationState.OFFERED,
-                ApartmentReservationState.OFFERED.value,
-            }:
-                offered_count += 1
-                continue
-
-            if reservation_states[0] in {
-                ApartmentReservationState.OFFER_ACCEPTED,
-                ApartmentReservationState.OFFER_ACCEPTED.value,
-            }:
-                offer_accepted_count += 1
-                continue
-
-            if reservation_states[0] in {
-                ApartmentReservationState.OFFER_EXPIRED,
-                ApartmentReservationState.OFFER_EXPIRED.value,
-            }:
-                offer_expired_count += 1
-                continue
-
-            if reservation_states[0] in {
-                ApartmentReservationState.ACCEPTED_BY_MUNICIPALITY,
-                ApartmentReservationState.ACCEPTED_BY_MUNICIPALITY.value,
-            }:
-                accepted_by_municipality_count += 1
-                continue
-
-            review_count += 1
-
-        counts_by_project_uuid[project_uuid] = {
-            "sold_apartment_count": sold_count,
-            "reserved_apartment_count": reserved_count,
-            "free_apartment_count": free_count,
-            "review_apartment_count": review_count,
-            "reservation_agreement_apartment_count": reservation_agreement_count,
-            "offered_apartment_count": offered_count,
-            "offer_accepted_apartment_count": offer_accepted_count,
-            "offer_expired_apartment_count": offer_expired_count,
-            "accepted_by_municipality_apartment_count": (
-                accepted_by_municipality_count
-            ),
-        }
+        counts_by_project_uuid[project_uuid] = project_counts
 
     if project_uuid_list is not None:
         for project_uuid in project_uuid_list:
             counts_by_project_uuid.setdefault(
                 str(project_uuid),
-                {
-                    "sold_apartment_count": 0,
-                    "reserved_apartment_count": 0,
-                    "free_apartment_count": 0,
-                    "review_apartment_count": 0,
-                    "reservation_agreement_apartment_count": 0,
-                    "offered_apartment_count": 0,
-                    "offer_accepted_apartment_count": 0,
-                    "offer_expired_apartment_count": 0,
-                    "accepted_by_municipality_apartment_count": 0,
-                },
+                _project_sale_state_counter_defaults(),
             )
 
     return counts_by_project_uuid
