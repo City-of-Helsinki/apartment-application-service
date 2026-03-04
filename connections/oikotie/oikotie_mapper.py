@@ -282,7 +282,9 @@ def map_unencumbered_sales_price(
 def map_sales_price(elastic_apartment: ElasticApartment) -> Optional[SalesPrice]:
     price_value = _to_int(getattr(elastic_apartment, "sales_price", None))
     if elastic_apartment.project_ownership_type == OwnershipType.HASO.value:
-        price_value = _to_int(getattr(elastic_apartment, "right_of_occupancy_payment", None))
+        price_value = _to_int(
+            getattr(elastic_apartment, "right_of_occupancy_payment", None)
+        )
 
     if price_value is not None:
         return SalesPrice(
@@ -419,8 +421,12 @@ def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:
         "postal_code": getattr(elastic_apartment, "project_postal_code", None),
         "post_office": getattr(elastic_apartment, "project_city", None),
         "region": getattr(elastic_apartment, "project_district", None),
-        "latitude": _to_float(getattr(elastic_apartment, "project_coordinate_lat", None)),
-        "longitude": _to_float(getattr(elastic_apartment, "project_coordinate_lon", None)),
+        "latitude": _to_float(
+            getattr(elastic_apartment, "project_coordinate_lat", None)
+        ),
+        "longitude": _to_float(
+            getattr(elastic_apartment, "project_coordinate_lon", None)
+        ),
         "description": form_description(elastic_apartment),
         "supplementary_information": getattr(
             elastic_apartment, "additional_information", None

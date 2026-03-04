@@ -124,7 +124,9 @@ def get_apartment(apartment_uuid, include_project_fields=False):
         payload = client.get(f"apartments/{str(apartment_uuid)}")
     except requests.exceptions.HTTPError as e:
         if e.response is not None and e.response.status_code == 404:
-            raise ObjectDoesNotExist("Apartment does not exist in Drupal search API.") from e
+            raise ObjectDoesNotExist(
+                "Apartment does not exist in Drupal search API."
+            ) from e
         raise
     sources, _ = _parse_hits(payload)
     if not sources:
@@ -139,18 +141,14 @@ def get_apartment_project_uuid(apartment_uuid):
 
 def get_apartments(project_uuid=None, include_project_fields=False, **filters):
     if project_uuid:
-        sources = _fetch_all(
-            f"projects/{str(project_uuid)}/apartments", params=filters
-        )
+        sources = _fetch_all(f"projects/{str(project_uuid)}/apartments", params=filters)
     else:
         sources = _fetch_all("apartments", params=filters)
     return _to_results(sources, include_project_fields=include_project_fields)
 
 
 def get_apartment_uuids(project_uuid) -> List[str]:
-    sources = _fetch_all(
-        f"projects/{str(project_uuid)}/apartments", params={}
-    )
+    sources = _fetch_all(f"projects/{str(project_uuid)}/apartments", params={})
     return [source.get("uuid") for source in sources if source.get("uuid")]
 
 
@@ -161,7 +159,9 @@ def get_project(project_uuid):
         payload = client.get(f"projects/{str(project_uuid)}")
     except requests.exceptions.HTTPError as e:
         if e.response is not None and e.response.status_code == 404:
-            raise ObjectDoesNotExist("Project does not exist in Drupal search API.") from e
+            raise ObjectDoesNotExist(
+                "Project does not exist in Drupal search API."
+            ) from e
         raise
     sources, _ = _parse_hits(payload)
     if not sources:

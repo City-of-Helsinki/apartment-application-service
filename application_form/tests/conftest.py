@@ -334,6 +334,7 @@ def mock_apartment_queries(monkeypatch):
     Separate helper functions are defined outside for clarity and reduced complexity.
     """
     from apartment.elastic import queries
+
     monkeypatch.setattr(queries, "_fetch_all", _mock_fetch_all)
 
 
