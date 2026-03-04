@@ -80,8 +80,7 @@ def test_project_applicant_validator(elastic_hitas_project_with_5_apartments):
     )
 
     applicant_list = [
-        (applicant.date_of_birth, applicant.ssn_suffix)
-        for applicant in applicants
+        (applicant.date_of_birth, applicant.ssn_suffix) for applicant in applicants
     ]
     validator = ProjectApplicantValidator()
 

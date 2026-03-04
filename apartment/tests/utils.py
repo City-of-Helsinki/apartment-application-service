@@ -31,7 +31,8 @@ class TestDrupalSearchClient(DrupalSearchClient):
             if len(parts) == 2:
                 apartment_uuid = parts[1]
                 apts = [
-                    a for a in get_apartments_from_store()
+                    a
+                    for a in get_apartments_from_store()
                     if str(a.uuid) == str(apartment_uuid)
                 ]
                 return apts[:1] if apts else []

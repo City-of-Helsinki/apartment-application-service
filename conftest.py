@@ -14,7 +14,8 @@ def pytest_addoption(parser):
 
 def pytest_configure(config):
     config.addinivalue_line(
-        "markers", "integration: mark test as integration test (use --integration-tests)"
+        "markers",
+        "integration: mark test as integration test (use --integration-tests)",
     )
 
 
@@ -51,5 +52,3 @@ def mock_search_api(request, monkeypatch):
         queries, "DrupalSearchClient", TestDrupalSearchClient, raising=True
     )
     queries._client = None
-
-

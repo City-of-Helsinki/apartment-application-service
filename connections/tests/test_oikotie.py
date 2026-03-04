@@ -615,9 +615,10 @@ class TestOikotieImagesInXml:
 
 # Float and Long fields used by Oikotie mapper (subset of ApartmentDocument)
 OIKOTIE_NUMERIC_FIELDS = (
-    APARTMENT_DOCUMENT_FLOAT_FIELDS
-    | APARTMENT_DOCUMENT_LONG_FIELDS
-) - {"project_id"}  # project_id not used in Oikotie output
+    APARTMENT_DOCUMENT_FLOAT_FIELDS | APARTMENT_DOCUMENT_LONG_FIELDS
+) - {
+    "project_id"
+}  # project_id not used in Oikotie output
 
 
 @pytest.mark.usefixtures("validate_against_schema_true")
