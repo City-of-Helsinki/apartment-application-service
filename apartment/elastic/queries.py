@@ -153,7 +153,9 @@ def get_project_apartment_sale_state_counts(
 
     apartment_uuids_by_project = defaultdict(list)
     for apartment in search.scan():
-        apartment_uuids_by_project[str(apartment.project_uuid)].append(str(apartment.uuid))
+        apartment_uuids_by_project[str(apartment.project_uuid)].append(
+            str(apartment.uuid)
+        )
 
     apartment_uuids = [
         apartment_uuid
@@ -261,7 +263,9 @@ def get_project_apartment_sale_state_counts(
             "offered_apartment_count": offered_count,
             "offer_accepted_apartment_count": offer_accepted_count,
             "offer_expired_apartment_count": offer_expired_count,
-            "accepted_by_municipality_apartment_count": accepted_by_municipality_count,
+            "accepted_by_municipality_apartment_count": (
+                accepted_by_municipality_count
+            ),
         }
 
     if project_uuid_list is not None:
