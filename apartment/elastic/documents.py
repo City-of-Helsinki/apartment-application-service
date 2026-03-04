@@ -6,7 +6,6 @@ from cost_index.utils import (
     reservation_right_of_occupancy_payment,
 )
 
-
 # Float and Long field names in ApartmentDocument (API may return '' or None)
 APARTMENT_DOCUMENT_FLOAT_FIELDS = frozenset(
     {

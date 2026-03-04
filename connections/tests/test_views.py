@@ -2,13 +2,12 @@
 Unit tests for connections service helper functions
 """
 
+import time
 from unittest.mock import Mock, patch
 
 import pytest  # noqa: F401
 import requests
-import time
 from django.conf import settings
-from conftest import integration_test
 
 from apartment.elastic.queries import (
     get_apartment,
@@ -17,6 +16,7 @@ from apartment.elastic.queries import (
     get_projects,
 )
 from apartment.enums import OwnershipType
+from conftest import integration_test
 from connections.enums import (
     ApartmentStateOfSale,
     EtuoviApartmentRequiredFields,
@@ -124,7 +124,6 @@ def test_drupal_rest_api_oauth2_bruteforce_protection(endpoint):
         # Implementation may start returning 429 before or after several 401s.
         assert response.status_code in (401, 429)
 
-
     # Across all attempts for this endpoint we must see at least one 429.
     assert any(status == 429 for status in statuses), (
         "Drupal REST API should eventually block bruteforce attempts with 429. "
@@ -155,9 +154,9 @@ def test_drupal_oauth_token_bruteforce_protection():
             timeout=10,
             verify=settings.DRUPAL_SEARCH_API_VERIFY_SSL,
         )
-        assert response.status_code >= 400, (
-            f"Attempt {i + 1}: Expected 4xx, got {response.status_code}"
-        )
+        assert (
+            response.status_code >= 400
+        ), f"Attempt {i + 1}: Expected 4xx, got {response.status_code}"
 
     response = requests.post(
         url,

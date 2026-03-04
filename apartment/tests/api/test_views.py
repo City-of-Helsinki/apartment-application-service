@@ -7,7 +7,6 @@ from django.urls import reverse
 
 from apartment.models import ProjectExtraData
 from apartment.tests.factories import add_to_store, ApartmentDocumentFactory
-
 from application_form.enums import (
     ApartmentReservationCancellationReason,
     ApartmentReservationState,

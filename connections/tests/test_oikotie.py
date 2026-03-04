@@ -4,14 +4,13 @@ from uuid import UUID
 
 import pytest
 from django.conf import settings
+from django.core.management import call_command
+from django_etuovi.utils.testing import check_dataclass_typing
 
 from apartment.elastic.documents import (
     APARTMENT_DOCUMENT_FLOAT_FIELDS,
     APARTMENT_DOCUMENT_LONG_FIELDS,
 )
-from django.core.management import call_command
-from django_etuovi.utils.testing import check_dataclass_typing
-
 from apartment.enums import OwnershipType
 from apartment.tests.factories import ApartmentDocumentFactory
 from connections.models import MappedApartment
@@ -462,7 +461,8 @@ class TestOikotieNumericFieldEdgeCases:
         assert mapped_none is not None
 
     def test_create_xml_apartment_file_handles_all_numeric_fields_empty_or_none(self):
-        """create_xml_apartment_file succeeds when all Float/Long fields are '' or None."""
+        """create_xml_apartment_file succeeds when Float/Long fields are empty or
+        None."""
         overrides_empty = {f: "" for f in OIKOTIE_NUMERIC_FIELDS}
         overrides_none = {f: None for f in OIKOTIE_NUMERIC_FIELDS}
 

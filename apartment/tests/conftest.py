@@ -2,7 +2,6 @@ import random
 import string
 
 import faker.config
-from django.core.exceptions import ObjectDoesNotExist
 from factory import Faker
 from faker import providers
 from pytest import fixture
@@ -11,10 +10,6 @@ from apartment.tests.factories import (
     add_to_store,
     ApartmentDocumentFactory,
     clear_apartment_store,
-    get_apartment_uuids_from_store,
-    get_apartments_from_store,
-    get_project_from_store,
-    get_projects_from_store,
 )
 from connections.tests.conftest import _mock_fetch_all
 from users.tests.conftest import (  # noqa: F401

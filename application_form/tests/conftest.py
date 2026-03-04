@@ -15,9 +15,9 @@ from sentry_sdk.scrubber import EventScrubber
 
 from apartment.elastic.queries import get_apartments, get_project
 from apartment.tests.factories import (
+    add_to_store,
     ApartmentData,
     ApartmentDocumentFactory,
-    add_to_store,
     clear_apartment_store,
 )
 from apartment_application_service.settings import (
@@ -44,6 +44,7 @@ from application_form.tests.utils import (
     get_elastic_apartments_uuids,
     get_elastic_apartments_with_application_time_left,
 )
+from connections.tests.conftest import _mock_fetch_all
 from connections.tests.factories import ApartmentMinimalFactory
 from users.tests.conftest import (  # noqa: F401
     api_client,
@@ -53,7 +54,6 @@ from users.tests.conftest import (  # noqa: F401
     sales_ui_salesperson_api_client,
     user_api_client,
 )
-from connections.tests.conftest import _mock_fetch_all
 
 faker.config.DEFAULT_LOCALE = "fi_FI"
 
