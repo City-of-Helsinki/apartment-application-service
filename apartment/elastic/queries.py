@@ -60,6 +60,7 @@ def _fetch_all(path: str, params: Dict) -> List[Dict]:
 
     try:
         page_params = {**params, "limit": initial_size, "offset": 0}
+
         payload = client.get(path, params=page_params, timeout=initial_timeout)
         page_sources, total = _parse_hits(payload)
         sources.extend(page_sources)
