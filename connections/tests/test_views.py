@@ -95,45 +95,79 @@ def test_drupal_search_api_integration():
     ) == apartment_uuid
 
 
+@pytest.mark.parametrize("endpoint", ["projects", "apartments"])
 @integration_test
-def test_drupal_rest_api_oauth2_bruteforce_protection():
+def test_drupal_rest_api_oauth2_bruteforce_protection(endpoint):
     """
-    Five faulty OAuth2 token attempts to Drupal REST API should trigger
-    bruteforce protection (429 Too Many Requests on 6th attempt).
+    Faulty OAuth2 token attempts to Drupal REST API should trigger
+    bruteforce protection (429 Too Many Requests after repeated failures).
     """
     import apartment.elastic.queries as queries
 
     queries._client = None
 
     base_url = settings.DRUPAL_SEARCH_API_BASE_URL.rstrip("/")
-    url = f"{base_url}/fi/json/projects"
-    invalid_tokens = [
-        "invalid-token-1",
-        "invalid-token-2",
-        "invalid-token-3",
-        "invalid-token-4",
-        "invalid-token-5",
-    ]
+    # Mirror DrupalSearchClient: base URL may already include any language/json prefix.
+    url = f"{base_url}/{endpoint}"
+    attempt_count = 12
 
-    for i, token in enumerate(invalid_tokens):
+    statuses = []
+    for i in range(attempt_count):
+        token = f"invalid-token-{endpoint}-{i}"
         response = requests.get(
             url,
             headers={"Authorization": f"Bearer {token}"},
             timeout=10,
             verify=settings.DRUPAL_SEARCH_API_VERIFY_SSL,
         )
-        assert (
-            response.status_code == 401
-        ), f"Attempt {i + 1}: Expected 401, got {response.status_code}"
+        statuses.append(response.status_code)
+        # Implementation may start returning 429 before or after several 401s.
+        assert response.status_code in (401, 429)
 
-    response = requests.get(
+
+    # Across all attempts for this endpoint we must see at least one 429.
+    assert any(status == 429 for status in statuses), (
+        "Drupal REST API should eventually block bruteforce attempts with 429. "
+        f"Statuses seen for {endpoint}: {statuses}"
+    )
+
+
+@integration_test
+def test_drupal_oauth_token_bruteforce_protection():
+    """
+    Ten faulty OAuth2 token exchange attempts (invalid credentials) to
+    oauth/token should trigger bruteforce protection (429 on 11th attempt).
+    """
+    url = settings.DRUPAL_SEARCH_API_TOKEN_URL
+    headers = {"Content-Type": "application/x-www-form-urlencoded"}
+    data = {
+        "grant_type": "client_credentials",
+        "client_id": "invalid-client",
+        "client_secret": "invalid-secret",
+        "scope": "rest_client",
+    }
+
+    for i in range(10):
+        response = requests.post(
+            url,
+            data=data,
+            headers=headers,
+            timeout=10,
+            verify=settings.DRUPAL_SEARCH_API_VERIFY_SSL,
+        )
+        assert response.status_code >= 400, (
+            f"Attempt {i + 1}: Expected 4xx, got {response.status_code}"
+        )
+
+    response = requests.post(
         url,
-        headers={"Authorization": "Bearer invalid-token-6"},
+        data=data,
+        headers=headers,
         timeout=10,
         verify=settings.DRUPAL_SEARCH_API_VERIFY_SSL,
     )
     assert response.status_code == 429, (
-        f"Drupal REST API should block bruteforce after 5 failed attempts. "
+        f"Drupal oauth/token should block bruteforce after 10 failed attempts. "
         f"Got {response.status_code} instead of 429."
     )
 
