@@ -63,8 +63,9 @@ class Command(BaseCommand):
                     )
                 except Exception as e:
                     _logger.error(
-                        f"File {path}/{oikotie_file} sending via FTP to Oikotie "
-                        "failed:",
+                        "File %s/%s sending via FTP to Oikotie failed: %s",
+                        path,
+                        oikotie_file,
                         str(e),
                     )
                     raise e
