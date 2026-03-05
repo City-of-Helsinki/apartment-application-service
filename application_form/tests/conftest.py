@@ -17,6 +17,7 @@ from sentry_sdk.scrubber import EventScrubber
 
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import get_apartments, get_project
+from apartment.tests import conftest as apartment_conftest  # noqa: F401
 from apartment.tests.factories import ApartmentDocumentFactory
 from apartment_application_service.settings import (
     METADATA_HANDLER_INFORMATION,

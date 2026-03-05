@@ -38,11 +38,13 @@ def get_apartment_state_of_sale_from_event(event):
     """
     from application_form.enums import ApartmentReservationCancellationReason
 
-    if event.state == ApartmentReservationState.SOLD:
+    apt_uuid = event.reservation.apartment_uuid
+    if ApartmentReservation.objects.filter(
+        apartment_uuid=apt_uuid, state=ApartmentReservationState.SOLD
+    ).exists():
         return ApartmentStateOfSale.SOLD
     # Should only check for `FREE` state if
     # the latest change is a reservation cancellation
-    apt_uuid = event.reservation.apartment_uuid
     active_qs = (
         ApartmentReservation.objects.active().filter(apartment_uuid=apt_uuid).only("id")
     )
