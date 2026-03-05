@@ -154,9 +154,8 @@ def test_project_list_contains_apartment_sale_state_counts(
         )
         assert project["apartment_count"] == 4
         assert project["sold_apartment_count"] == 1
-        assert project["reserved_apartment_count"] == 1
+        assert project["reserved_apartment_count"] == 2
         assert project["free_apartment_count"] == 1
-        assert project["review_apartment_count"] == 1
     finally:
         for apartment in apartments:
             apartment.delete(refresh=True)
@@ -187,104 +186,8 @@ def test_project_list_uses_reservation_states_instead_of_elastic_sale_state(
         assert project["sold_apartment_count"] == 0
         assert project["reserved_apartment_count"] == 0
         assert project["free_apartment_count"] == 1
-        assert project["review_apartment_count"] == 0
     finally:
         apartment.delete(refresh=True)
-
-
-@pytest.mark.django_db
-def test_project_list_contains_granular_apartment_state_counters(
-    sales_ui_salesperson_api_client, elasticsearch
-):
-    apartments = []
-    try:
-        first_apartment = ApartmentDocumentFactory(project_apartment_count=9)
-        apartments.append(first_apartment)
-
-        for _ in range(8):
-            apartments.append(
-                ApartmentDocumentFactory(
-                    project_uuid=first_apartment.project_uuid,
-                    project_apartment_count=9,
-                )
-            )
-
-        ApartmentReservationFactory(
-            apartment_uuid=apartments[0].uuid,
-            state=ApartmentReservationState.SOLD,
-            list_position=1,
-        )
-        ApartmentReservationFactory(
-            apartment_uuid=apartments[1].uuid,
-            state=ApartmentReservationState.RESERVED,
-            list_position=1,
-        )
-        ApartmentReservationFactory(
-            apartment_uuid=apartments[2].uuid,
-            state=ApartmentReservationState.RESERVATION_AGREEMENT,
-            list_position=1,
-        )
-        ApartmentReservationFactory(
-            apartment_uuid=apartments[3].uuid,
-            state=ApartmentReservationState.OFFERED,
-            list_position=1,
-        )
-        ApartmentReservationFactory(
-            apartment_uuid=apartments[4].uuid,
-            state=ApartmentReservationState.OFFER_ACCEPTED,
-            list_position=1,
-        )
-        ApartmentReservationFactory(
-            apartment_uuid=apartments[5].uuid,
-            state=ApartmentReservationState.OFFER_EXPIRED,
-            list_position=1,
-        )
-        ApartmentReservationFactory(
-            apartment_uuid=apartments[6].uuid,
-            state=ApartmentReservationState.ACCEPTED_BY_MUNICIPALITY,
-            list_position=1,
-        )
-        ApartmentReservationFactory(
-            apartment_uuid=apartments[7].uuid,
-            state=ApartmentReservationState.REVIEW,
-            list_position=1,
-        )
-        ApartmentReservationFactory(
-            apartment_uuid=apartments[8].uuid,
-            state=ApartmentReservationState.RESERVED,
-            list_position=1,
-        )
-        ApartmentReservationFactory(
-            apartment_uuid=apartments[8].uuid,
-            state=ApartmentReservationState.OFFERED,
-            list_position=2,
-        )
-
-        response = sales_ui_salesperson_api_client.get(
-            reverse("apartment:project-list"), format="json"
-        )
-
-        assert response.status_code == 200
-
-        project = next(
-            item
-            for item in response.data
-            if item["uuid"] == str(first_apartment.project_uuid)
-        )
-
-        assert project["apartment_count"] == 9
-        assert project["sold_apartment_count"] == 1
-        assert project["reserved_apartment_count"] == 1
-        assert project["reservation_agreement_apartment_count"] == 1
-        assert project["offered_apartment_count"] == 1
-        assert project["offer_accepted_apartment_count"] == 1
-        assert project["offer_expired_apartment_count"] == 1
-        assert project["accepted_by_municipality_apartment_count"] == 1
-        assert project["review_apartment_count"] == 2
-        assert project["free_apartment_count"] == 0
-    finally:
-        for apartment in apartments:
-            apartment.delete(refresh=True)
 
 
 @pytest.mark.django_db

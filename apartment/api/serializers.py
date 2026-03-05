@@ -150,12 +150,6 @@ class ProjectDocumentSerializerBase(serializers.Serializer):
     sold_apartment_count = serializers.SerializerMethodField()
     free_apartment_count = serializers.SerializerMethodField()
     reserved_apartment_count = serializers.SerializerMethodField()
-    review_apartment_count = serializers.SerializerMethodField()
-    reservation_agreement_apartment_count = serializers.SerializerMethodField()
-    offered_apartment_count = serializers.SerializerMethodField()
-    offer_accepted_apartment_count = serializers.SerializerMethodField()
-    offer_expired_apartment_count = serializers.SerializerMethodField()
-    accepted_by_municipality_apartment_count = serializers.SerializerMethodField()
 
     def get_sold_apartment_count(self, obj):
         return self._get_apartment_sale_state_count(obj, "sold_apartment_count")
@@ -165,36 +159,6 @@ class ProjectDocumentSerializerBase(serializers.Serializer):
 
     def get_reserved_apartment_count(self, obj):
         return self._get_apartment_sale_state_count(obj, "reserved_apartment_count")
-
-    def get_review_apartment_count(self, obj):
-        return self._get_apartment_sale_state_count(obj, "review_apartment_count")
-
-    def get_reservation_agreement_apartment_count(self, obj):
-        return self._get_apartment_sale_state_count(
-            obj,
-            "reservation_agreement_apartment_count",
-        )
-
-    def get_offered_apartment_count(self, obj):
-        return self._get_apartment_sale_state_count(obj, "offered_apartment_count")
-
-    def get_offer_accepted_apartment_count(self, obj):
-        return self._get_apartment_sale_state_count(
-            obj,
-            "offer_accepted_apartment_count",
-        )
-
-    def get_offer_expired_apartment_count(self, obj):
-        return self._get_apartment_sale_state_count(
-            obj,
-            "offer_expired_apartment_count",
-        )
-
-    def get_accepted_by_municipality_apartment_count(self, obj):
-        return self._get_apartment_sale_state_count(
-            obj,
-            "accepted_by_municipality_apartment_count",
-        )
 
     def _get_apartment_sale_state_count(self, obj, count_key):
         apartment_sale_state_counts = self.context.get(

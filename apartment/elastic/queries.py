@@ -15,12 +15,6 @@ def _project_sale_state_counter_defaults() -> Dict[str, int]:
         "sold_apartment_count": 0,
         "reserved_apartment_count": 0,
         "free_apartment_count": 0,
-        "review_apartment_count": 0,
-        "reservation_agreement_apartment_count": 0,
-        "offered_apartment_count": 0,
-        "offer_accepted_apartment_count": 0,
-        "offer_expired_apartment_count": 0,
-        "accepted_by_municipality_apartment_count": 0,
     }
 
 
@@ -28,40 +22,13 @@ def _bucket_for_reservation_states(reservation_states: List) -> str:
     if len(reservation_states) == 0:
         return "free_apartment_count"
 
-    if len(reservation_states) > 1:
-        return "review_apartment_count"
+    if len(reservation_states) == 1 and reservation_states[0] in {
+        ApartmentReservationState.SOLD,
+        ApartmentReservationState.SOLD.value,
+    }:
+        return "sold_apartment_count"
 
-    reservation_state = reservation_states[0]
-    reservation_state_map = {
-        ApartmentReservationState.SOLD: "sold_apartment_count",
-        ApartmentReservationState.SOLD.value: "sold_apartment_count",
-        ApartmentReservationState.REVIEW: "review_apartment_count",
-        ApartmentReservationState.REVIEW.value: "review_apartment_count",
-        ApartmentReservationState.RESERVED: "reserved_apartment_count",
-        ApartmentReservationState.RESERVED.value: "reserved_apartment_count",
-        ApartmentReservationState.RESERVATION_AGREEMENT: (
-            "reservation_agreement_apartment_count"
-        ),
-        ApartmentReservationState.RESERVATION_AGREEMENT.value: (
-            "reservation_agreement_apartment_count"
-        ),
-        ApartmentReservationState.OFFERED: "offered_apartment_count",
-        ApartmentReservationState.OFFERED.value: "offered_apartment_count",
-        ApartmentReservationState.OFFER_ACCEPTED: "offer_accepted_apartment_count",
-        ApartmentReservationState.OFFER_ACCEPTED.value: (
-            "offer_accepted_apartment_count"
-        ),
-        ApartmentReservationState.OFFER_EXPIRED: "offer_expired_apartment_count",
-        ApartmentReservationState.OFFER_EXPIRED.value: "offer_expired_apartment_count",
-        ApartmentReservationState.ACCEPTED_BY_MUNICIPALITY: (
-            "accepted_by_municipality_apartment_count"
-        ),
-        ApartmentReservationState.ACCEPTED_BY_MUNICIPALITY.value: (
-            "accepted_by_municipality_apartment_count"
-        ),
-    }
-
-    return reservation_state_map.get(reservation_state, "review_apartment_count")
+    return "reserved_apartment_count"
 
 
 def apartment_query(**kwargs):
