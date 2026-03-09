@@ -31,6 +31,10 @@ from application_form.tests.factories import (
     ApplicationFactory,
     LotteryEventFactory,
 )
+from application_form.services.application import cancel_reservation
+from application_form.services.lottery.machine import distribute_apartments
+from application_form.services.queue import add_application_to_queues
+from audit_log.models import AuditLog
 from connections.enums import ApartmentStateOfSale
 from customer.models import Customer
 from customer.tests.factories import CustomerFactory
@@ -953,6 +957,136 @@ def test_skipped_position_in_hitas_queue_doesnt_cause_error(
     assert first_reservation.list_position == 3
 
     pass
+
+
+def _create_hitas_application_with_apartment(
+    apartment_uuid, *, has_children: bool = True
+) -> Application:
+    application = ApplicationFactory(
+        type=ApplicationType.HITAS,
+        has_children=has_children,
+    )
+    ApplicationApartmentFactory.create_application_with_apartments(
+        [apartment_uuid], application
+    )
+    add_application_to_queues(application)
+    return application
+
+
+@pytest.mark.django_db
+@patch("application_form.services.lottery.hitas.secrets.randbelow", return_value=0)
+def test_hitas_lottery_does_not_reassign_canceled_positions(
+    _randbelow, elasticsearch
+):
+    apartment_properties = {
+        "apartment_state_of_sale": ApartmentStateOfSale.FOR_SALE.value,
+        "_language": "fi",
+        "project_ownership_type": OwnershipType.HITAS.value,
+        "project_application_end_time": (
+            datetime.now().replace(tzinfo=timezone.get_default_timezone())
+        )
+        - timedelta(days=1),
+    }
+    apartments = generate_apartments(elasticsearch, 1, apartment_properties)
+    apartment = apartments[0]
+
+    first_application = _create_hitas_application_with_apartment(apartment.uuid)
+    _create_hitas_application_with_apartment(apartment.uuid)
+
+    canceled_reservation = ApartmentReservation.objects.get(
+        application_apartment__application=first_application
+    )
+    cancel_reservation(canceled_reservation)
+
+    distribute_apartments(apartment.project_uuid)
+
+    canceled_reservation.refresh_from_db()
+    active_queue_positions = list(
+        ApartmentReservation.objects.active()
+        .filter(apartment_uuid=apartment.uuid)
+        .order_by("queue_position")
+        .values_list("queue_position", flat=True)
+    )
+
+    assert canceled_reservation.queue_position is None
+    assert active_queue_positions == [1]
+
+
+@pytest.mark.django_db
+@patch("application_form.services.lottery.hitas.secrets.randbelow", return_value=0)
+def test_hitas_lottery_rerun_keeps_active_queue_compact(_randbelow, elasticsearch):
+    apartment_properties = {
+        "apartment_state_of_sale": ApartmentStateOfSale.FOR_SALE.value,
+        "_language": "fi",
+        "project_ownership_type": OwnershipType.HITAS.value,
+        "project_application_end_time": (
+            datetime.now().replace(tzinfo=timezone.get_default_timezone())
+        )
+        - timedelta(days=1),
+    }
+    apartments = generate_apartments(elasticsearch, 1, apartment_properties)
+    apartment = apartments[0]
+
+    first_application = _create_hitas_application_with_apartment(apartment.uuid)
+    _create_hitas_application_with_apartment(apartment.uuid)
+
+    distribute_apartments(apartment.project_uuid)
+
+    canceled_reservation = ApartmentReservation.objects.get(
+        application_apartment__application=first_application
+    )
+    cancel_reservation(canceled_reservation)
+
+    distribute_apartments(apartment.project_uuid)
+
+    canceled_reservation.refresh_from_db()
+    active_queue_positions = list(
+        ApartmentReservation.objects.active()
+        .filter(apartment_uuid=apartment.uuid)
+        .order_by("queue_position")
+        .values_list("queue_position", flat=True)
+    )
+
+    assert canceled_reservation.queue_position is None
+    assert active_queue_positions == [1]
+
+
+@pytest.mark.django_db
+def test_hitas_children_priority_queue_ignores_canceled_children(elasticsearch):
+    apartment_properties = {
+        "apartment_state_of_sale": ApartmentStateOfSale.FOR_SALE.value,
+        "_language": "fi",
+        "project_ownership_type": OwnershipType.HITAS.value,
+        "room_count": 3,
+        "project_application_end_time": (
+            datetime.now().replace(tzinfo=timezone.get_default_timezone())
+        )
+        - timedelta(days=1),
+    }
+    apartments = generate_apartments(elasticsearch, 1, apartment_properties)
+    apartment = apartments[0]
+
+    children_application = _create_hitas_application_with_apartment(
+        apartment.uuid, has_children=True
+    )
+    canceled_reservation = ApartmentReservation.objects.get(
+        application_apartment__application=children_application
+    )
+    cancel_reservation(canceled_reservation)
+
+    _create_hitas_application_with_apartment(apartment.uuid, has_children=False)
+    _create_hitas_application_with_apartment(apartment.uuid, has_children=False)
+
+    distribute_apartments(apartment.project_uuid)
+
+    active_queue_positions = list(
+        ApartmentReservation.objects.active()
+        .filter(apartment_uuid=apartment.uuid)
+        .order_by("queue_position")
+        .values_list("queue_position", flat=True)
+    )
+
+    assert min(active_queue_positions) == 1
 
 
 @pytest.mark.django_db
