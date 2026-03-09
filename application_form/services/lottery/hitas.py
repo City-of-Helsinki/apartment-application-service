@@ -3,10 +3,11 @@ import uuid
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from django.db.models import QuerySet
+from django.db.models import F, QuerySet
 
 from apartment.elastic.queries import get_apartment, get_apartment_uuids
-from application_form.models import ApplicationApartment
+from application_form.enums import ApartmentReservationState
+from application_form.models import ApartmentReservation, ApplicationApartment
 from application_form.services.application import _reserve_apartments
 from application_form.services.lottery.utils import _save_application_order
 
@@ -50,7 +51,17 @@ def _shuffle_applications(apartment_uuid: uuid.UUID) -> None:
     in random order.
     """
     apartment = get_apartment(apartment_uuid)
-    apartment_apps = ApplicationApartment.objects.filter(apartment_uuid=apartment_uuid)
+    apartment_apps = ApplicationApartment.objects.filter(
+        apartment_uuid=apartment_uuid,
+        apartment_reservation__isnull=False,
+    ).exclude(apartment_reservation__state=ApartmentReservationState.CANCELED)
+    active_count = apartment_apps.count()
+    if active_count:
+        ApartmentReservation.objects.filter(
+            apartment_uuid=apartment_uuid,
+            state=ApartmentReservationState.CANCELED,
+            list_position__lte=active_count,
+        ).update(list_position=F("list_position") + 10000)
     # room_count could be None if apartment data is invalid in ElasticSearch
     room_count: int = apartment.room_count or 0
     # If the apartment has enough rooms, applications with children should have priority
