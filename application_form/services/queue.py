@@ -19,6 +19,7 @@ from application_form.models import (
     Application,
     ApplicationApartment,
 )
+from application_form.services.constants import LIST_POSITION_BUMP_OFFSET
 from application_form.utils import lock_table
 
 logger = getLogger(__name__)
@@ -170,7 +171,7 @@ def remove_queue_gaps(apartment: ApartmentDocument):
     # it also cannot be NULL
     # so we just temporarily move the list_positions out of the way
     # so we can set them into order with their queue_positions
-    reservations.update(list_position=F("list_position") + 10000)
+    reservations.update(list_position=F("list_position") + LIST_POSITION_BUMP_OFFSET)
 
     for idx, res in enumerate(reservations, 1):
         res.set_state(state=res.state, queue_position=idx)
