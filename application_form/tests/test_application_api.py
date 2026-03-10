@@ -24,6 +24,9 @@ from application_form.enums import (
     ApplicationType,
 )
 from application_form.models import ApartmentReservation, Application
+from application_form.services.application import cancel_reservation
+from application_form.services.lottery.machine import distribute_apartments
+from application_form.services.queue import add_application_to_queues
 from application_form.tests.conftest import create_application_data, generate_apartments
 from application_form.tests.factories import (
     ApartmentReservationFactory,
@@ -31,9 +34,6 @@ from application_form.tests.factories import (
     ApplicationFactory,
     LotteryEventFactory,
 )
-from application_form.services.application import cancel_reservation
-from application_form.services.lottery.machine import distribute_apartments
-from application_form.services.queue import add_application_to_queues
 from audit_log.models import AuditLog
 from connections.enums import ApartmentStateOfSale
 from customer.models import Customer
@@ -975,9 +975,7 @@ def _create_hitas_application_with_apartment(
 
 @pytest.mark.django_db
 @patch("application_form.services.lottery.hitas.secrets.randbelow", return_value=0)
-def test_hitas_lottery_does_not_reassign_canceled_positions(
-    _randbelow, elasticsearch
-):
+def test_hitas_lottery_does_not_reassign_canceled_positions(_randbelow, elasticsearch):
     apartment_properties = {
         "apartment_state_of_sale": ApartmentStateOfSale.FOR_SALE.value,
         "_language": "fi",
