@@ -104,7 +104,7 @@ def create_pdf(
             acroform = pdf.copy_foreign(single_pdf.Root.AcroForm)
             pdf.Root.AcroForm = acroform
             del pdf.Root.AcroForm.Fields
-            pdf.Root.AcroForm.NeedAppearances = True
+            _set_need_appearances(pdf)
         pdf.pages.extend(single_pdf.pages)
     pdf_bytes = BytesIO()
     if pdf is not None:
@@ -150,9 +150,6 @@ def _set_pdf_fields(pdf: Pdf, data_dict: DataDict, idx: None) -> None:
                 pdf_value = String(data_dict[field_name])
                 annot.V = pdf_value
                 annot.DV = pdf_value
-                # Required to show the filled fields in almost every MacOS PDF viewer
-                # Source: https://stackoverflow.com/a/63025285
-                annot.AP = ""
             elif annot.FT == "/Btn":  # checkbox
                 if not data_dict[field_name]:
                     # Not checked
@@ -167,7 +164,13 @@ def _set_pdf_fields(pdf: Pdf, data_dict: DataDict, idx: None) -> None:
                 raise PDFError(f"Field {field_name} has an unsupported type {annot.FT}")
 
 
+def _set_need_appearances(pdf: Pdf) -> None:
+    if hasattr(pdf.Root, "AcroForm"):
+        pdf.Root.AcroForm.NeedAppearances = True
+
+
 def _create_pdf(template_file_name: str, data_dict: DataDict, idx=None) -> Pdf:
     pdf = Pdf.open(template_file_name)
     _set_pdf_fields(pdf, data_dict, idx=idx)
+    _set_need_appearances(pdf)
     return pdf
