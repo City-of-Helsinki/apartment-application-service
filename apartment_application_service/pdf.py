@@ -21,6 +21,11 @@ class PDFData:
 
     # mapping from PDFData.field -> actual template PDF field name
     FIELD_MAPPING: ClassVar[Dict[str, str]] = {}
+    # optional mapping from actual template PDF field name -> fixed font size
+    FIELD_FONT_SIZES: ClassVar[Dict[str, int]] = {}
+    # default font size for all text fields to keep browser PDF viewers from
+    # auto-enlarging field contents inconsistently.
+    FIELD_DEFAULT_FONT_SIZE: ClassVar[Optional[int]] = 11
 
     def __post_init__(self, *args, **kwargs):
         annots = [a for a in self.__annotations__ if a != "FIELD_MAPPING"]
@@ -92,10 +97,14 @@ def create_pdf(
         pdf = Pdf.new()
 
     for idx, pdf_data in enumerate(pdf_data_list):
+        field_font_sizes = getattr(pdf_data, "FIELD_FONT_SIZES", {})
+        field_default_font_size = getattr(pdf_data, "FIELD_DEFAULT_FONT_SIZE", None)
         single_pdf = _create_pdf(
             f"{PDF_TEMPLATE_DIRECTORY}/{template_file_name}",
             pdf_data.to_data_dict(),
             idx,
+            field_font_sizes,
+            field_default_font_size,
         )
         if pdf is None:  # Only one repetition of data
             pdf = single_pdf  # Output the single filled PDF
@@ -104,7 +113,7 @@ def create_pdf(
             acroform = pdf.copy_foreign(single_pdf.Root.AcroForm)
             pdf.Root.AcroForm = acroform
             del pdf.Root.AcroForm.Fields
-            pdf.Root.AcroForm.NeedAppearances = True
+            _set_need_appearances(pdf)
         pdf.pages.extend(single_pdf.pages)
     pdf_bytes = BytesIO()
     if pdf is not None:
@@ -132,13 +141,108 @@ def _get_checkbox_checked_value(annotation: object):
     return checked_value
 
 
-def _set_pdf_fields(pdf: Pdf, data_dict: DataDict, idx: None) -> None:
+def _set_annotation_font_size(
+    annot: object,
+    font_size: Optional[int],
+    apply_to_parent: bool = True,
+) -> None:
+    if font_size is None:
+        return
+
+    da = String(f"/Helv {font_size} Tf 0 g")
+    annot.DA = da
+    if apply_to_parent and hasattr(annot, "Parent"):
+        annot.Parent.DA = da
+
+
+def _set_parent_field_value_if_needed(
+    annot: object,
+    data_dict: DataDict,
+    field_font_sizes: Dict[str, int],
+    field_default_font_size: Optional[int],
+) -> bool:
+    if hasattr(annot, "FT") or not hasattr(annot, "Parent"):
+        return False
+
+    field_name = str(annot.Parent.T)
+    if field_name not in data_dict:
+        return False
+
+    pdf_value = String(data_dict[field_name])
+    annot.Parent.V = pdf_value
+    annot.Parent.DV = pdf_value
+
+    font_size = field_font_sizes.get(field_name, field_default_font_size)
+    _set_annotation_font_size(annot, font_size)
+    return True
+
+
+def _set_text_field_value(
+    annot: object,
+    field_name: str,
+    data_dict: DataDict,
+    field_font_sizes: Dict[str, int],
+    field_default_font_size: Optional[int],
+) -> None:
+    pdf_value = String(data_dict[field_name])
+    annot.V = pdf_value
+    annot.DV = pdf_value
+
+    font_size = field_font_sizes.get(field_name, field_default_font_size)
+    _set_annotation_font_size(annot, font_size)
+
+
+def _set_checkbox_field_value(annot: object, value: str) -> None:
+    if not value:
+        return
+
+    checked_value = _get_checkbox_checked_value(annot)
+    pdf_value = Name(checked_value)
+    annot.AS = pdf_value
+    annot.V = pdf_value
+
+
+def _set_regular_field_value(
+    annot: object,
+    field_name: str,
+    data_dict: DataDict,
+    field_font_sizes: Dict[str, int],
+    field_default_font_size: Optional[int],
+) -> None:
+    if annot.FT == "/Tx":
+        _set_text_field_value(
+            annot,
+            field_name,
+            data_dict,
+            field_font_sizes,
+            field_default_font_size,
+        )
+        return
+
+    if annot.FT == "/Btn":
+        _set_checkbox_field_value(annot, data_dict[field_name])
+        return
+
+    raise PDFError(f"Field {field_name} has an unsupported type {annot.FT}")
+
+
+def _set_pdf_fields(
+    pdf: Pdf,
+    data_dict: DataDict,
+    idx: None,
+    field_font_sizes: Optional[Dict[str, int]] = None,
+    field_default_font_size: Optional[int] = None,
+) -> None:
+    field_font_sizes = field_font_sizes or {}
+
     for page in pdf.pages:
         for annot in getattr(page, "Annots", []):
-            if not hasattr(annot, "FT") and str(annot.Parent.T) in data_dict:
-                pdf_value = String(data_dict[str(annot.Parent.T)])
-                annot.Parent.V = pdf_value
-                annot.Parent.DV = pdf_value
+            if _set_parent_field_value_if_needed(
+                annot,
+                data_dict,
+                field_font_sizes,
+                field_default_font_size,
+            ):
                 continue
             if not hasattr(annot, "T") or (field_name := str(annot.T)) not in data_dict:
                 continue
@@ -146,28 +250,34 @@ def _set_pdf_fields(pdf: Pdf, data_dict: DataDict, idx: None) -> None:
                 # In case of merging multiple PDFs, need to rename the field, otherwise
                 # every field with the same name will display same values (latest value)
                 annot.T = String(str(annot.T) + "_" + str(idx))
-            if annot.FT == "/Tx":  # text field
-                pdf_value = String(data_dict[field_name])
-                annot.V = pdf_value
-                annot.DV = pdf_value
-                # Required to show the filled fields in almost every MacOS PDF viewer
-                # Source: https://stackoverflow.com/a/63025285
-                annot.AP = ""
-            elif annot.FT == "/Btn":  # checkbox
-                if not data_dict[field_name]:
-                    # Not checked
-                    continue
-
-                checked_value = _get_checkbox_checked_value(annot)
-
-                pdf_value = Name(checked_value)
-                annot.AS = pdf_value
-                annot.V = pdf_value
-            else:
-                raise PDFError(f"Field {field_name} has an unsupported type {annot.FT}")
+            _set_regular_field_value(
+                annot,
+                field_name,
+                data_dict,
+                field_font_sizes,
+                field_default_font_size,
+            )
 
 
-def _create_pdf(template_file_name: str, data_dict: DataDict, idx=None) -> Pdf:
+def _set_need_appearances(pdf: Pdf) -> None:
+    if hasattr(pdf.Root, "AcroForm"):
+        pdf.Root.AcroForm.NeedAppearances = True
+
+
+def _create_pdf(
+    template_file_name: str,
+    data_dict: DataDict,
+    idx=None,
+    field_font_sizes: Optional[Dict[str, int]] = None,
+    field_default_font_size: Optional[int] = None,
+) -> Pdf:
     pdf = Pdf.open(template_file_name)
-    _set_pdf_fields(pdf, data_dict, idx=idx)
+    _set_pdf_fields(
+        pdf,
+        data_dict,
+        idx=idx,
+        field_font_sizes=field_font_sizes,
+        field_default_font_size=field_default_font_size,
+    )
+    _set_need_appearances(pdf)
     return pdf
