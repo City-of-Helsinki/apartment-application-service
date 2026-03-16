@@ -1,8 +1,15 @@
 import pytest
 from django.urls import reverse
 
+from application_form.enums import (
+    ApartmentReservationCancellationReason,
+    ApartmentReservationState,
+)
 from application_form.services.lottery.machine import distribute_apartments
-from application_form.services.queue import add_application_to_queues
+from application_form.services.queue import (
+    add_application_to_queues,
+    remove_reservation_from_queue,
+)
 from application_form.tests.factories import (
     ApartmentReservationFactory,
     ApplicationApartmentFactory,
@@ -116,3 +123,138 @@ def test_list_project_reservations_get_with_lottery_data(
         # Auto cancel reservations which have lower priority
         # so queue position should be None
         assert item["queue_position"] == (1 if item["priority_number"] == 0 else None)
+
+
+@pytest.mark.django_db
+def test_list_project_reservations_new_fields_non_cancelled(
+    api_client, elastic_project_with_5_apartments
+):
+    """
+    For a non-cancelled reservation all cancellation fields must be null
+    and state_change_events must contain at least the initial submitted entry.
+    """
+    project_uuid, apartments = elastic_project_with_5_apartments
+    profile = ProfileFactory()
+    application = ApplicationFactory(customer=CustomerFactory(primary_profile=profile))
+    apartment = apartments[0]
+    application_apartment = ApplicationApartmentFactory(
+        apartment_uuid=apartment.uuid,
+        application=application,
+        priority_number=1,
+    )
+    ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid, application_apartment=application_apartment
+    )
+
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
+    response = api_client.get(
+        reverse(
+            "application_form:list_project_reservations",
+            kwargs={"project_uuid": project_uuid},
+        ),
+        format="json",
+    )
+
+    assert response.status_code == 200
+    item = response.data[0]
+
+    # New fields present and null for non-cancelled
+    assert "state_change_events" in item
+    assert len(item["state_change_events"]) >= 1
+    assert item["state_change_events"][0]["state"] == ApartmentReservationState.SUBMITTED.value  # noqa: E501
+    assert item["cancellation_reason"] is None
+    assert item["cancellation_reason_display"] is None
+    assert item["cancellation_actor"] is None
+    assert item["cancellation_actor_label"] is None
+    assert item["cancellation_timestamp"] is None
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "cancellation_reason, expected_actor, expected_label",
+    [
+        # Seller-initiated: manual actions and offer rejection recorded by seller
+        (
+            ApartmentReservationCancellationReason.TERMINATED,
+            "seller",
+            "Myyjä peruuttanut",
+        ),
+        (
+            ApartmentReservationCancellationReason.CANCELED,
+            "seller",
+            "Myyjä peruuttanut",
+        ),
+        (
+            ApartmentReservationCancellationReason.RESERVATION_AGREEMENT_CANCELED,
+            "seller",
+            "Myyjä peruuttanut",
+        ),
+        (
+            ApartmentReservationCancellationReason.TRANSFERRED,
+            "seller",
+            "Myyjä peruuttanut",
+        ),
+        # offer_rejected: seller records it in the system on behalf of the customer
+        (
+            ApartmentReservationCancellationReason.OFFER_REJECTED,
+            "seller",
+            "Myyjä peruuttanut",
+        ),
+        # System-initiated: automatic pipeline actions, no human actor
+        (
+            ApartmentReservationCancellationReason.LOWER_PRIORITY,
+            "system",
+            "Järjestelmä peruuttanut",
+        ),
+        (
+            ApartmentReservationCancellationReason.OTHER_APARTMENT_OFFERED,
+            "system",
+            "Järjestelmä peruuttanut",
+        ),
+    ],
+)
+def test_list_project_reservations_cancellation_actor(
+    api_client,
+    elastic_project_with_5_apartments,
+    cancellation_reason,
+    expected_actor,
+    expected_label,
+):
+    """
+    Verify cancellation_actor and cancellation_actor_label for every
+    cancellation reason.
+    """
+    project_uuid, apartments = elastic_project_with_5_apartments
+    profile = ProfileFactory()
+    application = ApplicationFactory(customer=CustomerFactory(primary_profile=profile))
+    apartment = apartments[0]
+    application_apartment = ApplicationApartmentFactory(
+        apartment_uuid=apartment.uuid,
+        application=application,
+        priority_number=1,
+    )
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid, application_apartment=application_apartment
+    )
+    remove_reservation_from_queue(
+        reservation, cancellation_reason=cancellation_reason
+    )
+
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
+    response = api_client.get(
+        reverse(
+            "application_form:list_project_reservations",
+            kwargs={"project_uuid": project_uuid},
+        ),
+        format="json",
+    )
+
+    assert response.status_code == 200
+    item = response.data[0]
+
+    assert item["state"] == ApartmentReservationState.CANCELED.value
+    assert item["cancellation_reason"] == cancellation_reason.value
+    assert item["cancellation_reason_display"] is not None
+    assert item["cancellation_actor"] == expected_actor
+    assert item["cancellation_actor_label"] == expected_label
+    assert item["cancellation_timestamp"] is not None
