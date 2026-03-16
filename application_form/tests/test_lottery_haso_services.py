@@ -1,3 +1,6 @@
+import uuid
+from types import SimpleNamespace
+
 import pytest
 from django.db import transaction
 from pytest import fixture, mark
@@ -18,7 +21,10 @@ from application_form.services.application import (
 from application_form.services.lottery.haso import _distribute_haso_apartments
 from application_form.services.queue import add_application_to_queues
 from application_form.services.reservation import create_late_reservation
-from application_form.tests.factories import ApplicationFactory
+from application_form.tests.factories import (
+    ApartmentReservationFactory,
+    ApplicationFactory,
+)
 from customer.tests.factories import CustomerFactory
 
 
@@ -262,6 +268,59 @@ def test_haso_application_without_reservation_order():
         reservation_without_application_3,
         reservation_without_application_4,
     ]
+
+
+@mark.django_db
+def test_late_reservation_insert_shifts_non_late_list_positions(monkeypatch):
+    apartment_uuid = uuid.uuid4()
+    monkeypatch.setattr(
+        "application_form.services.reservation.get_apartment",
+        lambda apartment_uuid, include_project_fields=True: SimpleNamespace(
+            project_ownership_type="Haso"
+        ),
+    )
+
+    regular_reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment_uuid,
+        list_position=1,
+        queue_position=1,
+        submitted_late=False,
+        state=ApartmentReservationState.SUBMITTED,
+        application_apartment=None,
+    )
+
+    late_reservation = create_late_reservation(
+        {
+            "apartment_uuid": apartment_uuid,
+            "customer": CustomerFactory(right_of_residence=5),
+        }
+    )
+
+    non_late_reservation_after_late = ApartmentReservationFactory(
+        apartment_uuid=apartment_uuid,
+        list_position=3,
+        queue_position=3,
+        submitted_late=False,
+        state=ApartmentReservationState.SUBMITTED,
+        application_apartment=None,
+    )
+
+    inserted_late = create_late_reservation(
+        {
+            "apartment_uuid": apartment_uuid,
+            "customer": CustomerFactory(right_of_residence=4),
+        }
+    )
+
+    regular_reservation.refresh_from_db()
+    late_reservation.refresh_from_db()
+    non_late_reservation_after_late.refresh_from_db()
+    inserted_late.refresh_from_db()
+
+    assert regular_reservation.list_position == 1
+    assert inserted_late.list_position == 2
+    assert late_reservation.list_position == 3
+    assert non_late_reservation_after_late.list_position == 4
 
 
 @mark.django_db
