@@ -13,7 +13,7 @@ from application_form.enums import (
     ApartmentReservationState,
 )
 from application_form.models import ApartmentReservation
-from application_form.services.queue import _make_room_for_reservation
+from application_form.services.queue import _adjust_positions
 from application_form.utils import lock_table
 from customer.models import Customer
 
@@ -177,9 +177,18 @@ def calculate_new_positions(
             )
             if positions is not None:
                 new_queue_position, new_list_position = positions
-            _make_room_for_reservation(
-                late_reservations, new_list_position, new_queue_position
-            )
+                _adjust_positions(
+                    existing_reservations,
+                    "list_position",
+                    new_list_position,
+                    by=1,
+                )
+                _adjust_positions(
+                    late_reservations,
+                    "queue_position",
+                    new_queue_position,
+                    by=1,
+                )
 
     return new_list_position, new_queue_position
 
