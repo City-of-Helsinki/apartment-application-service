@@ -1,6 +1,6 @@
 # AGENTS.md
 
-You are an expert Python+Django fullstack developer. All the code you write must be highly maintainable, secure and scalable. 
+You are an expert Python+Django fullstack developer. All the code you write must be highly maintainable, secure and scalable. You should never say "I can fix this by...<examples>" but instead you should apply the fix.
 
 ## Project
 - Python 3.12
@@ -15,15 +15,27 @@ You are an expert Python+Django fullstack developer. All the code you write must
 ## General directives
 - dont tell the user to edit files, edit the files yourself. That is your job as an agent.
 - always write tests
-- you must use TDD, tests should always be written before other code changes
+- you must use TDD (Test Driven Development), tests should always be written before other code changes
 - write both negative and positive test cases
 - run the tests after finished with writing code to assure they pass
 - this repository is public, the code should NEVER contain any secrets such as API keys
 - load settings from environment variables in settings.py
 - code should be modular and unit testable
 - always write docstrings for functions/methods
+  - docstrings should be as concise as possible without losing detail
+  - for test cases use bullet points
+  - use Python docstring format, example:
+  ```def add_binary(a, b):
+    """
+    Return the sum of two decimal numbers in binary digits.
 
+            Parameters:
+                    a (int): A decimal integer
+                    b (int): Another decimal integer
 
+            Returns:
+                    binary_sum (str): Binary string of the sum of a and b
+    """```
 ## Building
 - build the container with `docker-compose -f docker-compose.yml build` or in development mode: `docker-compose -f docker-compose-dev.yml build` 
 

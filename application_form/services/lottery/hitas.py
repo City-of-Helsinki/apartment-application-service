@@ -9,6 +9,7 @@ from apartment.elastic.queries import get_apartment, get_apartment_uuids
 from application_form.enums import ApartmentReservationState
 from application_form.models import ApartmentReservation, ApplicationApartment
 from application_form.services.application import _reserve_apartments
+from application_form.services.constants import LIST_POSITION_BUMP_OFFSET
 from application_form.services.lottery.utils import _save_application_order
 
 User = get_user_model()
@@ -36,6 +37,7 @@ def _distribute_hitas_apartments(project_uuid: uuid.UUID, user: User = None) -> 
     _reserve_apartments(apartment_uuids)
 
 
+@transaction.atomic
 def _shuffle_applications(apartment_uuid: uuid.UUID) -> None:
     """
     Randomize the order of the applications to the given apartment.
@@ -57,11 +59,15 @@ def _shuffle_applications(apartment_uuid: uuid.UUID) -> None:
     ).exclude(apartment_reservation__state=ApartmentReservationState.CANCELED)
     active_count = apartment_apps.count()
     if active_count:
+        # Only bump canceled rows whose list_position falls within the
+        # [1..active_count] range that _shuffle_queue_segment will assign.
+        # Rows above active_count are already safe from collisions.
+        # Using a targeted filter also prevents unbounded growth on re-runs.
         ApartmentReservation.objects.filter(
             apartment_uuid=apartment_uuid,
             state=ApartmentReservationState.CANCELED,
             list_position__lte=active_count,
-        ).update(list_position=F("list_position") + 10000)
+        ).update(list_position=F("list_position") + LIST_POSITION_BUMP_OFFSET)
     # room_count could be None if apartment data is invalid in ElasticSearch
     room_count: int = apartment.room_count or 0
     # If the apartment has enough rooms, applications with children should have priority
@@ -70,19 +76,17 @@ def _shuffle_applications(apartment_uuid: uuid.UUID) -> None:
         # Split applications into two pools
         apps_with_children = apartment_apps.filter(application__has_children=True)
         apps_without_children = apartment_apps.exclude(application__has_children=True)
-        with transaction.atomic():
-            # The first queue segment go to applications with children, in random order
-            _shuffle_queue_segment(apps_with_children)
-            # The remaining segment go to applications without children
-            _shuffle_queue_segment(
-                apps_without_children, apps_with_children.count() + 1
-            )
+        # The first queue segment go to applications with children, in random order
+        _shuffle_queue_segment(apps_with_children)
+        # The remaining segment go to applications without children
+        _shuffle_queue_segment(
+            apps_without_children, apps_with_children.count() + 1
+        )
     else:
         # Each application stays in the same pool and is assigned a random position
         _shuffle_queue_segment(apartment_apps)
 
 
-@transaction.atomic
 def _shuffle_queue_segment(
     application_apartments: QuerySet,
     start_position: int = 1,
@@ -98,6 +102,8 @@ def _shuffle_queue_segment(
     # Create a list of all possible queue positions between start and end position
     possible_positions = list(range(start_position, end_position))
 
+    reservations_to_update = []
+
     for app_apartment in application_apartments.order_by("id").all():
         # Remove a random queue position from the list assign it to the application
         random_index = secrets.randbelow(len(possible_positions))
@@ -105,4 +111,10 @@ def _shuffle_queue_segment(
         apartment_reservation = app_apartment.apartment_reservation
         apartment_reservation.list_position = position
         apartment_reservation.queue_position = position
-        apartment_reservation.save(update_fields=["list_position", "queue_position"])
+        reservations_to_update.append(apartment_reservation)
+
+    if reservations_to_update:
+        ApartmentReservation.objects.bulk_update(
+            reservations_to_update,
+            ["list_position", "queue_position"],
+        )
