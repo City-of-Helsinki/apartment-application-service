@@ -79,9 +79,7 @@ def _shuffle_applications(apartment_uuid: uuid.UUID) -> None:
         # The first queue segment go to applications with children, in random order
         _shuffle_queue_segment(apps_with_children)
         # The remaining segment go to applications without children
-        _shuffle_queue_segment(
-            apps_without_children, apps_with_children.count() + 1
-        )
+        _shuffle_queue_segment(apps_without_children, apps_with_children.count() + 1)
     else:
         # Each application stays in the same pool and is assigned a random position
         _shuffle_queue_segment(apartment_apps)

@@ -966,8 +966,8 @@ def _create_hitas_application_with_apartment(
     """Create and queue a HITAS application for the given apartment.
 
     Args:
-        apartment_uuid (Union[str, UUID]): The UUID of the apartment to create the application for.
-        has_children (bool): Whether the application should have children.
+        apartment_uuid: The UUID of the apartment to create the application for.
+        has_children: Whether the application should have children.
 
     Returns:
         The created application.
