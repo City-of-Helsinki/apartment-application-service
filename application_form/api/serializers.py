@@ -368,8 +368,89 @@ class ApartmentReservationSerializerBase(serializers.ModelSerializer):
             return data
 
 
+# Cancellation reasons triggered automatically by the system (no human actor)
+_SYSTEM_CANCELLATION_REASONS = {
+    ApartmentReservationCancellationReason.LOWER_PRIORITY,
+    ApartmentReservationCancellationReason.OTHER_APARTMENT_OFFERED,
+}
+
+
 class ApartmentReservationSerializer(ApartmentReservationSerializerBase):
-    pass
+    """
+    Public serializer for apartment reservations, used by the Drupal-facing API.
+
+    In addition to the base fields, this serializer provides:
+    - state_change_events: full history of state transitions
+    - cancellation_reason: raw enum value of the cancellation reason, or null
+    - cancellation_actor: who initiated the cancellation
+        "seller"  – manual action recorded by the seller (incl. registering offer
+                    rejection on behalf of the customer)
+        "system"  – automatic action by the system (lottery lower-priority removal,
+                    other-apartment-offered cleanup)
+        null      – reservation is not cancelled
+    - cancellation_timestamp: ISO timestamp of the cancellation event, or null
+    """
+
+    state_change_events = serializers.SerializerMethodField()
+    cancellation_reason = serializers.SerializerMethodField()
+    cancellation_actor = serializers.SerializerMethodField()
+    cancellation_timestamp = serializers.SerializerMethodField()
+
+    class Meta(ApartmentReservationSerializerBase.Meta):
+        fields = ApartmentReservationSerializerBase.Meta.fields + (
+            "state_change_events",
+            "cancellation_reason",
+            "cancellation_actor",
+            "cancellation_timestamp",
+        )
+
+    def _get_latest_canceled_event(self, obj):
+        """Return the newest CANCELED state-change event, or None."""
+        if obj.state != ApartmentReservationState.CANCELED:
+            return None
+        return (
+            obj.state_change_events.filter(state=ApartmentReservationState.CANCELED)
+            .order_by("-timestamp", "-id")
+            .first()
+        )
+
+    def get_state_change_events(self, obj):
+        return [
+            {
+                "timestamp": ev.timestamp,
+                "state": ev.state.value,
+                "cancellation_reason": (
+                    ev.cancellation_reason.value if ev.cancellation_reason else None
+                ),
+            }
+            for ev in obj.state_change_events.all()
+        ]
+
+    def get_cancellation_reason(self, obj):
+        ev = self._get_latest_canceled_event(obj)
+        if not ev or not ev.cancellation_reason:
+            return None
+        return ev.cancellation_reason.value
+
+    def get_cancellation_actor(self, obj):
+        """
+        Returns who initiated the cancellation:
+        - "system"  for automatic lottery/offer-pipeline actions
+                    (lower_priority, other_apartment_offered)
+        - "seller"  for all seller-recorded actions, including registering an
+                    offer rejection (offer_rejected) on behalf of the customer
+        - null      if the reservation is not cancelled
+        """
+        ev = self._get_latest_canceled_event(obj)
+        if not ev:
+            return None
+        if ev.cancellation_reason in _SYSTEM_CANCELLATION_REASONS:
+            return "system"
+        return "seller"
+
+    def get_cancellation_timestamp(self, obj):
+        ev = self._get_latest_canceled_event(obj)
+        return ev.timestamp if ev else None
 
 
 class ApartmentReservationStateChangeEventUserSerializer(serializers.ModelSerializer):

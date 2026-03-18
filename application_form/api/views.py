@@ -38,9 +38,13 @@ class ListProjectReservations(GenericAPIView):
     def get(self, request, project_uuid):
         apartment_uuid_list = get_apartment_uuids(project_uuid)
         profile_uuid = request.user.profile.id
-        reservations = ApartmentReservation.objects.filter(
-            apartment_uuid__in=apartment_uuid_list,
-            application_apartment__application__customer__primary_profile__id=profile_uuid,  # noqa
+        reservations = (
+            ApartmentReservation.objects.related_fields()
+            .prefetch_related("state_change_events")
+            .filter(
+                apartment_uuid__in=apartment_uuid_list,
+                application_apartment__application__customer__primary_profile__id=profile_uuid,  # noqa
+            )
         )
         serializer = self.get_serializer(reservations, many=True)
         return Response(serializer.data)
