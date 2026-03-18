@@ -158,58 +158,51 @@ def test_list_project_reservations_new_fields_non_cancelled(
     assert response.status_code == 200
     item = response.data[0]
 
-    # New fields present and null for non-cancelled
+    # New fields present for non-cancelled reservation
     assert "state_change_events" in item
     assert len(item["state_change_events"]) >= 1
     assert item["state_change_events"][0]["state"] == ApartmentReservationState.SUBMITTED.value  # noqa: E501
     assert item["cancellation_reason"] is None
-    assert item["cancellation_reason_display"] is None
+    assert "cancellation_reason_display" not in item
     assert item["cancellation_actor"] is None
-    assert item["cancellation_actor_label"] is None
+    assert "cancellation_actor_label" not in item
     assert item["cancellation_timestamp"] is None
 
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "cancellation_reason, expected_actor, expected_label",
+    "cancellation_reason, expected_actor",
     [
         # Seller-initiated: manual actions and offer rejection recorded by seller
         (
             ApartmentReservationCancellationReason.TERMINATED,
             "seller",
-            "Myyjä peruuttanut",
         ),
         (
             ApartmentReservationCancellationReason.CANCELED,
             "seller",
-            "Myyjä peruuttanut",
         ),
         (
             ApartmentReservationCancellationReason.RESERVATION_AGREEMENT_CANCELED,
             "seller",
-            "Myyjä peruuttanut",
         ),
         (
             ApartmentReservationCancellationReason.TRANSFERRED,
             "seller",
-            "Myyjä peruuttanut",
         ),
         # offer_rejected: seller records it in the system on behalf of the customer
         (
             ApartmentReservationCancellationReason.OFFER_REJECTED,
             "seller",
-            "Myyjä peruuttanut",
         ),
         # System-initiated: automatic pipeline actions, no human actor
         (
             ApartmentReservationCancellationReason.LOWER_PRIORITY,
             "system",
-            "Järjestelmä peruuttanut",
         ),
         (
             ApartmentReservationCancellationReason.OTHER_APARTMENT_OFFERED,
             "system",
-            "Järjestelmä peruuttanut",
         ),
     ],
 )
@@ -218,11 +211,9 @@ def test_list_project_reservations_cancellation_actor(
     elastic_project_with_5_apartments,
     cancellation_reason,
     expected_actor,
-    expected_label,
 ):
     """
-    Verify cancellation_actor and cancellation_actor_label for every
-    cancellation reason.
+    Verify cancellation_actor for every cancellation reason.
     """
     project_uuid, apartments = elastic_project_with_5_apartments
     profile = ProfileFactory()
@@ -254,7 +245,7 @@ def test_list_project_reservations_cancellation_actor(
 
     assert item["state"] == ApartmentReservationState.CANCELED.value
     assert item["cancellation_reason"] == cancellation_reason.value
-    assert item["cancellation_reason_display"] is not None
+    assert "cancellation_reason_display" not in item
     assert item["cancellation_actor"] == expected_actor
-    assert item["cancellation_actor_label"] == expected_label
+    assert "cancellation_actor_label" not in item
     assert item["cancellation_timestamp"] is not None
