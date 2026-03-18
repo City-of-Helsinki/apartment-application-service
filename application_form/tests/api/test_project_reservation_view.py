@@ -143,7 +143,9 @@ def test_list_project_reservations_new_fields_non_cancelled(
         priority_number=1,
     )
     ApartmentReservationFactory(
-        apartment_uuid=apartment.uuid, application_apartment=application_apartment
+        apartment_uuid=apartment.uuid,
+        application_apartment=application_apartment,
+        state=ApartmentReservationState.SUBMITTED,
     )
 
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
@@ -161,7 +163,10 @@ def test_list_project_reservations_new_fields_non_cancelled(
     # New fields present for non-cancelled reservation
     assert "state_change_events" in item
     assert len(item["state_change_events"]) >= 1
-    assert item["state_change_events"][0]["state"] == ApartmentReservationState.SUBMITTED.value  # noqa: E501
+    assert (
+        item["state_change_events"][0]["state"]
+        == ApartmentReservationState.SUBMITTED.value
+    )  # noqa: E501
     assert item["cancellation_reason"] is None
     assert "cancellation_reason_display" not in item
     assert item["cancellation_actor"] is None
@@ -227,9 +232,7 @@ def test_list_project_reservations_cancellation_actor(
     reservation = ApartmentReservationFactory(
         apartment_uuid=apartment.uuid, application_apartment=application_apartment
     )
-    remove_reservation_from_queue(
-        reservation, cancellation_reason=cancellation_reason
-    )
+    remove_reservation_from_queue(reservation, cancellation_reason=cancellation_reason)
 
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
     response = api_client.get(
