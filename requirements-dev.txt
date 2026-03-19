@@ -198,8 +198,10 @@ wcwidth==0.2.8
     # via prompt-toolkit
 wheel==0.41.2
     # via pip-tools
-wrapt==1.15.0
-    # via astroid
+wrapt==1.16.0
+    # via
+    #   -c requirements.txt
+    #   astroid
 
 # The following packages are considered to be unsafe in a requirements file:
 # pip
