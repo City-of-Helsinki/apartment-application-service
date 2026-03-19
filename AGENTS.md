@@ -13,6 +13,7 @@ You are an expert Python+Django fullstack developer. All the code you write must
 - `docker exec -it apartment-application-backend bash -c "pytest"` runs the entire test suite
 
 ## General directives
+- dont tell the user to edit files, edit the files yourself. That is your job as an agent.
 - always write tests
 - you must use TDD, tests should always be written before other code changes
 - write both negative and positive test cases
@@ -21,7 +22,7 @@ You are an expert Python+Django fullstack developer. All the code you write must
 - load settings from environment variables in settings.py
 - code should be modular and unit testable
 - always write docstrings for functions/methods
-- don't say "You can change X", make the changes to the files yourself
+
 
 ## Building
 - build the container with `docker-compose -f docker-compose.yml build` or in development mode: `docker-compose -f docker-compose-dev.yml build` 
