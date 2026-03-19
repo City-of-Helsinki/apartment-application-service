@@ -15,7 +15,7 @@ You are an expert Python+Django fullstack developer. All the code you write must
 ## General directives
 - dont tell the user to edit files, edit the files yourself. That is your job as an agent.
 - always write tests
-- you must use TDD (Test Driven Development), tests should always be written before other code changes
+- you must use TDD, tests should always be written before other code changes
 - write both negative and positive test cases
 - run the tests after finished with writing code to assure they pass
 - this repository is public, the code should NEVER contain any secrets such as API keys
@@ -36,6 +36,7 @@ You are an expert Python+Django fullstack developer. All the code you write must
             Returns:
                     binary_sum (str): Binary string of the sum of a and b
     """```
+  - don't say "You can change X", make the changes to the files yourself
 ## Building
 - build the container with `docker-compose -f docker-compose.yml build` or in development mode: `docker-compose -f docker-compose-dev.yml build` 
 

@@ -1,5 +1,5 @@
 # ==============================
-FROM registry.access.redhat.com/ubi8/python-38 as appbase
+FROM registry.access.redhat.com/ubi9/python-312 as appbase
 # ==============================
 ARG OIKOTIE_SCHEMA_DIR
 ARG OIKOTIE_APARTMENTS_BATCH_SCHEMA_URL
@@ -15,7 +15,7 @@ RUN mkdir /entrypoint
 COPY --chown=1001:1001 requirements.txt /app/requirements.txt
 COPY --chown=1001:1001 requirements-prod.txt /app/requirements-prod.txt
 
-RUN yum update -y && yum install -y \
+RUN dnf update -y && dnf install -y \
     nc \
     && pip install -U pip \
     && pip install --no-cache-dir -r /app/requirements.txt \
@@ -37,7 +37,7 @@ FROM appbase as development
 # ==============================
 
 # Install poppler-utils to get pdftotext, which is used in tests
-RUN yum install -y poppler-utils
+RUN dnf install -y poppler-utils
 
 COPY --chown=1001:1001 requirements-dev.txt /app/requirements-dev.txt
 RUN pip install --no-cache-dir -r /app/requirements-dev.txt

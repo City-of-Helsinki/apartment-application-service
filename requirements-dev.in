@@ -1,6 +1,8 @@
 -c requirements.txt
 black==24.3.0
 coverage
+pip<25.3
+setuptools<82
 django-extensions
 django-test-migrations
 factory-boy
@@ -8,7 +10,7 @@ flake8
 ipython
 ipdb
 isort
-pip-tools
+pip-tools==7.5.3
 pre-commit
 pylint-django
 pytest
