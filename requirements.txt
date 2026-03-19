@@ -195,7 +195,9 @@ urllib3==1.26.18
     #   sentry-sdk
 whitenoise==6.5.0
     # via -r requirements.in
-wrapt==2.1.2
-    # via deprecated
+wrapt==1.16.0
+    # via
+    #   -r requirements.in
+    #   deprecated
 xlsxwriter==3.2.2
     # via -r requirements.in
