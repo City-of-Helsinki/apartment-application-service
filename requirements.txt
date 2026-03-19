@@ -201,3 +201,6 @@ wrapt==1.16.0
     #   deprecated
 xlsxwriter==3.2.2
     # via -r requirements.in
+
+# The following packages are considered to be unsafe in a requirements file:
+# setuptools
