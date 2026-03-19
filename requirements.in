@@ -1,6 +1,6 @@
 Django
 django-cors-headers
-django-enumfields
+django-enumfields2
 django-environ
 django-etuovi
 # temporary
@@ -18,10 +18,11 @@ Faker~=8.6.0
 hashids~=1.3.1
 psycopg2
 python-stdnum
+setuptools==70.1.0
 sentry-sdk
 social-auth-app-django
 whitenoise
-pikepdf
+pikepdf==8.15.1
 num2words
 paramiko
 XlsxWriter==3.2.2
