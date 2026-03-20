@@ -184,8 +184,10 @@ traitlets==5.11.2
     # via
     #   ipython
     #   matplotlib-inline
-typing-extensions==4.8.0
-    # via django-test-migrations
+typing-extensions==4.15.0
+    # via
+    #   -c requirements.txt
+    #   django-test-migrations
 virtualenv==20.24.5
     # via pre-commit
 wcwidth==0.2.8

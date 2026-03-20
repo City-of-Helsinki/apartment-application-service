@@ -14,8 +14,9 @@ checkout_dir = environ.Path(__file__) - 2
 assert os.path.exists(checkout_dir("manage.py"))
 
 parent_dir = checkout_dir.path("..")
-if os.path.isdir(parent_dir("etc")):
-    env_file = parent_dir("etc/env")
+system_env_file = parent_dir("etc/env")
+if os.path.exists(system_env_file):
+    env_file = system_env_file
     default_var_root = parent_dir("var")
 else:
     env_file = checkout_dir(".env")
