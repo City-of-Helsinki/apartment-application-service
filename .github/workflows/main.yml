@@ -98,7 +98,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.8'
+          python-version: '3.12'
           cache: 'pip'
           cache-dependency-path: requirements-dev.txt
   
@@ -138,7 +138,7 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        python: [3.8, 3.9]
+        python: [3.11, 3.12]
     services:
       postgres:
         image: postgres:12
