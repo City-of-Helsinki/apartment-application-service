@@ -4,3 +4,5 @@
 #
 #    pip-compile --output-file=requirements-prod.txt --strip-extras requirements-prod.in
 #
+uwsgi==2.0.31
+    # via -r requirements-prod.in
