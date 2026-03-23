@@ -5,9 +5,9 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.urls import reverse
+from resilient_logger.models import ResilientLogEntry
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from audit_log.models import AuditLog
 from users.enums import Roles
 from users.masking import mask_string, mask_uuid, unmask_string, unmask_uuid
 from users.models import Profile
@@ -72,11 +72,11 @@ def test_profile_get_detail_writes_audit_log(profile, api_client):
     # A successful "READ" entry should be left when the user views their own profile
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
     api_client.get(reverse("users:profile-detail", args=(mask_uuid(profile.pk),)))
-    audit_event = AuditLog.objects.get().message["audit_event"]
-    assert audit_event["actor"] == {"role": "OWNER", "profile_id": str(profile.pk)}
-    assert audit_event["operation"] == "READ"
-    assert audit_event["target"] == {"id": str(profile.pk), "type": "Profile"}
-    assert audit_event["status"] == "SUCCESS"
+    entry = ResilientLogEntry.objects.get()
+    assert entry.context["actor"] == {"role": "OWNER", "profile_id": str(profile.pk)}
+    assert entry.context["operation"] == "READ"
+    assert entry.context["target"] == {"id": str(profile.pk), "type": "Profile"}
+    assert entry.context["status"] == "SUCCESS"
 
 
 @pytest.mark.django_db
@@ -99,11 +99,11 @@ def test_profile_get_detail_writes_audit_log_if_not_own_profile(
     # attemps to view someone else's profile.
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
     api_client.get(reverse("users:profile-detail", args=(mask_uuid(other_profile.pk),)))
-    audit_event = AuditLog.objects.get().message["audit_event"]
-    assert audit_event["actor"] == {"role": "USER", "profile_id": str(profile.pk)}
-    assert audit_event["operation"] == "READ"
-    assert audit_event["target"] == {"id": str(other_profile.pk), "type": "Profile"}
-    assert audit_event["status"] == "FORBIDDEN"
+    entry = ResilientLogEntry.objects.get()
+    assert entry.context["actor"] == {"role": "USER", "profile_id": str(profile.pk)}
+    assert entry.context["operation"] == "READ"
+    assert entry.context["target"] == {"id": str(other_profile.pk), "type": "Profile"}
+    assert entry.context["status"] == "FORBIDDEN"
 
 
 @pytest.mark.django_db
@@ -120,11 +120,11 @@ def test_profile_get_detail_writes_audit_log_if_not_authenticated(profile, api_c
     # A forbidden "READ" entry should be left if an unauthenticated user
     # tries to view somebody's profile.
     api_client.get(reverse("users:profile-detail", args=(mask_uuid(profile.pk),)))
-    audit_event = AuditLog.objects.get().message["audit_event"]
-    assert audit_event["actor"] == {"role": "ANONYMOUS", "profile_id": None}
-    assert audit_event["operation"] == "READ"
-    assert audit_event["target"] == {"id": str(profile.pk), "type": "Profile"}
-    assert audit_event["status"] == "FORBIDDEN"
+    entry = ResilientLogEntry.objects.get()
+    assert entry.context["actor"] == {"role": "ANONYMOUS", "profile_id": None}
+    assert entry.context["operation"] == "READ"
+    assert entry.context["target"] == {"id": str(profile.pk), "type": "Profile"}
+    assert entry.context["status"] == "FORBIDDEN"
 
 
 @pytest.mark.django_db
@@ -170,11 +170,12 @@ def test_profile_post_non_ascii_characters_in_email_address(api_client):
 def test_profile_post_writes_audit_log(api_client):
     api_client.post(reverse("users:profile-list"), PROFILE_TEST_DATA)
     profile = Profile.objects.get()
-    audit_event = AuditLog.objects.get().message["audit_event"]
-    assert audit_event["actor"] == {"role": "ANONYMOUS", "profile_id": None}
-    assert audit_event["operation"] == "CREATE"
-    assert audit_event["target"] == {"id": str(profile.pk), "type": "Profile"}
-    assert audit_event["status"] == "SUCCESS"
+    entry = ResilientLogEntry.objects.get()
+    assert entry.context["actor"] == {"role": "ANONYMOUS", "profile_id": None}
+    assert entry.context["operation"] == "CREATE"
+    assert entry.context["target"] == {"id": str(profile.pk), "type": "Profile"}
+    assert entry.context["status"] == "SUCCESS"
+    assert entry.message == "SUCCESS"
 
 
 @pytest.mark.django_db
@@ -230,11 +231,12 @@ def test_profile_put_writes_audit_log(profile, api_client):
         reverse("users:profile-detail", args=(mask_uuid(profile.pk),)),
         {**PROFILE_TEST_DATA, "first_name": "Maija", "address": "Kauppakatu 23"},
     )
-    audit_event = AuditLog.objects.get().message["audit_event"]
-    assert audit_event["actor"] == {"role": "OWNER", "profile_id": str(profile.pk)}
-    assert audit_event["operation"] == "UPDATE"
-    assert audit_event["target"] == {"id": str(profile.pk), "type": "Profile"}
-    assert audit_event["status"] == "SUCCESS"
+    entry = ResilientLogEntry.objects.get()
+    assert entry.context["actor"] == {"role": "OWNER", "profile_id": str(profile.pk)}
+    assert entry.context["operation"] == "UPDATE"
+    assert entry.context["target"] == {"id": str(profile.pk), "type": "Profile"}
+    assert entry.context["status"] == "SUCCESS"
+    assert entry.message == "SUCCESS"
 
 
 @pytest.mark.django_db
@@ -296,11 +298,11 @@ def test_profile_put_writes_audit_log_if_not_own_profile(
         url,
         {**PROFILE_TEST_DATA, "first_name": "Maija", "street_address": "Kauppakatu 23"},
     )
-    audit_event = AuditLog.objects.get().message["audit_event"]
-    assert audit_event["actor"] == {"role": "USER", "profile_id": str(profile.pk)}
-    assert audit_event["operation"] == "UPDATE"
-    assert audit_event["target"] == {"id": str(other_profile.pk), "type": "Profile"}
-    assert audit_event["status"] == "FORBIDDEN"
+    entry = ResilientLogEntry.objects.get()
+    assert entry.context["actor"] == {"role": "USER", "profile_id": str(profile.pk)}
+    assert entry.context["operation"] == "UPDATE"
+    assert entry.context["target"] == {"id": str(other_profile.pk), "type": "Profile"}
+    assert entry.context["status"] == "FORBIDDEN"
 
 
 @pytest.mark.django_db
@@ -321,11 +323,11 @@ def test_profile_put_writes_audit_log_if_not_authenticated(profile, api_client):
         reverse("users:profile-detail", args=(mask_uuid(profile.pk),)),
         PROFILE_TEST_DATA,
     )
-    audit_event = AuditLog.objects.get().message["audit_event"]
-    assert audit_event["actor"] == {"role": "ANONYMOUS", "profile_id": None}
-    assert audit_event["operation"] == "UPDATE"
-    assert audit_event["target"] == {"id": str(profile.pk), "type": "Profile"}
-    assert audit_event["status"] == "FORBIDDEN"
+    entry = ResilientLogEntry.objects.get()
+    assert entry.context["actor"] == {"role": "ANONYMOUS", "profile_id": None}
+    assert entry.context["operation"] == "UPDATE"
+    assert entry.context["target"] == {"id": str(profile.pk), "type": "Profile"}
+    assert entry.context["status"] == "FORBIDDEN"
 
 
 @pytest.mark.django_db
@@ -355,11 +357,11 @@ def test_profile_delete_writes_audit_log(profile, api_client):
     # A successful "DELETE" entry should be written if a user deletes their own profile
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
     api_client.delete(reverse("users:profile-detail", args=(mask_uuid(profile.pk),)))
-    audit_event = AuditLog.objects.get().message["audit_event"]
-    assert audit_event["actor"] == {"role": "OWNER", "profile_id": str(profile.pk)}
-    assert audit_event["operation"] == "DELETE"
-    assert audit_event["target"] == {"id": str(profile.pk), "type": "Profile"}
-    assert audit_event["status"] == "SUCCESS"
+    entry = ResilientLogEntry.objects.get()
+    assert entry.context["actor"] == {"role": "OWNER", "profile_id": str(profile.pk)}
+    assert entry.context["operation"] == "DELETE"
+    assert entry.context["target"] == {"id": str(profile.pk), "type": "Profile"}
+    assert entry.context["status"] == "SUCCESS"
 
 
 @pytest.mark.django_db
@@ -381,11 +383,11 @@ def test_profile_delete_writes_audit_log_if_not_own_profile(
     api_client.delete(
         reverse("users:profile-detail", args=(mask_uuid(other_profile.pk),))
     )
-    audit_event = AuditLog.objects.get().message["audit_event"]
-    assert audit_event["actor"] == {"role": "USER", "profile_id": str(profile.pk)}
-    assert audit_event["operation"] == "DELETE"
-    assert audit_event["target"] == {"id": str(other_profile.pk), "type": "Profile"}
-    assert audit_event["status"] == "FORBIDDEN"
+    entry = ResilientLogEntry.objects.get()
+    assert entry.context["actor"] == {"role": "USER", "profile_id": str(profile.pk)}
+    assert entry.context["operation"] == "DELETE"
+    assert entry.context["target"] == {"id": str(other_profile.pk), "type": "Profile"}
+    assert entry.context["status"] == "FORBIDDEN"
 
 
 @pytest.mark.django_db
@@ -406,11 +408,11 @@ def test_profile_delete_writes_audit_log_if_not_authenticated(profile, api_clien
         reverse("users:profile-detail", args=(mask_uuid(profile.pk),)),
         PROFILE_TEST_DATA,
     )
-    audit_event = AuditLog.objects.get().message["audit_event"]
-    assert audit_event["actor"] == {"role": "ANONYMOUS", "profile_id": None}
-    assert audit_event["operation"] == "DELETE"
-    assert audit_event["target"] == {"id": str(profile.pk), "type": "Profile"}
-    assert audit_event["status"] == "FORBIDDEN"
+    entry = ResilientLogEntry.objects.get()
+    assert entry.context["actor"] == {"role": "ANONYMOUS", "profile_id": None}
+    assert entry.context["operation"] == "DELETE"
+    assert entry.context["target"] == {"id": str(profile.pk), "type": "Profile"}
+    assert entry.context["status"] == "FORBIDDEN"
 
 
 @pytest.mark.django_db

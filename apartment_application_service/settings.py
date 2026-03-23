@@ -111,6 +111,8 @@ env = environ.Env(
     AUDIT_LOG_ELASTICSEARCH_PORT=(str, ""),
     AUDIT_LOG_ELASTICSEARCH_USERNAME=(str, ""),
     AUDIT_LOG_ELASTICSEARCH_PASSWORD=(str, ""),
+    AUDIT_LOG_ENV=(str, "development"),
+    AUDIT_LOG_ES_URL=(str, ""),
     ENABLE_SEND_AUDIT_LOG=(bool, False),
     CLEAR_AUDIT_LOG_ENTRIES=(bool, False),
     DRUPAL_SERVER_AUTH_TOKEN=(str, "example-token"),
@@ -194,6 +196,7 @@ INSTALLED_APPS = [
     "simple_history",
     "drf_spectacular",
     "pgcrypto",
+    "resilient_logger",
     # local apps
     "apartment",
     "application_form",
@@ -454,7 +457,48 @@ AUDIT_LOG_ELASTICSEARCH_HOST = env("AUDIT_LOG_ELASTICSEARCH_HOST")
 AUDIT_LOG_ELASTICSEARCH_PORT = env("AUDIT_LOG_ELASTICSEARCH_PORT")
 AUDIT_LOG_ELASTICSEARCH_USERNAME = env("AUDIT_LOG_ELASTICSEARCH_USERNAME")
 AUDIT_LOG_ELASTICSEARCH_PASSWORD = env("AUDIT_LOG_ELASTICSEARCH_PASSWORD")
+AUDIT_LOG_ENV = env("AUDIT_LOG_ENV")
+AUDIT_LOG_ES_URL = env("AUDIT_LOG_ES_URL")
 ENABLE_SEND_AUDIT_LOG = env("ENABLE_SEND_AUDIT_LOG")
+
+if not AUDIT_LOG_ES_URL and (
+    AUDIT_LOG_ELASTICSEARCH_HOST and AUDIT_LOG_ELASTICSEARCH_PORT
+):
+    # Backward-compatible: derive `es_url` from the existing host + port vars.
+    AUDIT_LOG_ES_URL = f"{AUDIT_LOG_ELASTICSEARCH_HOST}:{AUDIT_LOG_ELASTICSEARCH_PORT}"
+
+AUDIT_LOG_ELASTICSEARCH_CONFIGURED = bool(
+    AUDIT_LOG_ES_URL
+    and ELASTICSEARCH_APP_AUDIT_LOG_INDEX
+    and AUDIT_LOG_ELASTICSEARCH_USERNAME
+    and AUDIT_LOG_ELASTICSEARCH_PASSWORD
+)
+
+RESILIENT_LOGGER = {
+    "origin": "APARTMENT_APPLICATION_SERVICE",
+    "environment": AUDIT_LOG_ENV,
+    "sources": [{"class": "resilient_logger.sources.ResilientLogSource"}],
+    "targets": (
+        [
+            {
+                "class": "resilient_logger.targets.ElasticsearchLogTarget",
+                "es_url": AUDIT_LOG_ES_URL,
+                "es_username": AUDIT_LOG_ELASTICSEARCH_USERNAME,
+                "es_password": AUDIT_LOG_ELASTICSEARCH_PASSWORD,
+                "es_index": ELASTICSEARCH_APP_AUDIT_LOG_INDEX,
+                "required": True,
+            }
+        ]
+        if ENABLE_SEND_AUDIT_LOG and AUDIT_LOG_ELASTICSEARCH_CONFIGURED
+        else []
+    ),
+    "batch_limit": 5000,
+    "chunk_size": 500,
+    # Prevent marking entries as sent when no targets are configured.
+    "submit_unsent_entries": ENABLE_SEND_AUDIT_LOG
+    and AUDIT_LOG_ELASTICSEARCH_CONFIGURED,
+    "clear_sent_entries": CLEAR_AUDIT_LOG_ENTRIES,
+}
 
 # Drupal auth
 DRUPAL_SERVER_AUTH_TOKEN = env.str("DRUPAL_SERVER_AUTH_TOKEN")

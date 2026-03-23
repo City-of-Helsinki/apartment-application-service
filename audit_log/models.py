@@ -4,6 +4,13 @@ from django.utils.translation import gettext_lazy as _
 
 
 class AuditLog(models.Model):
+    """
+    Deprecated legacy audit log storage.
+
+    New audit events are written to `resilient_logger.ResilientLogEntry`.
+    This model is kept for backward compatibility with existing data.
+    """
+
     message = JSONField()
     sent_at = models.DateTimeField(null=True, blank=True, verbose_name=_("sent at"))
     created_at = models.DateTimeField(auto_now_add=True, verbose_name=_("created at"))

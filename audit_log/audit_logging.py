@@ -1,14 +1,13 @@
+import logging
 from datetime import datetime, timezone
 from typing import Callable, Optional, Union
 
 from django.contrib.auth.models import AnonymousUser
 from django.db.models import Model
+from resilient_logger.sources import ResilientLogSource
 
 from audit_log.enums import Operation, Role, Status
-from audit_log.models import AuditLog
 from users.models import Profile
-
-ORIGIN = "APARTMENT_APPLICATION_SERVICE"
 
 
 def _now() -> datetime:
@@ -35,7 +34,7 @@ def log(
     an operation(e.g. READ or UPDATE), the target of the operation
     (a Django model instance), status (e.g. SUCCESS), and a timestamp.
 
-    Audit log events are written to the "audit" logger at "INFO" level.
+    The event is queued to resilient audit-log storage with `INFO` level.
     """
     current_time = get_time()
     profile_id = None
@@ -49,24 +48,21 @@ def log(
     else:
         role = Role.USER
         profile_id = str(actor.pk)
-    message = {
-        "audit_event": {
-            "origin": ORIGIN,
-            "status": str(status.value),
+    ResilientLogSource.create_structured(
+        level=logging.INFO,
+        message=str(status.value),
+        operation=str(operation.value),
+        actor={"role": str(role.value), "profile_id": profile_id},
+        target={
+            "id": _get_target_id(target),
+            "type": target and str(target.__class__.__name__) or None,
+        },
+        extra={
             "date_time_epoch": int(current_time.timestamp() * 1000),
             "date_time": _iso8601_date(current_time),
-            "actor": {
-                "role": str(role.value),
-                "profile_id": profile_id,
-            },
-            "operation": str(operation.value),
-            "target": {
-                "id": _get_target_id(target),
-                "type": target and str(target.__class__.__name__) or None,
-            },
+            "status": str(status.value),
         },
-    }
-    AuditLog.objects.create(message=message)
+    )
 
 
 def _get_target_id(instance: Optional[Model]) -> Optional[str]:

@@ -1,9 +1,7 @@
 from logging import getLogger
 
 from django.conf import settings
-from django.core.management import BaseCommand
-
-from audit_log.tasks import send_audit_log_to_elastic_search
+from django.core.management import BaseCommand, call_command
 
 logger = getLogger(__name__)
 
@@ -14,6 +12,10 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
 
         if settings.ENABLE_SEND_AUDIT_LOG:
-            logger.info("Sending audit log to ES")
-            sent_count = send_audit_log_to_elastic_search()
-            logger.info(f"{sent_count} audit log entries sent to ES")
+            logger.info("Submitting resilient audit log entries to target(s)")
+            # Log the number of unsent audit log entries before submission.
+            from resilient_logger.models import ResilientLogEntry
+
+            unsent_count = ResilientLogEntry.objects.filter(is_sent=None).count()
+            logger.info(f"Number of unsent audit log entries: {unsent_count}")
+            call_command("submit_unsent_entries")

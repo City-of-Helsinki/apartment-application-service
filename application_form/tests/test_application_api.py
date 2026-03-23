@@ -6,6 +6,7 @@ import pytest
 from django.urls import reverse
 from django.utils import timezone
 from freezegun import freeze_time
+from resilient_logger.models import ResilientLogEntry
 from rest_framework import status
 
 from apartment.elastic.documents import ApartmentDocument
@@ -30,7 +31,6 @@ from application_form.tests.factories import (
     ApplicationFactory,
     LotteryEventFactory,
 )
-from audit_log.models import AuditLog
 from connections.enums import ApartmentStateOfSale
 from customer.models import Customer
 from customer.tests.factories import CustomerFactory
@@ -183,14 +183,15 @@ def test_application_post_writes_audit_log(
     api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
     data = create_application_data(profile)
     api_client.post(reverse("application_form:application-list"), data, format="json")
-    audit_event = AuditLog.objects.get().message["audit_event"]
-    assert audit_event["actor"] == {"role": "USER", "profile_id": str(profile.pk)}
-    assert audit_event["operation"] == "CREATE"
-    assert audit_event["target"] == {
+    entry = ResilientLogEntry.objects.get()
+    assert entry.context["actor"] == {"role": "USER", "profile_id": str(profile.pk)}
+    assert entry.context["operation"] == "CREATE"
+    assert entry.context["target"] == {
         "id": data["application_uuid"],
         "type": "Application",
     }
-    assert audit_event["status"] == "SUCCESS"
+    assert entry.context["status"] == "SUCCESS"
+    assert entry.message == "SUCCESS"
 
 
 @pytest.mark.django_db
@@ -210,11 +211,12 @@ def test_application_post_writes_audit_log_if_not_authenticated(
 ):
     data = create_application_data(ProfileFactory())
     api_client.post(reverse("application_form:application-list"), data, format="json")
-    audit_event = AuditLog.objects.get().message["audit_event"]
-    assert audit_event["actor"] == {"role": "ANONYMOUS", "profile_id": None}
-    assert audit_event["operation"] == "CREATE"
-    assert audit_event["target"] == {"id": None, "type": "Application"}
-    assert audit_event["status"] == "FORBIDDEN"
+    entry = ResilientLogEntry.objects.get()
+    assert entry.context["actor"] == {"role": "ANONYMOUS", "profile_id": None}
+    assert entry.context["operation"] == "CREATE"
+    assert entry.context["target"] == {"id": None, "type": "Application"}
+    assert entry.context["status"] == "FORBIDDEN"
+    assert entry.message == "FORBIDDEN"
 
 
 @pytest.mark.django_db
