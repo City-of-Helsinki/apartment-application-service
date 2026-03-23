@@ -3,6 +3,7 @@ django-cors-headers
 django-enumfields2
 django-environ
 django-etuovi
+django-resilient-logger
 # temporary
 git+https://github.com/City-of-Helsinki/django-oikotie.git@version_0_2_2
 django-helusers==0.13.0

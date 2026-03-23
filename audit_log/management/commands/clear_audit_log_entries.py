@@ -1,9 +1,8 @@
 from logging import getLogger
 
 from django.conf import settings
+from django.core.management import call_command
 from django.core.management.base import BaseCommand
-
-from audit_log.tasks import clear_audit_log_entries
 
 logger = getLogger(__name__)
 
@@ -16,8 +15,5 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         if settings.CLEAR_AUDIT_LOG_ENTRIES:
-            deleted, deleted_count = clear_audit_log_entries()
-            if deleted:
-                logger.info(f"{deleted_count} audit log entries sent to ES")
-            else:
-                logger.warning("Something wrong, cannot delete audit log entries")
+            logger.info("Clearing sent resilient audit log entries")
+            call_command("clear_sent_entries")
