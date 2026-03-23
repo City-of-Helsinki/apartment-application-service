@@ -15,8 +15,6 @@ class Command(BaseCommand):
             logger.info("Submitting resilient audit log entries to target(s)")
             # Log the number of unsent audit log entries before submission.
             from resilient_logger.models import ResilientLogEntry
-
             unsent_count = ResilientLogEntry.objects.filter(is_sent=None).count()
             logger.info(f"Number of unsent audit log entries: {unsent_count}")
-            import ipdb; ipdb.set_trace()
             call_command("submit_unsent_entries")
