@@ -5,9 +5,9 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.urls import reverse
+from resilient_logger.models import ResilientLogEntry
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from resilient_logger.models import ResilientLogEntry
 from users.enums import Roles
 from users.masking import mask_string, mask_uuid, unmask_string, unmask_uuid
 from users.models import Profile

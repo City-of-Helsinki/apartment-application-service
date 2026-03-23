@@ -4,10 +4,10 @@ from typing import Callable, Optional, Union
 
 from django.contrib.auth.models import AnonymousUser
 from django.db.models import Model
+from resilient_logger.sources import ResilientLogSource
 
 from audit_log.enums import Operation, Role, Status
 from users.models import Profile
-from resilient_logger.sources import ResilientLogSource
 
 
 def _now() -> datetime:

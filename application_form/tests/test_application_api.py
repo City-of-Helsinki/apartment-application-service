@@ -6,6 +6,7 @@ import pytest
 from django.urls import reverse
 from django.utils import timezone
 from freezegun import freeze_time
+from resilient_logger.models import ResilientLogEntry
 from rest_framework import status
 
 from apartment.elastic.documents import ApartmentDocument
@@ -30,7 +31,6 @@ from application_form.tests.factories import (
     ApplicationFactory,
     LotteryEventFactory,
 )
-from resilient_logger.models import ResilientLogEntry
 from connections.enums import ApartmentStateOfSale
 from customer.models import Customer
 from customer.tests.factories import CustomerFactory

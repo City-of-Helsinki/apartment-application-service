@@ -5,12 +5,11 @@ import pytest
 from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
 from django.utils import timezone
-
-from audit_log import audit_logging
-from audit_log.enums import Operation, Status
 from resilient_logger.models import ResilientLogEntry
 from resilient_logger.sources import ResilientLogSource
 
+from audit_log import audit_logging
+from audit_log.enums import Operation, Status
 
 _common_context = {
     "date_time_epoch": 1590969600000,
