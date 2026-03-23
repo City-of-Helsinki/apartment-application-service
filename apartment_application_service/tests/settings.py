@@ -37,3 +37,18 @@ ELASTICSEARCH_URL = test_env("TEST_ELASTICSEARCH_URL")
 ELASTICSEARCH_PORT = test_env("TEST_ELASTICSEARCH_PORT")
 ELASTICSEARCH_USERNAME = test_env("TEST_ELASTICSEARCH_USERNAME")
 ELASTICSEARCH_PASSWORD = test_env("TEST_ELASTICSEARCH_PASSWORD")
+
+# Avoid submitting resilient logs to Elasticsearch during unit tests.
+RESILIENT_LOGGER = {
+    **RESILIENT_LOGGER,  # noqa: F405
+    # The resilient-logger library requires `targets` to be a non-empty list,
+    # even if submission is disabled. Use a proxy target that never reaches ES.
+    "targets": [
+        {
+            "class": "resilient_logger.targets.ProxyLogTarget",
+            "required": False,
+        }
+    ],
+    "submit_unsent_entries": False,
+    "clear_sent_entries": False,
+}
