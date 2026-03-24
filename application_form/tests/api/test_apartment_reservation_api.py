@@ -874,7 +874,6 @@ def test_create_reservation(
             {
                 "lottery_position": 8,
                 "priority_number": 11,
-                "queue_position": 4,
                 "state": "offered",
                 "has_children": True,
                 "has_hitas_ownership": False,

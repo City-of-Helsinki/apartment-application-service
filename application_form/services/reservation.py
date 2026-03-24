@@ -98,6 +98,8 @@ def create_late_reservation(
     reservation_data: dict, user: User = None
 ) -> ApartmentReservation:
     with lock_table(ApartmentReservation):
+        requested_queue_position = reservation_data.pop("queue_position", None)
+        requested_submitted_late = reservation_data.pop("submitted_late", None)
         apartment_uuid = reservation_data["apartment_uuid"]
         apartment = get_apartment(apartment_uuid, include_project_fields=True)
         existing_reservations = get_existing_reservations(apartment_uuid)
@@ -115,15 +117,36 @@ def create_late_reservation(
         if right_of_residence_ordering_number is None and ownership_type == "haso":
             raise ValidationError("User has no right of residence number set")
 
-        new_list_position, new_queue_position = calculate_new_positions(
-            max_list_position,
-            max_queue_position,
-            ownership_type,
-            right_of_residence_ordering_number,
-            existing_reservations,
-        )
+        if requested_queue_position is not None:
+            active_reservations = existing_reservations.exclude(
+                state=ApartmentReservationState.CANCELED
+            )
+            current_queue_length = active_reservations.count()
+            new_queue_position = max(
+                1, min(requested_queue_position, current_queue_length + 1)
+            )
+            _adjust_positions(
+                existing_reservations,
+                "queue_position",
+                new_queue_position,
+                by=1,
+            )
+            new_list_position = (max_list_position or 0) + 1
+        else:
+            new_list_position, new_queue_position = calculate_new_positions(
+                max_list_position,
+                max_queue_position,
+                ownership_type,
+                right_of_residence_ordering_number,
+                existing_reservations,
+            )
         reservation = create_reservation(
-            reservation_data, state, new_list_position, new_queue_position, user
+            reservation_data,
+            state,
+            new_list_position,
+            new_queue_position,
+            requested_submitted_late,
+            user,
         )
         reservation.save(user=user)
 
@@ -198,6 +221,7 @@ def create_reservation(
     state: str,
     list_position: int,
     queue_position: int,
+    submitted_late: Optional[bool],
     user: User,
 ) -> ApartmentReservation:
     customer = reservation_data["customer"]
@@ -205,7 +229,7 @@ def create_reservation(
         **reservation_data,
         state=state,
         list_position=list_position,
-        submitted_late=True,
+        submitted_late=True if submitted_late is None else submitted_late,
         queue_position=queue_position,
         right_of_residence=customer.right_of_residence,
         right_of_residence_is_old_batch=customer.right_of_residence_is_old_batch,

@@ -257,6 +257,8 @@ class ApartmentReservationViewSet(
     @action(methods=["POST"], detail=True)
     def set_state(self, request, pk=None):
         reservation = self.get_object()
+        old_queue_position = reservation.queue_position
+        old_submitted_late = reservation.submitted_late
         data = {"reservation_id": pk}
         data.update(request.data)
 
@@ -265,16 +267,65 @@ class ApartmentReservationViewSet(
         )
         state_change_event_serializer.is_valid(raise_exception=True)
 
-        queue_position = state_change_event_serializer.validated_data.get(
-            "queue_position", None
-        )
+        validated_data = dict(state_change_event_serializer.validated_data)
+        new_submitted_late = validated_data.pop("submitted_late", None)
+        queue_position = validated_data.get("queue_position", None)
         if (
             queue_position is None
             and reservation.queue_position_before_cancelation is not None
         ):
             queue_position = reservation.queue_position_before_cancelation
 
-        new_state = state_change_event_serializer.validated_data.get("state")
+        new_state = validated_data.get("state")
+
+        submitted_late_changed = (
+            new_submitted_late is not None
+            and old_submitted_late is not None
+            and new_submitted_late != old_submitted_late
+        )
+        if submitted_late_changed:
+            reservation.submitted_late = new_submitted_late
+            reservation.save(update_fields=["submitted_late"])
+
+            # If queue position isn't explicitly provided, recalculate a target position
+            # for HASO queues based on right of residence ordering.
+            if (
+                queue_position is None
+                and new_state != ApartmentReservationState.CANCELED
+                and reservation.queue_position is not None
+            ):
+                apartment = get_apartment(
+                    reservation.apartment_uuid, include_project_fields=True
+                )
+                if (apartment.project_ownership_type or "").lower() == "haso":
+                    ordering_number = reservation.right_of_residence_ordering_number
+                    active_qs = ApartmentReservation.objects.active().filter(
+                        apartment_uuid=reservation.apartment_uuid
+                    )
+                    if reservation.pk:
+                        active_qs = active_qs.exclude(pk=reservation.pk)
+                    current_queue_length = active_qs.count()
+                    if ordering_number is not None:
+                        queue_position = current_queue_length + 1
+                        offered_or_sold_states = {
+                            ApartmentReservationState.OFFER_ACCEPTED,
+                            ApartmentReservationState.OFFERED,
+                            ApartmentReservationState.SOLD,
+                        }
+                        same_late_group = active_qs.filter(
+                            submitted_late=reservation.submitted_late
+                        ).order_by("queue_position")
+                        for other in same_late_group:
+                            other_ordering_number = (
+                                other.right_of_residence_ordering_number
+                            )
+                            if (
+                                other_ordering_number is not None
+                                and ordering_number < other_ordering_number
+                                and other.state not in offered_or_sold_states
+                            ):
+                                queue_position = other.queue_position
+                                break
 
         if (
             queue_position is not None
@@ -299,18 +350,54 @@ class ApartmentReservationViewSet(
                 reservation.queue_position is None
                 or reservation.queue_position != queue_position
             ):
+                reservations_qs = ApartmentReservation.objects.filter(
+                    apartment_uuid=reservation.apartment_uuid
+                ).exclude(pk=reservation.pk)
+
+                # If the reservation is already in queue, first close the old gap
+                # and then make room at the new position.
+                if reservation.queue_position is not None:
+                    _adjust_positions(
+                        reservations_qs,
+                        "queue_position",
+                        reservation.queue_position,
+                        by=-1,
+                    )
+
                 _adjust_positions(
-                    ApartmentReservation.objects.filter(
-                        apartment_uuid=reservation.apartment_uuid
-                    ).exclude(pk=reservation.pk),
+                    reservations_qs,
                     "queue_position",
                     queue_position,
                     by=1,
                 )
 
+        manual_change_comments = []
+        if (
+            queue_position is not None
+            and new_state != ApartmentReservationState.CANCELED
+            and old_queue_position != queue_position
+        ):
+            manual_change_comments.append(
+                f"Queue position changed from {old_queue_position} to {queue_position}"
+            )
+        if submitted_late_changed:
+            manual_change_comments.append(
+                f"Submitted late changed from {old_submitted_late} to {new_submitted_late}"
+            )
+        if manual_change_comments:
+            current_comment = (validated_data.get("comment") or "").strip()
+            auto_comment = "; ".join(manual_change_comments)
+            validated_data["comment"] = (
+                f"{current_comment}; {auto_comment}"
+                if current_comment
+                else auto_comment
+            )
+
+        validated_data["queue_position"] = queue_position
+
         # set state and position
         state_change_event = reservation.set_state(
-            **state_change_event_serializer.validated_data,
+            **validated_data,
             user=request.user,
         )
 
