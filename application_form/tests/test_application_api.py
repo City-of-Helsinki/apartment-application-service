@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
-from typing import List
+from typing import List, Union
 from unittest.mock import MagicMock, patch
+from uuid import UUID
 
 import pytest
 from django.urls import reverse
@@ -24,6 +25,9 @@ from application_form.enums import (
     ApplicationType,
 )
 from application_form.models import ApartmentReservation, Application
+from application_form.services.application import cancel_reservation
+from application_form.services.lottery.machine import distribute_apartments
+from application_form.services.queue import add_application_to_queues
 from application_form.tests.conftest import create_application_data, generate_apartments
 from application_form.tests.factories import (
     ApartmentReservationFactory,
@@ -953,6 +957,260 @@ def test_skipped_position_in_hitas_queue_doesnt_cause_error(
     assert first_reservation.list_position == 3
 
     pass
+
+
+def _create_hitas_application_with_apartment(
+    apartment_uuid: Union[str, UUID], *, has_children: bool = True
+) -> Application:
+    """Create and queue a HITAS application for the given apartment.
+
+    Args:
+        apartment_uuid: The UUID of the apartment to create the application for.
+        has_children: Whether the application should have children.
+
+    Returns:
+        The created application.
+    """
+    application = ApplicationFactory(
+        type=ApplicationType.HITAS,
+        has_children=has_children,
+    )
+    ApplicationApartmentFactory.create_application_with_apartments(
+        [apartment_uuid], application
+    )
+    add_application_to_queues(application)
+    return application
+
+
+@pytest.mark.django_db
+@patch("application_form.services.lottery.hitas.secrets.randbelow", return_value=0)
+def test_hitas_lottery_does_not_reassign_canceled_positions(_randbelow, elasticsearch):
+    """Ensure canceled reservations keep no queue position after lottery rerun.
+
+    Uses ``randbelow(return_value=0)`` so the shuffling is deterministic and
+    easy to reason about: with two applications, one is canceled before the
+    lottery, and we assert that the canceled reservation ends up with a
+    ``queue_position`` of ``None`` and the remaining active reservation keeps
+    a compact queue starting at 1.
+    """
+    apartment_properties = {
+        "apartment_state_of_sale": ApartmentStateOfSale.FOR_SALE.value,
+        "_language": "fi",
+        "project_ownership_type": OwnershipType.HITAS.value,
+        "project_application_end_time": (
+            datetime.now().replace(tzinfo=timezone.get_default_timezone())
+        )
+        - timedelta(days=1),
+    }
+    apartments = generate_apartments(elasticsearch, 1, apartment_properties)
+    apartment = apartments[0]
+
+    first_application = _create_hitas_application_with_apartment(apartment.uuid)
+    _create_hitas_application_with_apartment(apartment.uuid)
+
+    canceled_reservation = ApartmentReservation.objects.get(
+        application_apartment__application=first_application
+    )
+    cancel_reservation(canceled_reservation)
+
+    distribute_apartments(apartment.project_uuid)
+
+    canceled_reservation.refresh_from_db()
+    active_queue_positions = list(
+        ApartmentReservation.objects.active()
+        .filter(apartment_uuid=apartment.uuid)
+        .order_by("queue_position")
+        .values_list("queue_position", flat=True)
+    )
+
+    assert canceled_reservation.queue_position is None
+    assert active_queue_positions == [1]
+
+
+@pytest.mark.django_db
+@patch("application_form.services.lottery.hitas.secrets.randbelow", return_value=0)
+def test_hitas_lottery_rerun_keeps_active_queue_compact(_randbelow, elasticsearch):
+    """Ensure rerunning the lottery keeps active queue positions compact.
+
+    Uses the same deterministic ``randbelow(return_value=0)`` so that with two
+    applications we can cancel the first winner, rerun the lottery, and verify
+    that the remaining active reservation's queue still starts at 1 without
+    gaps created by the canceled reservation.
+    """
+    apartment_properties = {
+        "apartment_state_of_sale": ApartmentStateOfSale.FOR_SALE.value,
+        "_language": "fi",
+        "project_ownership_type": OwnershipType.HITAS.value,
+        "project_application_end_time": (
+            datetime.now().replace(tzinfo=timezone.get_default_timezone())
+        )
+        - timedelta(days=1),
+    }
+    apartments = generate_apartments(elasticsearch, 1, apartment_properties)
+    apartment = apartments[0]
+
+    first_application = _create_hitas_application_with_apartment(apartment.uuid)
+    _create_hitas_application_with_apartment(apartment.uuid)
+
+    distribute_apartments(apartment.project_uuid)
+
+    canceled_reservation = ApartmentReservation.objects.get(
+        application_apartment__application=first_application
+    )
+    cancel_reservation(canceled_reservation)
+
+    distribute_apartments(apartment.project_uuid)
+
+    canceled_reservation.refresh_from_db()
+    active_queue_positions = list(
+        ApartmentReservation.objects.active()
+        .filter(apartment_uuid=apartment.uuid)
+        .order_by("queue_position")
+        .values_list("queue_position", flat=True)
+    )
+
+    assert canceled_reservation.queue_position is None
+    assert active_queue_positions == [1]
+
+
+@pytest.mark.django_db
+def test_hitas_children_priority_queue_ignores_canceled_children(elasticsearch):
+    """Ensure child-priority lottery ignores canceled child applications.
+
+    Creates one HITAS application with children and two without, cancels the
+    child application before running the lottery and asserts that the active
+    queue positions are ``[1, 2]``, proving that only active applications are
+    considered when prioritizing families with children.
+    """
+    apartment_properties = {
+        "apartment_state_of_sale": ApartmentStateOfSale.FOR_SALE.value,
+        "_language": "fi",
+        "project_ownership_type": OwnershipType.HITAS.value,
+        "room_count": 3,
+        "project_application_end_time": (
+            datetime.now().replace(tzinfo=timezone.get_default_timezone())
+        )
+        - timedelta(days=1),
+    }
+    apartments = generate_apartments(elasticsearch, 1, apartment_properties)
+    apartment = apartments[0]
+
+    children_application = _create_hitas_application_with_apartment(
+        apartment.uuid, has_children=True
+    )
+    canceled_reservation = ApartmentReservation.objects.get(
+        application_apartment__application=children_application
+    )
+    cancel_reservation(canceled_reservation)
+
+    _create_hitas_application_with_apartment(apartment.uuid, has_children=False)
+    _create_hitas_application_with_apartment(apartment.uuid, has_children=False)
+
+    distribute_apartments(apartment.project_uuid)
+
+    active_queue_positions = list(
+        ApartmentReservation.objects.active()
+        .filter(apartment_uuid=apartment.uuid)
+        .order_by("queue_position")
+        .values_list("queue_position", flat=True)
+    )
+
+    assert active_queue_positions == [1, 2]
+
+
+@pytest.mark.django_db
+@patch(
+    "application_form.services.lottery.hitas.secrets.randbelow",
+    side_effect=[2, 1, 0],
+)
+def test_hitas_lottery_reverse_order_still_compact(_randbelow, elasticsearch):
+    """Exercise a non-trivial but deterministic shuffle order.
+
+    With three HITAS applications and ``randbelow(side_effect=[2, 1, 0])``,
+    the lottery will pick the last, then middle, then first remaining position.
+    The test asserts that even with this \"reverse\" selection order the final
+    active queue positions are ``[1, 2, 3]``, i.e. the queue remains compact.
+    """
+    apartment_properties = {
+        "apartment_state_of_sale": ApartmentStateOfSale.FOR_SALE.value,
+        "_language": "fi",
+        "project_ownership_type": OwnershipType.HITAS.value,
+        "project_application_end_time": (
+            datetime.now().replace(tzinfo=timezone.get_default_timezone())
+        )
+        - timedelta(days=1),
+    }
+    apartments = generate_apartments(elasticsearch, 1, apartment_properties)
+    apartment = apartments[0]
+
+    _create_hitas_application_with_apartment(apartment.uuid)
+    _create_hitas_application_with_apartment(apartment.uuid)
+    _create_hitas_application_with_apartment(apartment.uuid)
+
+    distribute_apartments(apartment.project_uuid)
+
+    active_queue_positions = list(
+        ApartmentReservation.objects.active()
+        .filter(apartment_uuid=apartment.uuid)
+        .order_by("queue_position")
+        .values_list("queue_position", flat=True)
+    )
+
+    assert active_queue_positions == [1, 2, 3]
+
+
+@pytest.mark.django_db
+@patch(
+    "application_form.services.lottery.hitas._shuffle_queue_segment",
+    side_effect=RuntimeError("forced failure in shuffle"),
+)
+def test_hitas_lottery_is_atomic_on_failure(_shuffle_segment, elasticsearch):
+    """Verify HITAS lottery shuffle is atomic.
+
+    - Create two HITAS applications and cancel the first to get one active and
+      one canceled reservation for the same apartment.
+    - Force ``_shuffle_queue_segment`` to raise ``RuntimeError`` during the
+      lottery run to simulate a failure inside the shuffle.
+    - Assert that ``list_position`` and ``queue_position`` tuples for all
+      reservations are identical before and after the failure, proving the
+      outer transaction rolls back any partial updates.
+    """
+    apartment_properties = {
+        "apartment_state_of_sale": ApartmentStateOfSale.FOR_SALE.value,
+        "_language": "fi",
+        "project_ownership_type": OwnershipType.HITAS.value,
+        "project_application_end_time": (
+            datetime.now().replace(tzinfo=timezone.get_default_timezone())
+        )
+        - timedelta(days=1),
+    }
+    apartments = generate_apartments(elasticsearch, 1, apartment_properties)
+    apartment = apartments[0]
+
+    first_application = _create_hitas_application_with_apartment(apartment.uuid)
+    _create_hitas_application_with_apartment(apartment.uuid)
+
+    canceled_reservation = ApartmentReservation.objects.get(
+        application_apartment__application=first_application
+    )
+    cancel_reservation(canceled_reservation)
+
+    reservations_before = list(
+        ApartmentReservation.objects.filter(apartment_uuid=apartment.uuid)
+        .order_by("pk")
+        .values_list("pk", "list_position", "queue_position", "state")
+    )
+
+    with pytest.raises(RuntimeError):
+        distribute_apartments(apartment.project_uuid)
+
+    reservations_after = list(
+        ApartmentReservation.objects.filter(apartment_uuid=apartment.uuid)
+        .order_by("pk")
+        .values_list("pk", "list_position", "queue_position", "state")
+    )
+
+    assert reservations_after == reservations_before
 
 
 @pytest.mark.django_db
