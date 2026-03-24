@@ -35,7 +35,6 @@ from application_form.tests.factories import (
     ApplicationFactory,
     LotteryEventFactory,
 )
-from audit_log.models import AuditLog
 from connections.enums import ApartmentStateOfSale
 from customer.models import Customer
 from customer.tests.factories import CustomerFactory
