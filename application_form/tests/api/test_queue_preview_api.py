@@ -226,3 +226,48 @@ def test_queue_preview_keeps_canceled_reservations_out_of_active_positions(
     reservation_2.refresh_from_db()
     assert reservation_1.queue_position == 1
     assert reservation_2.queue_position == 2
+
+
+@pytest.mark.django_db
+def test_queue_preview_honors_requested_position_when_active_queue_has_gap(
+    sales_ui_salesperson_api_client,
+):
+    apartment = ApartmentDocumentFactory()
+    ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        queue_position=1,
+        list_position=1,
+        state=ApartmentReservationState.SUBMITTED,
+    )
+    ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        queue_position=2,
+        list_position=2,
+        state=ApartmentReservationState.SUBMITTED,
+    )
+    target_reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        queue_position=5,
+        list_position=3,
+        state=ApartmentReservationState.SUBMITTED,
+    )
+    ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        queue_position=6,
+        list_position=4,
+        state=ApartmentReservationState.SUBMITTED,
+    )
+
+    response = sales_ui_salesperson_api_client.post(
+        _queue_preview_url(apartment.uuid),
+        data={
+            "reservation_id": target_reservation.id,
+            "queue_position": 6,
+            "state": ApartmentReservationState.SUBMITTED.value,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    response_by_id = {item["id"]: item for item in response.data if item["id"] is not None}
+    assert response_by_id[target_reservation.id]["queue_position"] == 6

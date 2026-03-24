@@ -364,7 +364,15 @@ def _apply_edit_in_memory(
             _adjust_positions_in_memory(others, "queue_position", old_position, -1)
 
         active_others = [reservation for reservation in others if _is_active(reservation)]
-        clamped_position = max(1, min(queue_position, len(active_others) + 1))
+        max_queue_position = max(
+            (
+                reservation.queue_position
+                for reservation in active_others
+                if reservation.queue_position is not None
+            ),
+            default=0,
+        )
+        clamped_position = max(1, min(queue_position, max_queue_position + 1))
         _adjust_positions_in_memory(others, "queue_position", clamped_position, 1)
         target.queue_position = clamped_position
     elif submitted_late_changed and _is_active(target):
@@ -429,7 +437,15 @@ def _apply_add_in_memory(
     active_reservations = [reservation for reservation in reservations if _is_active(reservation)]
 
     if queue_position is not None:
-        new_queue_position = max(1, min(queue_position, len(active_reservations) + 1))
+        max_queue_position = max(
+            (
+                reservation.queue_position
+                for reservation in active_reservations
+                if reservation.queue_position is not None
+            ),
+            default=0,
+        )
+        new_queue_position = max(1, min(queue_position, max_queue_position + 1))
         _adjust_positions_in_memory(reservations, "queue_position", new_queue_position, 1)
     elif ownership_type == "haso":
         ordering_number = customer.right_of_residence_ordering_number
