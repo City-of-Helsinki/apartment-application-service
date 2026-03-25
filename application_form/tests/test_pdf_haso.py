@@ -10,7 +10,6 @@ from users.tests.factories import UserFactory
 from ..pdf.haso import (
     create_haso_contract_pdf_from_data,
     HasoContractPDFData,
-    get_haso_contract_pdf_data
 )
 from .pdf_utils import (
     get_cleaned_pdf_texts,
