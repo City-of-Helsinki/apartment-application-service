@@ -74,7 +74,9 @@ def test_queue_preview_reorders_queue_on_position_change(
     )
 
     assert response.status_code == 200
-    response_by_id = {item["id"]: item for item in response.data if item["id"] is not None}
+    response_by_id = {
+        item["id"]: item for item in response.data if item["id"] is not None
+    }
     assert _active_positions_from_response(response.data) == [1, 2, 3, 4]
     assert response_by_id[reservation_3.id]["queue_position"] == 1
 
@@ -128,7 +130,9 @@ def test_queue_preview_reorders_queue_when_submitted_late_toggled(
     )
 
     assert response.status_code == 200
-    response_by_id = {item["id"]: item for item in response.data if item["id"] is not None}
+    response_by_id = {
+        item["id"]: item for item in response.data if item["id"] is not None
+    }
     assert response_by_id[target_reservation.id]["submitted_late"] is True
     assert response_by_id[target_reservation.id]["queue_position"] == 2
     assert response_by_id[reservation_2.id]["queue_position"] == 3
@@ -155,7 +159,9 @@ def test_queue_preview_adds_new_reservation_at_requested_position(
     )
     new_customer = CustomerFactory()
 
-    initial_count = ApartmentReservation.objects.filter(apartment_uuid=apartment.uuid).count()
+    initial_count = ApartmentReservation.objects.filter(
+        apartment_uuid=apartment.uuid
+    ).count()
     response = sales_ui_salesperson_api_client.post(
         _queue_preview_url(apartment.uuid),
         data={
@@ -269,5 +275,7 @@ def test_queue_preview_honors_requested_position_when_active_queue_has_gap(
     )
 
     assert response.status_code == 200
-    response_by_id = {item["id"]: item for item in response.data if item["id"] is not None}
+    response_by_id = {
+        item["id"]: item for item in response.data if item["id"] is not None
+    }
     assert response_by_id[target_reservation.id]["queue_position"] == 6

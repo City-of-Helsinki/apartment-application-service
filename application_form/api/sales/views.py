@@ -1,4 +1,5 @@
 from datetime import timedelta
+from typing import Optional
 
 from dateutil import parser
 from django.conf import settings
@@ -153,6 +154,138 @@ class SalesApplicationViewSet(ApplicationViewSet):
     permission_classes = [permissions.IsAuthenticated, IsDrupalSalesperson]
 
 
+def _recalculate_queue_position_for_haso_on_submitted_late_change(
+    *,
+    reservation,
+    new_state,
+) -> Optional[int]:
+    """
+    - If the client didn't explicitly provide queue_position, HASO ordering is
+      recalculated when submitted_late changes.
+    - Returns None when recalculation isn't possible (e.g. no right of residence).
+    """
+    if new_state == ApartmentReservationState.CANCELED:
+        return None
+    if reservation.queue_position is None:
+        return None
+
+    apartment = get_apartment(reservation.apartment_uuid, include_project_fields=True)
+    if (apartment.project_ownership_type or "").lower() != "haso":
+        return None
+
+    ordering_number = reservation.right_of_residence_ordering_number
+    if ordering_number is None:
+        return None
+
+    active_qs = ApartmentReservation.objects.active().filter(
+        apartment_uuid=reservation.apartment_uuid
+    )
+    if reservation.pk:
+        active_qs = active_qs.exclude(pk=reservation.pk)
+
+    current_queue_length = active_qs.count()
+    queue_position = current_queue_length + 1
+    offered_or_sold_states = {
+        ApartmentReservationState.OFFER_ACCEPTED,
+        ApartmentReservationState.OFFERED,
+        ApartmentReservationState.SOLD,
+    }
+
+    same_late_group = active_qs.filter(
+        submitted_late=reservation.submitted_late
+    ).order_by("queue_position")
+    for other in same_late_group:
+        other_ordering_number = other.right_of_residence_ordering_number
+        if (
+            other_ordering_number is not None
+            and ordering_number < other_ordering_number
+            and other.state not in offered_or_sold_states
+        ):
+            return other.queue_position
+
+    return queue_position
+
+
+def _clamp_queue_position_and_shift_gaps(
+    *,
+    reservation,
+    queue_position,
+) -> int:
+    """Normalize queue_position and shift other reservations to create space."""
+    if isinstance(queue_position, str):
+        queue_position = int((queue_position or "").lstrip("0") or "0")
+    queue_position = max(1, queue_position)
+
+    active_qs = ApartmentReservation.objects.active().filter(
+        apartment_uuid=reservation.apartment_uuid
+    )
+    if reservation.pk:
+        active_qs = active_qs.exclude(pk=reservation.pk)
+
+    current_queue_length = active_qs.count()
+    if queue_position > current_queue_length + 1:
+        queue_position = current_queue_length + 1
+
+    if (
+        reservation.queue_position is None
+        or reservation.queue_position != queue_position
+    ):
+        reservations_qs = ApartmentReservation.objects.filter(
+            apartment_uuid=reservation.apartment_uuid
+        ).exclude(pk=reservation.pk)
+
+        if reservation.queue_position is not None:
+            _adjust_positions(
+                reservations_qs,
+                "queue_position",
+                reservation.queue_position,
+                by=-1,
+            )
+
+        _adjust_positions(
+            reservations_qs,
+            "queue_position",
+            queue_position,
+            by=1,
+        )
+
+    return queue_position
+
+
+def _apply_manual_change_comments(
+    *,
+    validated_data,
+    queue_position: Optional[int],
+    new_state,
+    old_queue_position,
+    submitted_late_changed: bool,
+    old_submitted_late,
+    new_submitted_late,
+) -> None:
+    manual_change_comments = []
+    if (
+        queue_position is not None
+        and new_state != ApartmentReservationState.CANCELED
+        and old_queue_position != queue_position
+    ):
+        manual_change_comments.append(
+            f"Queue position changed from {old_queue_position} to {queue_position}"
+        )
+    if submitted_late_changed:
+        manual_change_comments.append(
+            f"Submitted late changed from {old_submitted_late} "
+            f"to {new_submitted_late}"
+        )
+    if not manual_change_comments:
+        return
+
+    current_comment = (validated_data.get("comment") or "").strip()
+    auto_comment = "; ".join(manual_change_comments)
+    validated_data["comment"] = (
+        f"{current_comment}; {auto_comment}" if current_comment else auto_comment
+    )
+
+
 class ApartmentReservationViewSet(
     mixins.RetrieveModelMixin, mixins.CreateModelMixin, viewsets.GenericViewSet
 ):
@@ -259,9 +392,9 @@ class ApartmentReservationViewSet(
         reservation = self.get_object()
         old_queue_position = reservation.queue_position
         old_submitted_late = reservation.submitted_late
+
         data = {"reservation_id": pk}
         data.update(request.data)
-
         state_change_event_serializer = ApartmentReservationStateChangeEventSerializer(
             data=data
         )
@@ -277,125 +410,43 @@ class ApartmentReservationViewSet(
             queue_position = reservation.queue_position_before_cancelation
 
         new_state = validated_data.get("state")
-
         submitted_late_changed = (
             new_submitted_late is not None
             and old_submitted_late is not None
             and new_submitted_late != old_submitted_late
         )
+
         if submitted_late_changed:
             reservation.submitted_late = new_submitted_late
             reservation.save(update_fields=["submitted_late"])
-
-            # If queue position isn't explicitly provided, recalculate a target position
-            # for HASO queues based on right of residence ordering.
-            if (
-                queue_position is None
-                and new_state != ApartmentReservationState.CANCELED
-                and reservation.queue_position is not None
-            ):
-                apartment = get_apartment(
-                    reservation.apartment_uuid, include_project_fields=True
-                )
-                if (apartment.project_ownership_type or "").lower() == "haso":
-                    ordering_number = reservation.right_of_residence_ordering_number
-                    active_qs = ApartmentReservation.objects.active().filter(
-                        apartment_uuid=reservation.apartment_uuid
+            if queue_position is None:
+                queue_position = (
+                    _recalculate_queue_position_for_haso_on_submitted_late_change(
+                        reservation=reservation,
+                        new_state=new_state,
                     )
-                    if reservation.pk:
-                        active_qs = active_qs.exclude(pk=reservation.pk)
-                    current_queue_length = active_qs.count()
-                    if ordering_number is not None:
-                        queue_position = current_queue_length + 1
-                        offered_or_sold_states = {
-                            ApartmentReservationState.OFFER_ACCEPTED,
-                            ApartmentReservationState.OFFERED,
-                            ApartmentReservationState.SOLD,
-                        }
-                        same_late_group = active_qs.filter(
-                            submitted_late=reservation.submitted_late
-                        ).order_by("queue_position")
-                        for other in same_late_group:
-                            other_ordering_number = (
-                                other.right_of_residence_ordering_number
-                            )
-                            if (
-                                other_ordering_number is not None
-                                and ordering_number < other_ordering_number
-                                and other.state not in offered_or_sold_states
-                            ):
-                                queue_position = other.queue_position
-                                break
+                )
 
         if (
             queue_position is not None
             and new_state != ApartmentReservationState.CANCELED
         ):
-            if isinstance(queue_position, str):
-                queue_position = int((queue_position or "").lstrip("0") or "0")
-            queue_position = max(1, queue_position)
-
-            active_qs = ApartmentReservation.objects.active().filter(
-                apartment_uuid=reservation.apartment_uuid
+            queue_position = _clamp_queue_position_and_shift_gaps(
+                reservation=reservation,
+                queue_position=queue_position,
             )
-            if reservation.pk:
-                active_qs = active_qs.exclude(pk=reservation.pk)
 
-            current_queue_length = active_qs.count()
-
-            if queue_position > current_queue_length + 1:
-                queue_position = current_queue_length + 1
-
-            if (
-                reservation.queue_position is None
-                or reservation.queue_position != queue_position
-            ):
-                reservations_qs = ApartmentReservation.objects.filter(
-                    apartment_uuid=reservation.apartment_uuid
-                ).exclude(pk=reservation.pk)
-
-                # If the reservation is already in queue, first close the old gap
-                # and then make room at the new position.
-                if reservation.queue_position is not None:
-                    _adjust_positions(
-                        reservations_qs,
-                        "queue_position",
-                        reservation.queue_position,
-                        by=-1,
-                    )
-
-                _adjust_positions(
-                    reservations_qs,
-                    "queue_position",
-                    queue_position,
-                    by=1,
-                )
-
-        manual_change_comments = []
-        if (
-            queue_position is not None
-            and new_state != ApartmentReservationState.CANCELED
-            and old_queue_position != queue_position
-        ):
-            manual_change_comments.append(
-                f"Queue position changed from {old_queue_position} to {queue_position}"
-            )
-        if submitted_late_changed:
-            manual_change_comments.append(
-                f"Submitted late changed from {old_submitted_late} to {new_submitted_late}"
-            )
-        if manual_change_comments:
-            current_comment = (validated_data.get("comment") or "").strip()
-            auto_comment = "; ".join(manual_change_comments)
-            validated_data["comment"] = (
-                f"{current_comment}; {auto_comment}"
-                if current_comment
-                else auto_comment
-            )
+        _apply_manual_change_comments(
+            validated_data=validated_data,
+            queue_position=queue_position,
+            new_state=new_state,
+            old_queue_position=old_queue_position,
+            submitted_late_changed=submitted_late_changed,
+            old_submitted_late=old_submitted_late,
+            new_submitted_late=new_submitted_late,
+        )
 
         validated_data["queue_position"] = queue_position
-
-        # set state and position
         state_change_event = reservation.set_state(
             **validated_data,
             user=request.user,
@@ -405,7 +456,6 @@ class ApartmentReservationViewSet(
             queue_position is not None
             and new_state != ApartmentReservationState.CANCELED
         ):
-            # save new position to database
             reservation.queue_position = queue_position
             reservation.save(update_fields=["queue_position"])
 
