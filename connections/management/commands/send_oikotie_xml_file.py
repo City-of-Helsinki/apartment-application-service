@@ -2,6 +2,7 @@ import logging
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
+from django.utils import timezone
 from django_oikotie.oikotie import send_items
 
 from connections.models import MappedApartment
@@ -76,5 +77,8 @@ class Command(BaseCommand):
             for item in apartments:
                 MappedApartment.objects.update_or_create(
                     apartment_uuid=item.key,
-                    defaults={"mapped_oikotie": True},
+                    defaults={
+                        "mapped_oikotie": True,
+                        "last_mapped_to_oikotie": timezone.now(),
+                    },
                 )

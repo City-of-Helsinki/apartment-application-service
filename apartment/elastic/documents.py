@@ -100,6 +100,8 @@ class ApartmentDocument(ReadOnlyDocument):
 
     project_barred_bank_account = Keyword()
     project_regular_bank_account = Keyword()
+    project_payment_recipient = Keyword()
+    project_payment_recipient_final = Keyword()
 
     uuid = Keyword(required=True)
 

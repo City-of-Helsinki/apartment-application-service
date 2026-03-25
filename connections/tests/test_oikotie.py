@@ -483,7 +483,7 @@ class TestApartmentFetchingFromElasticAndMapping:
     def test_mapped_oikotie_saved_to_database_with_publish_updated(self):
         call_command("send_oikotie_xml_file")
         oikotie_mapped = MappedApartment.objects.filter(
-            mapped_oikotie=True
+            mapped_oikotie=True, last_mapped_to_oikotie__isnull=False
         ).values_list("apartment_uuid", flat=True)
 
         expected = list(
@@ -508,7 +508,7 @@ class TestApartmentFetchingFromElasticAndMapping:
 
         call_command("send_oikotie_xml_file")
         oikotie_mapped_new = MappedApartment.objects.filter(
-            mapped_oikotie=True
+            mapped_oikotie=True, last_mapped_to_oikotie__isnull=False
         ).values_list("apartment_uuid", flat=True)
 
         assert oikotie_mapped_new != oikotie_mapped
@@ -539,7 +539,7 @@ class TestApartmentFetchingFromElasticAndMapping:
 
         call_command("send_oikotie_xml_file")
         oikotie_not_mapped = MappedApartment.objects.filter(
-            mapped_oikotie=False
+            mapped_oikotie=False,
         ).values_list("apartment_uuid", flat=True)
 
         assert len(apartments) == 0
@@ -618,7 +618,7 @@ class TestSendOikotieXMLFileCommand:
         assert any("APT" + settings.OIKOTIE_COMPANY_NAME in f for f in files)
 
         oikotie_mapped = MappedApartment.objects.filter(
-            mapped_oikotie=True
+            mapped_oikotie=True, last_mapped_to_oikotie__isnull=False
         ).values_list("apartment_uuid", flat=True)
 
         expected = list(
@@ -637,7 +637,7 @@ class TestSendOikotieXMLFileCommand:
         call_command("send_oikotie_xml_file", "--send_only_type", 2)
 
         oikotie_mapped_new = MappedApartment.objects.filter(
-            mapped_oikotie=True
+            mapped_oikotie=True, last_mapped_to_oikotie__isnull=False
         ).values_list("apartment_uuid", flat=True)
 
         expected_new = list(
@@ -668,7 +668,7 @@ class TestSendOikotieXMLFileCommand:
         assert any("HOUSINGCOMPANY" + settings.OIKOTIE_COMPANY_NAME in f for f in files)
 
         oikotie_mapped = MappedApartment.objects.filter(
-            mapped_oikotie=True
+            mapped_oikotie=True, last_mapped_to_oikotie__isnull=False
         ).values_list("apartment_uuid", flat=True)
 
         expected = list(

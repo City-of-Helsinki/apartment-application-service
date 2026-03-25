@@ -390,18 +390,16 @@ class HitasContractPDFData(PDFData):
     }
 
 
-def create_hitas_contract_pdf(
+def get_hitas_contract_pdf_data(
+    apartment: ApartmentDocument,
     reservation: ApartmentReservation,
     sales_price_paid_place: str,
     sales_price_paid_time: str,
     salesperson: User,
-) -> BytesIO:
+) -> Union[HitasContractPDFData, HitasCompleteApartmentContractPDFData]:
     customer = SafeAttributeObject(reservation.customer)
     primary_profile = SafeAttributeObject(customer.primary_profile)
     secondary_profile = SafeAttributeObject(customer.secondary_profile)
-    apartment: ApartmentDocument = SafeAttributeObject(
-        get_apartment(reservation.apartment_uuid, include_project_fields=True)
-    )
 
     # use contract for complete apartment
     # can possibly be None, use bool() to convert to False in that case
@@ -629,14 +627,39 @@ def create_hitas_contract_pdf(
     }
 
     contract_dataclass = HitasContractPDFData
-    pdf_template_path = HITAS_CONTRACT_PDF_TEMPLATE_FILE_NAME
 
     if complete_apartment:
         contract_dataclass = HitasCompleteApartmentContractPDFData
         contract_data = full_apartment_contract_data
-        pdf_template_path = HITAS_COMPLETE_APARTMENT_CONTRACT_PDF_TEMPLATE_FILE_NAME
 
     pdf_data = contract_dataclass(**contract_data)
+
+    return pdf_data
+
+
+def create_hitas_contract_pdf(
+    reservation: ApartmentReservation,
+    sales_price_paid_place: str,
+    sales_price_paid_time: str,
+    salesperson: User,
+) -> BytesIO:
+    apartment: ApartmentDocument = SafeAttributeObject(
+        get_apartment(reservation.apartment_uuid, include_project_fields=True)
+    )
+
+    pdf_data = get_hitas_contract_pdf_data(
+        apartment=apartment,
+        reservation=reservation,
+        sales_price_paid_place=sales_price_paid_place,
+        sales_price_paid_time=sales_price_paid_time,
+        salesperson=salesperson,
+    )
+    pdf_template_path = HITAS_CONTRACT_PDF_TEMPLATE_FILE_NAME
+    complete_apartment = bool(apartment.project_use_complete_contract)
+
+    if complete_apartment:
+        pdf_template_path = HITAS_COMPLETE_APARTMENT_CONTRACT_PDF_TEMPLATE_FILE_NAME
+
     return create_hitas_contract_pdf_from_data(pdf_data, pdf_template_path)
 
 
