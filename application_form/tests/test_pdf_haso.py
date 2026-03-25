@@ -4,13 +4,11 @@ import unittest
 from decimal import Decimal
 
 import pytest
+
 from apartment_application_service.pdf import PDFCurrencyField as CF
 from users.tests.factories import UserFactory
 
-from ..pdf.haso import (
-    create_haso_contract_pdf_from_data,
-    HasoContractPDFData,
-)
+from ..pdf.haso import create_haso_contract_pdf_from_data, HasoContractPDFData
 from .pdf_utils import (
     get_cleaned_pdf_texts,
     remove_pdf_id,
