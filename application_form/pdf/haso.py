@@ -11,6 +11,7 @@ from apartment_application_service.pdf import create_pdf, PDFCurrencyField, PDFD
 from apartment_application_service.utils import SafeAttributeObject
 from application_form.models import ApartmentReservation
 from invoicing.enums import InstallmentType
+from users.models import User
 
 HASO_CONTRACT_PDF_TEMPLATE_FILE_NAME = "haso_contract_template.pdf"
 HASO_RELEASE_PDF_TEMPLATE_FILE_NAME = "haso_release_template.pdf"
@@ -143,7 +144,22 @@ def create_haso_contract_pdf(reservation: ApartmentReservation) -> BytesIO:
 
 def get_haso_contract_pdf_data(
     reservation: ApartmentReservation,
+    salesperson: Optional[User] = None,
+    sales_price_paid_place: Optional[str] = None,
+    sales_price_paid_time: Optional[str] = None,
 ) -> HasoContractPDFData:
+    """
+    Return HASO contract PDF data for a reservation.
+
+    Parameters:
+    - reservation: Apartment reservation used as data source
+    - salesperson: Optional salesperson used for signing info
+    - sales_price_paid_place: Optional signing place (defaults to "Helsinki")
+    - sales_price_paid_time: Optional signing date (defaults to today's date)
+
+    Returns:
+    - HasoContractPDFData
+    """
     customer = SafeAttributeObject(reservation.customer)
     primary_profile = SafeAttributeObject(customer.primary_profile)
     secondary_profile = SafeAttributeObject(customer.secondary_profile)
@@ -167,6 +183,17 @@ def get_haso_contract_pdf_data(
         if apartment.right_of_occupancy_fee is not None
         else None
     )
+
+    if sales_price_paid_place is None:
+        sales_price_paid_place = "Helsinki"
+    if sales_price_paid_time is None:
+        sales_price_paid_time = f"{date.today():%d.%m.%Y}"
+
+    signing_place_and_time = f"{sales_price_paid_place} {sales_price_paid_time}".strip()
+
+    project_acc_salesperson = apartment.project_acc_salesperson
+    if salesperson is not None:
+        project_acc_salesperson = salesperson.profile_or_user_full_name
 
     pdf_data = HasoContractPDFData(
         occupant_1=primary_profile.full_name,
@@ -216,8 +243,8 @@ def get_haso_contract_pdf_data(
             if completion_start_str or completion_end_str
             else ""
         ),
-        signing_place_and_time="Helsinki",  # TODO: Is Signing Time needed?
-        project_acc_salesperson=apartment.project_acc_salesperson,
+        signing_place_and_time=signing_place_and_time,
+        project_acc_salesperson=project_acc_salesperson,
         project_contract_other_terms=apartment.project_contract_combined_terms,
         project_contract_usage_fees=apartment.project_contract_usage_fees,
         project_contract_right_of_occupancy_payment_verification=(
