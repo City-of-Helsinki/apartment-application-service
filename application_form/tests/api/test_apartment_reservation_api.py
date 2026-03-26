@@ -569,7 +569,9 @@ def test_apartment_reservation_set_state_submitted_late_toggle_generates_audit_c
 
     state_change_event = reservation.state_change_events.latest("id")
     assert state_change_event.comment
-    assert "asetettu hakuajan puitteissa lähetetyksi" in state_change_event.comment.lower()
+    assert (
+        "asetettu hakuajan puitteissa lähetetyksi" in state_change_event.comment.lower()
+    )
 
 
 @pytest.mark.django_db

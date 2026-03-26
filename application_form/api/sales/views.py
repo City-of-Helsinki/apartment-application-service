@@ -6,8 +6,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse
-from django.utils import timezone
-from django.utils import translation
+from django.utils import timezone, translation
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods
 from drf_spectacular.types import OpenApiTypes

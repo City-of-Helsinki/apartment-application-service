@@ -25,4 +25,3 @@ def test_apply_manual_change_comments_use_finnish_always():
     comment = validated_data["comment"]
     assert "Jonosija muuttui sijasta 1. sijaan 3." in comment
     assert "Asetettu jälkihakemukseksi" in comment
-
