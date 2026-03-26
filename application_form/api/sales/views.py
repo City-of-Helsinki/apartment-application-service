@@ -7,6 +7,8 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse
 from django.utils import timezone
+from django.utils import translation
+from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiParameter
@@ -263,19 +265,24 @@ def _apply_manual_change_comments(
     new_submitted_late,
 ) -> None:
     manual_change_comments = []
-    if (
-        queue_position is not None
-        and new_state != ApartmentReservationState.CANCELED
-        and old_queue_position != queue_position
-    ):
-        manual_change_comments.append(
-            f"Queue position changed from {old_queue_position} to {queue_position}"
-        )
-    if submitted_late_changed:
-        manual_change_comments.append(
-            f"Submitted late changed from {old_submitted_late} "
-            f"to {new_submitted_late}"
-        )
+    # These comments are persisted (not just returned to the client), so keep
+    # them stable and Finnish regardless of request Accept-Language.
+    with translation.override("fi"):
+        if (
+            queue_position is not None
+            and new_state != ApartmentReservationState.CANCELED
+            and old_queue_position != queue_position
+        ):
+            manual_change_comments.append(
+                _("Queue position changed from %(old)s to %(new)s")
+                % {"old": old_queue_position, "new": queue_position}
+            )
+        if submitted_late_changed:
+            manual_change_comments.append(
+                _("Set to an after-application")
+                if new_submitted_late
+                else _("Set to sent within application time")
+            )
     if not manual_change_comments:
         return
 

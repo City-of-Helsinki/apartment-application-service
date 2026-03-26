@@ -539,9 +539,7 @@ def test_apartment_reservation_set_state_position_change_generates_audit_comment
 
     state_change_event = reservation.state_change_events.latest("id")
     assert state_change_event.comment
-    assert "queue" in state_change_event.comment.lower()
-    assert "2" in state_change_event.comment
-    assert "1" in state_change_event.comment
+    assert "jonosija muuttui sijasta 2. sijaan 1." in state_change_event.comment.lower()
 
 
 @pytest.mark.django_db
@@ -571,8 +569,7 @@ def test_apartment_reservation_set_state_submitted_late_toggle_generates_audit_c
 
     state_change_event = reservation.state_change_events.latest("id")
     assert state_change_event.comment
-    assert "submitted" in state_change_event.comment.lower()
-    assert "late" in state_change_event.comment.lower()
+    assert "asetettu hakuajan puitteissa lähetetyksi" in state_change_event.comment.lower()
 
 
 @pytest.mark.django_db
