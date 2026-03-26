@@ -30,6 +30,10 @@ from application_form.api.sales.serializers import (
     ProjectExtraDataSerializer,
     SalesApartmentReservationSerializer,
 )
+from application_form.api.serializers import (
+    QueuePreviewInputSerializer,
+    QueuePreviewReservationSerializer,
+)
 from application_form.enums import ApartmentReservationState
 from application_form.models import (
     ApartmentReservation,
@@ -42,6 +46,7 @@ from application_form.services.export import (
     ProjectLotteryResultExportService,
     XlsxSalesReportExportService,
 )
+from application_form.services.queue import preview_queue_change
 from users.enums import UserKeyValueKeys
 from users.models import UserKeyValue
 
@@ -69,6 +74,24 @@ class ApartmentReservationsAPIView(APIView):
             many=True,
         )
         return Response(serializer.data)
+
+
+class ApartmentQueuePreviewAPIView(APIView):
+    http_method_names = ["post"]
+
+    def post(self, request, apartment_uuid):
+        serializer = QueuePreviewInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        reservations = preview_queue_change(
+            apartment_uuid=apartment_uuid,
+            reservation_id=serializer.validated_data.get("reservation_id"),
+            customer_id=serializer.validated_data.get("customer_id"),
+            queue_position=serializer.validated_data.get("queue_position"),
+            submitted_late=serializer.validated_data.get("submitted_late"),
+            state=serializer.validated_data.get("state"),
+        )
+        return Response(QueuePreviewReservationSerializer(reservations, many=True).data)
 
 
 class ProjectAPIView(APIView):

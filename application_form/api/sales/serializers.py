@@ -184,6 +184,8 @@ class RootApartmentReservationSerializer(ApartmentReservationSerializerBase):
     customer_id = serializers.PrimaryKeyRelatedField(
         source="customer", queryset=Customer.objects.all()
     )
+    queue_position = serializers.IntegerField(required=False, min_value=1)
+    submitted_late = serializers.BooleanField(required=False)
 
     class Meta(ApartmentReservationSerializerBase.Meta):
         fields = (
@@ -191,6 +193,11 @@ class RootApartmentReservationSerializer(ApartmentReservationSerializerBase):
             "installment_candidates",
             "customer_id",
         ) + ApartmentReservationSerializerBase.Meta.fields
+        read_only_fields = tuple(
+            field
+            for field in ApartmentReservationSerializerBase.Meta.read_only_fields
+            if field not in ("queue_position", "submitted_late")
+        )
 
     @extend_schema_field(ApartmentInstallmentCandidateSerializer(many=True))
     def get_installment_candidates(self, obj):

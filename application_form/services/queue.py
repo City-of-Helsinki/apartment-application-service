@@ -1,12 +1,13 @@
 import uuid
 from logging import getLogger
-from typing import Optional
+from typing import List, Optional
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import F, Max
 
 from apartment.elastic.documents import ApartmentDocument
+from apartment.elastic.queries import get_apartment
 from application_form.enums import (
     ApartmentQueueChangeEventType,
     ApartmentReservationCancellationReason,
@@ -21,6 +22,7 @@ from application_form.models import (
 )
 from application_form.services.constants import LIST_POSITION_BUMP_OFFSET
 from application_form.utils import lock_table
+from customer.models import Customer
 
 logger = getLogger(__name__)
 
@@ -263,3 +265,270 @@ def _adjust_positions(reservations, position_field, from_position, *, by):
     """
     res_from_pos = reservations.filter(**{position_field + "__gte": from_position})
     res_from_pos.update(**{position_field: F(position_field) + by})
+
+
+def preview_queue_change(
+    apartment_uuid: uuid.UUID,
+    *,
+    reservation_id: Optional[int] = None,
+    customer_id: Optional[int] = None,
+    queue_position: Optional[int] = None,
+    submitted_late: Optional[bool] = None,
+    state: Optional[str] = None,
+) -> list:
+    """Calculate reservation queue preview in memory without DB writes."""
+    reservations = list(
+        ApartmentReservation.objects.related_fields()
+        .filter(apartment_uuid=apartment_uuid)
+        .order_by("list_position")
+    )
+
+    if reservation_id is not None:
+        _apply_edit_in_memory(
+            reservations=reservations,
+            apartment_uuid=apartment_uuid,
+            reservation_id=reservation_id,
+            queue_position=queue_position,
+            submitted_late=submitted_late,
+            state=state,
+        )
+    elif customer_id is not None:
+        customer = Customer.objects.select_related(
+            "primary_profile", "secondary_profile"
+        ).get(id=customer_id)
+        apartment = get_apartment(apartment_uuid, include_project_fields=True)
+        _apply_add_in_memory(
+            reservations=reservations,
+            apartment_uuid=apartment_uuid,
+            customer=customer,
+            ownership_type=(apartment.project_ownership_type or "").lower(),
+            queue_position=queue_position,
+            submitted_late=submitted_late,
+        )
+
+    return reservations
+
+
+def _state_value(state) -> str:
+    return state.value if hasattr(state, "value") else str(state)
+
+
+def _is_active(reservation: ApartmentReservation) -> bool:
+    return _state_value(reservation.state) != ApartmentReservationState.CANCELED.value
+
+
+def _adjust_positions_in_memory(
+    reservations: list, position_field: str, from_position: int, by: int
+) -> None:
+    for reservation in reservations:
+        position = getattr(reservation, position_field)
+        if position is not None and position >= from_position:
+            setattr(reservation, position_field, position + by)
+
+
+def _apply_queue_position_change_in_memory(
+    *,
+    target: ApartmentReservation,
+    others: List[ApartmentReservation],
+    queue_position: int,
+) -> None:
+    old_position = target.queue_position
+    if old_position is not None:
+        _adjust_positions_in_memory(others, "queue_position", old_position, -1)
+
+    active_others = [reservation for reservation in others if _is_active(reservation)]
+    max_queue_position = max(
+        (
+            reservation.queue_position
+            for reservation in active_others
+            if reservation.queue_position is not None
+        ),
+        default=0,
+    )
+    clamped_position = max(1, min(queue_position, max_queue_position + 1))
+    _adjust_positions_in_memory(others, "queue_position", clamped_position, 1)
+    target.queue_position = clamped_position
+
+
+def _apply_submitted_late_change_for_haso_in_memory(
+    *,
+    target: ApartmentReservation,
+    others: List[ApartmentReservation],
+    apartment_uuid: uuid.UUID,
+) -> None:
+    apartment = get_apartment(apartment_uuid, include_project_fields=True)
+    if (apartment.project_ownership_type or "").lower() != "haso":
+        return
+
+    ordering_number = target.right_of_residence_ordering_number
+    if ordering_number is None:
+        return
+
+    old_position = target.queue_position
+    if old_position is not None:
+        _adjust_positions_in_memory(others, "queue_position", old_position, -1)
+
+    active_others = [reservation for reservation in others if _is_active(reservation)]
+    same_late_group = sorted(
+        [
+            reservation
+            for reservation in active_others
+            if reservation.submitted_late == target.submitted_late
+        ],
+        key=lambda reservation: reservation.queue_position or 0,
+    )
+    offered_or_sold_states = {
+        ApartmentReservationState.OFFER_ACCEPTED.value,
+        ApartmentReservationState.OFFERED.value,
+        ApartmentReservationState.SOLD.value,
+    }
+    new_position = len(active_others) + 1
+    for reservation in same_late_group:
+        reservation_ordering_number = reservation.right_of_residence_ordering_number
+        if (
+            reservation_ordering_number is not None
+            and ordering_number < reservation_ordering_number
+            and _state_value(reservation.state) not in offered_or_sold_states
+        ):
+            new_position = reservation.queue_position
+            break
+
+    _adjust_positions_in_memory(others, "queue_position", new_position, 1)
+    target.queue_position = new_position
+
+
+def _apply_edit_in_memory(
+    *,
+    reservations: list,
+    apartment_uuid: uuid.UUID,
+    reservation_id: int,
+    queue_position: Optional[int],
+    submitted_late: Optional[bool],
+    state: Optional[str],
+) -> None:
+    target = next((r for r in reservations if r.id == reservation_id), None)
+    if target is None:
+        return
+
+    others = [r for r in reservations if r.id != reservation_id]
+
+    if submitted_late is not None:
+        submitted_late_changed = target.submitted_late != submitted_late
+        target.submitted_late = submitted_late
+    else:
+        submitted_late_changed = False
+
+    if state == ApartmentReservationState.CANCELED.value:
+        old_position = target.queue_position
+        target.queue_position = None
+        target.state = ApartmentReservationState.CANCELED
+        if old_position is not None:
+            _adjust_positions_in_memory(others, "queue_position", old_position, -1)
+        return
+
+    if state:
+        target.state = state
+
+    if queue_position is not None and queue_position != target.queue_position:
+        _apply_queue_position_change_in_memory(
+            target=target, others=others, queue_position=queue_position
+        )
+    elif submitted_late_changed and _is_active(target):
+        _apply_submitted_late_change_for_haso_in_memory(
+            target=target, others=others, apartment_uuid=apartment_uuid
+        )
+
+
+def _determine_new_reservation_state(
+    active_reservations: list,
+) -> ApartmentReservationState:
+    for reservation in active_reservations:
+        if _state_value(reservation.state) == ApartmentReservationState.RESERVED.value:
+            return ApartmentReservationState.SUBMITTED
+    return ApartmentReservationState.RESERVED
+
+
+def _apply_add_in_memory(
+    *,
+    reservations: list,
+    apartment_uuid: uuid.UUID,
+    customer: Customer,
+    ownership_type: str,
+    queue_position: Optional[int],
+    submitted_late: Optional[bool],
+) -> None:
+    effective_submitted_late = submitted_late if submitted_late is not None else True
+    active_reservations = [
+        reservation for reservation in reservations if _is_active(reservation)
+    ]
+
+    if queue_position is not None:
+        max_queue_position = max(
+            (
+                reservation.queue_position
+                for reservation in active_reservations
+                if reservation.queue_position is not None
+            ),
+            default=0,
+        )
+        new_queue_position = max(1, min(queue_position, max_queue_position + 1))
+        _adjust_positions_in_memory(
+            reservations, "queue_position", new_queue_position, 1
+        )
+    elif ownership_type == "haso":
+        ordering_number = customer.right_of_residence_ordering_number
+        if ordering_number is None:
+            new_queue_position = len(active_reservations) + 1
+        else:
+            same_late_group = sorted(
+                [
+                    reservation
+                    for reservation in active_reservations
+                    if reservation.submitted_late == effective_submitted_late
+                ],
+                key=lambda reservation: reservation.queue_position or 0,
+            )
+            offered_or_sold_states = {
+                ApartmentReservationState.OFFER_ACCEPTED.value,
+                ApartmentReservationState.OFFERED.value,
+                ApartmentReservationState.SOLD.value,
+            }
+            new_queue_position = len(active_reservations) + 1
+            for reservation in same_late_group:
+                reservation_ordering_number = (
+                    reservation.right_of_residence_ordering_number
+                )
+                if (
+                    reservation_ordering_number is not None
+                    and ordering_number < reservation_ordering_number
+                    and _state_value(reservation.state) not in offered_or_sold_states
+                ):
+                    new_queue_position = reservation.queue_position
+                    break
+
+            _adjust_positions_in_memory(
+                reservations, "queue_position", new_queue_position, 1
+            )
+    else:
+        new_queue_position = len(active_reservations) + 1
+
+    max_list_position = max(
+        (reservation.list_position for reservation in reservations), default=0
+    )
+    preview_reservation = ApartmentReservation(
+        apartment_uuid=apartment_uuid,
+        customer=customer,
+        state=_determine_new_reservation_state(active_reservations),
+        list_position=max_list_position + 1,
+        queue_position=new_queue_position,
+        submitted_late=effective_submitted_late,
+        right_of_residence=customer.right_of_residence,
+        right_of_residence_is_old_batch=customer.right_of_residence_is_old_batch,
+        has_children=customer.has_children,
+        has_hitas_ownership=customer.has_hitas_ownership,
+        is_age_over_55=customer.is_age_over_55,
+        is_right_of_occupancy_housing_changer=(
+            customer.is_right_of_occupancy_housing_changer
+        ),
+    )
+    reservations.append(preview_reservation)

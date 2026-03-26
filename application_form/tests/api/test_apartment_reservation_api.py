@@ -422,6 +422,159 @@ def test_apartment_reservation_set_state(
 
 
 @pytest.mark.django_db
+def test_apartment_reservation_set_state_updates_submitted_late(
+    elasticsearch, sales_ui_salesperson_api_client
+):
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        state=ApartmentReservationState.SUBMITTED,
+        submitted_late=True,
+    )
+
+    response = sales_ui_salesperson_api_client.post(
+        reverse(
+            "application_form:sales-apartment-reservation-set-state",
+            kwargs={"pk": reservation.id},
+        ),
+        data={
+            "state": ApartmentReservationState.SUBMITTED.value,
+            "submitted_late": False,
+            "comment": "",
+        },
+        format="json",
+    )
+    assert response.status_code == 200
+
+    reservation.refresh_from_db()
+    assert reservation.submitted_late is False
+
+
+@pytest.mark.django_db
+def test_apartment_reservation_set_state_position_change_has_no_gaps(
+    elasticsearch, sales_ui_salesperson_api_client
+):
+    apartment = ApartmentDocumentFactory()
+    reservation_1 = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        state=ApartmentReservationState.SUBMITTED,
+        queue_position=1,
+        list_position=1,
+    )
+    reservation_2 = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        state=ApartmentReservationState.SUBMITTED,
+        queue_position=2,
+        list_position=2,
+    )
+    reservation_3 = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        state=ApartmentReservationState.SUBMITTED,
+        queue_position=3,
+        list_position=3,
+    )
+    reservation_4 = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        state=ApartmentReservationState.SUBMITTED,
+        queue_position=4,
+        list_position=4,
+    )
+
+    response = sales_ui_salesperson_api_client.post(
+        reverse(
+            "application_form:sales-apartment-reservation-set-state",
+            kwargs={"pk": reservation_3.id},
+        ),
+        data={
+            "state": ApartmentReservationState.SUBMITTED.value,
+            "queue_position": 1,
+            "comment": "",
+        },
+        format="json",
+    )
+    assert response.status_code == 200
+
+    for reservation in [reservation_1, reservation_2, reservation_3, reservation_4]:
+        reservation.refresh_from_db()
+
+    assert reservation_3.queue_position == 1
+    assert sorted(
+        ApartmentReservation.objects.active()
+        .filter(apartment_uuid=apartment.uuid)
+        .values_list("queue_position", flat=True)
+    ) == [1, 2, 3, 4]
+
+
+@pytest.mark.django_db
+def test_apartment_reservation_set_state_position_change_generates_audit_comment(
+    elasticsearch, sales_ui_salesperson_api_client
+):
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        state=ApartmentReservationState.SUBMITTED,
+        queue_position=2,
+        list_position=2,
+    )
+    ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        state=ApartmentReservationState.SUBMITTED,
+        queue_position=1,
+        list_position=1,
+    )
+
+    response = sales_ui_salesperson_api_client.post(
+        reverse(
+            "application_form:sales-apartment-reservation-set-state",
+            kwargs={"pk": reservation.id},
+        ),
+        data={
+            "state": ApartmentReservationState.SUBMITTED.value,
+            "queue_position": 1,
+            "comment": "",
+        },
+        format="json",
+    )
+    assert response.status_code == 200
+
+    state_change_event = reservation.state_change_events.latest("id")
+    assert state_change_event.comment
+    assert "jonosija muuttui sijasta 2. sijaan 1." in state_change_event.comment.lower()
+
+
+@pytest.mark.django_db
+def test_apartment_reservation_set_state_submitted_late_toggle_generates_audit_comment(
+    elasticsearch, sales_ui_salesperson_api_client
+):
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        state=ApartmentReservationState.SUBMITTED,
+        submitted_late=True,
+    )
+
+    response = sales_ui_salesperson_api_client.post(
+        reverse(
+            "application_form:sales-apartment-reservation-set-state",
+            kwargs={"pk": reservation.id},
+        ),
+        data={
+            "state": ApartmentReservationState.SUBMITTED.value,
+            "submitted_late": False,
+            "comment": "",
+        },
+        format="json",
+    )
+    assert response.status_code == 200
+
+    state_change_event = reservation.state_change_events.latest("id")
+    assert state_change_event.comment
+    assert (
+        "asetettu hakuajan puitteissa lähetetyksi" in state_change_event.comment.lower()
+    )
+
+
+@pytest.mark.django_db
 def test_apartment_reservation_canceling_unauthorized(elasticsearch, user_api_client):
     apartment = ApartmentDocumentFactory()
     reservation = ApartmentReservationFactory(
@@ -720,7 +873,6 @@ def test_create_reservation(
             {
                 "lottery_position": 8,
                 "priority_number": 11,
-                "queue_position": 4,
                 "state": "offered",
                 "has_children": True,
                 "has_hitas_ownership": False,
@@ -892,6 +1044,77 @@ def test_create_reservation_queue_already_has_reserved_reservation(
 
     assert response.data["state"] == "submitted"
     assert response.data["queue_position"] == 2
+
+
+@pytest.mark.django_db
+def test_create_reservation_with_custom_queue_position(
+    elasticsearch,
+    sales_ui_salesperson_api_client,
+):
+    apartment = ApartmentDocumentFactory()
+    customer = CustomerFactory()
+    LotteryEvent.objects.create(apartment_uuid=apartment.uuid)
+    reservation_1 = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        state=ApartmentReservationState.RESERVED,
+        queue_position=1,
+        list_position=1,
+    )
+    reservation_2 = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        state=ApartmentReservationState.SUBMITTED,
+        queue_position=2,
+        list_position=2,
+    )
+
+    response = sales_ui_salesperson_api_client.post(
+        reverse("application_form:sales-apartment-reservation-list"),
+        data={
+            "apartment_uuid": apartment.uuid,
+            "customer_id": customer.id,
+            "queue_position": 1,
+        },
+        format="json",
+    )
+    assert response.status_code == 201
+
+    created_reservation = ApartmentReservation.objects.get(id=response.data["id"])
+    reservation_1.refresh_from_db()
+    reservation_2.refresh_from_db()
+
+    assert created_reservation.queue_position == 1
+    assert reservation_1.queue_position == 2
+    assert reservation_2.queue_position == 3
+    assert sorted(
+        ApartmentReservation.objects.active()
+        .filter(apartment_uuid=apartment.uuid)
+        .values_list("queue_position", flat=True)
+    ) == [1, 2, 3]
+
+
+@pytest.mark.django_db
+def test_create_reservation_with_submitted_late_false(
+    elasticsearch,
+    sales_ui_salesperson_api_client,
+):
+    apartment = ApartmentDocumentFactory()
+    customer = CustomerFactory()
+    LotteryEvent.objects.create(apartment_uuid=apartment.uuid)
+
+    response = sales_ui_salesperson_api_client.post(
+        reverse("application_form:sales-apartment-reservation-list"),
+        data={
+            "apartment_uuid": apartment.uuid,
+            "customer_id": customer.id,
+            "submitted_late": False,
+        },
+        format="json",
+    )
+    assert response.status_code == 201
+    assert response.data["submitted_late"] is False
+
+    created_reservation = ApartmentReservation.objects.get(id=response.data["id"])
+    assert created_reservation.submitted_late is False
 
 
 @pytest.mark.django_db
