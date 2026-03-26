@@ -209,16 +209,24 @@ def get_haso_contract_pdf_data(
         occupant_2_ssn=secondary_profile.national_identification_number,
         right_of_residence_number=reservation.right_of_residence,
         project_housing_company=apartment.project_housing_company,
-        project_street_address=apartment.project_street_address,
+        project_street_address=(
+            (apartment.project_street_address or "")
+            + ", "
+            + (apartment.project_postal_code or "")
+            + " "
+            + (apartment.project_city or "")
+        ).strip(),
         apartment_number=apartment.apartment_number,
         apartment_structure=apartment.apartment_structure,
         living_area=apartment.living_area,
         floor=apartment.floor,
         right_of_occupancy_payment=PDFCurrencyField(
-            cents=apartment.current_right_of_occupancy_payment, suffix=" €"
+            euros=first_payment.value, suffix=" €"
         ),
         payment_due_date=first_payment.due_date,
-        installment_amount=PDFCurrencyField(euros=first_payment.value),
+        installment_amount=PDFCurrencyField(
+            cents=apartment.current_right_of_occupancy_payment
+        ),
         right_of_occupancy_fee=PDFCurrencyField(
             cents=apartment.right_of_occupancy_fee, suffix=" € / kk"
         ),
@@ -269,7 +277,13 @@ def get_haso_release_pdf_data(
 
     pdf_data = HasoReleasePDFData(
         project_housing_company=apartment.project_housing_company,
-        project_street_address=apartment.project_street_address,
+        project_street_address=(
+            (apartment.project_street_address or "")
+            + ", "
+            + (apartment.project_postal_code or "")
+            + " "
+            + (apartment.project_city or "")
+        ).strip(),
         apartment_number=apartment.apartment_number,
         project_completion_date=apartment.project_completion_date,
         occupant_names=", ".join(

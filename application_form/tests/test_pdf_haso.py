@@ -367,6 +367,10 @@ class TestHasoContractPdfFromData(unittest.TestCase):
             "Valtakirjalla Maija Myyjä",
             "Asumisoikeuden haltija 1 Asta Asukas",
             "Asumisoikeuden haltija 2 Bertta Asukas",
+ haltija 1",
+            "Asta Asukas",
+            "Asumisoikeuden haltija 2",
+            "Bertta Asukas",
             "12",
         ]
 
