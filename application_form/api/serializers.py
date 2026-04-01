@@ -130,6 +130,7 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
         }
 
     def create(self, validated_data):
+        submitted_late_override = validated_data.pop("submitted_late", None)
         validated_data = self.prepare_metadata(validated_data)
 
         project = get_project(
@@ -145,6 +146,10 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
                 datetime.now().replace(tzinfo=timezone.get_default_timezone())
                 > project.project_application_end_time
             )
+
+        if submitted_late_override is not None:
+            is_submitted_late = submitted_late_override
+
         is_haso = project.project_ownership_type.lower() == OwnershipType.HASO.value
 
         project_apartment_uuids = get_apartment_uuids(project.project_uuid)
