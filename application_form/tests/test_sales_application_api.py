@@ -12,7 +12,7 @@ from apartment_application_service.settings import (
     METADATA_HITAS_PROCESS_NUMBER,
 )
 from application_form.enums import ApplicationArrivalMethod, ApplicationType
-from application_form.models import ApartmentReservation
+from application_form.models import ApartmentReservation, LotteryEvent
 from application_form.models.application import Application
 from application_form.tests.conftest import create_application_data, generate_apartments
 from application_form.tests.utils import assert_profile_match_data
@@ -128,7 +128,17 @@ def test_sales_application_post_haso_submitted_late(
     late_submit_data["profile"] = customer_profile.id
 
     application = post_application(api_client, late_submit_data)
-    assert application.submitted_late is True
+    assert application.submitted_late is False
+
+    customer_profile_late = ProfileFactory()
+    late_submit_data_explicit = create_application_data(
+        customer_profile_late, num_applicants=1, apartments=apartments_late_submit
+    )
+    late_submit_data_explicit["profile"] = customer_profile_late.id
+    late_submit_data_explicit["submitted_late"] = True
+
+    explicit_late_application = post_application(api_client, late_submit_data_explicit)
+    assert explicit_late_application.submitted_late is True
 
     #  setting submitted_late to False manually in POST shouldnt be allowed
     customer_profile_2 = ProfileFactory()
@@ -141,7 +151,7 @@ def test_sales_application_post_haso_submitted_late(
     data["submitted_late"] = False
 
     second_application = post_application(api_client, data)
-    assert second_application.submitted_late is True
+    assert second_application.submitted_late is False
 
     # Test that HITAS apartment late submit isn't allowed (should only work with HASO)
     apartments_late_submit_hitas = generate_apartments(
@@ -193,6 +203,99 @@ def test_sales_application_post_haso_submitted_late(
     )
     assert response.status_code != 201
     pass
+
+
+@pytest.mark.django_db
+def test_sales_application_post_after_deadline_regular_without_reopening(
+    api_client, elasticsearch
+):
+    salesperson_profile = ProfileFactory()
+    salesperson_group = Group.objects.get(name__iexact=Roles.DRUPAL_SALESPERSON.name)
+    salesperson_group.user_set.add(salesperson_profile.user)
+
+    customer_profile = ProfileFactory()
+    api_client.credentials(
+        HTTP_AUTHORIZATION=f"Bearer {_create_token(salesperson_profile)}"
+    )
+
+    application_start_time = (datetime.now() - timedelta(days=20)).replace(
+        tzinfo=timezone.get_default_timezone()
+    )
+    application_end_time = application_start_time - timedelta(days=10)
+
+    apartments = generate_apartments(
+        elasticsearch,
+        10,
+        {
+            "apartment_state_of_sale": ApartmentStateOfSale.FOR_SALE.value,
+            "_language": "fi",
+            "project_application_start_time": application_start_time,
+            "project_application_end_time": application_end_time,
+            "project_can_apply_afterwards": False,
+            "project_ownership_type": OwnershipType.HASO.value,
+        },
+    )
+
+    data = create_application_data(
+        customer_profile, num_applicants=1, apartments=apartments
+    )
+    data["profile"] = customer_profile.id
+    data["submitted_late"] = False
+
+    response = api_client.post(
+        reverse("application_form:sales-application-list"), data, format="json"
+    )
+    assert response.status_code == 201
+
+    application = Application.objects.get(external_uuid=data["application_uuid"])
+    assert application.submitted_late is False
+
+
+@pytest.mark.django_db
+def test_sales_application_post_after_deadline_fails_if_lottery_exists(
+    api_client, elasticsearch
+):
+    salesperson_profile = ProfileFactory()
+    salesperson_group = Group.objects.get(name__iexact=Roles.DRUPAL_SALESPERSON.name)
+    salesperson_group.user_set.add(salesperson_profile.user)
+
+    customer_profile = ProfileFactory()
+    api_client.credentials(
+        HTTP_AUTHORIZATION=f"Bearer {_create_token(salesperson_profile)}"
+    )
+
+    application_start_time = (datetime.now() - timedelta(days=20)).replace(
+        tzinfo=timezone.get_default_timezone()
+    )
+    application_end_time = application_start_time - timedelta(days=10)
+
+    apartments = generate_apartments(
+        elasticsearch,
+        3,
+        {
+            "apartment_state_of_sale": ApartmentStateOfSale.FOR_SALE.value,
+            "_language": "fi",
+            "project_application_start_time": application_start_time,
+            "project_application_end_time": application_end_time,
+            "project_can_apply_afterwards": False,
+            "project_ownership_type": OwnershipType.HASO.value,
+        },
+    )
+
+    for apartment in apartments:
+        LotteryEvent.objects.create(apartment_uuid=apartment.uuid)
+
+    data = create_application_data(
+        customer_profile, num_applicants=1, apartments=apartments
+    )
+    data["profile"] = customer_profile.id
+    data["submitted_late"] = False
+
+    response = api_client.post(
+        reverse("application_form:sales-application-list"), data, format="json"
+    )
+    assert response.status_code == 400
+    assert "lottery" in str(response.data).lower()
 
 
 def post_application(client, data):
