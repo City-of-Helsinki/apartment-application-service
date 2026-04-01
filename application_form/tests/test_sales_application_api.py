@@ -172,6 +172,7 @@ def test_sales_application_post_haso_submitted_late(
         customer_profile_3, num_applicants=2, apartments=apartments_late_submit_hitas
     )
     data["profile"] = customer_profile_3.id
+    data["submitted_late"] = True
     response = api_client.post(
         reverse("application_form:sales-application-list"), data, format="json"
     )
@@ -197,6 +198,7 @@ def test_sales_application_post_haso_submitted_late(
         apartments=apartment_cant_apply_afterwards,
     )
     data["profile"] = customer_profile_4.id
+    data["submitted_late"] = True
 
     response = api_client.post(
         reverse("application_form:sales-application-list"), data, format="json"
