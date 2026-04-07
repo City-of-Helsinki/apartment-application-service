@@ -150,9 +150,18 @@ def test_drupal_search_client_builds_safe_urls_for_valid_relative_paths():
         ("projects", "http://example.test/base/projects"),
         ("/projects", "http://example.test/base/projects"),
         ("projects/123", "http://example.test/base/projects/123"),
-        ("/projects/123/apartments", "http://example.test/base/projects/123/apartments"),
-        ("apartments/550e8400-e29b-41d4-a716-446655440000", "http://example.test/base/apartments/550e8400-e29b-41d4-a716-446655440000"),
-        ("projects//123///apartments", "http://example.test/base/projects/123/apartments"),
+        (
+            "/projects/123/apartments",
+            "http://example.test/base/projects/123/apartments",
+        ),
+        (
+            "apartments/550e8400-e29b-41d4-a716-446655440000",
+            "http://example.test/base/apartments/550e8400-e29b-41d4-a716-446655440000",
+        ),
+        (
+            "projects//123///apartments",
+            "http://example.test/base/projects/123/apartments",
+        ),
     ]
 
     for path, expected in cases:

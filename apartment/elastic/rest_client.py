@@ -1,13 +1,12 @@
 import logging
 import time
 from typing import Any, Dict, Optional
+from urllib.parse import urljoin, urlparse
 
 import requests
 from django.conf import settings
 
 _logger = logging.getLogger(__name__)
-
-from urllib.parse import urljoin, urlparse
 
 
 # TODO: implement access token caching and refresh from database
