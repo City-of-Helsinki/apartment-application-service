@@ -644,7 +644,7 @@ def _to_int(value) -> Optional[int]:
     if isinstance(value, int):
         return value
     if isinstance(value, float):
-        return int(value) if value == int(value) else int(value)
+        return int(value)
     try:
         s = str(value).strip()
         return int(float(s)) if s else None
