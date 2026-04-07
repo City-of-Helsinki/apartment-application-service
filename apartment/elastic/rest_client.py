@@ -7,12 +7,52 @@ from django.conf import settings
 
 _logger = logging.getLogger(__name__)
 
+from urllib.parse import urljoin, urlparse
+
 
 # TODO: implement access token caching and refresh from database
 class DrupalSearchClient:
     def __init__(self):
         self._access_token: Optional[str] = None
         self._token_expires_at: float = 0.0
+
+    @staticmethod
+    def _build_safe_url(base_url: str, path: str) -> str:
+        """
+        Build a safe URL from a configured base URL and a relative path.
+
+        Protects against path traversal and scheme/netloc injection.
+        """
+        if path is None:
+            raise ValueError("Path must be a non-empty string.")
+        if not isinstance(path, str):
+            raise ValueError("Path must be a string.")
+
+        candidate = path.strip()
+        if not candidate:
+            raise ValueError("Path must be a non-empty string.")
+
+        # Block absolute URLs and network-path references.
+        if "://" in candidate or candidate.startswith("//"):
+            raise ValueError("Absolute URLs are not allowed.")
+
+        # Normalize and validate segments to prevent traversal.
+        segments = [seg for seg in candidate.split("/") if seg != ""]
+        if any(seg in {".", ".."} for seg in segments):
+            raise ValueError("Path traversal segments are not allowed.")
+
+        base = base_url.rstrip("/") + "/"
+        full = urljoin(base, "/".join(segments))
+
+        base_parsed = urlparse(base)
+        full_parsed = urlparse(full)
+        if (base_parsed.scheme, base_parsed.netloc) != (
+            full_parsed.scheme,
+            full_parsed.netloc,
+        ):
+            raise ValueError("Resolved URL escaped configured base URL.")
+
+        return full
 
     def _get_access_token(self) -> Optional[str]:
         token_url = settings.DRUPAL_SEARCH_API_TOKEN_URL
@@ -59,7 +99,7 @@ class DrupalSearchClient:
         timeout: Optional[int] = None,
     ) -> Dict:
         base_url = settings.DRUPAL_SEARCH_API_BASE_URL.rstrip("/")
-        url = f"{base_url}/{path.lstrip('/')}"
+        url = self._build_safe_url(base_url, path)
         request_params: Dict[str, Any] = dict(params or {})
         request_params = self._normalize_pagination_params(request_params)
         headers = {
@@ -95,10 +135,7 @@ class DrupalSearchClient:
 
         if response.status_code >= 400:
             _logger.error(
-                "Drupal search API request failed: %s %s (%s)",
-                response.status_code,
-                url,
-                response.text,
+                "Drupal search API request failed",
             )
         response.raise_for_status()
         return response.json()

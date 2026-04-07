@@ -90,3 +90,70 @@ class TestDrupalSearchClient(DrupalSearchClient):
 
     def _empty_response(self):
         return {"hits": {"hits": [], "total": {"value": 0}}}
+
+
+def test_drupal_search_client_rejects_absolute_url_paths():
+    """
+    Verify SSRF/path traversal protection in URL building.
+
+    - Absolute URLs (scheme) are rejected
+    - Network-path references (//host) are rejected
+    """
+    client = DrupalSearchClient()
+
+    for unsafe_path in (
+        "http://evil.example/projects",
+        "https://evil.example/projects",
+        "//evil.example/projects",
+    ):
+        try:
+            client.get(unsafe_path)
+        except ValueError:
+            continue
+        raise AssertionError(f"Expected ValueError for unsafe_path={unsafe_path!r}")
+
+
+def test_drupal_search_client_rejects_path_traversal_segments():
+    """
+    Verify SSRF/path traversal protection in URL building.
+
+    - Parent directory traversal is rejected
+    - Current directory segments are rejected
+    """
+    client = DrupalSearchClient()
+
+    for unsafe_path in (
+        "../oauth/token",
+        "/../oauth/token",
+        "projects/../oauth/token",
+        "./projects",
+        "projects/./apartments",
+    ):
+        try:
+            client.get(unsafe_path)
+        except ValueError:
+            continue
+        raise AssertionError(f"Expected ValueError for unsafe_path={unsafe_path!r}")
+
+
+def test_drupal_search_client_builds_safe_urls_for_valid_relative_paths():
+    """
+    Verify safe URL construction for valid relative paths.
+
+    - Leading slashes are tolerated
+    - Duplicate slashes are normalized out
+    - URL stays under configured base scheme+host
+    """
+    base_url = "http://example.test/base"
+
+    cases = [
+        ("projects", "http://example.test/base/projects"),
+        ("/projects", "http://example.test/base/projects"),
+        ("projects/123", "http://example.test/base/projects/123"),
+        ("/projects/123/apartments", "http://example.test/base/projects/123/apartments"),
+        ("apartments/550e8400-e29b-41d4-a716-446655440000", "http://example.test/base/apartments/550e8400-e29b-41d4-a716-446655440000"),
+        ("projects//123///apartments", "http://example.test/base/projects/123/apartments"),
+    ]
+
+    for path, expected in cases:
+        assert DrupalSearchClient._build_safe_url(base_url, path) == expected
