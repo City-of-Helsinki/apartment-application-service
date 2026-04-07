@@ -490,12 +490,18 @@ def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:
         ),
         "floor_location": map_floor_location(elastic_apartment),
         "number_of_rooms": _to_int(getattr(elastic_apartment, "room_count", None)),
-        "room_types": ensure_str(getattr(elastic_apartment, "apartment_structure", None)),
+        "room_types": ensure_str(
+            getattr(elastic_apartment, "apartment_structure", None)
+        ),
         "balcony": map_balcony(elastic_apartment),
         "view": ensure_str(getattr(elastic_apartment, "view_description", None)),
         "living_area": map_living_area(elastic_apartment),
-        "real_estate_id": ensure_str(getattr(elastic_apartment, "project_realty_id", None)),
-        "housing_company_name": ensure_str(getattr(elastic_apartment, "project_housing_company", None)),
+        "real_estate_id": ensure_str(
+            getattr(elastic_apartment, "project_realty_id", None)
+        ),
+        "housing_company_name": ensure_str(
+            getattr(elastic_apartment, "project_housing_company", None)
+        ),
         "housing_company_key": ensure_str(
             getattr(elastic_apartment, "project_uuid", None)
         ),

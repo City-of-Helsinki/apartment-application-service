@@ -612,6 +612,7 @@ class TestOikotieImagesInXml:
         for url in expected_in_housing:
             assert url in hc_xml, f"URL {url} not found in housing company XML"
 
+
 # Float and Long fields used by Oikotie mapper (subset of ApartmentDocument)
 OIKOTIE_NUMERIC_FIELDS = (
     APARTMENT_DOCUMENT_FLOAT_FIELDS | APARTMENT_DOCUMENT_LONG_FIELDS
@@ -662,6 +663,7 @@ class TestOikotieNumericFieldEdgeCases:
         assert os.path.exists(
             os.path.join(settings.APARTMENT_DATA_TRANSFER_PATH, result)
         )
+
 
 @pytest.mark.django_db
 @pytest.mark.usefixtures("client")

@@ -83,7 +83,7 @@ class TestDrupalSearchClient(DrupalSearchClient):
     def _build_paginated_response(self, data, params: dict):
         offset = int(params.get("offset", 0))
         limit = int(params.get("limit", len(data)))
-        sliced = data[offset: offset + limit]
+        sliced = data[offset : offset + limit]
         hits = [{"_source": obj.__dict__} for obj in sliced]
         total = len(data)
         return {"hits": {"hits": hits, "total": {"value": total}}}
