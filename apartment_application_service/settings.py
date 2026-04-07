@@ -35,6 +35,7 @@ env = environ.Env(
         "postgres://apartment-application:apartment-application"
         "@localhost/apartment-application",
     ),
+    DATABASE_PASSWORD=(str, ""),
     CACHE_URL=(str, "locmemcache://"),
     DEFAULT_FROM_EMAIL=(str, "asuntomyynti@hel.fi"),
     MAIL_MAILGUN_KEY=(str, ""),
@@ -137,6 +138,10 @@ ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
 USE_X_FORWARDED_HOST = env.bool("USE_X_FORWARDED_HOST")
 
 DATABASES = {"default": env.db()}
+
+if env("DATABASE_PASSWORD"):
+    DATABASES["default"]["PASSWORD"] = env("DATABASE_PASSWORD")
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 CACHES = {"default": env.cache()}
