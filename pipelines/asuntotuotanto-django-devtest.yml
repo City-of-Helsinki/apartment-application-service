@@ -38,7 +38,7 @@ resources:
 
 extends:
   # Filename in Azure DevOps Repository
-  template: components/asuntotuotanto-django/pipelines/asuntotuotanto-django-dev.yml@asuntotuotanto-pipelines
+  template: components/asuntotuotanto-django/pipelines/asuntotuotanto-django-devtest.yml@asuntotuotanto-pipelines
   # parameters:
     # Application build arguments and config map values as key value pairs.
     # Does not contain all buildArguments or configMap values, the rest located in asuntotuotanto-pipelines
