@@ -39,7 +39,6 @@ resources:
     # Azure DevOps repository
     - repository: asuntotuotanto-pipelines
       type: git
-      ref: ansible_automation_update 
       # Azure DevOps project/repository
       name: asuntotuotanto/asuntotuotanto-pipelines
 
