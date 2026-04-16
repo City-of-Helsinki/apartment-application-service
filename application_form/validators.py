@@ -88,7 +88,7 @@ class ProjectApplicantValidator:
             if is_submitted_late and is_haso and project.project_can_apply_afterwards:
                 return
 
-        apartment_uuids = get_apartment_uuids(project_uuid)
+        apartment_uuids = [str(u) for u in get_apartment_uuids(project_uuid)]
         # We fetch the project's all DOBs and SSN suffixes first and then check those in
         # Python to make sure Postgres won't end up decrypting all applicants in the
         # database, which it seems to prefer and that caused major issues before.

@@ -2,12 +2,23 @@
 Unit tests for connections service helper functions
 """
 
+import time
 from unittest.mock import Mock, patch
 
 import pytest  # noqa: F401
+import requests
+from django.conf import settings
 
+from apartment.elastic.queries import (
+    get_apartment,
+    get_apartments,
+    get_project,
+    get_projects,
+)
 from apartment.enums import OwnershipType
+from conftest import integration_test
 from connections.enums import (
+    ApartmentStateOfSale,
     EtuoviApartmentRequiredFields,
     get_etuovi_required_fields_for_ownership_type,
     get_oikotie_required_fields_for_ownership_type,
@@ -16,6 +27,148 @@ from connections.enums import (
 from connections.etuovi.services import get_apartments_for_etuovi
 from connections.oikotie.services import get_apartments_for_oikotie
 from connections.utils import validate_apartment_required_fields
+
+
+@integration_test
+def test_fetch_all_adaptive_pagination():
+    """
+    Verify _fetch_all works with real Drupal API. Exercises adaptive
+    pagination (size=1000 with short timeout, fallback to size=100 on timeout).
+    Uses real DrupalSearchClient (no mock).
+    """
+    import apartment.elastic.queries as queries
+
+    queries._client = None
+
+    sources = queries._fetch_all(
+        "apartments",
+        params={
+            "project_ownership_type": "hitas",
+            "t": str(int(time.time())),
+        },
+    )
+    assert isinstance(sources, list)
+    for item in sources:
+        assert isinstance(item, dict)
+        assert "uuid" in item or "nid" in item
+
+
+@integration_test
+def test_drupal_search_api_integration():
+    """
+    Verify real Drupal Search API: fetch projects, single project,
+    size=1 apartments, then that apartment by uuid.
+    """
+    import apartment.elastic.queries as queries
+
+    queries._client = None
+
+    projects = get_projects(t=str(int(time.time())))
+    assert isinstance(projects, list)
+    if not projects:
+        pytest.skip("No projects in Drupal API")
+
+    project = projects[0]
+    project_uuid = getattr(project, "project_uuid", None) or project.get("project_uuid")
+    assert project_uuid
+
+    single_project = get_project(project_uuid)
+    assert single_project is not None
+    assert (
+        getattr(single_project, "project_uuid", None)
+        or single_project.get("project_uuid")
+    ) == project_uuid
+
+    apartments = get_apartments(limit=1, t=str(int(time.time())))
+    assert isinstance(apartments, list)
+    if not apartments:
+        pytest.skip("No apartments in Drupal API")
+
+    apartment = apartments[0]
+    apartment_uuid = getattr(apartment, "uuid", None) or apartment.get("uuid")
+    assert apartment_uuid
+
+    single_apartment = get_apartment(apartment_uuid)
+    assert single_apartment is not None
+    assert (
+        getattr(single_apartment, "uuid", None) or single_apartment.get("uuid")
+    ) == apartment_uuid
+
+
+@pytest.mark.parametrize("endpoint", ["projects", "apartments"])
+@integration_test
+def test_drupal_rest_api_oauth2_bruteforce_protection(endpoint):
+    """
+    Faulty OAuth2 token attempts to Drupal REST API should trigger
+    bruteforce protection (429 Too Many Requests after repeated failures).
+    """
+    import apartment.elastic.queries as queries
+
+    queries._client = None
+
+    base_url = settings.DRUPAL_SEARCH_API_BASE_URL.rstrip("/")
+    # Mirror DrupalSearchClient: base URL may already include any language/json prefix.
+    url = f"{base_url}/{endpoint}"
+    attempt_count = 12
+
+    statuses = []
+    for i in range(attempt_count):
+        token = f"invalid-token-{endpoint}-{i}"
+        response = requests.get(
+            url,
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=10,
+            verify=settings.DRUPAL_SEARCH_API_VERIFY_SSL,
+        )
+        statuses.append(response.status_code)
+        # Implementation may start returning 429 before or after several 401s.
+        assert response.status_code in (401, 429)
+
+    # Across all attempts for this endpoint we must see at least one 429.
+    assert any(status == 429 for status in statuses), (
+        "Drupal REST API should eventually block bruteforce attempts with 429. "
+        f"Statuses seen for {endpoint}: {statuses}"
+    )
+
+
+@integration_test
+def test_drupal_oauth_token_bruteforce_protection():
+    """
+    Ten faulty OAuth2 token exchange attempts (invalid credentials) to
+    oauth/token should trigger bruteforce protection (429 on 11th attempt).
+    """
+    url = settings.DRUPAL_SEARCH_API_TOKEN_URL
+    headers = {"Content-Type": "application/x-www-form-urlencoded"}
+    data = {
+        "grant_type": "client_credentials",
+        "client_id": "invalid-client",
+        "client_secret": "invalid-secret",
+        "scope": "rest_client",
+    }
+
+    for i in range(10):
+        response = requests.post(
+            url,
+            data=data,
+            headers=headers,
+            timeout=10,
+            verify=settings.DRUPAL_SEARCH_API_VERIFY_SSL,
+        )
+        assert (
+            response.status_code >= 400
+        ), f"Attempt {i + 1}: Expected 4xx, got {response.status_code}"
+
+    response = requests.post(
+        url,
+        data=data,
+        headers=headers,
+        timeout=10,
+        verify=settings.DRUPAL_SEARCH_API_VERIFY_SSL,
+    )
+    assert response.status_code == 429, (
+        f"Drupal oauth/token should block bruteforce after 10 failed attempts. "
+        f"Got {response.status_code} instead of 429."
+    )
 
 
 class TestValidateApartmentRequiredFields:
@@ -134,24 +287,19 @@ class TestValidateApartmentRequiredFields:
 class TestGetApartmentsForEtuovi:
     """Test get_apartments_for_etuovi function"""
 
-    @patch("connections.etuovi.services.ApartmentDocument")
-    def test_filters_correctly(self, mock_apartment_document):
+    @patch("connections.etuovi.services.get_apartments")
+    def test_filters_correctly(self, mock_get_apartments):
         """Test that function filters apartments correctly"""
-        mock_search_obj = Mock()
-        mock_search_obj.filter.return_value = mock_search_obj
-        mock_search_obj.exclude.return_value = mock_search_obj
-        mock_search_obj.execute.return_value = None
-        mock_search_obj.scan.return_value = iter([Mock(), Mock()])
-        mock_apartment_document.search.return_value = mock_search_obj
+        mock_get_apartments.return_value = [Mock(), Mock()]
 
         result = get_apartments_for_etuovi()
 
-        # Verify search chain is called correctly
-        mock_apartment_document.search.assert_called_once()
-        assert mock_search_obj.filter.call_count == 2  # _language and publish_on_etuovi
-        mock_search_obj.exclude.assert_called_once()
-        mock_search_obj.execute.assert_called_once()
-        mock_search_obj.scan.assert_called_once()
+        mock_get_apartments.assert_called_once_with(
+            _language="fi",
+            apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE,
+            publish_on_etuovi=True,
+            include_project_fields=True,
+        )
 
         # Verify result is iterable
         assert hasattr(result, "__iter__")
@@ -162,26 +310,19 @@ class TestGetApartmentsForEtuovi:
 class TestGetApartmentsForOikotie:
     """Test get_apartments_for_oikotie function"""
 
-    @patch("connections.oikotie.services.ApartmentDocument")
-    def test_filters_correctly(self, mock_apartment_document):
+    @patch("connections.oikotie.services.get_apartments")
+    def test_filters_correctly(self, mock_get_apartments):
         """Test that function filters apartments correctly"""
-        mock_search_obj = Mock()
-        mock_search_obj.filter.return_value = mock_search_obj
-        mock_search_obj.exclude.return_value = mock_search_obj
-        mock_search_obj.execute.return_value = None
-        mock_search_obj.scan.return_value = iter([Mock(), Mock()])
-        mock_apartment_document.search.return_value = mock_search_obj
+        mock_get_apartments.return_value = [Mock(), Mock()]
 
         result = get_apartments_for_oikotie()
 
-        # Verify search chain is called correctly
-        mock_apartment_document.search.assert_called_once()
-        assert (
-            mock_search_obj.filter.call_count == 2
-        )  # _language and publish_on_oikotie
-        mock_search_obj.exclude.assert_called_once()
-        mock_search_obj.execute.assert_called_once()
-        mock_search_obj.scan.assert_called_once()
+        mock_get_apartments.assert_called_once_with(
+            _language="fi",
+            apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE,
+            publish_on_oikotie=True,
+            include_project_fields=True,
+        )
 
         # Verify result is iterable
         assert hasattr(result, "__iter__")

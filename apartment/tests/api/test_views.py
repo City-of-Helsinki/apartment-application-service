@@ -6,7 +6,7 @@ import pytest
 from django.urls import reverse
 
 from apartment.models import ProjectExtraData
-from apartment.tests.factories import ApartmentDocumentFactory
+from apartment.tests.factories import add_to_store, ApartmentDocumentFactory
 from application_form.enums import (
     ApartmentReservationCancellationReason,
     ApartmentReservationState,
@@ -27,6 +27,11 @@ from customer.tests.factories import CustomerFactory
 from users.enums import UserKeyValueKeys
 from users.models import UserKeyValue
 from users.tests.utils import assert_customer_match_data
+
+
+def _store_apartment(apartment):
+    add_to_store([apartment])
+    return apartment
 
 
 @pytest.mark.django_db
@@ -82,8 +87,88 @@ def test_project_list_get(sales_ui_salesperson_api_client):
     response = sales_ui_salesperson_api_client.get(
         reverse("apartment:project-list"), format="json"
     )
+
     assert response.status_code == 200
     assert len(response.data) > 0
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("elastic_apartments")
+def test_get_correct_project_data(sales_ui_salesperson_api_client):
+    project = ApartmentDocumentFactory()
+    add_to_store([project])
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse(
+            "apartment:project-detail", kwargs={"project_uuid": project.project_uuid}
+        ),
+        format="json",
+    )
+    assert response.status_code == 200
+
+    assert response.data["uuid"] == str(project.project_uuid)
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("elastic_apartments")
+def test_project_all_fields_are_present(sales_ui_salesperson_api_client):
+    project = ApartmentDocumentFactory()
+    add_to_store([project])
+    response = sales_ui_salesperson_api_client.get(
+        reverse(
+            "apartment:project-detail", kwargs={"project_uuid": project.project_uuid}
+        ),
+        format="json",
+    )
+    assert response.status_code == 200
+
+    for key, value in response.data.items():
+        assert value != ""
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("elastic_apartments")
+def test_project_list_some_fields_are_empty(sales_ui_salesperson_api_client):
+    project = ApartmentDocumentFactory(
+        project_description="Project description",
+    )
+    add_to_store([project])
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("apartment:project-list"),
+        format="json",
+    )
+
+    project_data = [
+        pr for pr in response.data if pr["uuid"] == str(project.project_uuid)
+    ][0]
+
+    assert project_data["description"] == "Project description"
+    assert response.status_code == 200
+
+
+@pytest.mark.django_db
+@pytest.mark.usefixtures("elastic_apartments")
+def test_project_list_handle_missing_fields(sales_ui_salesperson_api_client):
+    project = ApartmentDocumentFactory()
+    del project.project_holding_type
+
+    # FIXME: ValueError: could not convert string to float: ''
+    project.project_coordinate_lat = ""
+
+    add_to_store([project])
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("apartment:project-list"), format="json"
+    )
+
+    assert response.status_code == 200
+    assert len(response.data) > 0
+    project_data = next(
+        data for data in response.data if data["uuid"] == str(project.project_uuid)
+    )
+    assert project_data["coordinate_lat"] is None
+    assert project_data["holding_type"] is None
 
 
 @pytest.mark.django_db
@@ -305,6 +390,32 @@ def test_project_get_with_project_uuid_unauthorized(
 
 
 @pytest.mark.django_db
+def test_project_detail_returns_all_apartments(
+    sales_ui_salesperson_api_client, elastic_project_with_5_apartments
+):
+    project_uuid = uuid.uuid4()
+    apartments = [
+        ApartmentDocumentFactory(apartment_published=True, project_uuid=project_uuid)
+        for _ in range(4)
+    ]
+    # One unpublished apartment
+    unpublished_apartment = ApartmentDocumentFactory(
+        apartment_published=False, project_uuid=project_uuid
+    )
+    apartments.append(unpublished_apartment)
+    add_to_store(apartments)
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("apartment:project-detail", kwargs={"project_uuid": project_uuid}),
+        format="json",
+    )
+    assert response.status_code == 200
+    assert response.data
+    assert response.data.get("apartments")
+    assert len(response.data.get("apartments")) == len(apartments)
+
+
+@pytest.mark.django_db
 def test_project_get_with_project_uuid(
     sales_ui_salesperson_api_client, elastic_project_with_5_apartments
 ):
@@ -313,6 +424,7 @@ def test_project_get_with_project_uuid(
         reverse("apartment:project-detail", kwargs={"project_uuid": project_uuid}),
         format="json",
     )
+
     assert response.status_code == 200
     assert response.data
     assert response.data.get("uuid") == str(project_uuid)
@@ -872,7 +984,7 @@ def _build_url_with_query_params(base_url, query_params):
 
 @pytest.mark.django_db
 def test_get_project_extra_data_endpoint_unauthorized(user_api_client):
-    apartment = ApartmentDocumentFactory()
+    apartment = _store_apartment(ApartmentDocumentFactory())
     project_uuid = apartment.project_uuid
 
     url = reverse(
@@ -888,7 +1000,7 @@ def test_get_project_extra_data_endpoint_unauthorized(user_api_client):
 def test_get_project_extra_data_endpoint(
     sales_ui_salesperson_api_client, has_extra_data_instance
 ):
-    apartment = ApartmentDocumentFactory()
+    apartment = _store_apartment(ApartmentDocumentFactory())
     project_uuid = apartment.project_uuid
 
     if has_extra_data_instance:
@@ -914,7 +1026,7 @@ def test_get_project_extra_data_endpoint(
 
 @pytest.mark.django_db
 def test_put_project_extra_data_endpoint_unauthorized(user_api_client):
-    apartment = ApartmentDocumentFactory()
+    apartment = _store_apartment(ApartmentDocumentFactory())
     project_uuid = apartment.project_uuid
 
     data = {
@@ -935,7 +1047,7 @@ def test_put_project_extra_data_endpoint_unauthorized(user_api_client):
 def test_put_project_extra_data_endpoint(
     sales_ui_salesperson_api_client, has_extra_data_instance
 ):
-    apartment = ApartmentDocumentFactory()
+    apartment = _store_apartment(ApartmentDocumentFactory())
     project_uuid = apartment.project_uuid
 
     if has_extra_data_instance:
@@ -969,7 +1081,7 @@ def test_put_project_extra_data_endpoint(
 def test_get_project_extra_data_endpoint_non_existing_project(
     sales_ui_salesperson_api_client,
 ):
-    ApartmentDocumentFactory()
+    _store_apartment(ApartmentDocumentFactory())
     project_uuid = uuid.uuid4()
 
     url = reverse("apartment:project-detail", kwargs={"project_uuid": project_uuid})
@@ -983,7 +1095,7 @@ def test_get_project_extra_data_endpoint_non_existing_project(
 def test_get_project_detail_extra_data_field(
     sales_ui_salesperson_api_client, has_extra_data_instance
 ):
-    apartment = ApartmentDocumentFactory()
+    apartment = _store_apartment(ApartmentDocumentFactory())
     project_uuid = apartment.project_uuid
 
     if has_extra_data_instance:

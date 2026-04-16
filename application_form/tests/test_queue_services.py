@@ -368,9 +368,11 @@ def test_remove_reservation_without_queue_positio_bug_ASU_1672(
     with caplog.at_level(logging.INFO, logger="application_form.services.queue"):
         remove_reservation_from_queue(reservation)
 
-    # resilient_logger (and other libs) may emit DEBUG records before the
-    # expected WARNING, so don't rely on the WARNING being the first record.
-    assert any(record.levelname == "WARNING" for record in caplog.records)
+    assert any(
+        record.levelname == "WARNING"
+        and record.name == "application_form.services.queue"
+        for record in caplog.records
+    )
     assert first_apartment_uuid in caplog.text
 
 

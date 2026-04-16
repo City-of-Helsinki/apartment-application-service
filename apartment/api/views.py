@@ -109,13 +109,11 @@ class ProjectAPIView(APIView):
         serializer_class = (
             ProjectDocumentListSerializer if many else ProjectDocumentDetailSerializer
         )
-
         projects = project_data if many else [project_data]
         project_uuids = [str(project.project_uuid) for project in projects]
         apartment_sale_state_counts = get_project_apartment_sale_state_counts(
             project_uuids
         )
-
         serializer = serializer_class(
             project_data,
             many=many,

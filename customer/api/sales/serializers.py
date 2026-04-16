@@ -97,6 +97,7 @@ class CustomerApartmentReservationSerializer(ApartmentReservationSerializerBase)
         return self.context["apartment"].debt_free_sales_price
 
     def get_apartment_right_of_occupancy_payment(self, obj) -> int:
+
         return self.context["apartment"].reservation_right_of_occupancy_payment(
             self.context["reservation_id"]
         )

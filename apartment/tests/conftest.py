@@ -2,14 +2,16 @@ import random
 import string
 
 import faker.config
-from django.conf import settings
-from elasticsearch.helpers.test import get_test_client
-from elasticsearch_dsl.connections import add_connection
 from factory import Faker
 from faker import providers
 from pytest import fixture
 
-from apartment.tests.factories import ApartmentDocumentFactory
+from apartment.tests.factories import (
+    add_to_store,
+    ApartmentDocumentFactory,
+    clear_apartment_store,
+)
+from connections.tests.conftest import _mock_fetch_all
 from users.tests.conftest import (  # noqa: F401
     api_client,
     drupal_salesperson_api_client,
@@ -38,33 +40,34 @@ class BusinessIdProvider(providers.BaseProvider):
 Faker.add_provider(BusinessIdProvider)
 
 
-def setup_elasticsearch():
-    test_client = get_test_client()
-    add_connection("default", test_client)
-    if test_client.indices.exists(index=settings.APARTMENT_INDEX_NAME):
-        test_client.indices.delete(index=settings.APARTMENT_INDEX_NAME)
-    test_client.indices.create(index=settings.APARTMENT_INDEX_NAME)
-    return test_client
+@fixture(autouse=True)
+def clear_store_between_tests():
+    clear_apartment_store()
+    yield
+    clear_apartment_store()
 
 
-def teardown_elasticsearch(test_client):
-    if test_client.indices.exists(index=settings.APARTMENT_INDEX_NAME):
-        test_client.indices.delete(index=settings.APARTMENT_INDEX_NAME)
+@fixture(autouse=True)
+def mock_apartment_queries(request, monkeypatch):
+    if request.node.get_closest_marker("integration"):
+        return
+    from apartment.elastic import queries
+
+    monkeypatch.setattr(queries, "_fetch_all", _mock_fetch_all)
 
 
-@fixture(scope="module")
+@fixture
 def elasticsearch():
-    test_client = setup_elasticsearch()
-    yield test_client
-    teardown_elasticsearch(test_client)
+    clear_apartment_store()
+    yield None
+    clear_apartment_store()
 
 
 @fixture
 def elastic_apartments(elasticsearch):
     apartments = ApartmentDocumentFactory.create_batch(10)
+    add_to_store(apartments)
     yield apartments
-    for apartment in apartments:
-        apartment.delete(refresh=True)
 
 
 @fixture
@@ -76,7 +79,5 @@ def elastic_project_with_5_apartments(elasticsearch):
 
     for _ in range(4):
         apartments.append(ApartmentDocumentFactory(project_uuid=apartment.project_uuid))
+    add_to_store(apartments)
     yield apartment.project_uuid, apartments
-
-    for apartment in apartments:
-        apartment.delete(refresh=True)
