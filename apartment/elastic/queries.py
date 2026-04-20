@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, Iterable, List, Optional, Tuple
 
 import requests
@@ -200,23 +201,32 @@ def get_project_apartment_sale_state_counts(
     if not project_uuids_list:
         return {}
 
-    apartment_uuid_to_project_uuid: Dict[str, str] = {}
-    for project_uuid in project_uuids_list:
-        for apartment in get_apartments(
-            project_uuid=project_uuid,
-            include_project_fields=True,
-        ):
-            apartment_uuid_to_project_uuid[str(apartment.uuid)] = str(project_uuid)
+    counts: Dict[str, Dict[str, int]] = {
+        project_uuid: {
+            "sold_apartment_count": 0,
+            "reserved_apartment_count": 0,
+            "free_apartment_count": 0,
+        }
+        for project_uuid in project_uuids_list
+    }
 
-    if not apartment_uuid_to_project_uuid:
-        return {
-            project_uuid: {
-                "sold_apartment_count": 0,
-                "reserved_apartment_count": 0,
-                "free_apartment_count": 0,
-            }
+    # Each lookup is an HTTP round trip to the Drupal search API. Fan them out
+    # concurrently so total runtime is bounded by the slowest request rather
+    # than the sum of all requests. Workers are capped to avoid overwhelming
+    # the backend on large project sets.
+    max_workers = min(len(project_uuids_list), 8)
+    apartment_uuid_to_project_uuid: Dict[str, str] = {}
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_project = {
+            executor.submit(get_apartment_uuids, project_uuid): project_uuid
             for project_uuid in project_uuids_list
         }
+        for future, project_uuid in future_to_project.items():
+            for apartment_uuid in future.result():
+                apartment_uuid_to_project_uuid[str(apartment_uuid)] = project_uuid
+
+    if not apartment_uuid_to_project_uuid:
+        return counts
 
     # "Winning" here means the first reservation in the list for an apartment.
     # Queue positions are not always present (e.g. in some state transitions and
@@ -231,15 +241,6 @@ def get_project_apartment_sale_state_counts(
     )
     apartment_uuid_to_state = {
         str(r.apartment_uuid): r.state for r in winning_reservations
-    }
-
-    counts: Dict[str, Dict[str, int]] = {
-        project_uuid: {
-            "sold_apartment_count": 0,
-            "reserved_apartment_count": 0,
-            "free_apartment_count": 0,
-        }
-        for project_uuid in project_uuids_list
     }
 
     for apartment_uuid, project_uuid in apartment_uuid_to_project_uuid.items():
