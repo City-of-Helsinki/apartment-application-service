@@ -5,7 +5,10 @@ from decimal import Decimal
 
 import pytest
 
+from apartment.enums import OwnershipType
+from apartment.tests.factories import ApartmentDocumentFactory
 from apartment_application_service.pdf import PDFCurrencyField as CF
+from application_form.tests.factories import ApartmentReservationFactory
 from users.tests.factories import UserFactory
 
 from ..pdf.haso import create_haso_contract_pdf_from_data, HasoContractPDFData
@@ -377,6 +380,104 @@ class TestHasoContractPdfFromData(unittest.TestCase):
             # Don't assert a == b, because the output is too long to be
             # printed in the test output.
             assert False, "Invalid PDF content"
+
+
+@pytest.mark.django_db
+class TestHasoContractPdfDataRightOfOccupancyFeeM2:
+    """
+    Regression tests for right_of_occupancy_fee_m2 computation in
+    get_haso_contract_pdf_data.
+
+    The Drupal REST API returns apartment.living_area as a decimal string
+    (e.g. "42.12") and apartment.right_of_occupancy_fee may be None. The
+    current implementation divides a float by apartment.living_area which
+    fails with TypeError when living_area is a string.
+    """
+
+    def _build_haso_apartment(self, *, living_area, right_of_occupancy_fee):
+        """
+        Create a HASO apartment in the test elastic store with the given
+        living_area and right_of_occupancy_fee values and a matching
+        reservation for it.
+
+        Parameters:
+        living_area: Value to set on apartment.living_area (e.g. str, float).
+        right_of_occupancy_fee (int | None): Value to set on
+            apartment.right_of_occupancy_fee.
+
+        Returns:
+        tuple: (apartment, reservation) pair.
+        """
+        apartment = ApartmentDocumentFactory(
+            project_ownership_type=OwnershipType.HASO.value,
+            living_area=living_area,
+            right_of_occupancy_fee=right_of_occupancy_fee,
+        )
+        reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
+        return apartment, reservation
+
+    def test_living_area_as_float_produces_expected_fee_per_m2(self):
+        """
+        Positive sanity check with the current data shape.
+
+        - apartment.living_area is a float (as the factory defaults assume).
+        - apartment.right_of_occupancy_fee is a non-None integer in cents.
+        - PDFCurrencyField.value for right_of_occupancy_fee_m2 must equal
+          Decimal(fee_cents / 100 / living_area).
+        """
+        apartment, reservation = self._build_haso_apartment(
+            living_area=100.0,
+            right_of_occupancy_fee=78950,
+        )
+
+        pdf_data = set_up_contract_pdf_test_data(
+            apartment=apartment,
+            reservation=reservation,
+        )
+
+        assert pdf_data.right_of_occupancy_fee_m2.value == (
+            Decimal(78950) / Decimal(100) / Decimal("100.0")
+        )
+
+    def test_living_area_as_decimal_string_produces_expected_fee_per_m2(self):
+        """
+        Desired behavior after the fix.
+
+        - apartment.living_area is the decimal-formatted string "42.12".
+        - apartment.right_of_occupancy_fee is 78950 cents.
+        - PDFCurrencyField.value for right_of_occupancy_fee_m2 must equal
+          Decimal("789.50") / Decimal("42.12").
+        """
+        apartment, reservation = self._build_haso_apartment(
+            living_area="42.12",
+            right_of_occupancy_fee=78950,
+        )
+
+        pdf_data = set_up_contract_pdf_test_data(
+            apartment=apartment,
+            reservation=reservation,
+        )
+
+        expected = Decimal("789.50") / Decimal("42.12")
+        assert pdf_data.right_of_occupancy_fee_m2.value == expected
+
+    def test_right_of_occupancy_fee_none_yields_none_fee_per_m2(self):
+        """
+        When the REST API omits right_of_occupancy_fee (maps to None), the
+        division must be skipped and right_of_occupancy_fee_m2 must carry a
+        None value regardless of living_area type.
+        """
+        apartment, reservation = self._build_haso_apartment(
+            living_area="42.12",
+            right_of_occupancy_fee=None,
+        )
+
+        pdf_data = set_up_contract_pdf_test_data(
+            apartment=apartment,
+            reservation=reservation,
+        )
+
+        assert pdf_data.right_of_occupancy_fee_m2.value is None
 
 
 def read_file(file_name: str) -> bytes:

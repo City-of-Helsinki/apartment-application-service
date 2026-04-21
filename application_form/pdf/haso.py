@@ -176,8 +176,14 @@ def get_haso_contract_pdf_data(
     completion_end = apartment.project_contract_estimated_handover_date_end
     completion_end_str = completion_end.strftime("%-d.%-m.%Y") if completion_end else ""
 
+    # apartment.right_of_occupancy_fee is in cents and may be None when the
+    # Drupal REST API omits it. apartment.living_area is returned as a
+    # decimal-formatted string (e.g. "42.12"), so coerce via str(...) to
+    # support both string and numeric inputs without float precision loss.
     right_of_occupancy_fee_m2_euros = (
-        Decimal(apartment.right_of_occupancy_fee / 100.0 / apartment.living_area)
+        Decimal(apartment.right_of_occupancy_fee)
+        / Decimal(100)
+        / Decimal(str(apartment.living_area))
         if apartment.right_of_occupancy_fee is not None
         else None
     )
