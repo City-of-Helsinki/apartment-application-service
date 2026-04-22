@@ -120,7 +120,9 @@ class ProjectAPIView(APIView):
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(project_data, request, view=self)
         page_uuids = [str(project.project_uuid) for project in page]
-        apartment_sale_state_counts = get_project_apartment_sale_state_counts(page_uuids)
+        apartment_sale_state_counts = get_project_apartment_sale_state_counts(
+            page_uuids
+        )
         serializer = ProjectDocumentListSerializer(
             page,
             many=True,
@@ -132,7 +134,9 @@ class ProjectAPIView(APIView):
 
     def _get_single(self, project_data):
         project_uuids = [str(project_data.project_uuid)]
-        apartment_sale_state_counts = get_project_apartment_sale_state_counts(project_uuids)
+        apartment_sale_state_counts = get_project_apartment_sale_state_counts(
+            project_uuids
+        )
         serializer = ProjectDocumentDetailSerializer(
             project_data,
             many=False,
