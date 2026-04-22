@@ -168,23 +168,17 @@ class ProjectDocumentSerializerBase(serializers.Serializer):
         return apartment_sale_state_counts.get(project_uuid, {}).get(count_key, 0)
 
     def to_representation(self, instance):
+        # Empty-string -> None normalization for typed fields is handled at
+        # ingestion by ApartmentDocument (see apartment/elastic/documents.py).
+        # Dict-shaped instances are still produced by tests and by nested
+        # serializer calls, so keep the dict branch and fill defaults for
+        # fields the dict is missing.
         if isinstance(instance, dict):
             for field in self.fields.values():
                 source = field.source or field.field_name
                 if source == "*" or "." in source:
                     continue
                 instance.setdefault(source, None)
-
-            for key, value in list(instance.items()):
-                if value == "":
-                    instance[key] = None
-            return super().to_representation(instance)
-
-        data = instance.__dict__.get("_d_")
-        if data is not None:
-            for field in data.keys():
-                if getattr(instance, field, None) == "":
-                    setattr(instance, field, None)
 
         return super().to_representation(instance)
 
