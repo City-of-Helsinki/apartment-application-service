@@ -4,6 +4,8 @@
 #
 #    pip-compile --strip-extras requirements.in
 #
+annotated-types==0.7.0
+    # via pydantic
 asgiref==3.7.2
     # via django
 attrs==23.1.0
@@ -141,6 +143,10 @@ pyasn1==0.5.0
     #   rsa
 pycparser==2.21
     # via cffi
+pydantic==2.13.3
+    # via -r requirements.in
+pydantic-core==2.46.3
+    # via pydantic
 pyjwt==2.8.0
     # via
     #   djangorestframework-simplejwt
@@ -199,6 +205,11 @@ typing-extensions==4.15.0
     # via
     #   -r requirements.in
     #   elasticsearch8
+    #   pydantic
+    #   pydantic-core
+    #   typing-inspection
+typing-inspection==0.4.2
+    # via pydantic
 uritemplate==4.1.1
     # via drf-spectacular
 urllib3==1.26.18
