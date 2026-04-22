@@ -2,7 +2,6 @@ from uuid import UUID
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apartment.elastic.queries import get_apartment
@@ -11,9 +10,7 @@ from application_form.api.serializers import (
     ApartmentReservationSerializerBase,
     ApartmentReservationStateChangeEventSerializer,
 )
-from application_form.enums import ApartmentReservationState
 from application_form.models import ApartmentReservation, LotteryEvent
-from application_form.utils import get_apartment_number_sort_tuple
 from customer.models import Customer, CustomerComment
 from invoicing.api.serializers import ApartmentInstallmentSerializer
 from users.api.sales.serializers import ProfileSerializer
@@ -112,7 +109,6 @@ class CustomerApartmentReservationSerializer(ApartmentReservationSerializerBase)
 class CustomerSerializer(serializers.ModelSerializer):
     primary_profile = ProfileSerializer()
     secondary_profile = ProfileSerializer(required=False, allow_null=True)
-    apartment_reservations = serializers.SerializerMethodField()
 
     class Meta:
         model = Customer
@@ -129,31 +125,7 @@ class CustomerSerializer(serializers.ModelSerializer):
             "right_of_residence",
             "right_of_residence_is_old_batch",
             "secondary_profile",
-            "apartment_reservations",
         )
-
-    @extend_schema_field(CustomerApartmentReservationSerializer(many=True))
-    def get_apartment_reservations(self, obj):
-        reservations = ApartmentReservation.objects.filter(customer=obj)
-        serialized_reservations = CustomerApartmentReservationSerializer(
-            reservations, many=True
-        ).data
-
-        # sort reservations by
-        #   1. canceled as last ones
-        #   2. queue_position
-        #   3. apartment number
-        #   4. id
-        sorted_serialized_reservations = sorted(
-            serialized_reservations,
-            key=lambda x: (
-                x["state"] == ApartmentReservationState.CANCELED.value,
-                x["queue_position"] if (x["queue_position"] is not None) else 999999,
-                *get_apartment_number_sort_tuple(x["apartment_number"]),
-                x["id"],
-            ),
-        )
-        return sorted_serialized_reservations
 
     @transaction.atomic
     def create(self, validated_data):

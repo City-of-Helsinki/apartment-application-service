@@ -3,6 +3,7 @@ Test cases for customer api of sales.
 """
 
 import uuid
+from unittest.mock import patch
 
 import pytest
 from django.contrib.auth.models import Group
@@ -47,7 +48,7 @@ def test_get_customer_api_detail(sales_ui_salesperson_api_client):
         right_of_occupancy_payment=300,
     )
     customer = CustomerFactory(secondary_profile=ProfileFactory())
-    reservation = ApartmentReservationFactory(
+    ApartmentReservationFactory(
         application_apartment__application__customer=customer,
         application_apartment__apartment_uuid=apartment.uuid,
         customer=customer,
@@ -55,9 +56,6 @@ def test_get_customer_api_detail(sales_ui_salesperson_api_client):
         has_hitas_ownership=True,
         has_children=False,
         queue_position=1,
-    )
-    installment = ApartmentInstallmentFactory(
-        apartment_reservation=reservation, value=100
     )
 
     response = sales_ui_salesperson_api_client.get(
@@ -76,9 +74,95 @@ def test_get_customer_api_detail(sales_ui_salesperson_api_client):
     assert_profile_match_data(
         customer.secondary_profile, response.data["secondary_profile"]
     )
-    state_change_events = response.data["apartment_reservations"][0].pop(
-        "state_change_events"
+    # Reservations are now served by a dedicated paginated sub-resource.
+    assert "apartment_reservations" not in response.data
+
+
+@pytest.mark.django_db
+def test_customer_detail_does_not_fetch_apartments(sales_ui_salesperson_api_client):
+    """
+    The customer detail endpoint must not perform per-reservation apartment
+    lookups; those are now served by the paginated sub-resource.
+    """
+    apartment = ApartmentDocumentFactory()
+    customer = CustomerFactory()
+    for position in range(1, 4):
+        ApartmentReservationFactory(
+            apartment_uuid=apartment.uuid,
+            customer=customer,
+            list_position=position,
+        )
+
+    with patch("customer.api.sales.serializers.get_apartment") as mocked_get_apartment:
+        response = sales_ui_salesperson_api_client.get(
+            reverse("customer:sales-customer-detail", args=(customer.pk,)),
+            format="json",
+        )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert mocked_get_apartment.call_count == 0
+
+
+@pytest.mark.django_db
+def test_customer_apartment_reservations_unauthorized(user_api_client):
+    customer = CustomerFactory()
+
+    response = user_api_client.get(
+        reverse("customer:sales-customer-apartment-reservations", args=(customer.pk,)),
+        format="json",
     )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_customer_apartment_reservations_not_found(sales_ui_salesperson_api_client):
+    response = sales_ui_salesperson_api_client.get(
+        reverse("customer:sales-customer-apartment-reservations", args=(99999,)),
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
+def test_customer_apartment_reservations_returns_serialized_row(
+    sales_ui_salesperson_api_client,
+):
+    apartment = ApartmentDocumentFactory(
+        sales_price=2000,
+        debt_free_sales_price=1500,
+        right_of_occupancy_payment=300,
+    )
+    customer = CustomerFactory(secondary_profile=ProfileFactory())
+    reservation = ApartmentReservationFactory(
+        application_apartment__application__customer=customer,
+        application_apartment__apartment_uuid=apartment.uuid,
+        customer=customer,
+        apartment_uuid=apartment.uuid,
+        has_hitas_ownership=True,
+        has_children=False,
+        queue_position=1,
+    )
+    installment = ApartmentInstallmentFactory(
+        apartment_reservation=reservation, value=100
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("customer:sales-customer-apartment-reservations", args=(customer.pk,)),
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert set(response.data.keys()) == {"count", "next", "previous", "results"}
+    assert response.data["count"] == 1
+    assert response.data["next"] is None
+    assert response.data["previous"] is None
+
+    results = response.data["results"]
+    assert len(results) == 1
+
+    state_change_events = results[0].pop("state_change_events")
     assert state_change_events[0]["timestamp"] is not None
     state_change_events[0].pop("timestamp")
     assert state_change_events == [
@@ -89,7 +173,8 @@ def test_get_customer_api_detail(sales_ui_salesperson_api_client):
             "changed_by": None,
         }
     ]
-    assert response.data["apartment_reservations"] == [
+
+    assert results == [
         {
             "id": reservation.id,
             "project_uuid": apartment.project_uuid,
@@ -140,15 +225,11 @@ def test_get_customer_api_detail(sales_ui_salesperson_api_client):
 
 
 @pytest.mark.django_db
-def test_customer_detail_state_event_cancellation_reason(
+def test_customer_apartment_reservations_state_event_cancellation_reason(
     sales_ui_salesperson_api_client,
 ):
-    apartment = ApartmentDocumentFactory(
-        sales_price=2000,
-        debt_free_sales_price=1500,
-        right_of_occupancy_payment=300,
-    )
-    customer = CustomerFactory(secondary_profile=ProfileFactory())
+    apartment = ApartmentDocumentFactory()
+    customer = CustomerFactory()
     reservation = ApartmentReservationFactory(
         apartment_uuid=apartment.uuid,
         customer=customer,
@@ -159,29 +240,24 @@ def test_customer_detail_state_event_cancellation_reason(
     )
 
     response = sales_ui_salesperson_api_client.get(
-        reverse("customer:sales-customer-detail", args=(customer.pk,)),
+        reverse("customer:sales-customer-apartment-reservations", args=(customer.pk,)),
         format="json",
     )
 
+    assert response.status_code == status.HTTP_200_OK
     assert (
-        response.data["apartment_reservations"][0]["state_change_events"][1][
-            "cancellation_reason"
-        ]
+        response.data["results"][0]["state_change_events"][1]["cancellation_reason"]
         == "canceled"
     )
 
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("has_profile", (False, True))
-def test_customer_detail_state_event_changed_by(
+def test_customer_apartment_reservations_state_event_changed_by(
     sales_ui_salesperson_api_client, has_profile
 ):
-    apartment = ApartmentDocumentFactory(
-        sales_price=2000,
-        debt_free_sales_price=1500,
-        right_of_occupancy_payment=300,
-    )
-    customer = CustomerFactory(secondary_profile=ProfileFactory())
+    apartment = ApartmentDocumentFactory()
+    customer = CustomerFactory()
     reservation = ApartmentReservationFactory(
         apartment_uuid=apartment.uuid,
         customer=customer,
@@ -198,14 +274,13 @@ def test_customer_detail_state_event_changed_by(
     )
 
     response = sales_ui_salesperson_api_client.get(
-        reverse("customer:sales-customer-detail", args=(customer.pk,)),
+        reverse("customer:sales-customer-apartment-reservations", args=(customer.pk,)),
         format="json",
     )
 
+    assert response.status_code == status.HTTP_200_OK
     assert (
-        response.data["apartment_reservations"][0]["state_change_events"][1][
-            "changed_by"
-        ]
+        response.data["results"][0]["state_change_events"][1]["changed_by"]
         == {
             "id": user.id,
             "first_name": user.first_name,
@@ -220,6 +295,101 @@ def test_customer_detail_state_event_changed_by(
             "email": user.profile.email,
         }
     )
+
+
+@pytest.mark.django_db
+def test_customer_apartment_reservations_pagination_envelope(
+    sales_ui_salesperson_api_client,
+):
+    apartment = ApartmentDocumentFactory()
+    customer = CustomerFactory()
+    for position in range(1, 8):
+        ApartmentReservationFactory(
+            apartment_uuid=apartment.uuid,
+            customer=customer,
+            list_position=position,
+        )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("customer:sales-customer-apartment-reservations", args=(customer.pk,)),
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data["count"] == 7
+    # Default page size is 5.
+    assert len(response.data["results"]) == 5
+    assert response.data["previous"] is None
+    assert response.data["next"] is not None
+
+    response_page_two = sales_ui_salesperson_api_client.get(
+        reverse("customer:sales-customer-apartment-reservations", args=(customer.pk,))
+        + "?page=2",
+        format="json",
+    )
+
+    assert response_page_two.status_code == status.HTTP_200_OK
+    assert response_page_two.data["count"] == 7
+    assert len(response_page_two.data["results"]) == 2
+    assert response_page_two.data["next"] is None
+
+
+@pytest.mark.django_db
+def test_customer_apartment_reservations_respects_page_size_query(
+    sales_ui_salesperson_api_client,
+):
+    apartment = ApartmentDocumentFactory()
+    customer = CustomerFactory()
+    for position in range(1, 13):
+        ApartmentReservationFactory(
+            apartment_uuid=apartment.uuid,
+            customer=customer,
+            list_position=position,
+        )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("customer:sales-customer-apartment-reservations", args=(customer.pk,))
+        + "?page_size=3",
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert len(response.data["results"]) == 3
+
+
+@pytest.mark.django_db
+def test_customer_apartment_reservations_only_fetches_page_apartments(
+    sales_ui_salesperson_api_client,
+):
+    """
+    Serializing one page must call `get_apartment` only once per row on the
+    current page, regardless of the total number of reservations.
+    """
+    apartment = ApartmentDocumentFactory()
+    customer = CustomerFactory()
+    for position in range(1, 13):
+        ApartmentReservationFactory(
+            apartment_uuid=apartment.uuid,
+            customer=customer,
+            list_position=position,
+        )
+
+    with patch(
+        "customer.api.sales.serializers.get_apartment",
+        return_value=apartment,
+    ) as mocked_get_apartment:
+        response = sales_ui_salesperson_api_client.get(
+            reverse(
+                "customer:sales-customer-apartment-reservations",
+                args=(customer.pk,),
+            )
+            + "?page_size=3",
+            format="json",
+        )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert len(response.data["results"]) == 3
+    assert mocked_get_apartment.call_count == 3
 
 
 @pytest.mark.django_db
@@ -427,7 +597,13 @@ def test_get_customer_api_list_with_parameters(sales_ui_salesperson_api_client):
 
 
 @pytest.mark.django_db
-def test_customer_reservation_ordering(sales_ui_salesperson_api_client):
+def test_customer_apartment_reservations_ordering(sales_ui_salesperson_api_client):
+    """
+    The paginated sub-resource orders reservations DB-side by:
+      1. non-canceled first (canceled last)
+      2. queue_position ascending, nulls last
+      3. id ascending
+    """
     project_uuid = uuid.uuid4()
     apartment_a5 = ApartmentDocumentFactory(
         project_uuid=project_uuid, apartment_number="A5"
@@ -440,45 +616,49 @@ def test_customer_reservation_ordering(sales_ui_salesperson_api_client):
 
     customer = CustomerFactory()
 
-    # these should be returned in reversed order
-    reservations = [
-        ApartmentReservationFactory(
-            apartment_uuid=apartment_a10.uuid,
-            customer=customer,
-            state=ApartmentReservationState.CANCELED,
-            queue_position=None,
-            list_position=2,
-        ),
-        ApartmentReservationFactory(
-            apartment_uuid=apartment_a5.uuid,
-            customer=customer,
-            state=ApartmentReservationState.CANCELED,
-            queue_position=None,
-            list_position=1,
-        ),
-        ApartmentReservationFactory(
-            apartment_uuid=apartment_a5.uuid,
-            customer=customer,
-            state=ApartmentReservationState.SUBMITTED,
-            queue_position=2,
-            list_position=2,
-        ),
-        ApartmentReservationFactory(
-            apartment_uuid=apartment_a10.uuid,
-            customer=customer,
-            state=ApartmentReservationState.RESERVED,
-            queue_position=1,
-            list_position=1,
-        ),
-    ]
-    reservation_ids = [r.id for r in reservations]
+    canceled_first = ApartmentReservationFactory(
+        apartment_uuid=apartment_a10.uuid,
+        customer=customer,
+        state=ApartmentReservationState.CANCELED,
+        queue_position=None,
+        list_position=2,
+    )
+    canceled_second = ApartmentReservationFactory(
+        apartment_uuid=apartment_a5.uuid,
+        customer=customer,
+        state=ApartmentReservationState.CANCELED,
+        queue_position=None,
+        list_position=1,
+    )
+    submitted_q2 = ApartmentReservationFactory(
+        apartment_uuid=apartment_a5.uuid,
+        customer=customer,
+        state=ApartmentReservationState.SUBMITTED,
+        queue_position=2,
+        list_position=2,
+    )
+    reserved_q1 = ApartmentReservationFactory(
+        apartment_uuid=apartment_a10.uuid,
+        customer=customer,
+        state=ApartmentReservationState.RESERVED,
+        queue_position=1,
+        list_position=1,
+    )
 
     response = sales_ui_salesperson_api_client.get(
-        reverse("customer:sales-customer-detail", kwargs={"pk": customer.pk}),
+        reverse(
+            "customer:sales-customer-apartment-reservations",
+            kwargs={"pk": customer.pk},
+        ),
         format="json",
     )
     assert response.status_code == status.HTTP_200_OK
 
-    returned_ids = [r["id"] for r in response.data["apartment_reservations"]]
+    returned_ids = [r["id"] for r in response.data["results"]]
 
-    assert returned_ids == list(reversed(reservation_ids))
+    assert returned_ids == [
+        reserved_q1.id,
+        submitted_q2.id,
+        canceled_first.id,
+        canceled_second.id,
+    ]

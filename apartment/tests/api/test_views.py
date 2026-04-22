@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime, timedelta
+from unittest.mock import patch
 from urllib.parse import quote, urlencode
 from unittest.mock import patch
 
@@ -137,14 +138,12 @@ def test_project_list_some_fields_are_empty(sales_ui_salesperson_api_client):
     add_to_store([project])
 
     response = sales_ui_salesperson_api_client.get(
-        reverse("apartment:project-list"),
+        f"{reverse('apartment:project-list')}?page_size=50",
         format="json",
     )
 
     project_data = [
-        pr
-        for pr in response.data["results"]
-        if pr["uuid"] == str(project.project_uuid)
+        pr for pr in response.data["results"] if pr["uuid"] == str(project.project_uuid)
     ][0]
 
     assert project_data["description"] == "Project description"
@@ -163,7 +162,7 @@ def test_project_list_handle_missing_fields(sales_ui_salesperson_api_client):
     add_to_store([project])
 
     response = sales_ui_salesperson_api_client.get(
-        reverse("apartment:project-list"), format="json"
+        f"{reverse('apartment:project-list')}?page_size=50", format="json"
     )
 
     assert response.status_code == 200
@@ -282,9 +281,7 @@ def test_project_list_uses_reservation_states_instead_of_elastic_sale_state(
 
 
 @pytest.mark.django_db
-def test_project_list_is_paginated(
-    sales_ui_salesperson_api_client, elasticsearch
-):
+def test_project_list_is_paginated(sales_ui_salesperson_api_client, elasticsearch):
     apartments = []
     try:
         for i in range(12):

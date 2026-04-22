@@ -117,15 +117,8 @@ class ProjectAPIView(APIView):
             raise NotFound()
 
     def _get_list(self, request, project_data):
-        projects = sorted(
-            project_data,
-            key=lambda p: (
-                (getattr(p, "project_housing_company", "") or "").lower(),
-                str(p.project_uuid),
-            ),
-        )
         paginator = self.pagination_class()
-        page = paginator.paginate_queryset(projects, request, view=self)
+        page = paginator.paginate_queryset(project_data, request, view=self)
         page_uuids = [str(project.project_uuid) for project in page]
         apartment_sale_state_counts = get_project_apartment_sale_state_counts(page_uuids)
         serializer = ProjectDocumentListSerializer(
