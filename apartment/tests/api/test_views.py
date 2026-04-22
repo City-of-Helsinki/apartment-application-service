@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime, timedelta
+from unittest.mock import patch
 from urllib.parse import quote, urlencode
 
 import pytest
@@ -89,7 +90,8 @@ def test_project_list_get(sales_ui_salesperson_api_client):
     )
 
     assert response.status_code == 200
-    assert len(response.data) > 0
+    assert response.data["count"] > 0
+    assert len(response.data["results"]) > 0
 
 
 @pytest.mark.django_db
@@ -135,12 +137,12 @@ def test_project_list_some_fields_are_empty(sales_ui_salesperson_api_client):
     add_to_store([project])
 
     response = sales_ui_salesperson_api_client.get(
-        reverse("apartment:project-list"),
+        f"{reverse('apartment:project-list')}?page_size=50",
         format="json",
     )
 
     project_data = [
-        pr for pr in response.data if pr["uuid"] == str(project.project_uuid)
+        pr for pr in response.data["results"] if pr["uuid"] == str(project.project_uuid)
     ][0]
 
     assert project_data["description"] == "Project description"
@@ -159,13 +161,15 @@ def test_project_list_handle_missing_fields(sales_ui_salesperson_api_client):
     add_to_store([project])
 
     response = sales_ui_salesperson_api_client.get(
-        reverse("apartment:project-list"), format="json"
+        f"{reverse('apartment:project-list')}?page_size=50", format="json"
     )
 
     assert response.status_code == 200
-    assert len(response.data) > 0
+    assert len(response.data["results"]) > 0
     project_data = next(
-        data for data in response.data if data["uuid"] == str(project.project_uuid)
+        data
+        for data in response.data["results"]
+        if data["uuid"] == str(project.project_uuid)
     )
     assert project_data["coordinate_lat"] is None
     assert project_data["holding_type"] is None
@@ -234,7 +238,7 @@ def test_project_list_contains_apartment_sale_state_counts(
 
         project = next(
             item
-            for item in response.data
+            for item in response.data["results"]
             if item["uuid"] == str(first_apartment.project_uuid)
         )
         assert project["apartment_count"] == 4
@@ -264,7 +268,7 @@ def test_project_list_uses_reservation_states_instead_of_elastic_sale_state(
 
         project = next(
             item
-            for item in response.data
+            for item in response.data["results"]
             if item["uuid"] == str(apartment.project_uuid)
         )
         assert project["apartment_count"] == 1
@@ -273,6 +277,78 @@ def test_project_list_uses_reservation_states_instead_of_elastic_sale_state(
         assert project["free_apartment_count"] == 1
     finally:
         apartment.delete(refresh=True)
+
+
+@pytest.mark.django_db
+def test_project_list_is_paginated(sales_ui_salesperson_api_client, elasticsearch):
+    apartments = []
+    try:
+        for i in range(12):
+            apartments.append(
+                ApartmentDocumentFactory(
+                    project_housing_company=f"HC {i:02d}",
+                    project_apartment_count=1,
+                )
+            )
+        add_to_store(apartments)
+
+        response = sales_ui_salesperson_api_client.get(
+            reverse("apartment:project-list"),
+            data={"page": 1, "page_size": 10},
+            format="json",
+        )
+
+        assert response.status_code == 200
+        assert response.data["count"] >= 12
+        assert len(response.data["results"]) == 10
+        assert response.data["next"] is not None
+
+        response_page_2 = sales_ui_salesperson_api_client.get(
+            reverse("apartment:project-list"),
+            data={"page": 2, "page_size": 10},
+            format="json",
+        )
+        assert response_page_2.status_code == 200
+        assert len(response_page_2.data["results"]) >= 2
+    finally:
+        for apartment in apartments:
+            apartment.delete(refresh=True)
+
+
+@pytest.mark.django_db
+def test_project_list_sale_state_counts_only_calculated_for_current_page(
+    sales_ui_salesperson_api_client, elasticsearch
+):
+    apartments = []
+    try:
+        for i in range(5):
+            apartments.append(
+                ApartmentDocumentFactory(
+                    project_housing_company=f"Paged {i}",
+                    project_apartment_count=1,
+                )
+            )
+        add_to_store(apartments)
+
+        with patch(
+            "apartment.api.views.get_project_apartment_sale_state_counts",
+            return_value={},
+        ) as mocked:
+            response = sales_ui_salesperson_api_client.get(
+                reverse("apartment:project-list"),
+                data={"page": 1, "page_size": 2},
+                format="json",
+            )
+
+        assert response.status_code == 200
+        assert len(response.data["results"]) == 2
+        mocked.assert_called_once()
+        called_uuids = set(mocked.call_args[0][0])
+        returned_uuids = {item["uuid"] for item in response.data["results"]}
+        assert called_uuids == returned_uuids
+    finally:
+        for apartment in apartments:
+            apartment.delete(refresh=True)
 
 
 @pytest.mark.django_db

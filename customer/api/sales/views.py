@@ -1,13 +1,26 @@
-from django.db.models import Q
+from django.db.models import Case, F, IntegerField, Q, Value, When
 from rest_framework import mixins, permissions, viewsets
+from rest_framework.decorators import action
+from rest_framework.pagination import PageNumberPagination
 
+from application_form.enums import ApartmentReservationState
+from application_form.models import ApartmentReservation
 from audit_log.viewsets import AuditLoggingModelViewSet
 from customer.api.sales.serializers import (
+    CustomerApartmentReservationSerializer,
     CustomerCommentSerializer,
     CustomerListSerializer,
     CustomerSerializer,
 )
 from customer.models import Customer, CustomerComment
+
+
+class CustomerReservationsPagination(PageNumberPagination):
+    """Pagination for the customer's apartment reservations sub-resource."""
+
+    page_size = 5
+    page_size_query_param = "page_size"
+    max_page_size = 50
 
 
 class CustomerViewSet(AuditLoggingModelViewSet):
@@ -64,7 +77,53 @@ class CustomerViewSet(AuditLoggingModelViewSet):
     def get_serializer_class(self):
         if self.action == "list":
             return CustomerListSerializer
+        if self.action == "apartment_reservations":
+            return CustomerApartmentReservationSerializer
         return super().get_serializer_class()
+
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="apartment_reservations",
+        pagination_class=CustomerReservationsPagination,
+    )
+    def apartment_reservations(self, request, pk=None):
+        """
+        Return the customer's apartment reservations as a paginated list.
+
+        Each serialized row performs a Drupal Search API lookup for the
+        apartment, so pagination keeps the response time bounded regardless
+        of how many reservations the customer has.
+
+        Ordering (DB-side, stable across pages):
+          1. non-canceled reservations first
+          2. queue_position ascending, nulls last
+          3. id ascending
+        """
+        customer = self.get_object()
+        queryset = (
+            ApartmentReservation.objects.filter(customer=customer)
+            .annotate(
+                _is_canceled=Case(
+                    When(
+                        state=ApartmentReservationState.CANCELED.value,
+                        then=Value(1),
+                    ),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                )
+            )
+            .order_by(
+                "_is_canceled",
+                F("queue_position").asc(nulls_last=True),
+                "id",
+            )
+        )
+
+        paginator = CustomerReservationsPagination()
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        serializer = CustomerApartmentReservationSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
 
 class CustomerCommentViewSet(

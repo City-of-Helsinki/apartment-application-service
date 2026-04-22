@@ -10,6 +10,7 @@ from django.utils.text import format_lazy
 from django.utils.translation import gettext_lazy as _
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.generics import RetrieveUpdateAPIView
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -51,6 +52,12 @@ from users.enums import UserKeyValueKeys
 from users.models import UserKeyValue
 
 _logger = logging.getLogger(__name__)
+
+
+class ProjectListPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = "page_size"
+    max_page_size = 50
 
 
 class ApartmentAPIView(APIView):
@@ -96,27 +103,43 @@ class ApartmentQueuePreviewAPIView(APIView):
 
 class ProjectAPIView(APIView):
     http_method_names = ["get"]
+    pagination_class = ProjectListPagination
 
     def get(self, request, project_uuid=None):
-        many = project_uuid is None
         try:
-            if not many:
+            if project_uuid is not None:
                 project_data = get_project(project_uuid)
-            else:
-                project_data = get_projects()
+                return self._get_single(project_data)
+
+            project_data = get_projects()
+            return self._get_list(request, project_data)
         except ObjectDoesNotExist:
             raise NotFound()
-        serializer_class = (
-            ProjectDocumentListSerializer if many else ProjectDocumentDetailSerializer
+
+    def _get_list(self, request, project_data):
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(project_data, request, view=self)
+        page_uuids = [str(project.project_uuid) for project in page]
+        apartment_sale_state_counts = get_project_apartment_sale_state_counts(
+            page_uuids
         )
-        projects = project_data if many else [project_data]
-        project_uuids = [str(project.project_uuid) for project in projects]
+        serializer = ProjectDocumentListSerializer(
+            page,
+            many=True,
+            context={
+                "apartment_sale_state_counts": apartment_sale_state_counts,
+            },
+        )
+        return paginator.get_paginated_response(serializer.data)
+
+    def _get_single(self, project_data):
+        project_uuids = [str(project_data.project_uuid)]
         apartment_sale_state_counts = get_project_apartment_sale_state_counts(
             project_uuids
         )
-        serializer = serializer_class(
+        serializer = ProjectDocumentDetailSerializer(
             project_data,
-            many=many,
+            many=False,
             context={
                 "apartment_sale_state_counts": apartment_sale_state_counts,
             },
