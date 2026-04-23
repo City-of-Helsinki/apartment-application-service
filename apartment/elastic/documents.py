@@ -305,32 +305,42 @@ class ApartmentDocument(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def _coerce_empty_strings_to_none(cls, data: Any) -> Any:
+    def _coerce_empty_strings(cls, data: Any) -> Any:
         """
-        Replace '' with None for Optional typed (non-string) fields.
+        Normalize '' arriving for typed fields.
 
-        SearchMapper::getScalar returns '' for missing scalar values in the
-        Drupal response. Leaving '' in typed fields leads to ValidationError
-        later and obscures the root cause (empty Drupal field). Emit a
-        warning so data-quality issues are visible without breaking
-        ingestion.
+        SearchMapper::getScalar returns '' for missing scalar values and for
+        empty multi-valued scalar fields (e.g. showing_times). Leaving ''
+        in typed fields leads to ValidationError later and obscures the root
+        cause (empty Drupal field). Coerce:
+
+        - Optional non-string scalar fields (int/float/bool/datetime) -> None
+        - List fields (e.g. List[datetime]) -> []
+
+        Emit a warning listing the coerced fields so data-quality issues on
+        the Drupal side stay visible without breaking ingestion.
         """
         if not isinstance(data, dict):
             return data
 
+        scalar_coerced = cls._scalar_empty_fields()
+        list_coerced = cls._list_empty_fields()
+
         coerced_fields: List[str] = []
-        for field_name in cls._empty_string_coercible_fields():
-            if field_name not in data:
-                continue
-            if data[field_name] == "":
+        for field_name in scalar_coerced:
+            if data.get(field_name) == "":
                 data[field_name] = None
+                coerced_fields.append(field_name)
+        for field_name in list_coerced:
+            if data.get(field_name) == "":
+                data[field_name] = []
                 coerced_fields.append(field_name)
 
         if coerced_fields:
             doc_uuid = data.get("uuid")
             project_uuid = data.get("project_uuid")
             logger.warning(
-                "ApartmentDocument: coerced empty string to None for typed "
+                "ApartmentDocument: coerced empty string for typed "
                 "fields %s (uuid=%s, project_uuid=%s)",
                 coerced_fields,
                 doc_uuid,
@@ -340,34 +350,46 @@ class ApartmentDocument(BaseModel):
         return data
 
     @classmethod
-    def _empty_string_coercible_fields(cls) -> List[str]:
+    def _scalar_empty_fields(cls) -> List[str]:
         """
-        Return the set of Optional non-string fields that should coerce ''
-        to None. Computed lazily (once) from the Pydantic field definitions.
+        Optional non-string scalar fields whose '' should become None.
+        Result is cached per class.
         """
-        cached = cls.__dict__.get("_empty_coercible_cache")
+        cached = cls.__dict__.get("_scalar_empty_cache")
         if cached is not None:
             return cached
 
-        result: List[str] = []
-        for name, field in cls.model_fields.items():
-            annotation = field.annotation
-            if not cls._annotation_is_optional_non_string(annotation):
-                continue
-            result.append(name)
+        result = [
+            name
+            for name, field in cls.model_fields.items()
+            if cls._is_optional_non_string_scalar(field.annotation)
+        ]
+        cls._scalar_empty_cache = result  # type: ignore[attr-defined]
+        return result
 
-        # Cache on the class to avoid repeated introspection on each validate.
-        cls._empty_coercible_cache = result  # type: ignore[attr-defined]
+    @classmethod
+    def _list_empty_fields(cls) -> List[str]:
+        """
+        List-typed fields whose '' should become []. Result is cached per
+        class.
+        """
+        cached = cls.__dict__.get("_list_empty_cache")
+        if cached is not None:
+            return cached
+
+        result = [
+            name
+            for name, field in cls.model_fields.items()
+            if cls._is_list_annotation(field.annotation)
+        ]
+        cls._list_empty_cache = result  # type: ignore[attr-defined]
         return result
 
     @staticmethod
-    def _annotation_is_optional_non_string(annotation: Any) -> bool:
+    def _is_optional_non_string_scalar(annotation: Any) -> bool:
         """
-        True if the annotation accepts None and does NOT accept str.
-
-        Covers Optional[int], Optional[float], Optional[bool],
-        Optional[datetime], Optional[UUID], Optional[List[...]], etc., and
-        excludes Optional[str].
+        True if the annotation accepts None and does NOT accept str, and is
+        not a list type (lists are handled by _is_list_annotation).
         """
         import types
         import typing
@@ -379,12 +401,19 @@ class ApartmentDocument(BaseModel):
             if type(None) not in args:
                 return False
             non_none = [a for a in args if a is not type(None)]
-            # Exclude fields that accept str (e.g. Optional[str]).
             if any(a is str for a in non_none):
                 return False
-            # Require at least one typed alternative we want to coerce for.
+            if any(get_origin(a) is list for a in non_none):
+                return False
             return bool(non_none)
         return False
+
+    @staticmethod
+    def _is_list_annotation(annotation: Any) -> bool:
+        """True if annotation is a List[...] (non-Optional list field)."""
+        from typing import get_origin
+
+        return get_origin(annotation) is list
 
     @property
     def _language(self) -> Optional[str]:

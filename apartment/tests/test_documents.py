@@ -161,10 +161,27 @@ class TestMultiValueFields:
         urls = ["https://a.example/a.jpg", "https://a.example/b.jpg"]
         doc = ApartmentDocument(**_minimal_payload(image_urls=urls))
 
-        assert doc.image_urls == [
-            "https://a.example/a.jpg",
-            "https://a.example/b.jpg",
-        ]
+        assert doc.image_urls == urls
+
+    def test_multi_field_coerces_empty_string_to_empty_list(self):
+        """
+        Drupal's SearchMapper emits '' for multi-valued fields that have no
+        value (e.g. showing_times comes from a single getScalar call that
+        returns '' when empty). The model must accept '' as shorthand for
+        [] so ingestion doesn't fail on such payloads.
+        """
+        doc = ApartmentDocument(**_minimal_payload(showing_times=""))
+
+        assert doc.showing_times == []
+
+    def test_multi_field_empty_string_logs_warning(self, caplog):
+        caplog.set_level(logging.WARNING, logger="apartment.elastic.documents")
+
+        ApartmentDocument(**_minimal_payload(showing_times=""))
+
+        warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+        messages = " ".join(r.getMessage() for r in warnings)
+        assert "showing_times" in messages
 
 
 class TestRequiredFields:
