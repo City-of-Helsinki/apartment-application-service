@@ -1,14 +1,18 @@
+import logging
 from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, Iterable, List, Optional, Tuple
 
 import requests
 from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
+from pydantic import ValidationError
 
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.rest_client import DrupalSearchClient
 from application_form.enums import ApartmentReservationState
 from application_form.models import ApartmentReservation
+
+logger = logging.getLogger(__name__)
 
 
 class SearchResult(dict):
@@ -97,18 +101,33 @@ def _fetch_all(path: str, params: Dict) -> List[Dict]:
     return sources
 
 
+def _validate_document(source: Dict) -> ApartmentDocument:
+    """
+    Validate a single Drupal _source dict into an ApartmentDocument.
+
+    ValidationErrors are re-raised so callers/tests see real data problems,
+    but we first log the offending document's uuid/project_uuid to make the
+    root cause traceable in production logs.
+    """
+    try:
+        return ApartmentDocument.model_validate(source)
+    except ValidationError:
+        logger.error(
+            "ApartmentDocument validation failed " "(uuid=%s, project_uuid=%s)",
+            source.get("uuid"),
+            source.get("project_uuid"),
+        )
+        raise
+
+
 def _to_results(
     sources: Iterable[Dict], include_project_fields: bool
 ) -> List[SearchResult]:
-    results = []
-    for source in sources:
-        results.append(ApartmentDocument(**source))
-
-    return results
+    return [_validate_document(source) for source in sources]
 
 
 def _to_project_results(sources: Iterable[Dict]) -> List[SearchResult]:
-    return [ApartmentDocument(**source) for source in sources]
+    return [_validate_document(source) for source in sources]
 
 
 def apartment_query(**kwargs):
