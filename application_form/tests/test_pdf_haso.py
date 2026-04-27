@@ -385,7 +385,8 @@ class TestHasoContractPdfFromData(unittest.TestCase):
 
             for text in texts:
                 if (
-                    "vastikevakuuslaskut.8 Asumisoikeuden haltijan osallistuminen" in text
+                    "vastikevakuuslaskut.8 Asumisoikeuden haltijan osallistuminen"
+                    in text
                 ):
                     left, right = text.split(
                         "8 Asumisoikeuden haltijan osallistuminen", maxsplit=1
