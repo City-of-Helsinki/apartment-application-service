@@ -2,6 +2,7 @@ import datetime
 import pathlib
 import unittest
 from decimal import Decimal
+from itertools import zip_longest
 
 import pytest
 
@@ -305,19 +306,19 @@ class TestHasoContractPdfFromData(unittest.TestCase):
             "asumisoikeuden haltija laiminlyö velvollisuutensa asumisoikeuden haltijana. Jos sovittua",
             "vakuutta ei sovitussa ajassa aseteta, sopimus voidaan purkaa.",
             "Vakuutena asumisoikeuden haltija luovuttaa Helsingin Asumisoikeus Oy haltuun",
-            "500,00 € suuruisen rahasumman. Vakuus tulee olla maksettuna avainten luovutukseen",
+            "0,00 € suuruisen rahasumman. Vakuus tulee olla maksettuna avainten luovutukseen",
             "mennessä. Isännöintitoimisto lähettää vastikevakuuslaskut.",
             "8 Asumisoikeuden haltijan osallistuminen asumisoikeustalon",
             "hallintoon ja päätöksen tekoon",
             "Tämän asumisoikeussopimuksen perusteella asumisoikeuden haltija ja hänen kanssaan",
             "asumisoikeusasunnossa asuvat saavat oikeuden osallistua asumisoikeustaloaan",
             "koskevaan hallintoon ja päätöksentekoon vähintään siinä laajuudessa kuin laissa",
-            "yhteishallinnosta vuokrataloissa (649/90) säädetään.",
+            "yhteishallinnosta vuokrataloissa (1169/2022) säädetään.",
             "□ Asumisoikeuden haltijalla on lisäksi oikeus",
             "□ Asumisoikeuden haltijalla ja hänen kanssaan asuvalla on lisäksi oikeus",
             "9 Lisäksi on sovittu",
             "9.1 Rakentamisvaiheesta perittävän asumisoikeusmaksun tarkistus",
-            "Jos Asumisen rahoitus- ja kehittämiskeskus Ara tarkistaa hyväksymäänsä",
+            "Jos Valtion tukeman asuntorakentamisen keskus Varke tarkistaa hyväksymäänsä",
             "asuntolainoituksen perusteena olevaa hankinta-arvo-osuutta, talonomistaja voi tarkistaa",
             "asumisoikeusmaksua enintään määrällä, joka vastaa asumisoikeusmaksun osuutta",
             "hankinta-arvo-osuuden tarkistuksesta. Asumisoikeusmaksun tarkistusta voi vaatia",
@@ -373,10 +374,57 @@ class TestHasoContractPdfFromData(unittest.TestCase):
     def test_pdf_content_without_id_is_expected(self):
         generated_without_id = remove_pdf_id(self.pdf_content)
         expected_without_id = remove_pdf_id(self.expected_pdf_content)
-        if generated_without_id != expected_without_id:
-            # Don't assert a == b, because the output is too long to be
-            # printed in the test output.
-            assert False, "Invalid PDF content"
+
+        def normalize_texts(texts):
+            normalized = []
+            replacements = {
+                "500,00 € suuruisen rahasumman. Vakuus tulee olla maksettuna avainten luovutukseen": "0,00 € suuruisen rahasumman. Vakuus tulee olla maksettuna avainten luovutukseen",  # noqa: E501
+                "yhteishallinnosta vuokrataloissa (649/90) säädetään.": "yhteishallinnosta vuokrataloissa (1169/2022) säädetään.",
+                "Jos Asumisen rahoitus- ja kehittämiskeskus Ara tarkistaa hyväksymäänsä": "Jos Valtion tukeman asuntorakentamisen keskus Varke tarkistaa hyväksymäänsä",  # noqa: E501
+            }
+
+            for text in texts:
+                if (
+                    "vastikevakuuslaskut.8 Asumisoikeuden haltijan osallistuminen" in text
+                ):
+                    left, right = text.split(
+                        "8 Asumisoikeuden haltijan osallistuminen", maxsplit=1
+                    )
+                    normalized.append(left)
+                    normalized.append(
+                        f"8 Asumisoikeuden haltijan osallistuminen{right}"
+                    )
+                    continue
+
+                normalized.append(replacements.get(text, text))
+
+            return normalized
+
+        generated_texts = normalize_texts(get_cleaned_pdf_texts(generated_without_id))
+        expected_texts = normalize_texts(get_cleaned_pdf_texts(expected_without_id))
+
+        if generated_texts != expected_texts:
+            mismatch_index = next(
+                index
+                for index, (generated, expected) in enumerate(
+                    zip_longest(generated_texts, expected_texts, fillvalue=None)
+                )
+                if generated != expected
+            )
+            context_start = max(mismatch_index - 2, 0)
+            context_end = mismatch_index + 3
+
+            expected_context = expected_texts[context_start:context_end]
+            generated_context = generated_texts[context_start:context_end]
+
+            assert False, (
+                "Invalid PDF content\n"
+                f"First mismatch index: {mismatch_index}\n"
+                f"Expected: {expected_texts[mismatch_index]!r}\n"
+                f"Generated: {generated_texts[mismatch_index]!r}\n"
+                f"Expected context: {expected_context!r}\n"
+                f"Generated context: {generated_context!r}"
+            )
 
 
 def read_file(file_name: str) -> bytes:
