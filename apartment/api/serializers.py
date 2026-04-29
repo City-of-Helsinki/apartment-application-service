@@ -309,5 +309,3 @@ class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
     @cached_property
     def apartment_uuids(self):
         return [a.uuid for a in self.apartment_objs]
-
-
