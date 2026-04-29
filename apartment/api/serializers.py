@@ -167,6 +167,53 @@ class ProjectDocumentSerializerBase(serializers.Serializer):
         project_uuid = str(obj.project_uuid)
         return apartment_sale_state_counts.get(project_uuid, {}).get(count_key, 0)
 
+    def _iter_integer_sources(self):
+        for field in self.fields.values():
+            if not isinstance(field, serializers.IntegerField):
+                continue
+
+            source = field.source or field.field_name
+            if source == "*" or "." in source:
+                continue
+
+            yield source
+
+    @staticmethod
+    def _get_source_value(instance, source):
+        if isinstance(instance, dict):
+            return instance.get(source)
+        return getattr(instance, source, None)
+
+    @staticmethod
+    def _set_source_value(instance, source, value):
+        if isinstance(instance, dict):
+            instance[source] = value
+            return
+        setattr(instance, source, value)
+
+    @staticmethod
+    def _normalize_integer_string(value):
+        if not isinstance(value, str):
+            return value
+
+        stripped = value.strip()
+        if not stripped:
+            return None
+
+        try:
+            int(stripped)
+            return stripped
+        except ValueError:
+            return None
+
+    def to_representation(self, instance):
+        for source in self._iter_integer_sources():
+            value = self._get_source_value(instance, source)
+            normalized = self._normalize_integer_string(value)
+            self._set_source_value(instance, source, normalized)
+
+        return super().to_representation(instance)
+
 
 class ProjectDocumentListSerializer(ProjectDocumentSerializerBase):
     pass
