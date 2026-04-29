@@ -180,6 +180,38 @@ class ProjectDocumentSerializerBase(serializers.Serializer):
                     continue
                 instance.setdefault(source, None)
 
+        # Drupal can emit empty strings for numeric fields.
+        # Prevent DRF IntegerField from raising ValueError on int("").
+        for field in self.fields.values():
+            if not isinstance(field, serializers.IntegerField):
+                continue
+
+            source = field.source or field.field_name
+            if source == "*" or "." in source:
+                continue
+
+            if isinstance(instance, dict):
+                value = instance.get(source)
+            else:
+                value = getattr(instance, source, None)
+
+            if not isinstance(value, str):
+                continue
+
+            stripped = value.strip()
+            normalized = None
+            if stripped:
+                try:
+                    int(stripped)
+                    normalized = stripped
+                except ValueError:
+                    normalized = None
+
+            if isinstance(instance, dict):
+                instance[source] = normalized
+            else:
+                setattr(instance, source, normalized)
+
         return super().to_representation(instance)
 
 
@@ -277,3 +309,5 @@ class ProjectDocumentDetailSerializer(ProjectDocumentSerializerBase):
     @cached_property
     def apartment_uuids(self):
         return [a.uuid for a in self.apartment_objs]
+
+
