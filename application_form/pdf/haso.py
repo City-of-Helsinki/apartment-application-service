@@ -225,7 +225,7 @@ def get_haso_contract_pdf_data(
         ),
         payment_due_date=first_payment.due_date,
         installment_amount=PDFCurrencyField(
-            cents=apartment.current_right_of_occupancy_payment
+            cents=apartment.current_right_of_occupancy_payment, suffix=" €"
         ),
         right_of_occupancy_fee=PDFCurrencyField(
             cents=apartment.right_of_occupancy_fee, suffix=" € / kk"
