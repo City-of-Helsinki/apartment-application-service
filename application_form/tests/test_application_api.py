@@ -9,7 +9,6 @@ from django.utils import timezone
 from freezegun import freeze_time
 from rest_framework import status
 
-from audit_log.models import AuditLog
 from apartment.elastic.documents import ApartmentDocument
 from apartment.enums import OwnershipType
 from apartment.tests.factories import ApartmentDocumentFactory
@@ -35,6 +34,7 @@ from application_form.tests.factories import (
     ApplicationFactory,
     LotteryEventFactory,
 )
+from audit_log.models import AuditLog
 from connections.enums import ApartmentStateOfSale
 from customer.models import Customer
 from customer.tests.factories import CustomerFactory
