@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime, time
 
 from django.db.models import Count, Exists, Max, OuterRef
 from django.utils.functional import cached_property
@@ -178,6 +178,17 @@ class ProjectDocumentSerializerBase(serializers.Serializer):
 
             yield source
 
+    def _iter_datetime_sources(self):
+        for field in self.fields.values():
+            if not isinstance(field, serializers.DateTimeField):
+                continue
+
+            source = field.source or field.field_name
+            if source == "*" or "." in source:
+                continue
+
+            yield source
+
     @staticmethod
     def _get_source_value(instance, source):
         if isinstance(instance, dict):
@@ -206,11 +217,23 @@ class ProjectDocumentSerializerBase(serializers.Serializer):
         except ValueError:
             return None
 
+    @staticmethod
+    def _normalize_date_as_datetime(value):
+        if isinstance(value, date) and not isinstance(value, datetime):
+            return datetime.combine(value, time.min)
+        return value
+
     def to_representation(self, instance):
         for source in self._iter_integer_sources():
             value = self._get_source_value(instance, source)
             normalized = self._normalize_integer_string(value)
             self._set_source_value(instance, source, normalized)
+
+        for source in self._iter_datetime_sources():
+            value = self._get_source_value(instance, source)
+            normalized = self._normalize_date_as_datetime(value)
+            if normalized is not value:
+                self._set_source_value(instance, source, normalized)
 
         return super().to_representation(instance)
 
