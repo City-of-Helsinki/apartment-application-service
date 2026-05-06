@@ -84,7 +84,7 @@ drf-oidc-auth==3.0.0
     # via -r requirements.in
 drf-spectacular==0.26.5
     # via -r requirements.in
-ecdsa==0.18.0
+ecdsa==0.19.2
     # via python-jose
 elasticsearch==7.14.2
     # via
