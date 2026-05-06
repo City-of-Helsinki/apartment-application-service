@@ -104,7 +104,7 @@ jsonschema==4.19.1
     # via drf-spectacular
 jsonschema-specifications==2023.7.1
     # via jsonschema
-lxml==4.9.3
+lxml==6.1.0
     # via
     #   django-etuovi
     #   django-oikotie
