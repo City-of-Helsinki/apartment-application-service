@@ -567,6 +567,19 @@ msgstr "1. Erä"
 msgid "Apartment"
 msgstr "Huoneisto"
 
+#: application_form/api/sales/views.py:275 application_form/api/sales/views.py:280
+#, python-format
+msgid "Queue position changed from %(old)s to %(new)s"
+msgstr "Jonosija muuttui sijasta %(old)s. sijaan %(new)s."
+
+#: application_form/api/sales/views.py:280
+msgid "Set to an after-application"
+msgstr "Asetettu jälkihakemukseksi"
+
+#: application_form/api/sales/views.py:282
+msgid "Set to sent within application time"
+msgstr "Asetettu hakuajan puitteissa lähetetyksi"
+
 #: users/admin.py:33
 msgid "Full name"
 msgstr ""

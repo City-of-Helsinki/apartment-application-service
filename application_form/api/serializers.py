@@ -130,6 +130,7 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
         }
 
     def create(self, validated_data):
+        submitted_late_override = validated_data.pop("submitted_late", None)
         validated_data = self.prepare_metadata(validated_data)
 
         project = get_project(
@@ -145,6 +146,10 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
                 datetime.now().replace(tzinfo=timezone.get_default_timezone())
                 > project.project_application_end_time
             )
+
+        if submitted_late_override is not None:
+            is_submitted_late = submitted_late_override
+
         is_haso = project.project_ownership_type.lower() == OwnershipType.HASO.value
 
         project_apartment_uuids = get_apartment_uuids(project.project_uuid)
@@ -391,6 +396,7 @@ class ApartmentReservationStateChangeEventSerializer(
     queue_position = serializers.IntegerField(
         required=False, allow_null=True, write_only=True
     )
+    submitted_late = serializers.BooleanField(required=False, write_only=True)
 
     class Meta:
         model = ApartmentReservationStateChangeEvent
@@ -401,6 +407,7 @@ class ApartmentReservationStateChangeEventSerializer(
             "cancellation_reason",
             "changed_by",
             "queue_position",
+            "submitted_late",
         )
         read_only_fields = (
             "timestamp",
@@ -485,3 +492,48 @@ class ApartmentReservationCancelEventSerializer(
 
 class OfferMessageQueryParamsSerializer(serializers.Serializer):
     valid_until = serializers.DateField(required=False)
+
+
+class QueuePreviewInputSerializer(serializers.Serializer):
+    reservation_id = serializers.IntegerField(required=False)
+    customer_id = serializers.IntegerField(required=False)
+    queue_position = serializers.IntegerField(required=False, min_value=1)
+    submitted_late = serializers.BooleanField(required=False)
+    state = serializers.ChoiceField(
+        required=False,
+        choices=[state.value for state in ApartmentReservationState],
+    )
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        has_reservation_id = attrs.get("reservation_id") is not None
+        has_customer_id = attrs.get("customer_id") is not None
+
+        if has_reservation_id == has_customer_id:
+            raise ValidationError(
+                "Exactly one of reservation_id or customer_id must be provided."
+            )
+        return attrs
+
+
+class QueuePreviewProfileSerializer(serializers.Serializer):
+    first_name = serializers.CharField(allow_null=True)
+    last_name = serializers.CharField(allow_null=True)
+    email = serializers.CharField(allow_null=True)
+
+
+class QueuePreviewCustomerSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    primary_profile = QueuePreviewProfileSerializer(allow_null=True)
+    secondary_profile = QueuePreviewProfileSerializer(allow_null=True)
+
+
+class QueuePreviewReservationSerializer(serializers.Serializer):
+    id = serializers.IntegerField(allow_null=True)
+    queue_position = serializers.IntegerField(allow_null=True)
+    state = serializers.SerializerMethodField()
+    submitted_late = serializers.BooleanField()
+    customer = QueuePreviewCustomerSerializer()
+
+    def get_state(self, obj):
+        return obj.state.value if hasattr(obj.state, "value") else obj.state

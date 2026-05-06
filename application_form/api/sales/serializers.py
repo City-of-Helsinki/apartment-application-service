@@ -1,13 +1,20 @@
 import logging
+from datetime import datetime
 from uuid import UUID
 
 from django.core.exceptions import ObjectDoesNotExist
+from django.utils import timezone
 from drf_spectacular.utils import extend_schema_field
 from enumfields.drf import EnumSupportSerializerMixin
 from rest_framework import serializers
 from rest_framework.fields import UUIDField
 
-from apartment.elastic.queries import get_apartment
+from apartment.elastic.queries import (
+    get_apartment,
+    get_apartment_project_uuid,
+    get_apartment_uuids,
+    get_project,
+)
 from apartment.models import ProjectExtraData
 from apartment.services import get_offer_message_subject_and_body
 from application_form.api.serializers import (
@@ -50,9 +57,22 @@ class SalesApplicationSerializer(ApplicationSerializerBase):
     )
     applicant = SalesApplicantSerializer(write_only=True)
     additional_applicant = SalesApplicantSerializer(write_only=True, allow_null=True)
+    submitted_late = serializers.BooleanField(
+        write_only=True,
+        required=False,
+        help_text=(
+            "Salesperson choice for submission type. "
+            "false = regular application, true = late application (jälkihakemus). "
+            "If omitted, existing automatic behavior is used."
+        ),
+    )
 
     class Meta(ApplicationSerializerBase.Meta):
-        fields = ApplicationSerializerBase.Meta.fields + ("profile", "applicant")
+        fields = ApplicationSerializerBase.Meta.fields + (
+            "profile",
+            "applicant",
+            "submitted_late",
+        )
 
     def _get_senders_name_from_applicants_data(self, validated_data):
         additional_applicant = validated_data.get("additional_applicant")
@@ -72,9 +92,54 @@ class SalesApplicationSerializer(ApplicationSerializerBase):
         return super().prepare_metadata(validated_data)
 
     def create(self, validated_data):
+        submitted_late = validated_data.pop("submitted_late", None)
+
+        project_uuid = get_apartment_project_uuid(
+            validated_data.get("apartments")[0]["identifier"]
+        ).project_uuid
+        project = get_project(project_uuid)
+
+        is_after_deadline = False
+        if project.project_application_end_time:
+            is_after_deadline = (
+                datetime.now().replace(tzinfo=timezone.get_default_timezone())
+                > project.project_application_end_time
+            )
+
+        if is_after_deadline and self._has_lottery_event(project_uuid):
+            raise serializers.ValidationError(
+                {
+                    "detail": (
+                        "Cannot submit application after lottery has been executed."
+                    )
+                },
+                code=400,
+            )
+
         self.context["salesperson"] = self.context["request"].user
+
+        if submitted_late is None:
+            validated_data["submitted_late"] = False
+        elif submitted_late:
+            project_is_haso = project.project_ownership_type.lower() == "haso"
+            if is_after_deadline and (
+                not project.project_can_apply_afterwards or not project_is_haso
+            ):
+                raise serializers.ValidationError(
+                    {"detail": "Cannot submit late application to this apartment"},
+                    code=400,
+                )
+
+            validated_data["submitted_late"] = True
+        else:
+            validated_data["submitted_late"] = False
+
         application = super().create(validated_data)
         return application
+
+    def _has_lottery_event(self, project_uuid: UUID) -> bool:
+        apartment_uuids = get_apartment_uuids(project_uuid)
+        return LotteryEvent.objects.filter(apartment_uuid__in=apartment_uuids).exists()
 
 
 class ApplicantCompactSerializer(serializers.ModelSerializer):
@@ -110,6 +175,7 @@ class SalesApartmentReservationSerializer(ApartmentReservationSerializerBase):
     customer = CustomerCompactSerializer()
     cancellation_reason = serializers.SerializerMethodField()
     cancellation_timestamp = serializers.SerializerMethodField()
+    sold_timestamp = serializers.SerializerMethodField()
     revaluation = ApartmentRevaluationSerializer()
 
     class Meta(ApartmentReservationSerializerBase.Meta):
@@ -117,6 +183,7 @@ class SalesApartmentReservationSerializer(ApartmentReservationSerializerBase):
             "customer",
             "cancellation_reason",
             "cancellation_timestamp",
+            "sold_timestamp",
             "revaluation",
         )
         read_only_fields = fields
@@ -150,6 +217,18 @@ class SalesApartmentReservationSerializer(ApartmentReservationSerializerBase):
                 return None
         return None
 
+    def get_sold_timestamp(self, obj):
+        if obj.state == ApartmentReservationState.SOLD:
+            try:
+                return (
+                    obj.state_change_events.filter(state=ApartmentReservationState.SOLD)
+                    .latest("timestamp")
+                    .timestamp
+                )
+            except ObjectDoesNotExist:
+                return None
+        return None
+
 
 class SalesWinningApartmentReservationSerializer(SalesApartmentReservationSerializer):
     has_multiple_winning_apartments = serializers.BooleanField(
@@ -170,6 +249,8 @@ class RootApartmentReservationSerializer(ApartmentReservationSerializerBase):
     customer_id = serializers.PrimaryKeyRelatedField(
         source="customer", queryset=Customer.objects.all()
     )
+    queue_position = serializers.IntegerField(required=False, min_value=1)
+    submitted_late = serializers.BooleanField(required=False)
 
     class Meta(ApartmentReservationSerializerBase.Meta):
         fields = (
@@ -177,6 +258,11 @@ class RootApartmentReservationSerializer(ApartmentReservationSerializerBase):
             "installment_candidates",
             "customer_id",
         ) + ApartmentReservationSerializerBase.Meta.fields
+        read_only_fields = tuple(
+            field
+            for field in ApartmentReservationSerializerBase.Meta.read_only_fields
+            if field not in ("queue_position", "submitted_late")
+        )
 
     @extend_schema_field(ApartmentInstallmentCandidateSerializer(many=True))
     def get_installment_candidates(self, obj):
