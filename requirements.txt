@@ -123,7 +123,7 @@ paramiko==3.4.0
     # via -r requirements.in
 pikepdf==8.15.1
     # via -r requirements.in
-pillow==10.3.0
+pillow==12.2.0
     # via pikepdf
 psycopg2==2.9.9
     # via -r requirements.in
