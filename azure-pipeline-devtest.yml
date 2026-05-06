@@ -18,10 +18,10 @@ pr: none
 resources:
   repositories:
   # Azure DevOps repository
-  - repository: asuntotuotanto-django-pipelines
+  - repository: asuntotuotanto-pipelines
     type: git
     # project/repository
-    name: asuntotuotanto/asuntotuotanto-django-pipelines
+    name: asuntotuotanto/asuntotuotanto-pipelines
 
 extends:
-  template: azure-pipeline-att-django-devtest.yml@asuntotuotanto-django-pipelines
+  template: azure-pipeline-att-django-devtest.yml@asuntotuotanto-pipelines
