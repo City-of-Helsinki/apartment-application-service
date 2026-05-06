@@ -87,6 +87,110 @@ def test_project_list_get(sales_ui_salesperson_api_client):
 
 
 @pytest.mark.django_db
+def test_project_list_contains_apartment_sale_state_counts(
+    sales_ui_salesperson_api_client, elasticsearch
+):
+    apartments = []
+    try:
+        first_apartment = ApartmentDocumentFactory(
+            apartment_state_of_sale="RESERVED",
+            project_apartment_count=4,
+        )
+        apartments.append(first_apartment)
+
+        apartments.append(
+            ApartmentDocumentFactory(
+                project_uuid=first_apartment.project_uuid,
+                apartment_state_of_sale="RESERVED",
+                project_apartment_count=4,
+            )
+        )
+        apartments.append(
+            ApartmentDocumentFactory(
+                project_uuid=first_apartment.project_uuid,
+                apartment_state_of_sale="FREE_FOR_RESERVATIONS",
+                project_apartment_count=4,
+            )
+        )
+        apartments.append(
+            ApartmentDocumentFactory(
+                project_uuid=first_apartment.project_uuid,
+                apartment_state_of_sale="RESERVED",
+                project_apartment_count=4,
+            )
+        )
+
+        ApartmentReservationFactory(
+            apartment_uuid=first_apartment.uuid,
+            state=ApartmentReservationState.SOLD,
+            list_position=1,
+        )
+        ApartmentReservationFactory(
+            apartment_uuid=apartments[1].uuid,
+            state=ApartmentReservationState.RESERVED,
+            list_position=1,
+        )
+        ApartmentReservationFactory(
+            apartment_uuid=apartments[2].uuid,
+            state=ApartmentReservationState.RESERVED,
+            list_position=1,
+        )
+        ApartmentReservationFactory(
+            apartment_uuid=apartments[2].uuid,
+            state=ApartmentReservationState.OFFERED,
+            list_position=2,
+        )
+
+        response = sales_ui_salesperson_api_client.get(
+            reverse("apartment:project-list"), format="json"
+        )
+
+        assert response.status_code == 200
+
+        project = next(
+            item
+            for item in response.data
+            if item["uuid"] == str(first_apartment.project_uuid)
+        )
+        assert project["apartment_count"] == 4
+        assert project["sold_apartment_count"] == 1
+        assert project["reserved_apartment_count"] == 2
+        assert project["free_apartment_count"] == 1
+    finally:
+        for apartment in apartments:
+            apartment.delete(refresh=True)
+
+
+@pytest.mark.django_db
+def test_project_list_uses_reservation_states_instead_of_elastic_sale_state(
+    sales_ui_salesperson_api_client, elasticsearch
+):
+    apartment = ApartmentDocumentFactory(
+        apartment_state_of_sale="SOLD",
+        project_apartment_count=1,
+    )
+
+    try:
+        response = sales_ui_salesperson_api_client.get(
+            reverse("apartment:project-list"), format="json"
+        )
+
+        assert response.status_code == 200
+
+        project = next(
+            item
+            for item in response.data
+            if item["uuid"] == str(apartment.project_uuid)
+        )
+        assert project["apartment_count"] == 1
+        assert project["sold_apartment_count"] == 0
+        assert project["reserved_apartment_count"] == 0
+        assert project["free_apartment_count"] == 1
+    finally:
+        apartment.delete(refresh=True)
+
+
+@pytest.mark.django_db
 @pytest.mark.usefixtures("elastic_apartments")
 def test_selected_project_list_get_unauthorized(user_api_client):
     response = user_api_client.get(
