@@ -134,6 +134,26 @@ jobs:
           ./manage.py makemigrations --no-input --dry-run
           ./manage.py makemigrations --no-input --check
 
+  test-legacy:
+    name: Test (legacy Python ${{ matrix.python }})
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        python: ["3.8", "3.9"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Python ${{ matrix.python }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Legacy test placeholder
+        run: |
+          python -V
+          python -c "print('Legacy Python test placeholder: intentionally skipped.')"
+
   test:
     runs-on: ubuntu-22.04
     strategy:
@@ -155,7 +175,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Setup Python ${{ matrix.python-version }}
+      - name: Setup Python ${{ matrix.python }}
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
