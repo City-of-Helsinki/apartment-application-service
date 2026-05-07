@@ -1,10 +1,13 @@
 import logging
 import time
+import json
+import hashlib
 from typing import Any, Dict, Optional
 from urllib.parse import urljoin, urlparse
 
 import requests
 from django.conf import settings
+from django.core.cache import cache
 
 _logger = logging.getLogger(__name__)
 
@@ -101,6 +104,23 @@ class DrupalSearchClient:
         url = self._build_safe_url(base_url, path)
         request_params: Dict[str, Any] = dict(params or {})
         request_params = self._normalize_pagination_params(request_params)
+
+        cache_seconds = getattr(settings, "DRUPAL_SEARCH_API_GET_CACHE_SECONDS", 0)
+        cache_key: Optional[str] = None
+        if cache_seconds and cache_seconds > 0:
+            key_payload = {
+                "url": url,
+                "params": request_params,
+                "language": settings.LANGUAGE_CODE,
+            }
+            digest = hashlib.sha256(
+                json.dumps(key_payload, sort_keys=True, default=str).encode("utf-8")
+            ).hexdigest()
+            cache_key = f"drupal_search:get:v1:{digest}"
+            cached = cache.get(cache_key)
+            if cached is not None:
+                return cached
+
         headers = {
             "Accept": "application/json",
             "Accept-Language": settings.LANGUAGE_CODE,
@@ -137,7 +157,10 @@ class DrupalSearchClient:
                 "Drupal search API request failed",
             )
         response.raise_for_status()
-        return response.json()
+        payload = response.json()
+        if cache_key is not None:
+            cache.set(cache_key, payload, timeout=cache_seconds)
+        return payload
 
     def _normalize_pagination_params(self, params: Dict[str, Any]) -> Dict[str, Any]:
         size_value = params.pop("limit", None)

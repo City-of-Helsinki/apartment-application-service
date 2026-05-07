@@ -4,6 +4,7 @@ from typing import Dict, Iterable, List, Optional, Tuple
 
 import requests
 from django.conf import settings
+from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from pydantic import ValidationError
 
@@ -171,8 +172,24 @@ def get_apartments(project_uuid=None, include_project_fields=False, **filters):
 
 
 def get_apartment_uuids(project_uuid) -> List[str]:
-    sources = _fetch_all(f"projects/{str(project_uuid)}/apartments", params={})
-    return [source.get("uuid") for source in sources if source.get("uuid")]
+    project_uuid_str = str(project_uuid)
+    cache_key = f"drupal_search:project_apartment_uuids:v1:{project_uuid_str}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        logger.info(
+            "get_apartment_uuids: cached project apartment uuids for project %s",
+            project_uuid_str,
+        )
+        return cached
+
+    sources = _fetch_all(f"projects/{project_uuid_str}/apartments", params={})
+    uuids = [source.get("uuid") for source in sources if source.get("uuid")]
+
+    timeout = getattr(
+        settings, "DRUPAL_SEARCH_API_PROJECT_APARTMENT_UUIDS_CACHE_SECONDS", 60
+    )
+    cache.set(cache_key, uuids, timeout=timeout)
+    return uuids
 
 
 def get_project(project_uuid):

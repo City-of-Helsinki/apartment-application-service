@@ -17,6 +17,46 @@ def test_sale_state_counts_empty_input_returns_empty_dict():
 
 
 @pytest.mark.django_db
+def test_get_apartment_uuids_is_cached(monkeypatch):
+    """
+    Verify that apartment UUID lookup is cached per project.
+
+    - First call performs a Drupal search API fetch.
+    - Second call for same project UUID is served from cache.
+    """
+    from django.core.cache import cache
+
+    from apartment.elastic import queries
+
+    cache.clear()
+
+    project_uuid = "22222222-2222-2222-2222-222222222222"
+    fetch_calls = {"count": 0}
+
+    def fake_fetch_all(path: str, params: dict):
+        fetch_calls["count"] += 1
+        assert path == f"projects/{project_uuid}/apartments"
+        assert params == {}
+        return [
+            {"uuid": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"},
+            {"uuid": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"},
+            {"uuid": None},
+        ]
+
+    monkeypatch.setattr(queries, "_fetch_all", fake_fetch_all)
+
+    assert queries.get_apartment_uuids(project_uuid) == [
+        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+    ]
+    assert queries.get_apartment_uuids(project_uuid) == [
+        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+    ]
+    assert fetch_calls["count"] == 1
+
+
+@pytest.mark.django_db
 def test_sale_state_counts_project_without_apartments_returns_zeros(
     elasticsearch,
 ):
