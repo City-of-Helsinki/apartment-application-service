@@ -362,8 +362,9 @@ def test_customer_apartment_reservations_only_fetches_page_apartments(
     sales_ui_salesperson_api_client,
 ):
     """
-    Serializing one page must call `get_apartment` only once per row on the
-    current page, regardless of the total number of reservations.
+    Serializing one page must call ``get_apartment`` only for distinct apartment
+    UUIDs on the current page (not for the full reservation count), and never
+    for rows on other pages.
     """
     apartment = ApartmentDocumentFactory()
     customer = CustomerFactory()
@@ -375,7 +376,7 @@ def test_customer_apartment_reservations_only_fetches_page_apartments(
         )
 
     with patch(
-        "customer.api.sales.serializers.get_apartment",
+        "apartment.elastic.queries.get_apartment",
         return_value=apartment,
     ) as mocked_get_apartment:
         response = sales_ui_salesperson_api_client.get(
@@ -389,7 +390,42 @@ def test_customer_apartment_reservations_only_fetches_page_apartments(
 
     assert response.status_code == status.HTTP_200_OK
     assert len(response.data["results"]) == 3
-    assert mocked_get_apartment.call_count == 3
+    assert mocked_get_apartment.call_count == 1
+
+
+@pytest.mark.django_db
+def test_customer_apartment_reservations_one_get_apartment_per_distinct_uuid(
+    sales_ui_salesperson_api_client,
+):
+    """Three different apartments on one page require three ``get_apartment`` calls."""
+    from apartment.elastic import queries
+
+    customer = CustomerFactory()
+    apartments = [ApartmentDocumentFactory() for _ in range(3)]
+    for i, apt in enumerate(apartments, start=1):
+        ApartmentReservationFactory(
+            apartment_uuid=apt.uuid,
+            customer=customer,
+            list_position=i,
+        )
+
+    with patch.object(
+        queries,
+        "get_apartment",
+        wraps=queries.get_apartment,
+    ) as wrapped_get_apartment:
+        response = sales_ui_salesperson_api_client.get(
+            reverse(
+                "customer:sales-customer-apartment-reservations",
+                args=(customer.pk,),
+            )
+            + "?page_size=5",
+            format="json",
+        )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert len(response.data["results"]) == 3
+    assert wrapped_get_apartment.call_count == 3
 
 
 @pytest.mark.django_db
