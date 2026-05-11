@@ -185,9 +185,7 @@ def get_apartment_uuids(project_uuid) -> List[str]:
     sources = _fetch_all(f"projects/{project_uuid_str}/apartments", params={})
     uuids = [source.get("uuid") for source in sources if source.get("uuid")]
 
-    timeout = getattr(
-        settings, "DRUPAL_SEARCH_API_PROJECT_APARTMENT_UUIDS_CACHE_SECONDS", 60
-    )
+    timeout = settings.DRUPAL_SEARCH_API_CACHE_TTL
     cache.set(cache_key, uuids, timeout=timeout)
     return uuids
 
@@ -273,11 +271,9 @@ def get_project_apartment_sale_state_counts(
             apartment_uuid__in=list(apartment_uuid_to_project_uuid.keys()),
             list_position=1,
         )
-        .only("apartment_uuid", "state")
+        .values_list("apartment_uuid", "state")
     )
-    apartment_uuid_to_state = {
-        str(r.apartment_uuid): r.state for r in winning_reservations
-    }
+    apartment_uuid_to_state = {str(uuid): state for uuid, state in winning_reservations}
 
     for apartment_uuid, project_uuid in apartment_uuid_to_project_uuid.items():
         state = apartment_uuid_to_state.get(apartment_uuid)
