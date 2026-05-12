@@ -1,10 +1,15 @@
-from django.db.models import Case, F, IntegerField, Q, Value, When
+from django.db.models import Case, F, IntegerField, Prefetch, Q, Value, When
 from rest_framework import mixins, permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 
+from apartment.elastic.queries import get_apartments_for_uuids
 from application_form.enums import ApartmentReservationState
-from application_form.models import ApartmentReservation
+from application_form.models import (
+    ApartmentReservation,
+    ApartmentReservationStateChangeEvent,
+    LotteryEvent,
+)
 from audit_log.viewsets import AuditLoggingModelViewSet
 from customer.api.sales.serializers import (
     CustomerApartmentReservationSerializer,
@@ -13,6 +18,7 @@ from customer.api.sales.serializers import (
     CustomerSerializer,
 )
 from customer.models import Customer, CustomerComment
+from invoicing.models import ApartmentInstallment
 
 
 class CustomerReservationsPagination(PageNumberPagination):
@@ -91,9 +97,10 @@ class CustomerViewSet(AuditLoggingModelViewSet):
         """
         Return the customer's apartment reservations as a paginated list.
 
-        Each serialized row performs a Drupal Search API lookup for the
-        apartment, so pagination keeps the response time bounded regardless
-        of how many reservations the customer has.
+        Apartment metadata is loaded from the Drupal Search API in parallel for
+        the distinct apartment UUIDs on the current page (with short-lived
+        per-UUID caching). Pagination keeps work bounded regardless of how many
+        reservations the customer has overall.
 
         Ordering (DB-side, stable across pages):
           1. non-canceled reservations first
@@ -118,11 +125,48 @@ class CustomerViewSet(AuditLoggingModelViewSet):
                 F("queue_position").asc(nulls_last=True),
                 "id",
             )
+            .related_fields()
+            .prefetch_related(
+                Prefetch(
+                    "state_change_events",
+                    queryset=ApartmentReservationStateChangeEvent.objects.order_by(
+                        "id"
+                    ).select_related("user", "user__profile"),
+                ),
+                Prefetch(
+                    "apartment_installments",
+                    queryset=ApartmentInstallment.objects.order_by(
+                        "id"
+                    ).prefetch_related("payments"),
+                ),
+            )
         )
 
         paginator = CustomerReservationsPagination()
         page = paginator.paginate_queryset(queryset, request, view=self)
-        serializer = CustomerApartmentReservationSerializer(page, many=True)
+        page_list = list(page) if page is not None else []
+        apartment_uuids = [r.apartment_uuid for r in page_list]
+        apartment_map = get_apartments_for_uuids(
+            apartment_uuids, include_project_fields=True
+        )
+        distinct_uuids = {str(u) for u in apartment_uuids}
+        lottery_completed_apartment_uuids = set(
+            LotteryEvent.objects.filter(
+                apartment_uuid__in=distinct_uuids
+            ).values_list("apartment_uuid", flat=True)
+        )
+        lottery_completed_apartment_uuids = {
+            str(u) for u in lottery_completed_apartment_uuids
+        }
+        serializer = CustomerApartmentReservationSerializer(
+            page_list,
+            many=True,
+            context={
+                **self.get_serializer_context(),
+                "apartment_map": apartment_map,
+                "lottery_completed_apartment_uuids": lottery_completed_apartment_uuids,
+            },
+        )
         return paginator.get_paginated_response(serializer.data)
 
 

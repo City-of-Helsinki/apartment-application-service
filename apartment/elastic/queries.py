@@ -1,5 +1,5 @@
 import logging
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, Iterable, List, Optional, Tuple
 
 import requests
@@ -142,10 +142,21 @@ def project_query(**kwargs):
 
 
 def get_apartment(apartment_uuid, include_project_fields=False):
-    """Fetch a single apartment by UUID via GET /apartments/{uuid}."""
+    """
+    Fetch a single apartment by UUID via GET /apartments/{uuid}.
+
+    Results are cached briefly (see DRUPAL_SEARCH_API_CACHE_TTL) to speed up
+    repeated reads (e.g. multiple reservations for the same apartment).
+    """
+    uuid_str = str(apartment_uuid)
+    cache_key = f"drupal_search:apartment:v1:{uuid_str}:{int(include_project_fields)}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     client = _get_client()
     try:
-        payload = client.get(f"apartments/{str(apartment_uuid)}")
+        payload = client.get(f"apartments/{uuid_str}")
     except requests.exceptions.HTTPError as e:
         if e.response is not None and e.response.status_code == 404:
             raise ObjectDoesNotExist(
@@ -155,7 +166,53 @@ def get_apartment(apartment_uuid, include_project_fields=False):
     sources, _ = _parse_hits(payload)
     if not sources:
         raise ObjectDoesNotExist("Apartment does not exist in Drupal search API.")
-    return _to_results(sources[:1], include_project_fields=include_project_fields)[0]
+    result = _to_results(sources[:1], include_project_fields=include_project_fields)[0]
+    ttl = settings.DRUPAL_SEARCH_API_CACHE_TTL
+    cache.set(cache_key, result, timeout=ttl)
+    return result
+
+
+def get_apartments_for_uuids(
+    apartment_uuids: Iterable,
+    *,
+    include_project_fields: bool = False,
+    max_workers: int = 8,
+) -> Dict[str, ApartmentDocument]:
+    """
+    Fetch many apartments by UUID with bounded parallel HTTP requests.
+
+    Each distinct UUID triggers at most one Drupal Search API GET (subject
+    to get_apartment's cache). Duplicate UUIDs in ``apartment_uuids`` share
+    a single fetch.
+
+    Parameters:
+        apartment_uuids: UUID values or strings to resolve.
+        include_project_fields: Passed through to ``get_apartment``.
+        max_workers: Upper bound on concurrent workers (capped by unique count).
+
+    Returns:
+        Mapping ``str(uuid) -> apartment document`` (same type as
+        ``get_apartment`` return value).
+    """
+    unique = list(dict.fromkeys(str(u) for u in apartment_uuids))
+    if not unique:
+        return {}
+
+    workers = min(len(unique), max_workers)
+
+    def _fetch(uuid_str: str) -> Tuple[str, ApartmentDocument]:
+        doc = get_apartment(
+            uuid_str, include_project_fields=include_project_fields
+        )
+        return uuid_str, doc
+
+    result: Dict[str, ApartmentDocument] = {}
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        futures = [executor.submit(_fetch, u) for u in unique]
+        for future in as_completed(futures):
+            key, value = future.result()
+            result[key] = value
+    return result
 
 
 def get_apartment_project_uuid(apartment_uuid):

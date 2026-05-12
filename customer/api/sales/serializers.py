@@ -57,9 +57,14 @@ class CustomerApartmentReservationSerializer(ApartmentReservationSerializerBase)
         ) + ApartmentReservationSerializerBase.Meta.fields
 
     def to_representation(self, instance):
-        self.context["apartment"] = get_apartment(
-            instance.apartment_uuid, include_project_fields=True
-        )
+        apartment_map = self.context.get("apartment_map")
+        if apartment_map is not None:
+            apartment = apartment_map[str(instance.apartment_uuid)]
+        else:
+            apartment = get_apartment(
+                instance.apartment_uuid, include_project_fields=True
+            )
+        self.context["apartment"] = apartment
         self.context["reservation_id"] = instance.id
         return super().to_representation(instance)
 
@@ -100,10 +105,10 @@ class CustomerApartmentReservationSerializer(ApartmentReservationSerializerBase)
         )
 
     def get_project_lottery_completed(self, obj) -> bool:
-        lottery_completed = LotteryEvent.objects.filter(
-            apartment_uuid=obj.apartment_uuid
-        ).exists()
-        return lottery_completed
+        lottery_uuids = self.context.get("lottery_completed_apartment_uuids")
+        if lottery_uuids is not None:
+            return str(obj.apartment_uuid) in lottery_uuids
+        return LotteryEvent.objects.filter(apartment_uuid=obj.apartment_uuid).exists()
 
 
 class CustomerSerializer(serializers.ModelSerializer):

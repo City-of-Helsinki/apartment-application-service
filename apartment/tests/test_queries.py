@@ -287,3 +287,66 @@ def test_sale_state_counts_fetches_projects_concurrently(elasticsearch, monkeypa
     # Sequential would take ~0.8s; concurrent should finish in well under 0.5s.
     assert elapsed < 0.5, f"Expected concurrent execution, took {elapsed:.3f}s"
     assert set(result.keys()) == set(project_uuids)
+
+
+def test_get_apartments_for_uuids_empty_returns_empty_dict():
+    """
+    ``get_apartments_for_uuids`` with no UUIDs must return an empty dict.
+
+    - No HTTP and no thread pool work for an empty input.
+    """
+    from apartment.elastic import queries
+
+    assert queries.get_apartments_for_uuids([]) == {}
+
+
+def test_get_apartments_for_uuids_deduplicates(elasticsearch):
+    """
+    Duplicate UUIDs in the input must yield a single Drupal GET per distinct id.
+
+    - Two physical apartments plus a repeated first UUID -> two map entries.
+    """
+    from apartment.elastic import queries
+
+    first = ApartmentDocumentFactory()
+    second = ApartmentDocumentFactory()
+    add_to_store([first, second])
+
+    result = queries.get_apartments_for_uuids(
+        [first.uuid, second.uuid, first.uuid], include_project_fields=True
+    )
+
+    assert set(result.keys()) == {str(first.uuid), str(second.uuid)}
+    assert str(result[str(first.uuid)].uuid) == str(first.uuid)
+
+
+def test_get_apartment_second_call_uses_cache(elasticsearch, monkeypatch):
+    """
+    Two ``get_apartment`` calls with the same arguments hit Drupal Search once.
+
+    - The in-process cache must short-circuit the second HTTP GET.
+    """
+    from django.core.cache import cache
+
+    from apartment.elastic import queries
+    from apartment.tests.utils import TestDrupalSearchClient
+
+    cache.clear()
+    apartment = ApartmentDocumentFactory()
+    add_to_store([apartment])
+
+    paths = []
+
+    original_get = TestDrupalSearchClient.get
+
+    def counting_get(self, path, params=None, timeout=None):
+        paths.append(path)
+        return original_get(self, path, params, timeout)
+
+    monkeypatch.setattr(TestDrupalSearchClient, "get", counting_get)
+
+    queries.get_apartment(str(apartment.uuid), include_project_fields=True)
+    queries.get_apartment(str(apartment.uuid), include_project_fields=True)
+
+    apartment_paths = [p for p in paths if p.startswith("apartments/")]
+    assert len(apartment_paths) == 1
