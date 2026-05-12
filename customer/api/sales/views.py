@@ -151,9 +151,9 @@ class CustomerViewSet(AuditLoggingModelViewSet):
         )
         distinct_uuids = {str(u) for u in apartment_uuids}
         lottery_completed_apartment_uuids = set(
-            LotteryEvent.objects.filter(
-                apartment_uuid__in=distinct_uuids
-            ).values_list("apartment_uuid", flat=True)
+            LotteryEvent.objects.filter(apartment_uuid__in=distinct_uuids).values_list(
+                "apartment_uuid", flat=True
+            )
         )
         lottery_completed_apartment_uuids = {
             str(u) for u in lottery_completed_apartment_uuids

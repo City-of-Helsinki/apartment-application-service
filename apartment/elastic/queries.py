@@ -201,9 +201,7 @@ def get_apartments_for_uuids(
     workers = min(len(unique), max_workers)
 
     def _fetch(uuid_str: str) -> Tuple[str, ApartmentDocument]:
-        doc = get_apartment(
-            uuid_str, include_project_fields=include_project_fields
-        )
+        doc = get_apartment(uuid_str, include_project_fields=include_project_fields)
         return uuid_str, doc
 
     result: Dict[str, ApartmentDocument] = {}
