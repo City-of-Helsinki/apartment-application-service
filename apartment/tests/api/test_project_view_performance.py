@@ -66,7 +66,6 @@ def test_project_list_load_time_with_and_without_sale_state_counts(
             assert response.status_code == 200
 
         with_counts = _median_elapsed_seconds(real_call)
-        print(f"median project-list WITH sale_state_counts: {with_counts:.4f}s")
 
         with patch(
             "apartment.api.views.get_project_apartment_sale_state_counts",
@@ -80,7 +79,6 @@ def test_project_list_load_time_with_and_without_sale_state_counts(
                 assert response.status_code == 200
 
             without_counts = _median_elapsed_seconds(patched_call)
-            print(f"median project-list WITHOUT sale_state_counts: {without_counts:.4f}s")
 
         # Expect the "with counts" path to be noticeably slower due to the
         # synthetic per-project delay (executed concurrently, so bounded by ~0.03s
@@ -89,4 +87,3 @@ def test_project_list_load_time_with_and_without_sale_state_counts(
     finally:
         for apartment in apartments:
             apartment.delete(refresh=True)
-
