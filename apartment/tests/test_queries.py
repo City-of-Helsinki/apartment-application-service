@@ -57,6 +57,47 @@ def test_get_apartment_uuids_is_cached(monkeypatch):
 
 
 @pytest.mark.django_db
+def test_get_apartment_uuids_for_projects_empty_returns_empty_list():
+    """
+    Verify that an empty project list yields no apartment UUIDs.
+
+    - No HTTP or cache lookups for an empty input.
+    """
+    from apartment.elastic import queries
+
+    assert queries.get_apartment_uuids_for_projects([]) == []
+
+
+@pytest.mark.django_db
+def test_get_apartment_uuids_for_projects_merges_parallel_lookups(monkeypatch):
+    """
+    Verify multi-project resolution aggregates UUIDs from each project.
+
+    - Duplicate project UUIDs in the input are de-duplicated before fetch.
+    - ``get_apartment_uuids`` is invoked once per distinct project.
+    """
+    from apartment.elastic import queries
+
+    p1 = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    p2 = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+    calls = []
+
+    def fake_get_apartment_uuids(project_uuid):
+        calls.append(str(project_uuid))
+        if str(project_uuid) == p1:
+            return ["u1", "u2"]
+        return ["u3"]
+
+    monkeypatch.setattr(queries, "get_apartment_uuids", fake_get_apartment_uuids)
+
+    result = queries.get_apartment_uuids_for_projects([p1, p2, p1])
+
+    assert set(calls) == {p1, p2}
+    assert len(calls) == 2
+    assert set(result) == {"u1", "u2", "u3"}
+
+
+@pytest.mark.django_db
 def test_sale_state_counts_project_without_apartments_returns_zeros(
     elasticsearch,
 ):

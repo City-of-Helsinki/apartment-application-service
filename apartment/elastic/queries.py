@@ -226,6 +226,43 @@ def get_apartments(project_uuid=None, include_project_fields=False, **filters):
     return _to_results(sources, include_project_fields=include_project_fields)
 
 
+def get_apartment_uuids_for_projects(
+    project_uuids: Iterable[str],
+    *,
+    max_workers: int = 8,
+) -> List[str]:
+    """
+    Resolve apartment UUIDs for many projects with bounded parallel HTTP.
+
+    Each project triggers at most one ``get_apartment_uuids`` call (subject to
+    Duplicate project UUIDs are fetched once. Apartment UUIDs are de-duplicated
+    (iteration order follows completion order and is not stable across runs).
+
+    Parameters:
+        project_uuids: Project UUID strings.
+        max_workers: Upper bound on concurrent workers (capped by project count).
+
+    Returns:
+        List of unique apartment UUID strings across all given projects.
+    """
+    unique_projects = list(dict.fromkeys(str(u) for u in project_uuids))
+    if not unique_projects:
+        return []
+
+    workers = min(len(unique_projects), max_workers)
+
+    def _fetch(project_uuid: str) -> List[str]:
+        return get_apartment_uuids(project_uuid)
+
+    merged: List[str] = []
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        future_to_project = {executor.submit(_fetch, pu): pu for pu in unique_projects}
+        for future in as_completed(future_to_project):
+            merged.extend(future.result())
+
+    return list(dict.fromkeys(merged))
+
+
 def get_apartment_uuids(project_uuid) -> List[str]:
     project_uuid_str = str(project_uuid)
     cache_key = f"drupal_search:project_apartment_uuids:v1:{project_uuid_str}"
@@ -310,7 +347,8 @@ def get_project_apartment_sale_state_counts(
             executor.submit(get_apartment_uuids, project_uuid): project_uuid
             for project_uuid in project_uuids_list
         }
-        for future, project_uuid in future_to_project.items():
+        for future in as_completed(future_to_project):
+            project_uuid = future_to_project[future]
             for apartment_uuid in future.result():
                 apartment_uuid_to_project_uuid[str(apartment_uuid)] = project_uuid
 

@@ -2,11 +2,12 @@ import csv
 import logging
 import operator
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from abc import abstractmethod
 from datetime import datetime
 from decimal import Decimal
 from io import BytesIO, StringIO
-from typing import List, Literal, Union
+from typing import Dict, List, Literal, Optional, Union
 
 import xlsxwriter
 from django.core.exceptions import ObjectDoesNotExist
@@ -594,15 +595,14 @@ class XlsxSalesReportExportService(XlsxExportService):
     def _get_project_totals(
         self,
         project: ApartmentDocument,
-        project_apartments: List[ApartmentDocument],
+        project_apartments: Optional[List[ApartmentDocument]] = None,
     ) -> SalesReportProjectTotalsDict:
         """Groups total sold HITAS, sold HASO apartments, counts unsold apartments
         and the total sales sums for a project.
 
-        Parameters:
-            project (ApartmentDocument): Project metadata (ownership type, etc.).
-            project_apartments (List[ApartmentDocument]): Apartments for this
-                project, same list as for row generation (avoids duplicate API calls).
+        Args:
+            project (ApartmentDocument): _description_
+            project_apartments: If provided, skips a duplicate ``get_apartments`` call.
 
         Returns:
             dict: ```
@@ -617,6 +617,10 @@ class XlsxSalesReportExportService(XlsxExportService):
             }
             ```
         """
+        if project_apartments is None:
+            project_apartments = get_apartments(
+                project.project_uuid, include_project_fields=True
+            )
         sold_apartments = self._get_sold_apartments(project_apartments)
         sold_hitas_apartments = self._get_hitas_apartments(sold_apartments)
         sold_haso_apartments = self._get_haso_apartments(sold_apartments)
@@ -653,11 +657,28 @@ class XlsxSalesReportExportService(XlsxExportService):
         project_rows = []
         first = True
 
+        apartments_by_project: Dict[str, List[ApartmentDocument]] = {}
+        if self.projects:
+            max_workers = min(len(self.projects), 8)
+
+            def _load_project_apartments(
+                proj: ApartmentDocument,
+            ) -> tuple[str, List[ApartmentDocument]]:
+                return str(proj.project_uuid), get_apartments(
+                    proj.project_uuid, include_project_fields=True
+                )
+
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                futures = [
+                    executor.submit(_load_project_apartments, p) for p in self.projects
+                ]
+                for future in as_completed(futures):
+                    project_uuid_str, project_apartments = future.result()
+                    apartments_by_project[project_uuid_str] = project_apartments
+
         for project in self.projects:
 
-            project_apartments = get_apartments(
-                project.project_uuid, include_project_fields=True
-            )
+            project_apartments = apartments_by_project[str(project.project_uuid)]
 
             apartments += project_apartments
             rows_for_project = self._get_project_rows(
@@ -727,7 +748,7 @@ class XlsxSalesReportExportService(XlsxExportService):
         )
 
         is_hitas = self._is_hitas(project)
-        totals = self._get_project_totals(project, apartments)
+        totals = self._get_project_totals(project, project_apartments=apartments)
 
         rows = []
 
@@ -1111,18 +1132,29 @@ class XlsxSalesReportExportService(XlsxExportService):
         return project.project_ownership_type.lower() == OwnershipType.HITAS.value
 
     def _get_projects(self):
-        projects = []
-        uuids = []
-        for project_uuid in self.project_uuids:
+        unique = list(dict.fromkeys(str(u) for u in self.project_uuids))
+        if not unique:
+            return []
+
+        max_workers = min(len(unique), 8)
+
+        def _load(project_uuid: str):
             try:
-                if project_uuid not in uuids:
-                    projects.append(get_project(project_uuid))
-                    uuids.append(project_uuid)
+                return get_project(project_uuid)
             except ObjectDoesNotExist:
                 _logger.error(
                     "Project %s does not exist in ElasticSearch",
                     project_uuid,
                 )
+                return None
+
+        projects: List[ApartmentDocument] = []
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = {executor.submit(_load, pu): pu for pu in unique}
+            for future in as_completed(futures):
+                doc = future.result()
+                if doc is not None:
+                    projects.append(doc)
 
         return sorted(projects, key=lambda x: x.project_street_address)
 

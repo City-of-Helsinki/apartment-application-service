@@ -1,4 +1,3 @@
-import itertools
 import logging
 from urllib.parse import quote
 
@@ -21,6 +20,7 @@ from apartment.api.serializers import (
 )
 from apartment.elastic.queries import (
     get_apartment_uuids,
+    get_apartment_uuids_for_projects,
     get_apartments,
     get_project,
     get_project_apartment_sale_state_counts,
@@ -308,11 +308,7 @@ class SaleReportAPIView(APIView):
         if project_uuids:
             project_uuids = set(project_uuids.split(","))
 
-            # not the most efficient way, but good enough for the low user counts
-            # use itertools to flatten the list of lists to a single one
-            apartment_uuids = itertools.chain.from_iterable(
-                get_apartment_uuids(uuid) for uuid in project_uuids
-            )
+            apartment_uuids = get_apartment_uuids_for_projects(project_uuids)
             state_events = state_events.filter(
                 reservation__apartment_uuid__in=apartment_uuids
             )
