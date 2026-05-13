@@ -1,5 +1,7 @@
 import collections
 from datetime import date, datetime, timedelta
+from types import SimpleNamespace
+from unittest import mock
 from decimal import Decimal
 from io import BytesIO
 from typing import List, Union
@@ -685,6 +687,38 @@ def get_state_events_for_export(
 
 
 @pytest.mark.django_db
+def test_xlsx_sales_report_get_rows_calls_get_apartments_once_per_project():
+    """
+    Regression: each project must fetch apartments once in get_rows, not again in
+    _get_project_totals (duplicate Drupal search API calls).
+    """
+    n_projects = 3
+    project_uuids = [
+        f"bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbb{i}" for i in range(n_projects)
+    ]
+
+    def fake_get_project(project_uuid):
+        return SimpleNamespace(
+            project_uuid=project_uuid,
+            project_street_address=f"Addr-{str(project_uuid)[:8]}",
+            project_ownership_type="Hitas",
+        )
+
+    with mock.patch(
+        "application_form.services.export.get_project",
+        side_effect=fake_get_project,
+    ), mock.patch(
+        "application_form.services.export.get_apartments",
+        return_value=[],
+    ) as get_apartments_mock:
+        state_events = ApartmentReservationStateChangeEvent.objects.none()
+        export_service = XlsxSalesReportExportService(state_events, project_uuids)
+        export_service.get_rows()
+
+    assert get_apartments_mock.call_count == n_projects
+
+
+@pytest.mark.django_db
 def test_sale_report_invalid_money_amount():
     """test that invalid money amounts are handled right"""
 
@@ -1036,8 +1070,12 @@ def test_export_sale_report_new(
     assert len(export_service._get_sold_apartments(hitas_apartments)) == 4
 
     # test project total calculations
-    hitas_project_totals = export_service._get_project_totals(hitas_project)
-    haso_project_totals = export_service._get_project_totals(haso_project)
+    hitas_project_totals = export_service._get_project_totals(
+        hitas_project, hitas_apartments
+    )
+    haso_project_totals = export_service._get_project_totals(
+        haso_project, haso_apartments
+    )
 
     # hitas totals
     assert hitas_project_totals["sold_haso_apartments_count"] == 0

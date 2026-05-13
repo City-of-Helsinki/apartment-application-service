@@ -592,13 +592,17 @@ class XlsxSalesReportExportService(XlsxExportService):
         )
 
     def _get_project_totals(
-        self, project: ApartmentDocument
+        self,
+        project: ApartmentDocument,
+        project_apartments: List[ApartmentDocument],
     ) -> SalesReportProjectTotalsDict:
         """Groups total sold HITAS, sold HASO apartments, counts unsold apartments
         and the total sales sums for a project.
 
-        Args:
-            project (ApartmentDocument): _description_
+        Parameters:
+            project (ApartmentDocument): Project metadata (ownership type, etc.).
+            project_apartments (List[ApartmentDocument]): Apartments for this
+                project, same list as for row generation (avoids duplicate API calls).
 
         Returns:
             dict: ```
@@ -613,9 +617,6 @@ class XlsxSalesReportExportService(XlsxExportService):
             }
             ```
         """
-        project_apartments = get_apartments(
-            project.project_uuid, include_project_fields=True
-        )
         sold_apartments = self._get_sold_apartments(project_apartments)
         sold_hitas_apartments = self._get_hitas_apartments(sold_apartments)
         sold_haso_apartments = self._get_haso_apartments(sold_apartments)
@@ -726,7 +727,7 @@ class XlsxSalesReportExportService(XlsxExportService):
         )
 
         is_hitas = self._is_hitas(project)
-        totals = self._get_project_totals(project)
+        totals = self._get_project_totals(project, apartments)
 
         rows = []
 
