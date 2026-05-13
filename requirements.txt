@@ -10,7 +10,7 @@ attrs==23.1.0
     # via
     #   jsonschema
     #   referencing
-authlib==1.2.1
+authlib==1.6.12
     # via drf-oidc-auth
 bcrypt==4.0.1
     # via paramiko
