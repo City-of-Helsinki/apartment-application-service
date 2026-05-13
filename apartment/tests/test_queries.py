@@ -17,6 +17,46 @@ def test_sale_state_counts_empty_input_returns_empty_dict():
 
 
 @pytest.mark.django_db
+def test_get_apartment_uuids_is_cached(monkeypatch):
+    """
+    Verify that apartment UUID lookup is cached per project.
+
+    - First call performs a Drupal search API fetch.
+    - Second call for same project UUID is served from cache.
+    """
+    from django.core.cache import cache
+
+    from apartment.elastic import queries
+
+    cache.clear()
+
+    project_uuid = "22222222-2222-2222-2222-222222222222"
+    fetch_calls = {"count": 0}
+
+    def fake_fetch_all(path: str, params: dict):
+        fetch_calls["count"] += 1
+        assert path == f"projects/{project_uuid}/apartments"
+        assert params == {}
+        return [
+            {"uuid": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"},
+            {"uuid": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"},
+            {"uuid": None},
+        ]
+
+    monkeypatch.setattr(queries, "_fetch_all", fake_fetch_all)
+
+    assert queries.get_apartment_uuids(project_uuid) == [
+        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+    ]
+    assert queries.get_apartment_uuids(project_uuid) == [
+        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+    ]
+    assert fetch_calls["count"] == 1
+
+
+@pytest.mark.django_db
 def test_sale_state_counts_project_without_apartments_returns_zeros(
     elasticsearch,
 ):
@@ -247,3 +287,66 @@ def test_sale_state_counts_fetches_projects_concurrently(elasticsearch, monkeypa
     # Sequential would take ~0.8s; concurrent should finish in well under 0.5s.
     assert elapsed < 0.5, f"Expected concurrent execution, took {elapsed:.3f}s"
     assert set(result.keys()) == set(project_uuids)
+
+
+def test_get_apartments_for_uuids_empty_returns_empty_dict():
+    """
+    ``get_apartments_for_uuids`` with no UUIDs must return an empty dict.
+
+    - No HTTP and no thread pool work for an empty input.
+    """
+    from apartment.elastic import queries
+
+    assert queries.get_apartments_for_uuids([]) == {}
+
+
+def test_get_apartments_for_uuids_deduplicates(elasticsearch):
+    """
+    Duplicate UUIDs in the input must yield a single Drupal GET per distinct id.
+
+    - Two physical apartments plus a repeated first UUID -> two map entries.
+    """
+    from apartment.elastic import queries
+
+    first = ApartmentDocumentFactory()
+    second = ApartmentDocumentFactory()
+    add_to_store([first, second])
+
+    result = queries.get_apartments_for_uuids(
+        [first.uuid, second.uuid, first.uuid], include_project_fields=True
+    )
+
+    assert set(result.keys()) == {str(first.uuid), str(second.uuid)}
+    assert str(result[str(first.uuid)].uuid) == str(first.uuid)
+
+
+def test_get_apartment_second_call_uses_cache(elasticsearch, monkeypatch):
+    """
+    Two ``get_apartment`` calls with the same arguments hit Drupal Search once.
+
+    - The in-process cache must short-circuit the second HTTP GET.
+    """
+    from django.core.cache import cache
+
+    from apartment.elastic import queries
+    from apartment.tests.utils import TestDrupalSearchClient
+
+    cache.clear()
+    apartment = ApartmentDocumentFactory()
+    add_to_store([apartment])
+
+    paths = []
+
+    original_get = TestDrupalSearchClient.get
+
+    def counting_get(self, path, params=None, timeout=None):
+        paths.append(path)
+        return original_get(self, path, params, timeout)
+
+    monkeypatch.setattr(TestDrupalSearchClient, "get", counting_get)
+
+    queries.get_apartment(str(apartment.uuid), include_project_fields=True)
+    queries.get_apartment(str(apartment.uuid), include_project_fields=True)
+
+    apartment_paths = [p for p in paths if p.startswith("apartments/")]
+    assert len(apartment_paths) == 1

@@ -37,6 +37,47 @@ def test_drupal_search_client_sets_accept_language_header(settings, monkeypatch)
     assert captured["headers"]["Accept-Language"] == "fi"
 
 
+def test_drupal_search_client_get_is_cached(settings, monkeypatch):
+    settings.DRUPAL_SEARCH_API_BASE_URL = "http://example.com"
+    settings.DRUPAL_SEARCH_API_TOKEN_URL = ""
+    settings.DRUPAL_SEARCH_API_CLIENT_ID = ""
+    settings.DRUPAL_SEARCH_API_CLIENT_SECRET = ""
+    settings.DRUPAL_SEARCH_API_TIMEOUT = 1
+    settings.DRUPAL_SEARCH_API_VERIFY_SSL = True
+    settings.LANGUAGE_CODE = "fi"
+    settings.DRUPAL_SEARCH_API_GET_CACHE_SECONDS = 60
+
+    from django.core.cache import cache
+
+    cache.clear()
+
+    calls = {"count": 0}
+
+    def fake_get(url, params=None, headers=None, timeout=None, verify=None):
+        calls["count"] += 1
+
+        class FakeResponse:
+            status_code = 200
+            text = ""
+
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return {"ok": True, "params": params, "url": url}
+
+        return FakeResponse()
+
+    monkeypatch.setattr(requests, "get", fake_get)
+
+    client = DrupalSearchClient()
+    first = client.get("apartments", params={"offset": 500, "limit": 100})
+    second = client.get("apartments", params={"offset": 500, "limit": 100})
+
+    assert first == second
+    assert calls["count"] == 1
+
+
 def test_drupal_search_client_translates_offset_limit_to_page_size(
     settings, monkeypatch
 ):
