@@ -43,7 +43,7 @@ def test_get_apartment_uuids_is_cached(monkeypatch):
             {"uuid": None},
         ]
 
-    monkeypatch.setattr(queries, "_fetch_all", fake_fetch_all)
+    monkeypatch.setattr(queries, "_fetch_all_uncached", fake_fetch_all)
 
     assert queries.get_apartment_uuids(project_uuid) == [
         "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
@@ -52,6 +52,39 @@ def test_get_apartment_uuids_is_cached(monkeypatch):
     assert queries.get_apartment_uuids(project_uuid) == [
         "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
         "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+    ]
+    assert fetch_calls["count"] == 1
+
+
+@pytest.mark.django_db
+def test_fetch_all_second_call_uses_cache(monkeypatch):
+    """
+    Two ``_fetch_all`` calls with the same path and params hit Drupal once.
+
+    - Cached raw sources must short-circuit the second uncached fetch.
+    """
+    from django.core.cache import cache
+
+    from apartment.elastic import queries
+
+    cache.clear()
+    path = "projects/22222222-2222-2222-2222-222222222222/apartments"
+    params = {}
+    fetch_calls = {"count": 0}
+
+    def fake_fetch_all_uncached(fetch_path: str, fetch_params: dict):
+        fetch_calls["count"] += 1
+        assert fetch_path == path
+        assert fetch_params == params
+        return [{"uuid": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}]
+
+    monkeypatch.setattr(queries, "_fetch_all_uncached", fake_fetch_all_uncached)
+
+    assert queries._fetch_all(path, params) == [
+        {"uuid": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}
+    ]
+    assert queries._fetch_all(path, params) == [
+        {"uuid": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}
     ]
     assert fetch_calls["count"] == 1
 
@@ -390,6 +423,41 @@ def test_get_projects_for_uuids_skips_missing_projects(monkeypatch):
     result = queries.get_projects_for_uuids([existing, missing])
 
     assert [p["project_uuid"] for p in result] == [existing]
+
+
+@pytest.mark.django_db
+def test_get_project_second_call_uses_cache(elasticsearch, monkeypatch):
+    """
+    Two ``get_project`` calls with the same UUID hit Drupal Search once.
+
+    - The in-process cache must short-circuit the second HTTP GET.
+    """
+    from django.core.cache import cache
+
+    from apartment.elastic import queries
+    from apartment.tests.factories import ApartmentDocumentFactory
+    from apartment.tests.utils import TestDrupalSearchClient
+
+    cache.clear()
+    apartment = ApartmentDocumentFactory()
+    add_to_store([apartment])
+    project_uuid = str(apartment.project_uuid)
+
+    paths = []
+
+    original_get = TestDrupalSearchClient.get
+
+    def counting_get(self, path, params=None, timeout=None):
+        paths.append(path)
+        return original_get(self, path, params, timeout)
+
+    monkeypatch.setattr(TestDrupalSearchClient, "get", counting_get)
+
+    queries.get_project(project_uuid)
+    queries.get_project(project_uuid)
+
+    project_paths = [p for p in paths if p.startswith("projects/")]
+    assert len(project_paths) == 1
 
 
 def test_get_apartments_for_uuids_empty_returns_empty_dict():

@@ -330,12 +330,12 @@ def elastic_haso_project_application_end_time_finished(elasticsearch):
 @pytest.fixture(autouse=True)
 def mock_apartment_queries(monkeypatch):
     """
-    Patch apartment.elastic.queries._fetch_all with the test double.
+    Patch apartment.elastic.queries._fetch_all_uncached with the test double.
     Separate helper functions are defined outside for clarity and reduced complexity.
     """
     from apartment.elastic import queries
 
-    monkeypatch.setattr(queries, "_fetch_all", _mock_fetch_all)
+    monkeypatch.setattr(queries, "_fetch_all_uncached", _mock_fetch_all)
 
 
 def sell_apartments(

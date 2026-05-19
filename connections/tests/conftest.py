@@ -102,7 +102,7 @@ def mock_apartment_queries(request, monkeypatch):
         return
     from apartment.elastic import queries
 
-    monkeypatch.setattr(queries, "_fetch_all", _mock_fetch_all)
+    monkeypatch.setattr(queries, "_fetch_all_uncached", _mock_fetch_all)
 
 
 @fixture
