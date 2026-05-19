@@ -282,6 +282,56 @@ def get_apartment_uuids(project_uuid) -> List[str]:
     return uuids
 
 
+def get_projects_for_uuids(
+    project_uuids: Iterable,
+    *,
+    max_workers: int = 8,
+) -> List[SearchResult]:
+    """
+    Fetch many projects by UUID with bounded parallel HTTP requests.
+
+    Each distinct UUID triggers at most one Drupal Search API GET via
+    ``get_project``. Projects that no longer exist are omitted.
+
+    Parameters:
+        project_uuids: Project UUID values or strings to resolve.
+        max_workers: Upper bound on concurrent workers (capped by unique count).
+
+    Returns:
+        List of project documents in the same order as the first occurrence of
+        each UUID in ``project_uuids`` (missing projects are skipped).
+    """
+    unique = list(dict.fromkeys(str(u) for u in project_uuids))
+    if not unique:
+        return []
+
+    workers = min(len(unique), max_workers)
+
+    def _fetch(project_uuid: str) -> Optional[SearchResult]:
+        try:
+            return get_project(project_uuid)
+        except ObjectDoesNotExist:
+            return None
+
+    results_by_uuid: Dict[str, SearchResult] = {}
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        future_to_uuid = {
+            executor.submit(_fetch, project_uuid): project_uuid
+            for project_uuid in unique
+        }
+        for future in as_completed(future_to_uuid):
+            project_uuid = future_to_uuid[future]
+            project = future.result()
+            if project is not None:
+                results_by_uuid[project_uuid] = project
+
+    return [
+        results_by_uuid[project_uuid]
+        for project_uuid in unique
+        if project_uuid in results_by_uuid
+    ]
+
+
 def get_project(project_uuid):
     """Fetch a single project by UUID via GET /projects/{uuid}."""
     client = _get_client()

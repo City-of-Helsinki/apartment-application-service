@@ -330,6 +330,68 @@ def test_sale_state_counts_fetches_projects_concurrently(elasticsearch, monkeypa
     assert set(result.keys()) == set(project_uuids)
 
 
+def test_get_projects_for_uuids_empty_returns_empty_list():
+    """
+    ``get_projects_for_uuids`` with no UUIDs must return an empty list.
+
+    - No HTTP and no thread pool work for an empty input.
+    """
+    from apartment.elastic import queries
+
+    assert queries.get_projects_for_uuids([]) == []
+
+
+@pytest.mark.django_db
+def test_get_projects_for_uuids_deduplicates_and_preserves_order(monkeypatch):
+    """
+    Duplicate UUIDs are fetched once; output order follows first occurrence.
+
+    - ``get_project`` is invoked once per distinct project UUID.
+    """
+    from apartment.elastic import queries
+
+    p1 = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    p2 = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+    calls = []
+
+    def fake_get_project(project_uuid):
+        calls.append(str(project_uuid))
+        return {"project_uuid": str(project_uuid)}
+
+    monkeypatch.setattr(queries, "get_project", fake_get_project)
+
+    result = queries.get_projects_for_uuids([p1, p2, p1])
+
+    assert calls == [p1, p2]
+    assert [p["project_uuid"] for p in result] == [p1, p2]
+
+
+@pytest.mark.django_db
+def test_get_projects_for_uuids_skips_missing_projects(monkeypatch):
+    """
+    Projects that no longer exist in Drupal search are omitted from the result.
+
+    - ``ObjectDoesNotExist`` from ``get_project`` must not fail the whole batch.
+    """
+    from django.core.exceptions import ObjectDoesNotExist
+
+    from apartment.elastic import queries
+
+    existing = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+    missing = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+
+    def fake_get_project(project_uuid):
+        if str(project_uuid) == missing:
+            raise ObjectDoesNotExist()
+        return {"project_uuid": str(project_uuid)}
+
+    monkeypatch.setattr(queries, "get_project", fake_get_project)
+
+    result = queries.get_projects_for_uuids([existing, missing])
+
+    assert [p["project_uuid"] for p in result] == [existing]
+
+
 def test_get_apartments_for_uuids_empty_returns_empty_dict():
     """
     ``get_apartments_for_uuids`` with no UUIDs must return an empty dict.

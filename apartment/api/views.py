@@ -25,6 +25,7 @@ from apartment.elastic.queries import (
     get_project,
     get_project_apartment_sale_state_counts,
     get_projects,
+    get_projects_for_uuids,
 )
 from apartment.models import ProjectExtraData
 from application_form.api.sales.serializers import (
@@ -242,20 +243,17 @@ class SaleReportSelectedProjectsAPIView(APIView):
 
     def get(self, request):
         # get included projects
-        included_project_uuids = UserKeyValue.objects.user_key_values(
-            user=request.user,
-            key=UserKeyValueKeys.INCLUDE_SALES_REPORT_PROJECT_UUID.value,
-        ).values_list("value", flat=True)
+        included_project_uuids = list(
+            UserKeyValue.objects.user_key_values(
+                user=request.user,
+                key=UserKeyValueKeys.INCLUDE_SALES_REPORT_PROJECT_UUID.value,
+            ).values_list("value", flat=True)
+        )
 
-        # filter projects
-        project_data = [
-            project
-            for project in get_projects()
-            if project.project_uuid in included_project_uuids
-        ]
-
+        project_data = get_projects_for_uuids(included_project_uuids)
+        project_uuids = [str(project.project_uuid) for project in project_data]
         apartment_sale_state_counts = get_project_apartment_sale_state_counts(
-            [str(project.project_uuid) for project in project_data]
+            project_uuids
         )
         serializer = ProjectDocumentListSerializer(
             project_data,

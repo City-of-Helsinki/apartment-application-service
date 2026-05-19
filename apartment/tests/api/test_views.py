@@ -390,6 +390,41 @@ def test_selected_project_list_get(
 
 
 @pytest.mark.django_db
+@pytest.mark.usefixtures("elastic_apartments")
+def test_selected_project_list_does_not_fetch_all_projects(
+    sales_ui_salesperson_api_client,
+    elastic_project_with_5_apartments,
+):
+    """
+    Selected report projects must be resolved by UUID, not via ``get_projects``.
+
+    - Only saved project UUIDs should be passed to ``get_projects_for_uuids``.
+    """
+    project_uuid, _apartments = elastic_project_with_5_apartments
+
+    UserKeyValue.objects.create(
+        user=sales_ui_salesperson_api_client.user,
+        key=UserKeyValueKeys.INCLUDE_SALES_REPORT_PROJECT_UUID.value,
+        value=project_uuid,
+    )
+
+    with patch("apartment.api.views.get_projects") as get_projects_mock:
+        with patch(
+            "apartment.api.views.get_projects_for_uuids",
+            return_value=[],
+        ) as get_projects_for_uuids_mock:
+            response = sales_ui_salesperson_api_client.get(
+                reverse("apartment:report-selected-project-list"), format="json"
+            )
+
+    assert response.status_code == 200
+    get_projects_mock.assert_not_called()
+    get_projects_for_uuids_mock.assert_called_once()
+    called_uuids = list(get_projects_for_uuids_mock.call_args[0][0])
+    assert str(project_uuid) in [str(u) for u in called_uuids]
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize("lottery_exists", (True, False))
 def test_project_detail_lottery_completed_at_field(
     sales_ui_salesperson_api_client, elastic_project_with_5_apartments, lottery_exists
