@@ -465,6 +465,7 @@ def test_sale_report_debug_asu_1834(elasticsearch):
         project_uuids,
     )
 
+    export_service._precompute_apartment_state_map(all_apartments)
     sold_apartments = export_service._get_sold_apartments(all_apartments)
 
     assert sold_apartments == sold_apts_2025
@@ -941,6 +942,8 @@ def test_export_canceled_sales_should_not_count():
         state_events, [apartment.project_uuid]
     )
 
+    export_service._precompute_apartment_state_map(apartments)
+
     # we have one canceled sale so it shouldn't count as sold
     assert len(export_service._get_sold_apartments(apartments)) != len(apartments)
 
@@ -1152,7 +1155,128 @@ def test_export_sale_report_new(
         [haso_project.project_uuid, hitas_project.project_uuid],
     )
 
+    export_service._precompute_apartment_state_map(all_apartments)
     assert export_service._get_unsold_count(all_apartments) == expected_unsold_count
+
+
+@pytest.mark.django_db
+def test_sale_report_apartment_state_precompute_uses_one_query():
+    """
+    _precompute_apartment_state_map must issue exactly one DB query regardless
+    of the number of apartments, eliminating the previous N+1 pattern.
+
+    - Creates N apartments with reservations
+    - Calls _precompute_apartment_state_map(apartments)
+    - Asserts exactly 1 query was executed
+    """
+    from django.test.utils import CaptureQueriesContext
+    from django.db import connection
+
+    apartment_count = 5
+    apartments = []
+    for _ in range(apartment_count):
+        apt = ApartmentDocumentFactory(project_ownership_type="Hitas")
+        apartments.append(apt)
+        ApartmentReservationFactory(apartment_uuid=apt.uuid)
+
+    state_events = ApartmentReservationStateChangeEvent.objects.none()
+    export_service = XlsxSalesReportExportService(state_events, [])
+
+    with CaptureQueriesContext(connection) as ctx:
+        export_service._precompute_apartment_state_map(apartments)
+
+    assert len(ctx.captured_queries) == 1, (
+        f"Expected 1 DB query, got {len(ctx.captured_queries)}"
+    )
+
+
+@pytest.mark.django_db
+def test_sale_report_state_based_filtering_uses_no_queries_after_precompute():
+    """
+    _get_sold_apartments_based_on_state must use zero DB queries once the
+    state map has been precomputed, regardless of how many times it is called.
+
+    - Creates apartments and sells some
+    - Precomputes the state map
+    - Calls _get_sold_apartments_based_on_state multiple times
+    - Asserts zero DB queries were issued
+    """
+    from django.test.utils import CaptureQueriesContext
+    from django.db import connection
+
+    apartment = ApartmentDocumentFactory(project_ownership_type="Hitas")
+    apartments = [apartment]
+    for _ in range(4):
+        apartments.append(
+            ApartmentDocumentFactory(
+                project_ownership_type="Hitas",
+                project_uuid=apartment.project_uuid,
+            )
+        )
+    sell_apartments(apartment.project_uuid, 2)
+
+    state_events = get_state_events_for_export()
+    export_service = XlsxSalesReportExportService(state_events, [])
+    export_service._precompute_apartment_state_map(apartments)
+
+    with CaptureQueriesContext(connection) as ctx:
+        result_1 = export_service._get_sold_apartments_based_on_state(apartments)
+        result_2 = export_service._get_sold_apartments_based_on_state(apartments)
+        _ = export_service._get_unsold_count(apartments)
+
+    assert len(ctx.captured_queries) == 0, (
+        f"Expected 0 DB queries after precompute, got {len(ctx.captured_queries)}"
+    )
+    assert len(result_1) == len(result_2)
+
+
+@pytest.mark.django_db
+def test_sale_report_terminated_filtering_uses_no_queries():
+    """
+    _get_apartments_with_terminated_sales must use zero DB queries because
+    terminated UUIDs are precomputed in __init__.
+
+    - Creates apartments, sells and terminates some
+    - Calls _get_apartments_with_terminated_sales multiple times
+    - Asserts zero DB queries were issued for each call
+    """
+    from django.test.utils import CaptureQueriesContext
+    from django.db import connection
+
+    apartment = ApartmentDocumentFactory(project_ownership_type="Hitas")
+    apartments = [apartment]
+    for _ in range(4):
+        apartments.append(
+            ApartmentDocumentFactory(
+                project_ownership_type="Hitas",
+                project_uuid=apartment.project_uuid,
+            )
+        )
+    sell_apartments(apartment.project_uuid, len(apartments))
+    terminated_reservations = ApartmentReservation.objects.filter(
+        apartment_uuid__in=[ap.uuid for ap in apartments[:2]]
+    )
+    for res in terminated_reservations:
+        cancel_reservation(
+            res,
+            cancellation_reason=ApartmentReservationCancellationReason.TERMINATED,
+        )
+
+    state_events = get_state_events_for_export()
+    export_service = XlsxSalesReportExportService(state_events, [])
+
+    with CaptureQueriesContext(connection) as ctx:
+        result_1 = export_service._get_apartments_with_terminated_sales(apartments)
+        result_2 = export_service._get_apartments_with_terminated_sales(apartments)
+        result_3 = export_service._get_apartments_with_terminated_sales(apartments[:2])
+
+    assert len(ctx.captured_queries) == 0, (
+        f"Expected 0 DB queries for terminated filtering, "
+        f"got {len(ctx.captured_queries)}"
+    )
+    assert len(result_1) == 2
+    assert result_1 == result_2
+    assert len(result_3) == 2
 
 
 @pytest.mark.django_db

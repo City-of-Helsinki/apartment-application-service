@@ -11,7 +11,8 @@ from resilient_logger.models import ResilientLogEntry
 from rest_framework import status
 
 from apartment.elastic.documents import ApartmentDocument
-from apartment.enums import OwnershipType
+from apartment.enums import ApartmentState, OwnershipType
+from apartment.utils import get_apartment_state_from_apartment_uuid
 from apartment.tests.factories import ApartmentDocumentFactory
 from apartment_application_service.settings import (
     METADATA_HANDLER_INFORMATION,
@@ -27,6 +28,7 @@ from application_form.enums import (
 from application_form.models import ApartmentReservation, Application
 from application_form.services.application import cancel_reservation
 from application_form.services.lottery.machine import distribute_apartments
+from application_form.services.offer import create_offer
 from application_form.services.queue import add_application_to_queues
 from application_form.tests.conftest import create_application_data, generate_apartments
 from application_form.tests.factories import (
@@ -751,6 +753,94 @@ def test_get_apartment_states_reserved_after_sale_canceled_and_new_offer(
     )
     assert response.status_code == 200
     assert response.data[str(apartment.uuid)] == ApartmentStateOfSale.RESERVED_HASO
+
+
+@pytest.mark.django_db
+@patch("application_form.services.application.EmailMessage")
+def test_haso_apartment_state_changes_from_sold_to_reserved_after_late_application(
+    EmailMessageMock: MagicMock,
+    drupal_server_api_client,
+    elasticsearch,
+):
+    """
+    After a HASO apartment has three applications, one is offered and sold,
+    submitting an after-application should change the apartment state from
+    sold back to reserved.
+    """
+    application_start_time = (datetime.now() - timedelta(days=30)).replace(
+        tzinfo=timezone.get_default_timezone()
+    )
+    application_end_time = application_start_time + timedelta(days=10)
+
+    apartment_properties = {
+        "apartment_state_of_sale": ApartmentStateOfSale.FOR_SALE.value,
+        "_language": "fi",
+        "project_application_start_time": application_start_time,
+        "project_application_end_time": application_end_time,
+        "project_ownership_type": OwnershipType.HASO.value,
+        "project_can_apply_afterwards": True,
+    }
+    apartments = generate_apartments(elasticsearch, 1, apartment_properties)
+    apartment = apartments[0]
+
+    with freeze_time(application_start_time + timedelta(days=1)):
+        for idx in range(3):
+            profile = ProfileFactory()
+            application_data = create_application_data(
+                profile, ApplicationType.HASO, 1, apartments
+            )
+            application_data["right_of_residence"] = 100 + idx
+            drupal_server_api_client.credentials(
+                HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}"
+            )
+            response = drupal_server_api_client.post(
+                reverse("application_form:application-list"),
+                application_data,
+                format="json",
+            )
+            assert response.status_code == 201
+
+    distribute_apartments(apartment.project_uuid)
+
+    winning_reservation = ApartmentReservation.objects.get(
+        apartment_uuid=apartment.uuid,
+        queue_position=1,
+    )
+    create_offer(
+        {
+            "apartment_reservation": winning_reservation,
+            "valid_until": timezone.localdate() + timedelta(days=7),
+            "comment": "Offer for winner.",
+        }
+    )
+    winning_reservation.set_state(ApartmentReservationState.SOLD)
+
+    assert (
+        get_apartment_state_from_apartment_uuid(apartment.uuid)
+        == ApartmentState.SOLD.value
+    )
+
+    late_profile = ProfileFactory()
+    late_application_data = create_application_data(
+        late_profile, ApplicationType.HASO, 1, apartments
+    )
+    late_application_data["right_of_residence"] = 1
+
+    with freeze_time(application_end_time + timedelta(days=2)):
+        drupal_server_api_client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {_create_token(late_profile)}"
+        )
+        response = drupal_server_api_client.post(
+            reverse("application_form:application-list"),
+            late_application_data,
+            format="json",
+        )
+        assert response.status_code == 201
+
+    assert (
+        get_apartment_state_from_apartment_uuid(apartment.uuid)
+        == ApartmentState.RESERVED.value
+    )
 
 
 @pytest.mark.django_db

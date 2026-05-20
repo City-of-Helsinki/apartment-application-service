@@ -585,6 +585,54 @@ class XlsxSalesReportExportService(XlsxExportService):
         )
         self.sold_apartment_uuids = [str(u) for u in sold_uuids_qs]
 
+        # Precompute terminated apartment UUIDs in one query (mirrors sold_uuids_qs)
+        terminated_uuids_qs = (
+            state_events.filter(
+                cancellation_reason=ApartmentReservationCancellationReason.TERMINATED.value,  # noqa: E501
+            )
+            .annotate(
+                auuid=Cast("reservation__apartment_uuid", output_field=CharField())
+            )
+            .order_by()
+            .distinct()
+            .values_list("auuid", flat=True)
+        )
+        self.terminated_apartment_uuids: set = set(str(u) for u in terminated_uuids_qs)
+
+        # Precompute per-apartment event lookups to avoid per-row DB queries.
+        # Keep only the latest event per apartment (queryset is already ordered by -id).
+        all_sold_events = list(
+            state_events.filter(state=ApartmentReservationState.SOLD)
+            .select_related("reservation")
+            .order_by("-id")
+        )
+        self._sold_event_by_uuid: Dict[str, ApartmentReservationStateChangeEvent] = {}
+        for _e in all_sold_events:
+            _key = str(_e.reservation.apartment_uuid)
+            if _key not in self._sold_event_by_uuid:
+                self._sold_event_by_uuid[_key] = _e
+
+        all_terminated_events = list(
+            state_events.filter(
+                cancellation_reason=ApartmentReservationCancellationReason.TERMINATED.value,  # noqa: E501
+            )
+            .select_related("reservation")
+            .order_by("-id")
+        )
+        self._terminated_event_by_uuid: Dict[
+            str, ApartmentReservationStateChangeEvent
+        ] = {}
+        for _e in all_terminated_events:
+            _key = str(_e.reservation.apartment_uuid)
+            if _key not in self._terminated_event_by_uuid:
+                self._terminated_event_by_uuid[_key] = _e
+
+        # Populated by _precompute_apartment_state_map() inside get_rows().
+        # Initialised to an empty dict so that methods can be called safely
+        # in isolation (e.g. tests), but the map will be empty until
+        # get_rows() / write_xlsx_file() runs.
+        self._apartment_state_map: Dict[str, str] = {}
+
         self.projects = self._get_projects()
         _logger.info(
             "Creating XlsxSalesReport with projects %s and sold_apartment_uuids %s",
@@ -676,11 +724,17 @@ class XlsxSalesReportExportService(XlsxExportService):
                     project_uuid_str, project_apartments = future.result()
                     apartments_by_project[project_uuid_str] = project_apartments
 
+        # Collect all apartments across projects so we can bulk-fetch their
+        # reservation states in one query before the per-project row loop.
+        for proj in self.projects:
+            apartments += apartments_by_project[str(proj.project_uuid)]
+
+        self._precompute_apartment_state_map(apartments)
+
         for project in self.projects:
 
             project_apartments = apartments_by_project[str(project.project_uuid)]
 
-            apartments += project_apartments
             rows_for_project = self._get_project_rows(
                 project, project_apartments, first=first
             )
@@ -692,8 +746,9 @@ class XlsxSalesReportExportService(XlsxExportService):
 
             project_rows += rows_for_project
 
-        hitas_sold = self._get_sold_hitas_apartments(apartments)
-        haso_sold = self._get_sold_haso_apartments(apartments)
+        sold_apartments = self._get_sold_apartments(apartments)
+        hitas_sold = self._get_hitas_apartments(sold_apartments)
+        haso_sold = self._get_haso_apartments(sold_apartments)
 
         header_rows = [
             [
@@ -877,9 +932,9 @@ class XlsxSalesReportExportService(XlsxExportService):
         self,
         apartments: List[ApartmentDocument],
     ) -> List[Union[str, Decimal]]:
-
-        hitas_sold_count = len(self._get_sold_hitas_apartments(apartments))
-        haso_sold_count = len(self._get_sold_haso_apartments(apartments))
+        sold_apartments = self._get_sold_apartments(apartments)
+        hitas_sold_count = len(self._get_hitas_apartments(sold_apartments))
+        haso_sold_count = len(self._get_haso_apartments(sold_apartments))
 
         return [
             "Kaupat lukumäärä yhteensä",
@@ -936,16 +991,8 @@ class XlsxSalesReportExportService(XlsxExportService):
     def _get_apartment_termination_row_cells(
         self, apartment: ApartmentDocument
     ) -> List:
-        cells = [
-            self._get_apartment_date_of_event(
-                apartment,
-                event=self._get_latest_apartment_event(
-                    apartment,
-                    state=ApartmentReservationState.CANCELED,
-                    cancellation_reason=ApartmentReservationCancellationReason.TERMINATED,  # noqa: E501
-                ),
-            )
-        ]
+        event = self._terminated_event_by_uuid.get(str(apartment.uuid))
+        cells = [self._get_apartment_date_of_event(apartment, event=event)]
         return cells
 
     def _get_unsold_count(self, apartments: List[ApartmentDocument]) -> int:
@@ -974,6 +1021,13 @@ class XlsxSalesReportExportService(XlsxExportService):
         apartments: List[ApartmentDocument],
         cancellation_reason: ApartmentReservationCancellationReason,
     ):
+        if cancellation_reason == ApartmentReservationCancellationReason.TERMINATED:
+            return [
+                apt
+                for apt in apartments
+                if str(apt.uuid) in self.terminated_apartment_uuids
+            ]
+        # Fallback for any other cancellation reason: query on demand.
         apartment_uuids = [ap.uuid for ap in apartments]
         filtered_uuids = set(
             str(u)
@@ -1012,10 +1066,45 @@ class XlsxSalesReportExportService(XlsxExportService):
             if str(apartment.uuid) in sold_uuids_set
         ]
 
+    def _precompute_apartment_state_map(
+        self, apartments: List[ApartmentDocument]
+    ) -> None:
+        """Bulk-fetch reservation states for all apartments in one query.
+
+        Populates ``self._apartment_state_map`` as a ``{str(uuid): state_value}``
+        dict. Apartments absent from the map are implicitly FREE.
+
+        Must be called once after all project apartments have been collected,
+        and before any method that calls ``_get_sold_apartments_based_on_state``.
+
+        Parameters:
+            apartments: Full list of ApartmentDocuments across all projects.
+        """
+        all_uuids = [str(apt.uuid) for apt in apartments]
+        reserved_qs = (
+            ApartmentReservation.objects.reserved()
+            .filter(apartment_uuid__in=all_uuids)
+            .values("apartment_uuid", "state")
+        )
+        state_map: Dict[str, str] = {}
+        for row in reserved_qs:
+            key = str(row["apartment_uuid"])
+            if key in state_map:
+                # More than one active non-submitted reservation → REVIEW
+                state_map[key] = ApartmentState.REVIEW.value
+            else:
+                state_map[key] = ApartmentState.get_from_reserved_reservation_state(
+                    row["state"]
+                ).value
+        self._apartment_state_map = state_map
+
     def _get_sold_apartments_based_on_state(
         self, apartments: List[ApartmentDocument]
     ) -> List[ApartmentDocument]:
         """Gets sold apartments based on their state.
+
+        Uses the precomputed ``_apartment_state_map`` (populated by
+        ``_precompute_apartment_state_map``) to avoid per-apartment DB queries.
 
         Args:
             apartments (List[ApartmentDocument]): unfiltered ApartmentDocument list
@@ -1025,10 +1114,8 @@ class XlsxSalesReportExportService(XlsxExportService):
         return [
             apartment
             for apartment in apartments
-            if (
-                get_apartment_state_from_apartment_uuid(apartment.uuid)
-                == ApartmentState.SOLD.value
-            )
+            if self._apartment_state_map.get(str(apartment.uuid), ApartmentState.FREE.value)
+            == ApartmentState.SOLD.value
         ]
 
     def _get_sold_hitas_apartments(
@@ -1102,15 +1189,13 @@ class XlsxSalesReportExportService(XlsxExportService):
     def _get_apartment_date_of_sale(
         self, apartment: ApartmentDocument
     ) -> Union[datetime, None]:
-        """Get the date of sale for the apartment.
-        TODO: optimize!!
+        """Get the date of sale for the apartment using the precomputed event dict.
 
         Args:
             apartment (ApartmentDocument):
         """
-        return self._get_apartment_date_of_event(
-            apartment, event=self._get_apartment_sold_event(apartment)
-        )
+        event = self._sold_event_by_uuid.get(str(apartment.uuid))
+        return self._get_apartment_date_of_event(apartment, event=event)
 
     def _get_apartment_date_of_event(
         self, apartment: ApartmentDocument, event: ApartmentReservationStateChangeEvent
