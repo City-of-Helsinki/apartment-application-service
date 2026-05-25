@@ -200,10 +200,12 @@ class ProjectExportApplicantsMailingListAPIView(APIView):
 
         export_services = ApplicantMailingListExportService(reservations, export_type)
         csv_file = export_services.get_csv_string()
-        file_name = format_lazy(
-            _("[Project {title}] Applicants information"),
-            title=project.project_street_address,
-        ).replace(" ", "_")
+        file_name = quote(
+            format_lazy(
+                _("[Project {title}] Applicants information"),
+                title=project.project_street_address,
+            ).replace(" ", "_")
+        )
         response = HttpResponse(csv_file, content_type="text/csv; charset=utf-8-sig")
         response["Content-Disposition"] = "attachment; filename={file_name}.csv".format(
             file_name=file_name
