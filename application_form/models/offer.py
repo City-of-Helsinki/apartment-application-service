@@ -34,6 +34,9 @@ class Offer(TimestampedModel):
         verbose_name=_("concluded at"), null=True, blank=True
     )
     comment = models.TextField(verbose_name=_("comment"), blank=True)
+    reminder_sent_at = models.DateTimeField(
+        verbose_name=_("reminder sent at"), null=True, blank=True
+    )
 
     objects = OfferQuerySet.as_manager()
     # Metadata fields

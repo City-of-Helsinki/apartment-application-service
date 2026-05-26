@@ -1,3 +1,4 @@
+from django.shortcuts import get_object_or_404
 from rest_framework import permissions, status
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import IsAuthenticated
@@ -10,8 +11,10 @@ from application_form.api.serializers import (
     ApartmentReservationSerializer,
     ApplicantSerializerBase,
     ApplicationSerializer,
+    CustomerOfferUpdateSerializer,
+    ReservationOfferSerializer,
 )
-from application_form.models import ApartmentReservation, Application
+from application_form.models import ApartmentReservation, Application, Offer
 from application_form.services.application import delete_application
 from audit_log.viewsets import AuditLoggingModelViewSet
 
@@ -99,3 +102,31 @@ class DeleteApplicationView(APIView):
 
         delete_application(application)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CustomerOfferUpdateView(GenericAPIView):
+    """
+    Public: Allows a customer to accept or reject their own apartment offer.
+    """
+
+    serializer_class = CustomerOfferUpdateSerializer
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ["patch"]
+
+    def get_offer(self, offer_id, profile_uuid):
+        return get_object_or_404(
+            Offer.objects.select_related(
+                "apartment_reservation__customer__primary_profile"
+            ),
+            pk=offer_id,
+            apartment_reservation__application_apartment__application__customer__primary_profile__id=profile_uuid,  # noqa: E501
+        )
+
+    def patch(self, request, offer_id):
+        profile_uuid = request.user.profile.id
+        offer = self.get_offer(offer_id, profile_uuid)
+        serializer = self.get_serializer(offer, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        offer = serializer.save()
+        return Response(ReservationOfferSerializer(offer).data)

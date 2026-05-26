@@ -117,6 +117,7 @@ env = environ.Env(
     ENABLE_SEND_AUDIT_LOG=(bool, False),
     CLEAR_AUDIT_LOG_ENTRIES=(bool, False),
     DRUPAL_SERVER_AUTH_TOKEN=(str, "example-token"),
+    OFFER_REMINDER_DAYS_BEFORE=(int, 1),
     DRUPAL_SEARCH_API_BASE_URL=(str, "https://asuntotuotanto.docker.so"),
     DRUPAL_SEARCH_API_TOKEN_URL=(str, "https://asuntotuotanto.docker.so/oauth/token"),
     DRUPAL_SEARCH_API_CLIENT_ID=(str, "example-token"),
@@ -516,6 +517,7 @@ RESILIENT_LOGGER = {
 
 # Drupal auth
 DRUPAL_SERVER_AUTH_TOKEN = env.str("DRUPAL_SERVER_AUTH_TOKEN")
+OFFER_REMINDER_DAYS_BEFORE = env.int("OFFER_REMINDER_DAYS_BEFORE")
 DRUPAL_SEARCH_API_BASE_URL = env.str("DRUPAL_SEARCH_API_BASE_URL")
 DRUPAL_SEARCH_API_TOKEN_URL = env.str("DRUPAL_SEARCH_API_TOKEN_URL")
 DRUPAL_SEARCH_API_CLIENT_ID = env.str("DRUPAL_SEARCH_API_CLIENT_ID")

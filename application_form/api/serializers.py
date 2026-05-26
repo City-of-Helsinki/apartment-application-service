@@ -25,6 +25,7 @@ from application_form.enums import (
     ApartmentReservationState,
     ApplicationArrivalMethod,
     ApplicationType,
+    OfferState,
 )
 from application_form.models import (
     ApartmentReservation,
@@ -38,6 +39,7 @@ from application_form.services.application import (
     create_application,
     send_sales_notification_email,
 )
+from application_form.services.offer import update_offer
 from application_form.validators import ProjectApplicantValidator, SSNSuffixValidator
 from customer.models import Customer
 
@@ -314,6 +316,53 @@ class ReservationOfferSerializer(
             "comment",
             "is_expired",
         )
+
+
+class CustomerOfferUpdateSerializer(
+    EnumSupportSerializerMixin, serializers.ModelSerializer
+):
+    state = EnumField(OfferState, required=True)
+
+    class Meta:
+        model = Offer
+        fields = ("state",)
+
+    def validate_state(self, value):
+        if value not in (OfferState.ACCEPTED, OfferState.REJECTED):
+            raise ValidationError("State must be accepted or rejected.")
+        return value
+
+    def validate(self, attrs):
+        offer = self.instance
+        if offer.state != OfferState.PENDING:
+            raise ValidationError("Offer has already been concluded.")
+        if offer.is_expired:
+            raise ValidationError("Offer has expired.")
+        return attrs
+
+    def update(self, instance, validated_data):
+        user = self.context["request"].user
+        return update_offer(instance, validated_data, user=user)
+
+
+class PendingOfferReminderProfileSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    first_name = serializers.CharField()
+    last_name = serializers.CharField()
+    email = serializers.CharField()
+
+
+class PendingOfferReminderCustomerSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    primary_profile = PendingOfferReminderProfileSerializer()
+
+
+class PendingOfferReminderSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    valid_until = serializers.DateField()
+    apartment_uuid = serializers.UUIDField()
+    project_uuid = serializers.UUIDField()
+    customer = PendingOfferReminderCustomerSerializer()
 
 
 class ApartmentReservationSerializerBase(serializers.ModelSerializer):
