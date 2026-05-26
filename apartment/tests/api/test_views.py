@@ -798,6 +798,50 @@ def test_export_applicants_csv_per_project(
 
 
 @pytest.mark.django_db
+def test_export_applicants_mailing_list_csv_per_project(
+    sales_ui_salesperson_api_client, elasticsearch
+):
+    """
+    Test export applicants mailing list to CSV.
+    """
+    project = generate_apartments(
+        elasticsearch, 1, {"project_street_address": "Test street 23, test road 40"}
+    )[0]
+    project_uuid = project.project_uuid
+
+    data = {
+        "project_uuid": uuid.uuid4(),
+        "export_type": ApartmentReservationState.RESERVED.value,
+    }
+    response = sales_ui_salesperson_api_client.get(
+        reverse("apartment:project-detail-export-applicant-mailing-list", kwargs=data),
+        format="json",
+    )
+    assert response.status_code == 404
+
+    data = {
+        "project_uuid": project_uuid,
+        "export_type": ApartmentReservationState.RESERVED.value,
+    }
+    response = sales_ui_salesperson_api_client.get(
+        reverse("apartment:project-detail-export-applicant-mailing-list", kwargs=data),
+        format="json",
+    )
+
+    content_disposition_header = response.headers["Content-Disposition"]
+    assert response.headers["Content-Type"] == "text/csv; charset=utf-8-sig"
+    assert (
+        quote(project.project_street_address.replace(" ", "_"))
+        in content_disposition_header
+    )
+
+    # comma in Content-Disposition isn't allowed
+    # see: https://stackoverflow.com/a/23868112
+    assert "," not in content_disposition_header
+    assert response.status_code == 200
+
+
+@pytest.mark.django_db
 def test_export_lottery_result_csv_per_project_unauthorized(
     user_api_client, elastic_project_with_5_apartments
 ):
