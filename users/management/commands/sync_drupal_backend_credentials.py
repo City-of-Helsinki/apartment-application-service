@@ -4,10 +4,10 @@ from django.core.management.base import BaseCommand, CommandError
 
 from users.masking import mask_uuid
 from users.services.drupal_credentials import (
-    ProfileNotFoundError,
-    ProfileUserMissingError,
     credentials_to_json,
     find_profile_for_drupal_user,
+    ProfileNotFoundError,
+    ProfileUserMissingError,
     sync_drupal_user_credentials,
 )
 

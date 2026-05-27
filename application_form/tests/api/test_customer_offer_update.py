@@ -150,9 +150,7 @@ def test_customer_offer_update_secondary_profile_returns_404(api_client):
     """
     primary = ProfileFactory()
     secondary = ProfileFactory()
-    customer = CustomerFactory(
-        primary_profile=primary, secondary_profile=secondary
-    )
+    customer = CustomerFactory(primary_profile=primary, secondary_profile=secondary)
     apartment = ApartmentDocumentFactory()
     application = ApplicationFactory(customer=customer)
     application_apartment = ApplicationApartmentFactory(

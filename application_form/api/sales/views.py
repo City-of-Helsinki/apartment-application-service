@@ -618,9 +618,7 @@ def _get_pending_offer_reminders(days_before: int):
     today = timezone.localdate()
     deadline = today + timedelta(days=days_before)
     offers = (
-        Offer.objects.select_related(
-            "apartment_reservation__customer__primary_profile"
-        )
+        Offer.objects.select_related("apartment_reservation__customer__primary_profile")
         .filter(
             state=OfferState.PENDING,
             reminder_sent_at__isnull=True,

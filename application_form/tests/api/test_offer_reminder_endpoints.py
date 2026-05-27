@@ -3,6 +3,7 @@ from datetime import timedelta
 import pytest
 from django.urls import reverse
 from django.utils import timezone
+
 from apartment.tests.factories import ApartmentDocumentFactory
 from application_form.enums import ApartmentReservationState, OfferState
 from application_form.tests.factories import (

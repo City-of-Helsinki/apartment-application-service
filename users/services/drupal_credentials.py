@@ -2,7 +2,6 @@
 
 import json
 import logging
-from typing import Optional
 from uuid import UUID
 
 from django.contrib.auth import get_user_model
@@ -21,9 +20,7 @@ class ProfileUserMissingError(Exception):
     """Raised when the profile has no linked Django auth user."""
 
 
-def find_profile_for_drupal_user(
-    drupal_uuid: str, email: str = ""
-) -> Profile:
+def find_profile_for_drupal_user(drupal_uuid: str, email: str = "") -> Profile:
     """
     Find a Django profile for a Drupal user.
 
@@ -44,9 +41,7 @@ def find_profile_for_drupal_user(
     try:
         uuid = UUID(drupal_uuid)
     except ValueError as exc:
-        raise ProfileNotFoundError(
-            f"Invalid Drupal UUID: {drupal_uuid}"
-        ) from exc
+        raise ProfileNotFoundError(f"Invalid Drupal UUID: {drupal_uuid}") from exc
 
     try:
         return Profile.objects.select_related("user").get(pk=uuid)
@@ -91,9 +86,7 @@ def build_masked_credentials(profile: Profile, *, dry_run: bool = False) -> dict
     """
     user = profile.user
     if user is None:
-        raise ProfileUserMissingError(
-            f"Profile {profile.pk} has no linked Django user"
-        )
+        raise ProfileUserMissingError(f"Profile {profile.pk} has no linked Django user")
 
     User = get_user_model()
     password = User.objects.make_random_password(length=32)

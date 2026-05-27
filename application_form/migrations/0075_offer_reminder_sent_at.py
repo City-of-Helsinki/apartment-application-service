@@ -4,7 +4,10 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("application_form", "0074_apartmentreservation_queue_position_before_cancelation"),
+        (
+            "application_form",
+            "0074_apartmentreservation_queue_position_before_cancelation",
+        ),
     ]
 
     operations = [

@@ -5,11 +5,11 @@ import pytest
 
 from users.masking import unmask_string
 from users.services.drupal_credentials import (
-    ProfileNotFoundError,
-    ProfileUserMissingError,
     build_masked_credentials,
     credentials_to_json,
     find_profile_for_drupal_user,
+    ProfileNotFoundError,
+    ProfileUserMissingError,
     sync_drupal_user_credentials,
 )
 from users.tests.conftest import PROFILE_TEST_DATA, TEST_USER_PASSWORD
@@ -21,9 +21,7 @@ def test_find_profile_by_drupal_uuid(profile):
     """
     - Profile is found when Drupal UUID matches profile primary key.
     """
-    found = find_profile_for_drupal_user(
-        str(profile.pk), email="other@example.com"
-    )
+    found = find_profile_for_drupal_user(str(profile.pk), email="other@example.com")
     assert found.pk == profile.pk
 
 
@@ -100,9 +98,7 @@ def test_sync_drupal_user_credentials_returns_json_serializable_data(profile):
     """
     - End-to-end sync returns masked values for Drupal fields.
     """
-    credentials = sync_drupal_user_credentials(
-        str(profile.pk), email=profile.email
-    )
+    credentials = sync_drupal_user_credentials(str(profile.pk), email=profile.email)
     payload = json.loads(credentials_to_json(credentials))
 
     assert UUID(payload["profile_pk"]) == profile.pk
