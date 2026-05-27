@@ -28,9 +28,9 @@ from application_form.enums import (
 )
 from application_form.models import ApartmentReservation, Application
 from application_form.services.application import (
-    cancel_reservation,
     _reserve_apartment,
     _reserve_haso_apartment,
+    cancel_reservation,
 )
 from application_form.services.lottery.haso import _distribute_haso_apartments
 from application_form.services.queue import add_application_to_queues
