@@ -49,6 +49,7 @@ class ListProjectReservations(GenericAPIView):
                 application_apartment__application__customer__primary_profile__id=profile_uuid,  # noqa
             )
         )
+
         serializer = self.get_serializer(reservations, many=True)
         return Response(serializer.data)
 
