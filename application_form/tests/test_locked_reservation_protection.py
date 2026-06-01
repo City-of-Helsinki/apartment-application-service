@@ -28,9 +28,9 @@ from application_form.enums import (
 )
 from application_form.models import ApartmentReservation, Application
 from application_form.services.application import (
-    cancel_reservation,
     _reserve_apartment,
     _reserve_haso_apartment,
+    cancel_reservation,
 )
 from application_form.services.lottery.haso import _distribute_haso_apartments
 from application_form.services.queue import add_application_to_queues
@@ -110,12 +110,12 @@ def test_reserve_haso_apartment_does_not_downgrade_sold_winner(
     _reserve_haso_apartment(apartment_uuid)
 
     winner.refresh_from_db()
-    assert winner.state == ApartmentReservationState.SOLD, (
-        "SOLD winner was downgraded by _reserve_haso_apartment"
-    )
-    assert winner.state_change_events.count() == events_before, (
-        "No new state-change event should be created for the sold winner"
-    )
+    assert (
+        winner.state == ApartmentReservationState.SOLD
+    ), "SOLD winner was downgraded by _reserve_haso_apartment"
+    assert (
+        winner.state_change_events.count() == events_before
+    ), "No new state-change event should be created for the sold winner"
 
 
 @mark.django_db
@@ -150,12 +150,12 @@ def test_reserve_apartment_hitas_does_not_downgrade_sold_winner(
     _reserve_apartment(apartment_uuid)
 
     winner.refresh_from_db()
-    assert winner.state == ApartmentReservationState.SOLD, (
-        "SOLD HITAS winner was downgraded by _reserve_apartment"
-    )
-    assert winner.state_change_events.count() == events_before, (
-        "No new state-change event should be created for the sold winner"
-    )
+    assert (
+        winner.state == ApartmentReservationState.SOLD
+    ), "SOLD HITAS winner was downgraded by _reserve_apartment"
+    assert (
+        winner.state_change_events.count() == events_before
+    ), "No new state-change event should be created for the sold winner"
 
 
 @mark.django_db
@@ -186,9 +186,9 @@ def test_cancel_reservation_in_same_apartment_does_not_downgrade_sold_winner_has
         "Cancelling a reservation behind a SOLD winner must not downgrade "
         "the SOLD reservation"
     )
-    assert sold_winner.state_change_events.count() == events_before, (
-        "No new state-change event should be created for the SOLD reservation"
-    )
+    assert (
+        sold_winner.state_change_events.count() == events_before
+    ), "No new state-change event should be created for the SOLD reservation"
 
 
 @mark.django_db
@@ -203,9 +203,7 @@ def test_distribute_haso_apartments_is_idempotent_after_sale(
     apartment_uuid = apartments[0].uuid
 
     app = ApplicationFactory(type=ApplicationType.HASO, right_of_residence=1)
-    app.application_apartments.create(
-        apartment_uuid=apartment_uuid, priority_number=0
-    )
+    app.application_apartments.create(apartment_uuid=apartment_uuid, priority_number=0)
     add_application_to_queues(app)
     _distribute_haso_apartments(project_uuid)
 
@@ -221,9 +219,9 @@ def test_distribute_haso_apartments_is_idempotent_after_sale(
     _distribute_haso_apartments(project_uuid)
 
     reservation.refresh_from_db()
-    assert reservation.state == ApartmentReservationState.SOLD, (
-        "Re-running HASO lottery must not downgrade SOLD reservations"
-    )
+    assert (
+        reservation.state == ApartmentReservationState.SOLD
+    ), "Re-running HASO lottery must not downgrade SOLD reservations"
     assert reservation.state_change_events.count() == events_before, (
         "Re-running lottery must not produce a new state-change event on a "
         "sold reservation"
@@ -330,9 +328,7 @@ def test_late_haso_application_does_not_downgrade_sold_winner_in_other_apartment
 
     # Customer Y's prior reservation on the sold apartment must be CANCELED.
     customer_y_reservation_on_sold.refresh_from_db()
-    assert (
-        customer_y_reservation_on_sold.state == ApartmentReservationState.CANCELED
-    )
+    assert customer_y_reservation_on_sold.state == ApartmentReservationState.CANCELED
 
     # The actual regression assertion: the unrelated SOLD reservation on the same
     # apartment must NOT have been downgraded by the cancel cascade.
@@ -341,6 +337,6 @@ def test_late_haso_application_does_not_downgrade_sold_winner_in_other_apartment
         "Late application's cancel cascade downgraded a SOLD reservation on "
         "another apartment in the project"
     )
-    assert sold_reservation.state_change_events.count() == sold_events_before, (
-        "No new state-change event should be written on the SOLD reservation"
-    )
+    assert (
+        sold_reservation.state_change_events.count() == sold_events_before
+    ), "No new state-change event should be written on the SOLD reservation"
