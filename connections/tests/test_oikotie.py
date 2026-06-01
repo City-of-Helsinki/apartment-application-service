@@ -268,6 +268,46 @@ class TestOikotieMapper:
         )
         assert mapped_apartment.pictures[1].is_floor_plan is True
 
+    def test_elastic_to_oikotie__pictures__deduplicates_repeated_urls(self):
+        """
+        - Duplicate image_urls from ES are mapped once.
+        - Order of first occurrence is preserved.
+        """
+        repeated_url = "https://test.example.com/repeated.jpg"
+        elastic_apartment = ApartmentDocumentFactory(
+            project_main_image_url="https://test.example.com/main.jpg",
+            project_image_urls=[repeated_url] * 300,
+            image_urls=[repeated_url] * 300,
+            floor_plan_image=None,
+        )
+        pictures = map_apartment_pictures(elastic_apartment)
+
+        assert len(pictures) == 2
+        assert pictures[0].url == "https://test.example.com/main.jpg"
+        assert pictures[1].url == repeated_url
+        assert [picture.index for picture in pictures] == [1, 2]
+
+    def test_elastic_to_oikotie__pictures__caps_at_oikotie_schema_max(self):
+        """
+        - Oikotie schema allows Picture1 through Picture100 only.
+        - URLs beyond the limit are dropped.
+        """
+        unique_urls = [
+            f"https://test.example.com/image-{index}.jpg" for index in range(101)
+        ]
+        elastic_apartment = ApartmentDocumentFactory(
+            project_main_image_url=None,
+            project_image_urls=[],
+            image_urls=unique_urls,
+            floor_plan_image=None,
+        )
+        pictures = map_apartment_pictures(elastic_apartment)
+
+        assert len(pictures) == 100
+        assert pictures[0].url == "https://test.example.com/image-0.jpg"
+        assert pictures[99].url == "https://test.example.com/image-99.jpg"
+        assert [picture.index for picture in pictures] == list(range(1, 101))
+
     def test_elastic_to_oikotie__real_estate_agent__mapping_types(self):
         elastic_apartment = ApartmentDocumentFactory()
         oikotie_real_estate_agent = map_real_estate_agent(elastic_apartment)

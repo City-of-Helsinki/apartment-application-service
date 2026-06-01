@@ -57,6 +57,9 @@ from connections.utils import convert_price_from_cents_to_eur
 
 _logger = logging.getLogger(__name__)
 
+# Oikotie apartments batch schema allows Picture1 through Picture100 only.
+OIKOTIE_MAX_PICTURES = 100
+
 
 def ensure_str(
     value: Union[str, AttrList, None], multi_join: bool = False
@@ -148,44 +151,49 @@ def map_estate(elastic_apartment: ElasticApartment) -> Optional[Estate]:
 def map_apartment_pictures(
     elastic_apartment: ElasticApartment,
 ) -> List[ApartmentPicture]:
-    pictures = []
+    """
+    Map apartment images for Oikotie export.
+
+    Deduplicates URLs and caps output at OIKOTIE_MAX_PICTURES to satisfy the
+    Oikotie RELAXNG schema.
+    """
+    candidates: List[tuple[str, bool]] = []
 
     main_image_url = ensure_str(
         getattr(elastic_apartment, "project_main_image_url", None)
     )
     if main_image_url:
-        pictures.append(
-            ApartmentPicture(
-                index=len(pictures) + 1,
-                is_floor_plan=False,
-                url=main_image_url,
-            )
-        )
+        candidates.append((main_image_url, False))
 
     image_urls = [
         *getattr(elastic_apartment, "image_urls", []),
         *getattr(elastic_apartment, "project_image_urls", []),
     ]
-    if len(image_urls) > 0:
-        for picture_url in image_urls:
-            url = ensure_str(picture_url)
-            if url:
-                pictures.append(
-                    ApartmentPicture(
-                        index=len(pictures) + 1,
-                        is_floor_plan=False,
-                        url=url,
-                    )
-                )
+    for picture_url in image_urls:
+        url = ensure_str(picture_url)
+        if url:
+            candidates.append((url, False))
+
     floor_plan_image = ensure_str(getattr(elastic_apartment, "floor_plan_image", None))
     if floor_plan_image:
+        candidates.append((floor_plan_image, True))
+
+    seen_urls: set[str] = set()
+    pictures: List[ApartmentPicture] = []
+    for url, is_floor_plan in candidates:
+        if url in seen_urls:
+            continue
+        seen_urls.add(url)
         pictures.append(
             ApartmentPicture(
                 index=len(pictures) + 1,
-                is_floor_plan=True,
-                url=floor_plan_image,
+                is_floor_plan=is_floor_plan,
+                url=url,
             )
         )
+        if len(pictures) >= OIKOTIE_MAX_PICTURES:
+            break
+
     return pictures
 
 
