@@ -163,7 +163,8 @@ class TestEtuoviImagesInXml:
 
     def test_map_images_main_image_gets_seq_zero(self):
         """
-        - Main image is listed first with image_seq 0 when project_main_image_url is set.
+        - Main image is listed first with image_seq 0 when
+          project_main_image_url is set.
         - Other images are renumbered from 1 upward.
         """
         main_url = "https://test.example.com/main.jpg"
@@ -214,7 +215,8 @@ class TestEtuoviImagesInXml:
         assert len(images) == 100
         assert images[0].image_url == "https://test.example.com/image-0.jpg"
         assert images[99].image_url == "https://test.example.com/image-99.jpg"
-        assert [image.image_seq for image in images] == [str(seq) for seq in range(1, 101)]
+        expected_seq = [str(seq) for seq in range(1, 101)]
+        assert [image.image_seq for image in images] == expected_seq
 
 
 @pytest.mark.usefixtures("client")
