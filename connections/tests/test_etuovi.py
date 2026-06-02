@@ -99,6 +99,20 @@ class TestEtuoviMapper:
             return
         raise Exception("Missing project_building_type should have thrown a ValueError")
 
+    def test_map_apartment_to_item_resolves_floor_max(self):
+        """
+        - Uses project-level floor max when apartment floor_max is too low.
+        """
+        project_uuid = "proj-123"
+        apartment = ApartmentMinimalFactory(
+            project_uuid=project_uuid,
+            floor=5,
+            floor_max=1,
+        )
+        lookup = {project_uuid: 8}
+        item = map_apartment_to_item(apartment, project_floor_max_lookup=lookup)
+        assert item.floors == 8
+
 
 class TestEtuoviImagesInXml:
     """

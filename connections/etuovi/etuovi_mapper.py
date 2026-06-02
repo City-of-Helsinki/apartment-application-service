@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from django.conf import settings
 from django.utils.html import strip_tags
@@ -31,7 +31,7 @@ from connections.etuovi.field_mapper import (
     REALTY_TYPE_MAPPING,
     TRADE_TYPE_MAPPING,
 )
-from connections.utils import convert_price_from_cents_to_eur
+from connections.utils import convert_price_from_cents_to_eur, resolve_floor_max
 
 # Guard against duplicated ES image_urls (same cap as Oikotie export).
 ETUOVI_MAX_IMAGES = 100
@@ -532,10 +532,19 @@ def map_realty_options(elastic_apartment: ApartmentDocument) -> List[RealtyOptio
     return realty_options
 
 
-def map_apartment_to_item(elastic_apartment: ApartmentDocument) -> Item:
+def map_apartment_to_item(
+    elastic_apartment: ApartmentDocument,
+    project_floor_max_lookup: Optional[Dict[str, int]] = None,
+) -> Item:
     """
     Maps the ElasticSearch apartment to the Etuovi Item.
     """
+    project_floor_max = None
+    if project_floor_max_lookup:
+        project_uuid = getattr(elastic_apartment, "project_uuid", None)
+        if project_uuid:
+            project_floor_max = project_floor_max_lookup.get(str(project_uuid))
+
     is_haso = (
         elastic_apartment.project_ownership_type.lower() == OwnershipType.HASO.value
     )
@@ -560,7 +569,7 @@ def map_apartment_to_item(elastic_apartment: ApartmentDocument) -> Item:
         "debtfreeprice": map_price(elastic_apartment, debtfreeprice_key),
         "energyclass": map_energy_class(elastic_apartment),
         "extralink": map_extra_links(elastic_apartment),
-        "floors": getattr(elastic_apartment, "floor_max", None),
+        "floors": resolve_floor_max(elastic_apartment, project_floor_max),
         "holdingtype": map_holding_type(elastic_apartment),
         "image": map_images(elastic_apartment),
         "itemgroup": map_item_group(elastic_apartment),

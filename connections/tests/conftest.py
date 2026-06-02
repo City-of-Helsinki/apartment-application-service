@@ -195,7 +195,7 @@ def mock_connections_apartment_search(monkeypatch):
         map_oikotie_apartment,
         map_oikotie_housing_company,
     )
-    from connections.utils import map_document
+    from connections.utils import build_project_floor_max_by_uuid, map_document
 
     def _etuovi_source():
         return [
@@ -216,18 +216,34 @@ def mock_connections_apartment_search(monkeypatch):
         ]
 
     def _etuovi_fetch_apartments_for_sale(verbose=False):
+        source = _etuovi_source()
+        project_floor_max_lookup = build_project_floor_max_by_uuid(source)
+
+        def map_item(apartment):
+            return map_apartment_to_item(
+                apartment, project_floor_max_lookup=project_floor_max_lookup
+            )
+
         items = []
-        for hit in _etuovi_source():
-            apartment = map_document(hit, map_apartment_to_item)
+        for hit in source:
+            apartment = map_document(hit, map_item)
             if apartment:
                 items.append(apartment)
         return items
 
     def _oikotie_fetch_apartments_for_sale():
+        source = _oikotie_source()
+        project_floor_max_lookup = build_project_floor_max_by_uuid(source)
+
+        def map_apartment(apartment):
+            return map_oikotie_apartment(
+                apartment, project_floor_max_lookup=project_floor_max_lookup
+            )
+
         apartments = []
         housing_companies = []
-        for hit in _oikotie_source():
-            apartment = map_document(hit, map_oikotie_apartment)
+        for hit in source:
+            apartment = map_document(hit, map_apartment)
             housing = map_document(hit, map_oikotie_housing_company)
             if apartment and housing:
                 apartments.append(apartment)
