@@ -37,12 +37,12 @@ from connections.utils import convert_price_from_cents_to_eur
 ETUOVI_MAX_IMAGES = 100
 
 
-def handle_field_value(field: Union[str, AttrList, None]) -> str:
+def handle_field_value(field: Union[str, AttrList, list, None]):
     """
     A generator that returns each instance of a list if the given field
-    is of type AttrList. Otherwise returns the literal value.
+    is of type AttrList or list. Otherwise returns the literal value.
     """
-    if isinstance(field, AttrList):
+    if isinstance(field, (AttrList, list)):
         for f in field:
             yield f
     else:
@@ -434,12 +434,36 @@ def map_apartment_to_image_types(
     ]
 
 
+def _assign_main_image_seq_zero(images: List[Image], main_url: str) -> None:
+    """
+    Move the main image to the front and assign it image_seq 0.
+
+    Remaining images are renumbered from 1 upward in their relative order.
+    """
+    main_index = next(
+        (index for index, image in enumerate(images) if image.image_url == main_url),
+        None,
+    )
+    if main_index is None:
+        return
+
+    main_image = images.pop(main_index)
+    main_image.image_seq = "0"
+    main_image.image_transfer_id = "0"
+    images.insert(0, main_image)
+
+    for seq, image in enumerate(images[1:], start=1):
+        image.image_seq = str(seq)
+        image.image_transfer_id = str(seq)
+
+
 def map_images(elastic_apartment: ApartmentDocument) -> List[Image]:
     """
     Map apartment images for Etuovi export.
 
     Deduplicates URLs and caps output at ETUOVI_MAX_IMAGES. The first occurrence
-    of each URL keeps its RealtyImageType.
+    of each URL keeps its RealtyImageType. When project_main_image_url is set,
+    that image is exported first with image_seq 0.
     """
     image_type_mapping = map_apartment_to_image_types(elastic_apartment)
 
@@ -457,7 +481,14 @@ def map_images(elastic_apartment: ApartmentDocument) -> List[Image]:
             images.append(get_image_mapping(image_type, str(image_seq), url))
             image_seq += 1
             if len(images) >= ETUOVI_MAX_IMAGES:
-                return images
+                break
+        if len(images) >= ETUOVI_MAX_IMAGES:
+            break
+
+    main_image_url = getattr(elastic_apartment, "project_main_image_url", None)
+    if main_image_url:
+        _assign_main_image_seq_zero(images, str(main_image_url))
+
     return images
 
 

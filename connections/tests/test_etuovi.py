@@ -159,7 +159,42 @@ class TestEtuoviImagesInXml:
         assert len(images) == 1
         assert images[0].image_url == repeated_url
         assert images[0].image_realtyimagetype == RealtyImageType.GENERAL_IMAGE
-        assert images[0].image_seq == "1"
+        assert images[0].image_seq == "0"
+
+    def test_map_images_main_image_gets_seq_zero(self):
+        """
+        - Main image is listed first with image_seq 0 when project_main_image_url is set.
+        - Other images are renumbered from 1 upward.
+        """
+        main_url = "https://test.example.com/main.jpg"
+        elastic_apartment = ApartmentMinimalFactory(
+            project_main_image_url=main_url,
+            project_image_urls=[
+                "https://test.example.com/project-1.jpg",
+                "https://test.example.com/project-2.jpg",
+            ],
+            image_urls=["https://test.example.com/apartment-1.jpg"],
+            floor_plan_image="https://test.example.com/floorplan.jpg",
+        )
+        images = map_images(elastic_apartment)
+
+        assert images[0].image_url == main_url
+        assert images[0].image_realtyimagetype == RealtyImageType.MAIN_IMAGE
+        assert [image.image_seq for image in images] == ["0", "1", "2", "3", "4"]
+
+    def test_map_images_without_main_image_starts_seq_at_one(self):
+        """
+        - When project_main_image_url is missing, image_seq starts at 1.
+        """
+        elastic_apartment = ApartmentMinimalFactory(
+            project_main_image_url=None,
+            project_image_urls=["https://test.example.com/project-1.jpg"],
+            image_urls=["https://test.example.com/apartment-1.jpg"],
+            floor_plan_image=None,
+        )
+        images = map_images(elastic_apartment)
+
+        assert [image.image_seq for image in images] == ["1", "2"]
 
     def test_map_images_caps_at_export_max(self):
         """
