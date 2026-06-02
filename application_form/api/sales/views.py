@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 from typing import Optional
 
@@ -6,6 +7,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
 from django.utils import timezone, translation
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods
@@ -36,11 +38,13 @@ from application_form.api.serializers import (
     ApartmentReservationCancelEventSerializer,
     ApartmentReservationStateChangeEventSerializer,
     OfferMessageQueryParamsSerializer,
+    PendingOfferReminderSerializer,
 )
 from application_form.api.views import ApplicationViewSet
 from application_form.enums import (
     ApartmentReservationCancellationReason,
     ApartmentReservationState,
+    OfferState,
 )
 from application_form.exceptions import ProjectDoesNotHaveApplicationsException
 from application_form.models import (
@@ -66,6 +70,8 @@ from application_form.services.reservation import (
 )
 from audit_log.viewsets import AuditLoggingModelViewSet
 from users.permissions import IsDjangoSalesperson, IsDrupalSalesperson
+
+_logger = logging.getLogger(__name__)
 
 
 @api_view(http_method_names=["POST"])
@@ -606,3 +612,91 @@ class ProjectExtraDataViewSet(
 ):
     queryset = ProjectExtraData.objects.all()
     serializer_class = ProjectExtraDataSerializer
+
+
+def _get_pending_offer_reminders(days_before: int):
+    today = timezone.localdate()
+    deadline = today + timedelta(days=days_before)
+    offers = (
+        Offer.objects.select_related("apartment_reservation__customer__primary_profile")
+        .filter(
+            state=OfferState.PENDING,
+            reminder_sent_at__isnull=True,
+            valid_until__gte=today,
+            valid_until__lte=deadline,
+            apartment_reservation__state=ApartmentReservationState.OFFERED,
+        )
+        .order_by("valid_until", "id")
+    )
+    results = []
+    for offer in offers:
+        apartment_uuid = offer.apartment_reservation.apartment_uuid
+        try:
+            project_uuid = get_apartment(apartment_uuid).project_uuid
+        except ObjectDoesNotExist:
+            _logger.warning(
+                "Skipping offer %s reminder: apartment %s not found in index.",
+                offer.id,
+                apartment_uuid,
+            )
+            continue
+        customer = offer.apartment_reservation.customer
+        profile = customer.primary_profile
+        results.append(
+            {
+                "id": offer.id,
+                "valid_until": offer.valid_until,
+                "apartment_uuid": apartment_uuid,
+                "project_uuid": project_uuid,
+                "customer": {
+                    "id": customer.id,
+                    "primary_profile": {
+                        "id": profile.id,
+                        "first_name": profile.first_name,
+                        "last_name": profile.last_name,
+                        "email": profile.email,
+                    },
+                },
+            }
+        )
+    return results
+
+
+@api_view(http_method_names=["GET"])
+@require_http_methods(["GET"])
+@permission_classes([IsDrupalServer])
+@authentication_classes([DrupalAuthentication])
+def pending_offer_reminders(request):
+    """
+    Returns pending offers that need a reminder email before the deadline.
+    """
+    days_before = settings.OFFER_REMINDER_DAYS_BEFORE
+    if days_before_param := request.query_params.get("days_before"):
+        try:
+            days_before = int(days_before_param)
+        except ValueError:
+            raise ValidationError({"days_before": "Must be an integer."})
+        if days_before < 0:
+            raise ValidationError({"days_before": "Must be zero or greater."})
+
+    reminders = _get_pending_offer_reminders(days_before)
+    serializer = PendingOfferReminderSerializer(reminders, many=True)
+    return Response(serializer.data)
+
+
+@api_view(http_method_names=["POST"])
+@require_http_methods(["POST"])
+@permission_classes([IsDrupalServer])
+@authentication_classes([DrupalAuthentication])
+def mark_offer_reminder_sent(request, offer_id):
+    """
+    Records that a reminder email was sent for the given offer.
+    """
+    offer = get_object_or_404(Offer, pk=offer_id)
+    if offer.reminder_sent_at is None and offer.state == OfferState.PENDING:
+        offer.reminder_sent_at = timezone.now()
+        offer.save(update_fields=["reminder_sent_at", "updated_at"])
+    return Response(
+        {"id": offer.id, "reminder_sent_at": offer.reminder_sent_at},
+        status=status.HTTP_200_OK,
+    )
