@@ -107,6 +107,26 @@ class TestOikotieMapper:
         oikotie_floor_location = map_floor_location(elastic_apartment)
         check_dataclass_typing(oikotie_floor_location)
 
+    def test_map_floor_location_resolves_floor_max(self):
+        """
+        - Uses project-level floor max when apartment floor_max is too low.
+        - high is computed against the resolved floor_max.
+        """
+        apartment = ApartmentMinimalFactory(floor=5, floor_max=1)
+        location = map_floor_location(apartment, project_floor_max=8)
+        assert location.count == 8
+        assert location.number == 5
+        assert location.high is False
+
+    def test_map_floor_location_marks_top_floor_using_resolved_max(self):
+        """
+        - Marks top floor when apartment floor equals resolved floor_max.
+        """
+        apartment = ApartmentMinimalFactory(floor=8, floor_max=1)
+        location = map_floor_location(apartment, project_floor_max=8)
+        assert location.count == 8
+        assert location.high is True
+
     def test_elastic_to_oikotie__housing_company_apartment__mapping_types(self):
         elastic_apartment = ApartmentDocumentFactory()
         oikotie_housing_company_apartment = map_apartment(elastic_apartment)

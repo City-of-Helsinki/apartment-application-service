@@ -1,6 +1,6 @@
 import logging
 from datetime import date, timedelta
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
@@ -53,7 +53,11 @@ from connections.oikotie.field_mapper import (
     NEW_DEVELOPMENT_STATUS_MAPPING,
     SITE_MAPPING,
 )
-from connections.utils import convert_price_from_cents_to_eur
+from connections.utils import (
+    _coerce_floor_value,
+    convert_price_from_cents_to_eur,
+    resolve_floor_max,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -202,17 +206,20 @@ def map_application_url(elastic_apartment: ElasticApartment) -> str:
     return ensure_str(elastic_apartment.url) or ""
 
 
-def map_floor_location(elastic_apartment: ElasticApartment) -> Optional[FloorLocation]:
-    if getattr(elastic_apartment, "floor", None) and getattr(
-        elastic_apartment, "floor_max", None
-    ):
-        high = elastic_apartment.floor == elastic_apartment.floor_max
-        low = elastic_apartment.floor == 1
+def map_floor_location(
+    elastic_apartment: ElasticApartment,
+    project_floor_max: Optional[int] = None,
+) -> Optional[FloorLocation]:
+    floor = _coerce_floor_value(getattr(elastic_apartment, "floor", None))
+    resolved_floor_max = resolve_floor_max(elastic_apartment, project_floor_max)
+    if floor and resolved_floor_max:
+        high = floor == resolved_floor_max
+        low = floor == 1
         return FloorLocation(
             high=high,
             low=low,
-            number=elastic_apartment.floor,
-            count=elastic_apartment.floor_max,
+            number=floor,
+            count=resolved_floor_max,
             description="",
         )
     else:
@@ -459,10 +466,19 @@ def form_description(elastic_apartment: ElasticApartment) -> Optional[str]:
     return form_description_with_link(elastic_apartment)
 
 
-def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:
+def map_oikotie_apartment(
+    elastic_apartment: ElasticApartment,
+    project_floor_max_lookup: Optional[Dict[str, int]] = None,
+) -> Apartment:
     """
     Maps the ElasticSearch data to the Oikotie Apartment dataclass.
     """
+    project_floor_max = None
+    if project_floor_max_lookup:
+        project_uuid = getattr(elastic_apartment, "project_uuid", None)
+        if project_uuid:
+            project_floor_max = project_floor_max_lookup.get(str(project_uuid))
+
     heating_options = getattr(elastic_apartment, "project_heating_options", None)
     construction_materials = getattr(
         elastic_apartment, "project_construction_materials", None
@@ -496,7 +512,9 @@ def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:
         "virtual_presentation": ensure_str(
             getattr(elastic_apartment, "project_virtual_presentation_url", None)
         ),
-        "floor_location": map_floor_location(elastic_apartment),
+        "floor_location": map_floor_location(
+            elastic_apartment, project_floor_max=project_floor_max
+        ),
         "number_of_rooms": _to_int(getattr(elastic_apartment, "room_count", None)),
         "room_types": ensure_str(
             getattr(elastic_apartment, "apartment_structure", None)

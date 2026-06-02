@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from decimal import Decimal
-from typing import List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from django.conf import settings
 from django.utils.html import strip_tags
@@ -31,15 +31,18 @@ from connections.etuovi.field_mapper import (
     REALTY_TYPE_MAPPING,
     TRADE_TYPE_MAPPING,
 )
-from connections.utils import convert_price_from_cents_to_eur
+from connections.utils import convert_price_from_cents_to_eur, resolve_floor_max
+
+# Guard against duplicated ES image_urls (same cap as Oikotie export).
+ETUOVI_MAX_IMAGES = 100
 
 
-def handle_field_value(field: Union[str, AttrList, None]) -> str:
+def handle_field_value(field: Union[str, AttrList, list, None]):
     """
     A generator that returns each instance of a list if the given field
-    is of type AttrList. Otherwise returns the literal value.
+    is of type AttrList or list. Otherwise returns the literal value.
     """
-    if isinstance(field, AttrList):
+    if isinstance(field, (AttrList, list)):
         for f in field:
             yield f
     else:
@@ -431,21 +434,61 @@ def map_apartment_to_image_types(
     ]
 
 
+def _assign_main_image_seq_zero(images: List[Image], main_url: str) -> None:
+    """
+    Move the main image to the front and assign it image_seq 0.
+
+    Remaining images are renumbered from 1 upward in their relative order.
+    """
+    main_index = next(
+        (index for index, image in enumerate(images) if image.image_url == main_url),
+        None,
+    )
+    if main_index is None:
+        return
+
+    main_image = images.pop(main_index)
+    main_image.image_seq = "0"
+    main_image.image_transfer_id = "0"
+    images.insert(0, main_image)
+
+    for seq, image in enumerate(images[1:], start=1):
+        image.image_seq = str(seq)
+        image.image_transfer_id = str(seq)
+
+
 def map_images(elastic_apartment: ApartmentDocument) -> List[Image]:
     """
-    Handles the mapping of Image properties. If the input value is a list of image urls,
-    create an Image for each of the urls.
+    Map apartment images for Etuovi export.
+
+    Deduplicates URLs and caps output at ETUOVI_MAX_IMAGES. The first occurrence
+    of each URL keeps its RealtyImageType. When project_main_image_url is set,
+    that image is exported first with image_seq 0.
     """
     image_type_mapping = map_apartment_to_image_types(elastic_apartment)
 
-    images = []
+    seen_urls: set[str] = set()
+    images: List[Image] = []
     image_seq = 1
     for image_type, field_value in image_type_mapping:
         for image_url in handle_field_value(field_value):
-            if image_url:
-                image = get_image_mapping(image_type, str(image_seq), image_url)
-                images.append(image)
-                image_seq += 1
+            if not image_url:
+                continue
+            url = str(image_url)
+            if url in seen_urls:
+                continue
+            seen_urls.add(url)
+            images.append(get_image_mapping(image_type, str(image_seq), url))
+            image_seq += 1
+            if len(images) >= ETUOVI_MAX_IMAGES:
+                break
+        if len(images) >= ETUOVI_MAX_IMAGES:
+            break
+
+    main_image_url = getattr(elastic_apartment, "project_main_image_url", None)
+    if main_image_url:
+        _assign_main_image_seq_zero(images, str(main_image_url))
+
     return images
 
 
@@ -489,10 +532,19 @@ def map_realty_options(elastic_apartment: ApartmentDocument) -> List[RealtyOptio
     return realty_options
 
 
-def map_apartment_to_item(elastic_apartment: ApartmentDocument) -> Item:
+def map_apartment_to_item(
+    elastic_apartment: ApartmentDocument,
+    project_floor_max_lookup: Optional[Dict[str, int]] = None,
+) -> Item:
     """
     Maps the ElasticSearch apartment to the Etuovi Item.
     """
+    project_floor_max = None
+    if project_floor_max_lookup:
+        project_uuid = getattr(elastic_apartment, "project_uuid", None)
+        if project_uuid:
+            project_floor_max = project_floor_max_lookup.get(str(project_uuid))
+
     is_haso = (
         elastic_apartment.project_ownership_type.lower() == OwnershipType.HASO.value
     )
@@ -517,7 +569,7 @@ def map_apartment_to_item(elastic_apartment: ApartmentDocument) -> Item:
         "debtfreeprice": map_price(elastic_apartment, debtfreeprice_key),
         "energyclass": map_energy_class(elastic_apartment),
         "extralink": map_extra_links(elastic_apartment),
-        "floors": getattr(elastic_apartment, "floor_max", None),
+        "floors": resolve_floor_max(elastic_apartment, project_floor_max),
         "holdingtype": map_holding_type(elastic_apartment),
         "image": map_images(elastic_apartment),
         "itemgroup": map_item_group(elastic_apartment),

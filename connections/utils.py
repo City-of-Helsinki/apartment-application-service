@@ -1,8 +1,8 @@
 import logging
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from decimal import Decimal, ROUND_HALF_UP
-from typing import List, Union
+from typing import Dict, List, Optional, Union
 
 from django.utils.html import strip_tags
 from lxml import etree
@@ -124,3 +124,77 @@ def validate_apartment_required_fields(
         if not getattr(apartment, field_name, None):
             missing_fields.append(field_name)
     return missing_fields
+
+
+def _coerce_floor_value(value) -> Optional[int]:
+    """Coerce floor or floor_max to int; return None if invalid or empty."""
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    try:
+        stripped = str(value).strip()
+        return int(float(stripped)) if stripped else None
+    except (ValueError, TypeError):
+        return None
+
+
+def build_project_floor_max_by_uuid(
+    apartments: Iterable["ApartmentDocument"],  # noqa: F821
+) -> Dict[str, int]:
+    """
+    Build a lookup of the highest floor-related value per project.
+
+    For each project, considers both floor_max and floor from every apartment
+    so export mappers can correct erroneous per-apartment floor_max values.
+    """
+    project_floor_max: Dict[str, int] = {}
+    for apartment in apartments:
+        project_uuid = getattr(apartment, "project_uuid", None)
+        if not project_uuid:
+            continue
+
+        candidates: List[int] = []
+        floor_max = _coerce_floor_value(getattr(apartment, "floor_max", None))
+        floor = _coerce_floor_value(getattr(apartment, "floor", None))
+        if floor_max is not None:
+            candidates.append(floor_max)
+        if floor is not None:
+            candidates.append(floor)
+        if not candidates:
+            continue
+
+        project_key = str(project_uuid)
+        apartment_max = max(candidates)
+        current_max = project_floor_max.get(project_key)
+        if current_max is None or apartment_max > current_max:
+            project_floor_max[project_key] = apartment_max
+
+    return project_floor_max
+
+
+def resolve_floor_max(
+    apartment: "ApartmentDocument",  # noqa: F821
+    project_floor_max: Optional[int] = None,
+) -> Optional[int]:
+    """
+    Return floor_max corrected against apartment floor and project maximum.
+
+    Guards against floor_max being lower than the apartment floor or the
+    highest floor-related value seen elsewhere in the same project.
+    """
+    candidates: List[int] = []
+    floor_max = _coerce_floor_value(getattr(apartment, "floor_max", None))
+    floor = _coerce_floor_value(getattr(apartment, "floor", None))
+    if floor_max is not None:
+        candidates.append(floor_max)
+    if floor is not None:
+        candidates.append(floor)
+    if project_floor_max is not None:
+        candidates.append(int(project_floor_max))
+
+    if not candidates:
+        return None
+    return max(candidates)

@@ -5,11 +5,12 @@ from uuid import UUID
 import pytest
 from django.conf import settings
 from django.core.management import call_command
+from django_etuovi.enums import RealtyImageType
 from django_etuovi.utils.testing import check_dataclass_typing
 
 from apartment.enums import OwnershipType
 from apartment.tests.factories import ApartmentDocumentFactory
-from connections.etuovi.etuovi_mapper import map_apartment_to_item
+from connections.etuovi.etuovi_mapper import map_apartment_to_item, map_images
 from connections.etuovi.services import create_xml, fetch_apartments_for_sale
 from connections.models import MappedApartment
 from connections.tests.factories import ApartmentMinimalFactory
@@ -98,6 +99,20 @@ class TestEtuoviMapper:
             return
         raise Exception("Missing project_building_type should have thrown a ValueError")
 
+    def test_map_apartment_to_item_resolves_floor_max(self):
+        """
+        - Uses project-level floor max when apartment floor_max is too low.
+        """
+        project_uuid = "proj-123"
+        apartment = ApartmentMinimalFactory(
+            project_uuid=project_uuid,
+            floor=5,
+            floor_max=1,
+        )
+        lookup = {project_uuid: 8}
+        item = map_apartment_to_item(apartment, project_floor_max_lookup=lookup)
+        assert item.floors == 8
+
 
 class TestEtuoviImagesInXml:
     """
@@ -140,6 +155,82 @@ class TestEtuoviImagesInXml:
         all_expected_urls = project_image_urls + image_urls + [floor_plan_image]
         for url in all_expected_urls:
             assert url in xml_content, f"URL {url} not found in Etuovi XML"
+
+    def test_map_images_deduplicates_repeated_urls(self):
+        """
+        - Duplicate image_urls from ES are mapped once.
+        - First occurrence keeps its RealtyImageType.
+        """
+        repeated_url = "https://test.example.com/repeated.jpg"
+        elastic_apartment = ApartmentMinimalFactory(
+            project_main_image_url=repeated_url,
+            project_image_urls=[repeated_url] * 300,
+            image_urls=[repeated_url] * 300,
+            floor_plan_image=None,
+        )
+        images = map_images(elastic_apartment)
+
+        assert len(images) == 1
+        assert images[0].image_url == repeated_url
+        assert images[0].image_realtyimagetype == RealtyImageType.GENERAL_IMAGE
+        assert images[0].image_seq == "0"
+
+    def test_map_images_main_image_gets_seq_zero(self):
+        """
+        - Main image is listed first with image_seq 0 when
+          project_main_image_url is set.
+        - Other images are renumbered from 1 upward.
+        """
+        main_url = "https://test.example.com/main.jpg"
+        elastic_apartment = ApartmentMinimalFactory(
+            project_main_image_url=main_url,
+            project_image_urls=[
+                "https://test.example.com/project-1.jpg",
+                "https://test.example.com/project-2.jpg",
+            ],
+            image_urls=["https://test.example.com/apartment-1.jpg"],
+            floor_plan_image="https://test.example.com/floorplan.jpg",
+        )
+        images = map_images(elastic_apartment)
+
+        assert images[0].image_url == main_url
+        assert images[0].image_realtyimagetype == RealtyImageType.MAIN_IMAGE
+        assert [image.image_seq for image in images] == ["0", "1", "2", "3", "4"]
+
+    def test_map_images_without_main_image_starts_seq_at_one(self):
+        """
+        - When project_main_image_url is missing, image_seq starts at 1.
+        """
+        elastic_apartment = ApartmentMinimalFactory(
+            project_main_image_url=None,
+            project_image_urls=["https://test.example.com/project-1.jpg"],
+            image_urls=["https://test.example.com/apartment-1.jpg"],
+            floor_plan_image=None,
+        )
+        images = map_images(elastic_apartment)
+
+        assert [image.image_seq for image in images] == ["1", "2"]
+
+    def test_map_images_caps_at_export_max(self):
+        """
+        - Protects Etuovi XML from oversized image lists in ES.
+        """
+        unique_urls = [
+            f"https://test.example.com/image-{index}.jpg" for index in range(101)
+        ]
+        elastic_apartment = ApartmentMinimalFactory(
+            project_main_image_url=None,
+            project_image_urls=[],
+            image_urls=unique_urls,
+            floor_plan_image=None,
+        )
+        images = map_images(elastic_apartment)
+
+        assert len(images) == 100
+        assert images[0].image_url == "https://test.example.com/image-0.jpg"
+        assert images[99].image_url == "https://test.example.com/image-99.jpg"
+        expected_seq = [str(seq) for seq in range(1, 101)]
+        assert [image.image_seq for image in images] == expected_seq
 
 
 @pytest.mark.usefixtures("client")
