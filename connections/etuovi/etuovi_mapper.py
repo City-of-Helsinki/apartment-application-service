@@ -33,6 +33,9 @@ from connections.etuovi.field_mapper import (
 )
 from connections.utils import convert_price_from_cents_to_eur
 
+# Guard against duplicated ES image_urls (same cap as Oikotie export).
+ETUOVI_MAX_IMAGES = 100
+
 
 def handle_field_value(field: Union[str, AttrList, None]) -> str:
     """
@@ -433,19 +436,28 @@ def map_apartment_to_image_types(
 
 def map_images(elastic_apartment: ApartmentDocument) -> List[Image]:
     """
-    Handles the mapping of Image properties. If the input value is a list of image urls,
-    create an Image for each of the urls.
+    Map apartment images for Etuovi export.
+
+    Deduplicates URLs and caps output at ETUOVI_MAX_IMAGES. The first occurrence
+    of each URL keeps its RealtyImageType.
     """
     image_type_mapping = map_apartment_to_image_types(elastic_apartment)
 
-    images = []
+    seen_urls: set[str] = set()
+    images: List[Image] = []
     image_seq = 1
     for image_type, field_value in image_type_mapping:
         for image_url in handle_field_value(field_value):
-            if image_url:
-                image = get_image_mapping(image_type, str(image_seq), image_url)
-                images.append(image)
-                image_seq += 1
+            if not image_url:
+                continue
+            url = str(image_url)
+            if url in seen_urls:
+                continue
+            seen_urls.add(url)
+            images.append(get_image_mapping(image_type, str(image_seq), url))
+            image_seq += 1
+            if len(images) >= ETUOVI_MAX_IMAGES:
+                return images
     return images
 
 
