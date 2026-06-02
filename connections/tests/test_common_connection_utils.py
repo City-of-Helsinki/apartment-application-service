@@ -41,12 +41,8 @@ class TestFloorMaxResolution:
         - Computes the highest floor or floor_max per project_uuid.
         """
         project_uuid = "same-project-uuid"
-        apt1 = ApartmentMinimalFactory(
-            project_uuid=project_uuid, floor=2, floor_max=1
-        )
-        apt2 = ApartmentMinimalFactory(
-            project_uuid=project_uuid, floor=7, floor_max=6
-        )
+        apt1 = ApartmentMinimalFactory(project_uuid=project_uuid, floor=2, floor_max=1)
+        apt2 = ApartmentMinimalFactory(project_uuid=project_uuid, floor=7, floor_max=6)
         apt3 = ApartmentMinimalFactory(project_uuid="other", floor=1, floor_max=3)
         lookup = build_project_floor_max_by_uuid([apt1, apt2, apt3])
         assert lookup[project_uuid] == 7
