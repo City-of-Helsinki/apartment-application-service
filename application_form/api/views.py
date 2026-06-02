@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from apartment.elastic.queries import get_apartment_uuids
+from application_form.api.sales.serializers import OfferDetailsSerializer, OfferMessageSerializer
 from application_form.api.serializers import (
     ApartmentReservationSerializer,
     ApplicantSerializerBase,
@@ -131,3 +132,83 @@ class CustomerOfferUpdateView(GenericAPIView):
         serializer.is_valid(raise_exception=True)
         offer = serializer.save()
         return Response(ReservationOfferSerializer(offer).data)
+
+
+class CustomerOfferMessageView(GenericAPIView):
+    """
+    Public: Returns the offer email subject and body for the customer's offer.
+    """
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ["get"]
+
+    def get_offer(self, offer_id, profile_uuid):
+        """
+        Load an offer owned by the authenticated customer's primary profile.
+        """
+        return get_object_or_404(
+            Offer.objects.select_related(
+                "apartment_reservation__customer__primary_profile"
+            ),
+            pk=offer_id,
+            apartment_reservation__application_apartment__application__customer__primary_profile__id=profile_uuid,  # noqa: E501
+        )
+
+    def get(self, request, offer_id):
+        """
+        Return offer message content matching the salesperson email template.
+        """
+        profile_uuid = request.user.profile.id
+        offer = self.get_offer(offer_id, profile_uuid)
+        reservation = offer.apartment_reservation
+        message = OfferMessageSerializer(
+            reservation,
+            context={"valid_until": offer.valid_until},
+        ).data
+        return Response(
+            {
+                "subject": message["subject"],
+                "body": message["body"],
+            }
+        )
+
+
+class CustomerOfferDetailsView(GenericAPIView):
+    """
+    Public: Returns the offer details (dynamic email part) as structured items.
+    """
+
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ["get"]
+
+    def get_offer(self, offer_id, profile_uuid):
+        """
+        Load an offer owned by the authenticated customer's primary profile.
+        """
+        return get_object_or_404(
+            Offer.objects.select_related(
+                "apartment_reservation__customer__primary_profile"
+            ),
+            pk=offer_id,
+            apartment_reservation__application_apartment__application__customer__primary_profile__id=profile_uuid,  # noqa: E501
+        )
+
+    def get(self, request, offer_id):
+        """
+        Return offer details matching the salesperson email dynamic part.
+        """
+        profile_uuid = request.user.profile.id
+        offer = self.get_offer(offer_id, profile_uuid)
+        reservation = offer.apartment_reservation
+        details = OfferDetailsSerializer(
+            reservation,
+            context={"valid_until": offer.valid_until},
+        ).data
+        return Response(
+            {
+                "subject": details["subject"],
+                "items": details["items"],
+            }
+        )

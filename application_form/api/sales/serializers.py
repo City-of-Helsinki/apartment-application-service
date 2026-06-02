@@ -16,7 +16,7 @@ from apartment.elastic.queries import (
     get_project,
 )
 from apartment.models import ProjectExtraData
-from apartment.services import get_offer_message_subject_and_body
+from apartment.services import get_offer_details_items, get_offer_message_subject_and_body
 from application_form.api.serializers import (
     ApartmentReservationSerializerBase,
     ApplicantSerializerBase,
@@ -402,4 +402,24 @@ class OfferMessageSerializer(serializers.Serializer):
             "subject": subject,
             "body": body,
             "recipients": recipients,
+        }
+
+
+class OfferDetailsSerializer(serializers.Serializer):
+    subject = serializers.CharField()
+    items = serializers.ListField(child=serializers.DictField())
+
+    class Meta:
+        fields = ("subject", "items")
+
+    def to_representation(self, instance: ApartmentReservation):
+        subject, _body = get_offer_message_subject_and_body(
+            instance, valid_until=self.context.get("valid_until")
+        )
+        items = get_offer_details_items(
+            instance, valid_until=self.context.get("valid_until")
+        )
+        return {
+            "subject": subject,
+            "items": items,
         }
