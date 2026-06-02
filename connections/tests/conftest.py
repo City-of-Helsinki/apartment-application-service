@@ -6,10 +6,7 @@ from pytest import fixture
 from rest_framework.test import APIClient
 
 import connections
-from apartment.tests.factories import (
-    add_to_store,
-    clear_apartment_store,
-)
+from apartment.tests.factories import add_to_store, clear_apartment_store
 from apartment.tests.utils import TestDrupalSearchClient
 from connections.enums import ApartmentStateOfSale
 from connections.tests.factories import ApartmentMinimalFactory
