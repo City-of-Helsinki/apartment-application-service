@@ -3,6 +3,7 @@ import uuid
 from datetime import date
 from typing import Iterable, List, Optional, Union
 
+import sentry_sdk
 from django.contrib.auth import get_user_model
 from django.core.mail import EmailMessage
 from django.db import transaction
@@ -57,6 +58,44 @@ def _apartment_has_locked_winner(apartment_uuid: uuid.UUID) -> bool:
         apartment_uuid=apartment_uuid,
         state__in=LOCKED_RESERVATION_STATES,
     ).exists()
+
+
+def _report_late_application_to_sold_apartments(
+    apartment_uuids: Iterable[uuid.UUID],
+    application_external_uuid: uuid.UUID,
+) -> None:
+    """
+    Notify Sentry when a late application targets an apartment that is sold.
+
+    Parameters:
+        apartment_uuids (Iterable[uuid.UUID]): Apartments included in the application.
+        application_external_uuid (uuid.UUID): Drupal application identifier.
+    """
+    sold_apartment_uuids = [
+        str(apt_uuid)
+        for apt_uuid in apartment_uuids
+        if _apartment_has_locked_winner(apt_uuid)
+    ]
+    if not sold_apartment_uuids:
+        return
+
+    _logger.warning(
+        "Late application %s submitted to sold apartment(s): %s",
+        application_external_uuid,
+        ", ".join(sold_apartment_uuids),
+    )
+    with sentry_sdk.push_scope() as scope:
+        scope.set_context(
+            "late_application_to_sold_apartment",
+            {
+                "application_external_uuid": str(application_external_uuid),
+                "sold_apartment_uuids": sold_apartment_uuids,
+            },
+        )
+        sentry_sdk.capture_message(
+            "Late application submitted to sold apartment",
+            level="warning",
+        )
 
 
 @transaction.atomic
@@ -178,10 +217,13 @@ def create_application(
             application=application,
         )
     apartment_data = data.pop("apartments")
+    apartment_uuids = []
     for apartment_item in apartment_data:
+        apartment_uuid = apartment_item["identifier"]
+        apartment_uuids.append(apartment_uuid)
         ApplicationApartment.objects.create(
             application=application,
-            apartment_uuid=apartment_item["identifier"],
+            apartment_uuid=apartment_uuid,
             priority_number=apartment_item["priority"],
         )
 
@@ -190,6 +232,12 @@ def create_application(
     )
 
     add_application_to_queues(application, user=user)
+
+    if submitted_late:
+        _report_late_application_to_sold_apartments(
+            apartment_uuids,
+            application.external_uuid,
+        )
 
     return application
 
