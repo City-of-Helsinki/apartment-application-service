@@ -317,14 +317,11 @@ def get_project_apartment_sale_state_counts(
     if not apartment_uuid_to_project_uuid:
         return counts
 
-    # "Winning" here means the first reservation in the list for an apartment.
-    # Queue positions are not always present (e.g. in some state transitions and
-    # in tests), but list_position is always set.
     winning_reservations = (
         ApartmentReservation.objects.active()
         .filter(
             apartment_uuid__in=list(apartment_uuid_to_project_uuid.keys()),
-            list_position=1,
+            queue_position=1,
         )
         .values_list("apartment_uuid", "state")
     )
