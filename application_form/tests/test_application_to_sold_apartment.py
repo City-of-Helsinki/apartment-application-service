@@ -54,9 +54,7 @@ def test_application_to_sold_apartment_is_rejected(
     )
 
     assert response.status_code == 400
-    assert (
-        response.data["detail"]["message"] == "Cannot apply to a sold apartment"
-    )
+    assert response.data["detail"]["message"] == "Cannot apply to a sold apartment"
     assert ApartmentReservation.objects.count() == reservation_count_before
     sold_reservation.refresh_from_db()
     assert sold_reservation.state == ApartmentReservationState.SOLD
@@ -88,9 +86,7 @@ def test_sales_application_to_sold_apartment_is_rejected(
     )
 
     assert response.status_code == 400
-    assert (
-        response.data["detail"]["message"] == "Cannot apply to a sold apartment"
-    )
+    assert response.data["detail"]["message"] == "Cannot apply to a sold apartment"
 
 
 @pytest.mark.django_db
