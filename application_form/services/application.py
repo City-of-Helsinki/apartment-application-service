@@ -60,6 +60,25 @@ def _apartment_has_locked_winner(apartment_uuid: uuid.UUID) -> bool:
     ).exists()
 
 
+def get_sold_apartment_uuids(
+    apartment_uuids: Iterable[uuid.UUID],
+) -> List[uuid.UUID]:
+    """
+    Return apartment UUIDs that already have a sold reservation.
+
+    Parameters:
+        apartment_uuids (Iterable[uuid.UUID]): Target apartments in an application.
+
+    Returns:
+        List[uuid.UUID]: Subset of apartments that are already sold.
+    """
+    return [
+        apartment_uuid
+        for apartment_uuid in apartment_uuids
+        if _apartment_has_locked_winner(apartment_uuid)
+    ]
+
+
 def _report_late_application_to_sold_apartments(
     apartment_uuids: Iterable[uuid.UUID],
     application_external_uuid: uuid.UUID,
