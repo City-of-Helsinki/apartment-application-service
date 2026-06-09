@@ -107,6 +107,78 @@ class TestOikotieMapper:
         oikotie_floor_location = map_floor_location(elastic_apartment)
         check_dataclass_typing(oikotie_floor_location)
 
+    def test_map_floor_location_resolves_floor_max(self):
+        """
+        - Uses project-level floor max when apartment floor_max is too low.
+        - high is computed against the resolved floor_max.
+        """
+        apartment = ApartmentMinimalFactory(floor=5, floor_max=1)
+        location = map_floor_location(apartment, project_floor_max=8)
+        assert location.count == 8
+        assert location.number == 5
+        assert location.high is False
+
+    def test_map_floor_location_marks_top_floor_using_resolved_max(self):
+        """
+        - Marks top floor when apartment floor equals resolved floor_max.
+        """
+        apartment = ApartmentMinimalFactory(floor=8, floor_max=1)
+        location = map_floor_location(apartment, project_floor_max=8)
+        assert location.count == 8
+        assert location.high is True
+
+    def test_map_oikotie_apartment_exports_construction_materials_as_single_value(
+        self,
+    ):
+        """
+        - Exports construction materials as a joined string, not characters.
+        """
+        apartment = ApartmentMinimalFactory(
+            project_construction_materials=["Betoni"],
+            project_heating_options=["Kaukolämpö"],
+        )
+        mapped_apartment = map_oikotie_apartment(apartment)
+        assert mapped_apartment.building_material == "Betoni"
+        assert mapped_apartment.heating == "Kaukolämpö"
+
+    def test_map_oikotie_apartment_omits_zero_room_count(self):
+        """
+        - Omits number_of_rooms when room_count is 0.
+        - Oikotie schema requires NumberOfRooms to be at least 1.
+        """
+        apartment = ApartmentMinimalFactory(room_count=0)
+        mapped_apartment = map_oikotie_apartment(apartment)
+        assert mapped_apartment.number_of_rooms is None
+
+    def test_map_oikotie_apartment_exports_string_construction_materials(self):
+        """
+        - Treats a plain string construction material as one value.
+        """
+        apartment = ApartmentMinimalFactory()
+        apartment.project_construction_materials = "Betoni"
+        apartment.project_heating_options = "Kaukolämpö"
+        mapped_apartment = map_oikotie_apartment(apartment)
+        assert mapped_apartment.building_material == "Betoni"
+        assert mapped_apartment.heating == "Kaukolämpö"
+
+    def test_map_floor_location_resolves_floor_max_per_staircase(self):
+        """
+        - Uses staircase-level floor max instead of a higher project-wide max.
+        - Marks top floor when apartment floor equals staircase max.
+        """
+        apartment = ApartmentMinimalFactory(
+            apartment_number="C04",
+            floor=4,
+            floor_max=1,
+        )
+        location = map_floor_location(
+            apartment,
+            project_floor_max=8,
+            staircase_floor_max=4,
+        )
+        assert location.count == 4
+        assert location.high is True
+
     def test_elastic_to_oikotie__housing_company_apartment__mapping_types(self):
         elastic_apartment = ApartmentDocumentFactory()
         oikotie_housing_company_apartment = map_apartment(elastic_apartment)

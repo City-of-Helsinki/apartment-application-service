@@ -12,7 +12,11 @@ from connections.oikotie.oikotie_mapper import (
     map_oikotie_apartment,
     map_oikotie_housing_company,
 )
-from connections.utils import map_document
+from connections.utils import (
+    build_project_floor_max_by_uuid,
+    build_staircase_floor_max_by_uuid,
+    map_document,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -37,12 +41,22 @@ def fetch_apartments_for_sale() -> Tuple[list, list]:
     """
     Fetch apartments for sale from elasticsearch and map them for Oikotie
     """
-    scan = get_apartments_for_oikotie()
+    scan = list(get_apartments_for_oikotie())
+    project_floor_max_lookup = build_project_floor_max_by_uuid(scan)
+    staircase_floor_max_lookup = build_staircase_floor_max_by_uuid(scan)
+
+    def map_apartment(apartment):
+        return map_oikotie_apartment(
+            apartment,
+            project_floor_max_lookup=project_floor_max_lookup,
+            staircase_floor_max_lookup=staircase_floor_max_lookup,
+        )
+
     apartments = []
     housing_companies = []
 
     for hit in scan:
-        apartment = map_document(hit, map_oikotie_apartment)
+        apartment = map_document(hit, map_apartment)
         housing = map_document(hit, map_oikotie_housing_company)
 
         if not apartment:
