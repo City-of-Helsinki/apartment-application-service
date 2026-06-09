@@ -56,6 +56,7 @@ from connections.oikotie.field_mapper import (
 from connections.utils import (
     _coerce_floor_value,
     convert_price_from_cents_to_eur,
+    lookup_staircase_floor_max,
     resolve_floor_max,
 )
 
@@ -209,9 +210,14 @@ def map_application_url(elastic_apartment: ElasticApartment) -> str:
 def map_floor_location(
     elastic_apartment: ElasticApartment,
     project_floor_max: Optional[int] = None,
+    staircase_floor_max: Optional[int] = None,
 ) -> Optional[FloorLocation]:
     floor = _coerce_floor_value(getattr(elastic_apartment, "floor", None))
-    resolved_floor_max = resolve_floor_max(elastic_apartment, project_floor_max)
+    resolved_floor_max = resolve_floor_max(
+        elastic_apartment,
+        project_floor_max,
+        staircase_floor_max=staircase_floor_max,
+    )
     if floor and resolved_floor_max:
         high = floor == resolved_floor_max
         low = floor == 1
@@ -469,6 +475,7 @@ def form_description(elastic_apartment: ElasticApartment) -> Optional[str]:
 def map_oikotie_apartment(
     elastic_apartment: ElasticApartment,
     project_floor_max_lookup: Optional[Dict[str, int]] = None,
+    staircase_floor_max_lookup: Optional[Dict[str, int]] = None,
 ) -> Apartment:
     """
     Maps the ElasticSearch data to the Oikotie Apartment dataclass.
@@ -478,6 +485,10 @@ def map_oikotie_apartment(
         project_uuid = getattr(elastic_apartment, "project_uuid", None)
         if project_uuid:
             project_floor_max = project_floor_max_lookup.get(str(project_uuid))
+
+    staircase_floor_max = lookup_staircase_floor_max(
+        elastic_apartment, staircase_floor_max_lookup
+    )
 
     heating_options = getattr(elastic_apartment, "project_heating_options", None)
     construction_materials = getattr(
@@ -513,7 +524,9 @@ def map_oikotie_apartment(
             getattr(elastic_apartment, "project_virtual_presentation_url", None)
         ),
         "floor_location": map_floor_location(
-            elastic_apartment, project_floor_max=project_floor_max
+            elastic_apartment,
+            project_floor_max=project_floor_max,
+            staircase_floor_max=staircase_floor_max,
         ),
         "number_of_rooms": _to_int(getattr(elastic_apartment, "room_count", None)),
         "room_types": ensure_str(

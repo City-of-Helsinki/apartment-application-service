@@ -126,6 +126,20 @@ def validate_apartment_required_fields(
     return missing_fields
 
 
+def parse_staircase_letter(apartment_number: Optional[str]) -> Optional[str]:
+    """Extract staircase letter from apartment_number (e.g. A12 -> A)."""
+    if not apartment_number:
+        return None
+    match = re.match(r"(?P<letters>[A-Za-z]+)", str(apartment_number).strip())
+    if not match:
+        return None
+    return match.group("letters").upper()
+
+
+def _staircase_floor_max_key(project_uuid: str, staircase_letter: str) -> str:
+    return f"{project_uuid}:{staircase_letter}"
+
+
 def _coerce_floor_value(value) -> Optional[int]:
     """Coerce floor or floor_max to int; return None if invalid or empty."""
     if value is None:
@@ -175,15 +189,82 @@ def build_project_floor_max_by_uuid(
     return project_floor_max
 
 
+def build_staircase_floor_max_by_uuid(
+    apartments: Iterable["ApartmentDocument"],  # noqa: F821
+) -> Dict[str, int]:
+    """
+    Build a lookup of the highest floor-related value per project staircase.
+
+    For each project and staircase letter (from apartment_number), considers
+    both floor_max and floor from every matching apartment so export mappers
+    can correct erroneous per-apartment floor_max values per staircase.
+    """
+    staircase_floor_max: Dict[str, int] = {}
+    for apartment in apartments:
+        project_uuid = getattr(apartment, "project_uuid", None)
+        if not project_uuid:
+            continue
+
+        staircase_letter = parse_staircase_letter(
+            getattr(apartment, "apartment_number", None)
+        )
+        if not staircase_letter:
+            continue
+
+        candidates: List[int] = []
+        floor_max = _coerce_floor_value(getattr(apartment, "floor_max", None))
+        floor = _coerce_floor_value(getattr(apartment, "floor", None))
+        if floor_max is not None:
+            candidates.append(floor_max)
+        if floor is not None:
+            candidates.append(floor)
+        if not candidates:
+            continue
+
+        lookup_key = _staircase_floor_max_key(str(project_uuid), staircase_letter)
+        apartment_max = max(candidates)
+        current_max = staircase_floor_max.get(lookup_key)
+        if current_max is None or apartment_max > current_max:
+            staircase_floor_max[lookup_key] = apartment_max
+
+    return staircase_floor_max
+
+
+def lookup_staircase_floor_max(
+    apartment: "ApartmentDocument",  # noqa: F821
+    staircase_floor_max_lookup: Optional[Dict[str, int]] = None,
+) -> Optional[int]:
+    """Return staircase floor max for the apartment, if available."""
+    if not staircase_floor_max_lookup:
+        return None
+
+    project_uuid = getattr(apartment, "project_uuid", None)
+    if not project_uuid:
+        return None
+
+    staircase_letter = parse_staircase_letter(
+        getattr(apartment, "apartment_number", None)
+    )
+    if not staircase_letter:
+        return None
+
+    return staircase_floor_max_lookup.get(
+        _staircase_floor_max_key(str(project_uuid), staircase_letter)
+    )
+
+
 def resolve_floor_max(
     apartment: "ApartmentDocument",  # noqa: F821
     project_floor_max: Optional[int] = None,
+    staircase_floor_max: Optional[int] = None,
 ) -> Optional[int]:
     """
     Return floor_max corrected against apartment floor and project maximum.
 
     Guards against floor_max being lower than the apartment floor or the
-    highest floor-related value seen elsewhere in the same project.
+    highest floor-related value seen elsewhere in the same project staircase.
+    When a staircase maximum is available it takes precedence over the
+    project-wide maximum.
     """
     candidates: List[int] = []
     floor_max = _coerce_floor_value(getattr(apartment, "floor_max", None))
@@ -192,8 +273,14 @@ def resolve_floor_max(
         candidates.append(floor_max)
     if floor is not None:
         candidates.append(floor)
-    if project_floor_max is not None:
-        candidates.append(int(project_floor_max))
+
+    context_max = (
+        staircase_floor_max
+        if staircase_floor_max is not None
+        else project_floor_max
+    )
+    if context_max is not None:
+        candidates.append(int(context_max))
 
     if not candidates:
         return None

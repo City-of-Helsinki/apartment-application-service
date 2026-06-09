@@ -127,6 +127,24 @@ class TestOikotieMapper:
         assert location.count == 8
         assert location.high is True
 
+    def test_map_floor_location_resolves_floor_max_per_staircase(self):
+        """
+        - Uses staircase-level floor max instead of a higher project-wide max.
+        - Marks top floor when apartment floor equals staircase max.
+        """
+        apartment = ApartmentMinimalFactory(
+            apartment_number="C04",
+            floor=4,
+            floor_max=1,
+        )
+        location = map_floor_location(
+            apartment,
+            project_floor_max=8,
+            staircase_floor_max=4,
+        )
+        assert location.count == 4
+        assert location.high is True
+
     def test_elastic_to_oikotie__housing_company_apartment__mapping_types(self):
         elastic_apartment = ApartmentDocumentFactory()
         oikotie_housing_company_apartment = map_apartment(elastic_apartment)

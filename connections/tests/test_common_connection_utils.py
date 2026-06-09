@@ -3,7 +3,9 @@ from decimal import Decimal
 from connections.tests.factories import ApartmentMinimalFactory
 from connections.utils import (
     build_project_floor_max_by_uuid,
+    build_staircase_floor_max_by_uuid,
     convert_price_from_cents_to_eur,
+    parse_staircase_letter,
     resolve_floor_max,
 )
 
@@ -47,3 +49,62 @@ class TestFloorMaxResolution:
         lookup = build_project_floor_max_by_uuid([apt1, apt2, apt3])
         assert lookup[project_uuid] == 7
         assert lookup["other"] == 3
+
+    def test_resolve_floor_max_prefers_staircase_max_over_project_max(self):
+        """
+        - Uses staircase-level max instead of project max when both are given.
+        """
+        apartment = ApartmentMinimalFactory(
+            apartment_number="C62",
+            floor=4,
+            floor_max=1,
+        )
+        assert resolve_floor_max(apartment, project_floor_max=8, staircase_floor_max=4) == 4
+
+    def test_parse_staircase_letter(self):
+        """
+        - Extracts leading letter from apartment_number.
+        - Returns None when apartment_number has no leading letter.
+        """
+        assert parse_staircase_letter("A12") == "A"
+        assert parse_staircase_letter("C62") == "C"
+        assert parse_staircase_letter("E02") == "E"
+        assert parse_staircase_letter("C 12") == "C"
+        assert parse_staircase_letter(None) is None
+        assert parse_staircase_letter("12") is None
+
+    def test_build_staircase_floor_max_by_uuid(self):
+        """
+        - Computes the highest floor or floor_max per project and staircase.
+        """
+        project_uuid = "same-project-uuid"
+        apt_a1 = ApartmentMinimalFactory(
+            project_uuid=project_uuid,
+            apartment_number="A12",
+            floor=2,
+            floor_max=1,
+        )
+        apt_a2 = ApartmentMinimalFactory(
+            project_uuid=project_uuid,
+            apartment_number="A08",
+            floor=8,
+            floor_max=1,
+        )
+        apt_c1 = ApartmentMinimalFactory(
+            project_uuid=project_uuid,
+            apartment_number="C04",
+            floor=4,
+            floor_max=1,
+        )
+        apt_other_project = ApartmentMinimalFactory(
+            project_uuid="other",
+            apartment_number="A03",
+            floor=3,
+            floor_max=2,
+        )
+        lookup = build_staircase_floor_max_by_uuid(
+            [apt_a1, apt_a2, apt_c1, apt_other_project]
+        )
+        assert lookup[f"{project_uuid}:A"] == 8
+        assert lookup[f"{project_uuid}:C"] == 4
+        assert lookup["other:A"] == 3

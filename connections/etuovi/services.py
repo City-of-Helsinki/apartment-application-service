@@ -8,7 +8,11 @@ from django_etuovi.etuovi import create_xml_file
 from apartment.elastic.queries import get_apartments
 from connections.enums import ApartmentStateOfSale
 from connections.etuovi.etuovi_mapper import map_apartment_to_item
-from connections.utils import build_project_floor_max_by_uuid, map_document
+from connections.utils import (
+    build_project_floor_max_by_uuid,
+    build_staircase_floor_max_by_uuid,
+    map_document,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -36,10 +40,13 @@ def fetch_apartments_for_sale(verbose: bool = False) -> list:
     """
     scan = list(get_apartments_for_etuovi())
     project_floor_max_lookup = build_project_floor_max_by_uuid(scan)
+    staircase_floor_max_lookup = build_staircase_floor_max_by_uuid(scan)
 
     def map_item(apartment):
         return map_apartment_to_item(
-            apartment, project_floor_max_lookup=project_floor_max_lookup
+            apartment,
+            project_floor_max_lookup=project_floor_max_lookup,
+            staircase_floor_max_lookup=staircase_floor_max_lookup,
         )
 
     items = []

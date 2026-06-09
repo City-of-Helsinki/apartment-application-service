@@ -31,7 +31,11 @@ from connections.etuovi.field_mapper import (
     REALTY_TYPE_MAPPING,
     TRADE_TYPE_MAPPING,
 )
-from connections.utils import convert_price_from_cents_to_eur, resolve_floor_max
+from connections.utils import (
+    convert_price_from_cents_to_eur,
+    lookup_staircase_floor_max,
+    resolve_floor_max,
+)
 
 # Guard against duplicated ES image_urls (same cap as Oikotie export).
 ETUOVI_MAX_IMAGES = 100
@@ -535,6 +539,7 @@ def map_realty_options(elastic_apartment: ApartmentDocument) -> List[RealtyOptio
 def map_apartment_to_item(
     elastic_apartment: ApartmentDocument,
     project_floor_max_lookup: Optional[Dict[str, int]] = None,
+    staircase_floor_max_lookup: Optional[Dict[str, int]] = None,
 ) -> Item:
     """
     Maps the ElasticSearch apartment to the Etuovi Item.
@@ -544,6 +549,10 @@ def map_apartment_to_item(
         project_uuid = getattr(elastic_apartment, "project_uuid", None)
         if project_uuid:
             project_floor_max = project_floor_max_lookup.get(str(project_uuid))
+
+    staircase_floor_max = lookup_staircase_floor_max(
+        elastic_apartment, staircase_floor_max_lookup
+    )
 
     is_haso = (
         elastic_apartment.project_ownership_type.lower() == OwnershipType.HASO.value
@@ -569,7 +578,11 @@ def map_apartment_to_item(
         "debtfreeprice": map_price(elastic_apartment, debtfreeprice_key),
         "energyclass": map_energy_class(elastic_apartment),
         "extralink": map_extra_links(elastic_apartment),
-        "floors": resolve_floor_max(elastic_apartment, project_floor_max),
+        "floors": resolve_floor_max(
+            elastic_apartment,
+            project_floor_max,
+            staircase_floor_max=staircase_floor_max,
+        ),
         "holdingtype": map_holding_type(elastic_apartment),
         "image": map_images(elastic_apartment),
         "itemgroup": map_item_group(elastic_apartment),

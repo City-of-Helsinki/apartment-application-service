@@ -113,6 +113,24 @@ class TestEtuoviMapper:
         item = map_apartment_to_item(apartment, project_floor_max_lookup=lookup)
         assert item.floors == 8
 
+    def test_map_apartment_to_item_resolves_floor_max_per_staircase(self):
+        """
+        - Uses staircase-level floor max instead of a higher project-wide max.
+        """
+        project_uuid = "proj-123"
+        apartment = ApartmentMinimalFactory(
+            project_uuid=project_uuid,
+            apartment_number="C62",
+            floor=4,
+            floor_max=1,
+        )
+        item = map_apartment_to_item(
+            apartment,
+            project_floor_max_lookup={project_uuid: 8},
+            staircase_floor_max_lookup={f"{project_uuid}:C": 4},
+        )
+        assert item.floors == 4
+
 
 class TestEtuoviImagesInXml:
     """
