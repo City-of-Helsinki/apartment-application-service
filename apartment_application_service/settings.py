@@ -107,14 +107,26 @@ env = environ.Env(
     METADATA_HASO_PROCESS_NUMBER=(str, "10 07 04 01"),
     TALPA_EMAIL=(str, ""),
     TALPA_EMAIL_REPLY_TO=(str, "asuntomyynti@hel.fi"),
-    ELASTICSEARCH_APP_AUDIT_LOG_INDEX=(str, "apartment_application_audit_log"),
+    AUDIT_LOG_ES_INDEX=(str, "audit-asuntotuotanto-django-test-v1"),
     AUDIT_LOG_ELASTICSEARCH_HOST=(str, ""),
     AUDIT_LOG_ELASTICSEARCH_PORT=(str, ""),
-    AUDIT_LOG_ELASTICSEARCH_USERNAME=(str, ""),
-    AUDIT_LOG_ELASTICSEARCH_PASSWORD=(str, ""),
+    AUDIT_LOG_ES_USERNAME=(str, ""),
+    AUDIT_LOG_ES_PASSWORD=(str, ""),
+    AUDIT_LOG_ENV=(str, "development"),
+    AUDIT_LOG_ES_URL=(str, ""),
     ENABLE_SEND_AUDIT_LOG=(bool, False),
+    ALLOW_APPLICATIONS_TO_SOLD_APARTMENTS=(bool, False),
     CLEAR_AUDIT_LOG_ENTRIES=(bool, False),
     DRUPAL_SERVER_AUTH_TOKEN=(str, "example-token"),
+    DRUPAL_SEARCH_API_BASE_URL=(str, "https://asuntotuotanto.docker.so"),
+    DRUPAL_SEARCH_API_TOKEN_URL=(str, "https://asuntotuotanto.docker.so/oauth/token"),
+    DRUPAL_SEARCH_API_CLIENT_ID=(str, "example-token"),
+    DRUPAL_SEARCH_API_CLIENT_SECRET=(str, "example-token"),
+    DRUPAL_SEARCH_API_TIMEOUT=(int, 30),
+    DRUPAL_SEARCH_API_INITIAL_TIMEOUT=(int, 5),
+    DRUPAL_SEARCH_API_VERIFY_SSL=(bool, True),
+    DRUPAL_SEARCH_API_PAGE_SIZE=(int, 100),
+    DRUPAL_SEARCH_API_CACHE_TTL=(int, 60),
     DEFAULT_SOLD_APARMENT_TIME_RANGE=(int, 1),
     DEFAULT_APARTMENT_REVALUATION_TIME_RANGE=(int, 1),
     APPLICANT_DUPLICATE_VALIDATION_DISABLED=(bool, False),
@@ -199,6 +211,7 @@ INSTALLED_APPS = [
     "simple_history",
     "drf_spectacular",
     "pgcrypto",
+    "resilient_logger",
     # local apps
     "apartment",
     "application_form",
@@ -454,15 +467,70 @@ TALPA_EMAIL_REPLY_TO = env.str("TALPA_EMAIL_REPLY_TO")
 
 # Audit logging
 CLEAR_AUDIT_LOG_ENTRIES = env.bool("CLEAR_AUDIT_LOG_ENTRIES")
-ELASTICSEARCH_APP_AUDIT_LOG_INDEX = env("ELASTICSEARCH_APP_AUDIT_LOG_INDEX")
+AUDIT_LOG_ES_INDEX = env("AUDIT_LOG_ES_INDEX")
 AUDIT_LOG_ELASTICSEARCH_HOST = env("AUDIT_LOG_ELASTICSEARCH_HOST")
 AUDIT_LOG_ELASTICSEARCH_PORT = env("AUDIT_LOG_ELASTICSEARCH_PORT")
-AUDIT_LOG_ELASTICSEARCH_USERNAME = env("AUDIT_LOG_ELASTICSEARCH_USERNAME")
-AUDIT_LOG_ELASTICSEARCH_PASSWORD = env("AUDIT_LOG_ELASTICSEARCH_PASSWORD")
+AUDIT_LOG_ES_USERNAME = env("AUDIT_LOG_ES_USERNAME")
+AUDIT_LOG_ES_PASSWORD = env("AUDIT_LOG_ES_PASSWORD")
+AUDIT_LOG_ENV = env("AUDIT_LOG_ENV")
+AUDIT_LOG_ES_URL = env("AUDIT_LOG_ES_URL")
 ENABLE_SEND_AUDIT_LOG = env("ENABLE_SEND_AUDIT_LOG")
+ALLOW_APPLICATIONS_TO_SOLD_APARTMENTS = env.bool(
+    "ALLOW_APPLICATIONS_TO_SOLD_APARTMENTS"
+)
+if DEBUG:
+    ALLOW_APPLICATIONS_TO_SOLD_APARTMENTS = True
+
+if not AUDIT_LOG_ES_URL and (
+    AUDIT_LOG_ELASTICSEARCH_HOST and AUDIT_LOG_ELASTICSEARCH_PORT
+):
+    # Backward-compatible: derive `es_url` from the existing host + port vars.
+    AUDIT_LOG_ES_URL = f"{AUDIT_LOG_ELASTICSEARCH_HOST}:{AUDIT_LOG_ELASTICSEARCH_PORT}"
+
+AUDIT_LOG_ELASTICSEARCH_CONFIGURED = bool(
+    AUDIT_LOG_ES_URL
+    and AUDIT_LOG_ES_INDEX
+    and AUDIT_LOG_ES_USERNAME
+    and AUDIT_LOG_ES_PASSWORD
+)
+
+RESILIENT_LOGGER = {
+    "origin": "APARTMENT_APPLICATION_SERVICE",
+    "environment": AUDIT_LOG_ENV,
+    "sources": [{"class": "resilient_logger.sources.ResilientLogSource"}],
+    "targets": (
+        [
+            {
+                "class": "resilient_logger.targets.ElasticsearchLogTarget",
+                "es_url": AUDIT_LOG_ES_URL,
+                "es_username": AUDIT_LOG_ES_USERNAME,
+                "es_password": AUDIT_LOG_ES_PASSWORD,
+                "es_index": AUDIT_LOG_ES_INDEX,
+                "required": True,
+            }
+        ]
+        if ENABLE_SEND_AUDIT_LOG and AUDIT_LOG_ELASTICSEARCH_CONFIGURED
+        else []
+    ),
+    "batch_limit": 5000,
+    "chunk_size": 500,
+    # Prevent marking entries as sent when no targets are configured.
+    "submit_unsent_entries": ENABLE_SEND_AUDIT_LOG
+    and AUDIT_LOG_ELASTICSEARCH_CONFIGURED,
+    "clear_sent_entries": CLEAR_AUDIT_LOG_ENTRIES,
+}
 
 # Drupal auth
 DRUPAL_SERVER_AUTH_TOKEN = env.str("DRUPAL_SERVER_AUTH_TOKEN")
+DRUPAL_SEARCH_API_BASE_URL = env.str("DRUPAL_SEARCH_API_BASE_URL")
+DRUPAL_SEARCH_API_TOKEN_URL = env.str("DRUPAL_SEARCH_API_TOKEN_URL")
+DRUPAL_SEARCH_API_CLIENT_ID = env.str("DRUPAL_SEARCH_API_CLIENT_ID")
+DRUPAL_SEARCH_API_CLIENT_SECRET = env.str("DRUPAL_SEARCH_API_CLIENT_SECRET")
+DRUPAL_SEARCH_API_TIMEOUT = env.int("DRUPAL_SEARCH_API_TIMEOUT")
+DRUPAL_SEARCH_API_INITIAL_TIMEOUT = env.int("DRUPAL_SEARCH_API_INITIAL_TIMEOUT")
+DRUPAL_SEARCH_API_VERIFY_SSL = env.bool("DRUPAL_SEARCH_API_VERIFY_SSL")
+DRUPAL_SEARCH_API_PAGE_SIZE = env.int("DRUPAL_SEARCH_API_PAGE_SIZE")
+DRUPAL_SEARCH_API_CACHE_TTL = env.int("DRUPAL_SEARCH_API_CACHE_TTL")
 DEFAULT_SOLD_APARMENT_TIME_RANGE = env.int("DEFAULT_SOLD_APARMENT_TIME_RANGE")  # hours
 DEFAULT_APARTMENT_REVALUATION_TIME_RANGE = env.int(
     "DEFAULT_APARTMENT_REVALUATION_TIME_RANGE"

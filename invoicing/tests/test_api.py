@@ -65,7 +65,7 @@ def test_project_list_does_not_include_installments(
         reverse("apartment:project-list"), format="json"
     )
     assert response.status_code == 200
-    assert "installment_templates" not in response.data[0]
+    assert "installment_templates" not in response.data["results"][0]
 
 
 @pytest.mark.django_db

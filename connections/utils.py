@@ -1,12 +1,11 @@
 import logging
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from decimal import Decimal, ROUND_HALF_UP
-from typing import List, Union
+from typing import Dict, List, Optional, Union
 
-from django.conf import settings
 from django.utils.html import strip_tags
-from elasticsearch_dsl import connections
+from elasticsearch_dsl.utils import AttrList
 from lxml import etree
 
 _logger = logging.getLogger(__name__)
@@ -14,20 +13,9 @@ _logger = logging.getLogger(__name__)
 
 def create_elastic_connection() -> None:
     """
-    Creates the ElasticSearch connection with the url provided in the settings.
-    The ElasticSearch connection needs to be established before it can be accessed.
+    Deprecated: no-op for legacy ElasticSearch connection setup.
     """
-    http_auth = None
-    if settings.ELASTICSEARCH_USERNAME and settings.ELASTICSEARCH_PASSWORD:
-        http_auth = (settings.ELASTICSEARCH_USERNAME, settings.ELASTICSEARCH_PASSWORD)
-
-    connections.create_connection(
-        hosts=[settings.ELASTICSEARCH_URL],
-        port=settings.ELASTICSEARCH_PORT,
-        http_auth=http_auth,
-        # transfer to using ES via Openshift service, which uses self-signed certs
-        verify_certs=False,
-    )
+    _logger.info("ElasticSearch connection setup is disabled for REST search API.")
 
 
 def convert_price_from_cents_to_eur(price: int) -> Decimal:
@@ -55,6 +43,7 @@ def map_document(
         mapped = document_mapper_func(document)
     except ValueError as e:
         _logger.error(e)
+
         _logger.warning(
             f"{document_mapper_func.__name__}: Could not map {document.uuid}/{document}:",  # noqa: E501
             exc_info=True,
@@ -136,3 +125,185 @@ def validate_apartment_required_fields(
         if not getattr(apartment, field_name, None):
             missing_fields.append(field_name)
     return missing_fields
+
+
+def join_multi_value_field(
+    value: Union[str, AttrList, list, tuple, None],
+    separator: str = ", ",
+) -> Optional[str]:
+    """
+    Join multi-valued export fields into a single string.
+
+    Plain strings are treated as one value so callers do not accidentally
+    iterate characters when a list field arrives as a scalar.
+    """
+    if value is None:
+        return None
+    if isinstance(value, str):
+        stripped = value.strip()
+        return stripped if stripped else None
+    if isinstance(value, (AttrList, list, tuple)):
+        items = [str(item).strip() for item in value if item is not None]
+        items = [item for item in items if item]
+        return separator.join(items) if items else None
+    stripped = str(value).strip()
+    return stripped if stripped else None
+
+
+def parse_staircase_letter(apartment_number: Optional[str]) -> Optional[str]:
+    """Extract staircase letter from apartment_number (e.g. A12 -> A)."""
+    if not apartment_number:
+        return None
+    match = re.match(r"(?P<letters>[A-Za-z]+)", str(apartment_number).strip())
+    if not match:
+        return None
+    return match.group("letters").upper()
+
+
+def _staircase_floor_max_key(project_uuid: str, staircase_letter: str) -> str:
+    return f"{project_uuid}:{staircase_letter}"
+
+
+def _coerce_floor_value(value) -> Optional[int]:
+    """Coerce floor or floor_max to int; return None if invalid or empty."""
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    try:
+        stripped = str(value).strip()
+        return int(float(stripped)) if stripped else None
+    except (ValueError, TypeError):
+        return None
+
+
+def build_project_floor_max_by_uuid(
+    apartments: Iterable["ApartmentDocument"],  # noqa: F821
+) -> Dict[str, int]:
+    """
+    Build a lookup of the highest floor-related value per project.
+
+    For each project, considers both floor_max and floor from every apartment
+    so export mappers can correct erroneous per-apartment floor_max values.
+    """
+    project_floor_max: Dict[str, int] = {}
+    for apartment in apartments:
+        project_uuid = getattr(apartment, "project_uuid", None)
+        if not project_uuid:
+            continue
+
+        candidates: List[int] = []
+        floor_max = _coerce_floor_value(getattr(apartment, "floor_max", None))
+        floor = _coerce_floor_value(getattr(apartment, "floor", None))
+        if floor_max is not None:
+            candidates.append(floor_max)
+        if floor is not None:
+            candidates.append(floor)
+        if not candidates:
+            continue
+
+        project_key = str(project_uuid)
+        apartment_max = max(candidates)
+        current_max = project_floor_max.get(project_key)
+        if current_max is None or apartment_max > current_max:
+            project_floor_max[project_key] = apartment_max
+
+    return project_floor_max
+
+
+def build_staircase_floor_max_by_uuid(
+    apartments: Iterable["ApartmentDocument"],  # noqa: F821
+) -> Dict[str, int]:
+    """
+    Build a lookup of the highest floor-related value per project staircase.
+
+    For each project and staircase letter (from apartment_number), considers
+    both floor_max and floor from every matching apartment so export mappers
+    can correct erroneous per-apartment floor_max values per staircase.
+    """
+    staircase_floor_max: Dict[str, int] = {}
+    for apartment in apartments:
+        project_uuid = getattr(apartment, "project_uuid", None)
+        if not project_uuid:
+            continue
+
+        staircase_letter = parse_staircase_letter(
+            getattr(apartment, "apartment_number", None)
+        )
+        if not staircase_letter:
+            continue
+
+        candidates: List[int] = []
+        floor_max = _coerce_floor_value(getattr(apartment, "floor_max", None))
+        floor = _coerce_floor_value(getattr(apartment, "floor", None))
+        if floor_max is not None:
+            candidates.append(floor_max)
+        if floor is not None:
+            candidates.append(floor)
+        if not candidates:
+            continue
+
+        lookup_key = _staircase_floor_max_key(str(project_uuid), staircase_letter)
+        apartment_max = max(candidates)
+        current_max = staircase_floor_max.get(lookup_key)
+        if current_max is None or apartment_max > current_max:
+            staircase_floor_max[lookup_key] = apartment_max
+
+    return staircase_floor_max
+
+
+def lookup_staircase_floor_max(
+    apartment: "ApartmentDocument",  # noqa: F821
+    staircase_floor_max_lookup: Optional[Dict[str, int]] = None,
+) -> Optional[int]:
+    """Return staircase floor max for the apartment, if available."""
+    if not staircase_floor_max_lookup:
+        return None
+
+    project_uuid = getattr(apartment, "project_uuid", None)
+    if not project_uuid:
+        return None
+
+    staircase_letter = parse_staircase_letter(
+        getattr(apartment, "apartment_number", None)
+    )
+    if not staircase_letter:
+        return None
+
+    return staircase_floor_max_lookup.get(
+        _staircase_floor_max_key(str(project_uuid), staircase_letter)
+    )
+
+
+def resolve_floor_max(
+    apartment: "ApartmentDocument",  # noqa: F821
+    project_floor_max: Optional[int] = None,
+    staircase_floor_max: Optional[int] = None,
+) -> Optional[int]:
+    """
+    Return floor_max corrected against apartment floor and project maximum.
+
+    Guards against floor_max being lower than the apartment floor or the
+    highest floor-related value seen elsewhere in the same project staircase.
+    When a staircase maximum is available it takes precedence over the
+    project-wide maximum.
+    """
+    candidates: List[int] = []
+    floor_max = _coerce_floor_value(getattr(apartment, "floor_max", None))
+    floor = _coerce_floor_value(getattr(apartment, "floor", None))
+    if floor_max is not None:
+        candidates.append(floor_max)
+    if floor is not None:
+        candidates.append(floor)
+
+    context_max = (
+        staircase_floor_max if staircase_floor_max is not None else project_floor_max
+    )
+    if context_max is not None:
+        candidates.append(int(context_max))
+
+    if not candidates:
+        return None
+    return max(candidates)

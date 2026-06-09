@@ -36,7 +36,6 @@ class DrupalAuthentication(authentication.BaseAuthentication):
             )
 
         token = auth[1].decode()
-
         if not (settings.DRUPAL_SERVER_AUTH_TOKEN == token):
             raise AuthenticationFailed(
                 "You do not have permission to access this resource"

@@ -1,6 +1,6 @@
 import logging
 from datetime import date, timedelta
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
@@ -53,7 +53,13 @@ from connections.oikotie.field_mapper import (
     NEW_DEVELOPMENT_STATUS_MAPPING,
     SITE_MAPPING,
 )
-from connections.utils import convert_price_from_cents_to_eur
+from connections.utils import (
+    _coerce_floor_value,
+    convert_price_from_cents_to_eur,
+    join_multi_value_field,
+    lookup_staircase_floor_max,
+    resolve_floor_max,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -202,17 +208,38 @@ def map_application_url(elastic_apartment: ElasticApartment) -> str:
     return ensure_str(elastic_apartment.url) or ""
 
 
-def map_floor_location(elastic_apartment: ElasticApartment) -> Optional[FloorLocation]:
-    if getattr(elastic_apartment, "floor", None) and getattr(
-        elastic_apartment, "floor_max", None
-    ):
-        high = elastic_apartment.floor == elastic_apartment.floor_max
-        low = elastic_apartment.floor == 1
+def _map_number_of_rooms(elastic_apartment: ElasticApartment) -> Optional[int]:
+    """
+    Return room count for Oikotie export.
+
+    The Oikotie schema allows NumberOfRooms values from 1 to 99 only, so
+    omit the field when the apartment has no room count.
+    """
+    room_count = _to_int(getattr(elastic_apartment, "room_count", None))
+    if room_count is None or room_count < 1:
+        return None
+    return room_count
+
+
+def map_floor_location(
+    elastic_apartment: ElasticApartment,
+    project_floor_max: Optional[int] = None,
+    staircase_floor_max: Optional[int] = None,
+) -> Optional[FloorLocation]:
+    floor = _coerce_floor_value(getattr(elastic_apartment, "floor", None))
+    resolved_floor_max = resolve_floor_max(
+        elastic_apartment,
+        project_floor_max,
+        staircase_floor_max=staircase_floor_max,
+    )
+    if floor and resolved_floor_max:
+        high = floor == resolved_floor_max
+        low = floor == 1
         return FloorLocation(
             high=high,
             low=low,
-            number=elastic_apartment.floor,
-            count=elastic_apartment.floor_max,
+            number=floor,
+            count=resolved_floor_max,
             description="",
         )
     else:
@@ -232,10 +259,10 @@ def map_balcony(elastic_apartment: ElasticApartment) -> Optional[Balcony]:
 
 
 def map_living_area(elastic_apartment: ElasticApartment) -> Optional[LivingArea]:
-    if elastic_apartment.living_area is not None:
-        return LivingArea(unit=Unit.M2.value, area=elastic_apartment.living_area)
-    else:
-        return None
+    area = _to_float(getattr(elastic_apartment, "living_area", None))
+    if area is not None:
+        return LivingArea(unit=Unit.M2.value, area=area)
+    return None
 
 
 def map_lift(elastic_apartment: ElasticApartment) -> Optional[Lift]:
@@ -280,75 +307,72 @@ def map_site(elastic_apartment: ElasticApartment) -> Optional[Site]:
 
 
 def map_site_area(elastic_apartment: ElasticApartment) -> Optional[SiteArea]:
-    if getattr(elastic_apartment, "project_site_area", None):
-        return SiteArea(area=elastic_apartment.project_site_area, unit=Unit.M2.value)
-    else:
-        return None
+    area = _to_float(getattr(elastic_apartment, "project_site_area", None))
+    if area is not None:
+        return SiteArea(area=area, unit=Unit.M2.value)
+    return None
 
 
 def map_financing_fee(elastic_apartment: ElasticApartment) -> Optional[FinancingFee]:
-    if elastic_apartment.financing_fee is not None:
+    cents = _to_int(getattr(elastic_apartment, "financing_fee", None))
+    if cents is not None:
         return FinancingFee(
-            value=convert_price_from_cents_to_eur(elastic_apartment.financing_fee),
+            value=convert_price_from_cents_to_eur(cents),
             unit=Unit.EUR_KK.value,
         )
-    else:
-        return None
+    return None
 
 
 def map_maintenance_fee(
     elastic_apartment: ElasticApartment,
 ) -> Optional[MaintenanceFee]:
-    if elastic_apartment.maintenance_fee is not None:
+    cents = _to_int(getattr(elastic_apartment, "maintenance_fee", None))
+    if cents is not None:
         return MaintenanceFee(
-            value=convert_price_from_cents_to_eur(elastic_apartment.maintenance_fee),
+            value=convert_price_from_cents_to_eur(cents),
             unit=Unit.EUR_KK.value,
         )
-    else:
-        return None
+    return None
 
 
 def map_water_fee(elastic_apartment: ElasticApartment) -> Optional[WaterFee]:
-
-    if elastic_apartment.water_fee is not None and elastic_apartment.water_fee > 0:
+    cents = _to_int(getattr(elastic_apartment, "water_fee", None))
+    if cents is not None and cents > 0:
         return WaterFee(
-            value=convert_price_from_cents_to_eur(elastic_apartment.water_fee),
+            value=convert_price_from_cents_to_eur(cents),
             unit=Unit.EUR_KK.value,
         )
-    else:
-        return None
+    return None
 
 
 def map_unencumbered_sales_price(
     elastic_apartment: ElasticApartment,
 ) -> Optional[UnencumberedSalesPrice]:
-    price_value = elastic_apartment.debt_free_sales_price
-
+    price_value = _to_int(getattr(elastic_apartment, "debt_free_sales_price", None))
     if elastic_apartment.project_ownership_type == OwnershipType.HASO.value:
-        price_value = elastic_apartment.release_payment
+        price_value = _to_int(getattr(elastic_apartment, "release_payment", None))
 
     if price_value is not None:
         return UnencumberedSalesPrice(
             value=convert_price_from_cents_to_eur(price_value),
             currency=Currency.EUR.value,
         )
-    else:
-        return None
+    return None
 
 
 def map_sales_price(elastic_apartment: ElasticApartment) -> Optional[SalesPrice]:
-    price_value = elastic_apartment.sales_price
-
+    price_value = _to_int(getattr(elastic_apartment, "sales_price", None))
     if elastic_apartment.project_ownership_type == OwnershipType.HASO.value:
-        price_value = elastic_apartment.right_of_occupancy_payment
+        price_value = _to_int(
+            getattr(elastic_apartment, "right_of_occupancy_payment", None)
+        )
 
     if price_value is not None:
         return SalesPrice(
             value=convert_price_from_cents_to_eur(price_value),
             currency=Currency.EUR.value,
         )
-    else:
-        return None
+    return None
 
 
 def map_sauna(elastic_apartment: ElasticApartment) -> Optional[Sauna]:
@@ -367,13 +391,13 @@ def map_sauna(elastic_apartment: ElasticApartment) -> Optional[Sauna]:
 def map_car_parking_charge(
     elastic_apartment: ElasticApartment,
 ) -> Optional[CarParkingCharge]:
-    if elastic_apartment.parking_fee is not None:
+    cents = _to_int(getattr(elastic_apartment, "parking_fee", None))
+    if cents is not None:
         return CarParkingCharge(
-            value=convert_price_from_cents_to_eur(elastic_apartment.parking_fee),
+            value=convert_price_from_cents_to_eur(cents),
             unit=Unit.EUR_KK.value,
         )
-    else:
-        return None
+    return None
 
 
 def map_showing_date1(elastic_apartment: ElasticApartment) -> Optional[ShowingDate1]:
@@ -462,10 +486,24 @@ def form_description(elastic_apartment: ElasticApartment) -> Optional[str]:
     return form_description_with_link(elastic_apartment)
 
 
-def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:
+def map_oikotie_apartment(
+    elastic_apartment: ElasticApartment,
+    project_floor_max_lookup: Optional[Dict[str, int]] = None,
+    staircase_floor_max_lookup: Optional[Dict[str, int]] = None,
+) -> Apartment:
     """
     Maps the ElasticSearch data to the Oikotie Apartment dataclass.
     """
+    project_floor_max = None
+    if project_floor_max_lookup:
+        project_uuid = getattr(elastic_apartment, "project_uuid", None)
+        if project_uuid:
+            project_floor_max = project_floor_max_lookup.get(str(project_uuid))
+
+    staircase_floor_max = lookup_staircase_floor_max(
+        elastic_apartment, staircase_floor_max_lookup
+    )
+
     heating_options = getattr(elastic_apartment, "project_heating_options", None)
     construction_materials = getattr(
         elastic_apartment, "project_construction_materials", None
@@ -485,8 +523,12 @@ def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:
         ),
         "post_office": ensure_str(getattr(elastic_apartment, "project_city", None)),
         "region": ensure_str(getattr(elastic_apartment, "project_district", None)),
-        "latitude": getattr(elastic_apartment, "project_coordinate_lat", None),
-        "longitude": getattr(elastic_apartment, "project_coordinate_lon", None),
+        "latitude": _to_float(
+            getattr(elastic_apartment, "project_coordinate_lat", None)
+        ),
+        "longitude": _to_float(
+            getattr(elastic_apartment, "project_coordinate_lon", None)
+        ),
         "description": form_description(elastic_apartment),
         "supplementary_information": ensure_str(
             getattr(elastic_apartment, "additional_information", None)
@@ -495,8 +537,12 @@ def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:
         "virtual_presentation": ensure_str(
             getattr(elastic_apartment, "project_virtual_presentation_url", None)
         ),
-        "floor_location": map_floor_location(elastic_apartment),
-        "number_of_rooms": getattr(elastic_apartment, "room_count", None),
+        "floor_location": map_floor_location(
+            elastic_apartment,
+            project_floor_max=project_floor_max,
+            staircase_floor_max=staircase_floor_max,
+        ),
+        "number_of_rooms": _map_number_of_rooms(elastic_apartment),
         "room_types": ensure_str(
             getattr(elastic_apartment, "apartment_structure", None)
         ),
@@ -518,14 +564,12 @@ def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:
         "real_estate_management": ensure_str(
             getattr(elastic_apartment, "project_sanitation", None)
         ),
-        "number_of_apartments": getattr(
-            elastic_apartment, "project_apartment_count", None
+        "number_of_apartments": _to_int(
+            getattr(elastic_apartment, "project_apartment_count", None)
         ),
         "lift": map_lift(elastic_apartment),
         "year_of_building": map_year_of_building(elastic_apartment),
-        "heating": (
-            ", ".join(str(x) for x in heating_options) if heating_options else None
-        ),
+        "heating": join_multi_value_field(heating_options),
         "general_condition": map_general_condition(elastic_apartment),
         "site": map_site(elastic_apartment),
         "site_area": map_site_area(elastic_apartment),
@@ -537,11 +581,7 @@ def map_oikotie_apartment(elastic_apartment: ElasticApartment) -> Apartment:
         ),
         "other_fees": ensure_str(getattr(elastic_apartment, "other_fees", None)),
         "car_parking_charge": map_car_parking_charge(elastic_apartment),
-        "building_material": (
-            ", ".join(str(x) for x in construction_materials)
-            if construction_materials
-            else None
-        ),
+        "building_material": join_multi_value_field(construction_materials),
         "roof_material": ensure_str(
             getattr(elastic_apartment, "project_roof_material", None)
         ),
@@ -632,9 +672,36 @@ def map_address(elastic_apartment: ElasticApartment) -> Address:
         raise ValueError(_("could not map %s") % none_values_dict)
 
 
+def _to_float(value) -> Optional[float]:
+    """Coerce value to float; return None if invalid or empty (e.g. API returns '')."""
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    try:
+        return float(str(value).strip()) if str(value).strip() else None
+    except (ValueError, TypeError):
+        return None
+
+
+def _to_int(value) -> Optional[int]:
+    """Coerce value to int; return None if invalid or empty (e.g. API returns '')."""
+    if value is None:
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    try:
+        s = str(value).strip()
+        return int(float(s)) if s else None
+    except (ValueError, TypeError):
+        return None
+
+
 def map_coordinates(elastic_apartment: ElasticApartment) -> Optional[Coordinates]:
-    x = elastic_apartment.project_coordinate_lat
-    y = elastic_apartment.project_coordinate_lon
+    x = _to_float(getattr(elastic_apartment, "project_coordinate_lat", None))
+    y = _to_float(getattr(elastic_apartment, "project_coordinate_lon", None))
     if x is not None and y is not None:
         return Coordinates(
             x=x,
