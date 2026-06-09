@@ -299,9 +299,7 @@ def resolve_floor_max(
         candidates.append(floor)
 
     context_max = (
-        staircase_floor_max
-        if staircase_floor_max is not None
-        else project_floor_max
+        staircase_floor_max if staircase_floor_max is not None else project_floor_max
     )
     if context_max is not None:
         candidates.append(int(context_max))

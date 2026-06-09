@@ -60,7 +60,10 @@ class TestFloorMaxResolution:
             floor=4,
             floor_max=1,
         )
-        assert resolve_floor_max(apartment, project_floor_max=8, staircase_floor_max=4) == 4
+        assert (
+            resolve_floor_max(apartment, project_floor_max=8, staircase_floor_max=4)
+            == 4
+        )
 
     def test_parse_staircase_letter(self):
         """
