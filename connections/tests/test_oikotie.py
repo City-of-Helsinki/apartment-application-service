@@ -127,6 +127,40 @@ class TestOikotieMapper:
         assert location.count == 8
         assert location.high is True
 
+    def test_map_oikotie_apartment_exports_construction_materials_as_single_value(
+        self,
+    ):
+        """
+        - Exports construction materials as a joined string, not characters.
+        """
+        apartment = ApartmentMinimalFactory(
+            project_construction_materials=["Betoni"],
+            project_heating_options=["Kaukolämpö"],
+        )
+        mapped_apartment = map_oikotie_apartment(apartment)
+        assert mapped_apartment.building_material == "Betoni"
+        assert mapped_apartment.heating == "Kaukolämpö"
+
+    def test_map_oikotie_apartment_omits_zero_room_count(self):
+        """
+        - Omits number_of_rooms when room_count is 0.
+        - Oikotie schema requires NumberOfRooms to be at least 1.
+        """
+        apartment = ApartmentMinimalFactory(room_count=0)
+        mapped_apartment = map_oikotie_apartment(apartment)
+        assert mapped_apartment.number_of_rooms is None
+
+    def test_map_oikotie_apartment_exports_string_construction_materials(self):
+        """
+        - Treats a plain string construction material as one value.
+        """
+        apartment = ApartmentMinimalFactory()
+        apartment.project_construction_materials = "Betoni"
+        apartment.project_heating_options = "Kaukolämpö"
+        mapped_apartment = map_oikotie_apartment(apartment)
+        assert mapped_apartment.building_material == "Betoni"
+        assert mapped_apartment.heating == "Kaukolämpö"
+
     def test_map_floor_location_resolves_floor_max_per_staircase(self):
         """
         - Uses staircase-level floor max instead of a higher project-wide max.

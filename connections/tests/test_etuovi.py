@@ -5,7 +5,7 @@ from uuid import UUID
 import pytest
 from django.conf import settings
 from django.core.management import call_command
-from django_etuovi.enums import RealtyImageType
+from django_etuovi.enums import RealtyImageType, TextKey
 from django_etuovi.utils.testing import check_dataclass_typing
 
 from apartment.enums import OwnershipType
@@ -112,6 +112,31 @@ class TestEtuoviMapper:
         lookup = {project_uuid: 8}
         item = map_apartment_to_item(apartment, project_floor_max_lookup=lookup)
         assert item.floors == 8
+
+    def test_map_apartment_to_item_exports_construction_materials_as_single_value(self):
+        """
+        - Exports construction materials as a joined string, not characters.
+        """
+        apartment = ApartmentMinimalFactory(
+            project_construction_materials=["Betoni"],
+            project_heating_options=["Kaukolämpö"],
+        )
+        item = map_apartment_to_item(apartment)
+        texts = {text.text_key: text.text_value for text in item.text}
+        assert texts[TextKey.MATERIAL] == "Betoni"
+        assert texts[TextKey.HEATING] == "Kaukolämpö"
+
+    def test_map_apartment_to_item_exports_string_construction_materials(self):
+        """
+        - Treats a plain string construction material as one value.
+        """
+        apartment = ApartmentMinimalFactory()
+        apartment.project_construction_materials = "Betoni"
+        apartment.project_heating_options = "Kaukolämpö"
+        item = map_apartment_to_item(apartment)
+        texts = {text.text_key: text.text_value for text in item.text}
+        assert texts[TextKey.MATERIAL] == "Betoni"
+        assert texts[TextKey.HEATING] == "Kaukolämpö"
 
     def test_map_apartment_to_item_resolves_floor_max_per_staircase(self):
         """

@@ -5,6 +5,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from typing import Dict, List, Optional, Union
 
 from django.utils.html import strip_tags
+from elasticsearch_dsl.utils import AttrList
 from lxml import etree
 
 _logger = logging.getLogger(__name__)
@@ -124,6 +125,29 @@ def validate_apartment_required_fields(
         if not getattr(apartment, field_name, None):
             missing_fields.append(field_name)
     return missing_fields
+
+
+def join_multi_value_field(
+    value: Union[str, AttrList, list, tuple, None],
+    separator: str = ", ",
+) -> Optional[str]:
+    """
+    Join multi-valued export fields into a single string.
+
+    Plain strings are treated as one value so callers do not accidentally
+    iterate characters when a list field arrives as a scalar.
+    """
+    if value is None:
+        return None
+    if isinstance(value, str):
+        stripped = value.strip()
+        return stripped if stripped else None
+    if isinstance(value, (AttrList, list, tuple)):
+        items = [str(item).strip() for item in value if item is not None]
+        items = [item for item in items if item]
+        return separator.join(items) if items else None
+    stripped = str(value).strip()
+    return stripped if stripped else None
 
 
 def parse_staircase_letter(apartment_number: Optional[str]) -> Optional[str]:

@@ -41,12 +41,12 @@ from connections.utils import (
 ETUOVI_MAX_IMAGES = 100
 
 
-def handle_field_value(field: Union[str, AttrList, list, None]):
+def handle_field_value(field: Union[str, AttrList, list, tuple, None]):
     """
     A generator that returns each instance of a list if the given field
-    is of type AttrList or list. Otherwise returns the literal value.
+    is of type AttrList, list, or tuple. Otherwise returns the literal value.
     """
-    if isinstance(field, (AttrList, list)):
+    if isinstance(field, (AttrList, list, tuple)):
         for f in field:
             yield f
     else:

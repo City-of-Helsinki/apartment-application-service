@@ -5,6 +5,7 @@ from connections.utils import (
     build_project_floor_max_by_uuid,
     build_staircase_floor_max_by_uuid,
     convert_price_from_cents_to_eur,
+    join_multi_value_field,
     parse_staircase_letter,
     resolve_floor_max,
 )
@@ -108,3 +109,26 @@ class TestFloorMaxResolution:
         assert lookup[f"{project_uuid}:A"] == 8
         assert lookup[f"{project_uuid}:C"] == 4
         assert lookup["other:A"] == 3
+
+
+class TestJoinMultiValueField:
+    def test_join_multi_value_field_with_list(self):
+        """
+        - Joins list items into a comma-separated string.
+        """
+        assert join_multi_value_field(["Betoni"]) == "Betoni"
+        assert join_multi_value_field(["Betoni", "Tiili"]) == "Betoni, Tiili"
+
+    def test_join_multi_value_field_with_string(self):
+        """
+        - Treats a plain string as a single value, not individual characters.
+        """
+        assert join_multi_value_field("Betoni") == "Betoni"
+
+    def test_join_multi_value_field_with_empty_values(self):
+        """
+        - Returns None for missing or empty values.
+        """
+        assert join_multi_value_field(None) is None
+        assert join_multi_value_field([]) is None
+        assert join_multi_value_field("") is None
