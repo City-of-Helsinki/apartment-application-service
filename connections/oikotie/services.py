@@ -12,7 +12,11 @@ from connections.oikotie.oikotie_mapper import (
     map_oikotie_apartment,
     map_oikotie_housing_company,
 )
-from connections.utils import build_project_floor_max_by_uuid, map_document
+from connections.utils import (
+    build_project_floor_max_by_uuid,
+    build_staircase_floor_max_by_uuid,
+    map_document,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -39,10 +43,13 @@ def fetch_apartments_for_sale() -> Tuple[list, list]:
     """
     scan = list(get_apartments_for_oikotie())
     project_floor_max_lookup = build_project_floor_max_by_uuid(scan)
+    staircase_floor_max_lookup = build_staircase_floor_max_by_uuid(scan)
 
     def map_apartment(apartment):
         return map_oikotie_apartment(
-            apartment, project_floor_max_lookup=project_floor_max_lookup
+            apartment,
+            project_floor_max_lookup=project_floor_max_lookup,
+            staircase_floor_max_lookup=staircase_floor_max_lookup,
         )
 
     apartments = []
