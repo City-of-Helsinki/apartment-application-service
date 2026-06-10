@@ -91,6 +91,36 @@ def test_sales_application_post(
 
 
 @pytest.mark.django_db
+def test_sales_application_post_saves_drupal_application_id(
+    drupal_salesperson_api_client, elasticsearch
+):  # noqa: F811 E501
+    customer_profile = ProfileFactory()
+    drupal_salesperson_api_client.credentials(
+        HTTP_AUTHORIZATION=f"Bearer {_create_token(drupal_salesperson_api_client.user.profile)}"  # noqa: E501
+    )
+
+    apartments = generate_apartments(
+        elasticsearch,
+        10,
+        {"project_application_end_time": timezone.now() + timedelta(days=1)},
+    )
+    data = create_application_data(customer_profile, apartments=apartments)
+    data["profile"] = customer_profile.id
+    data["drupal_application_id"] = 9876
+    data["applicant"]["ssn_suffix"] = "XXXXX"
+    data["additional_applicant"]["ssn_suffix"] = "XXXXX"
+
+    response = drupal_salesperson_api_client.post(
+        reverse("application_form:sales-application-list"), data, format="json"
+    )
+
+    assert response.status_code == 201, response.data
+
+    application = Application.objects.get(external_uuid=data["application_uuid"])
+    assert application.drupal_application_id == 9876
+
+
+@pytest.mark.django_db
 def test_sales_application_post_haso_submitted_late(
     api_client, elasticsearch
 ):  # noqa: F811 E501

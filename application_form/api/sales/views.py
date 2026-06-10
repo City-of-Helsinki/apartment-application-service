@@ -1,5 +1,10 @@
 import logging
+<<<<<<< HEAD
 from datetime import timedelta
+=======
+from uuid import UUID
+from datetime import datetime, timedelta, timezone as datetime_timezone
+>>>>>>> aaf10fa (Message functional between saler and customer)
 from typing import Optional
 
 from dateutil import parser
@@ -12,7 +17,11 @@ from django.utils import timezone, translation
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiParameter
+from drf_spectacular.utils import (
+    OpenApiExample,
+    OpenApiParameter,
+    extend_schema,
+)
 from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.decorators import (
     action,
@@ -31,6 +40,9 @@ from application_form.api.sales.serializers import (
     OfferSerializer,
     ProjectExtraDataSerializer,
     ProjectUUIDSerializer,
+    ReservationMessageCreateSerializer,
+    ReservationMessageSerializer,
+    ReservationMessageThreadSerializer,
     RootApartmentReservationSerializer,
     SalesApplicationSerializer,
 )
@@ -67,6 +79,10 @@ from application_form.services.lottery.machine import distribute_apartments
 from application_form.services.queue import _adjust_positions
 from application_form.services.reservation import (
     transfer_reservation_to_another_customer,
+)
+from application_form.services.drupal_messaging import (
+    DrupalMessagingClient,
+    DrupalMessagingClientError,
 )
 from audit_log.viewsets import AuditLoggingModelViewSet
 from users.permissions import IsDjangoSalesperson, IsDrupalSalesperson
@@ -305,6 +321,213 @@ class ApartmentReservationViewSet(
         "apartment_installments", "apartment_installments__payments"
     )
     serializer_class = RootApartmentReservationSerializer
+
+    @staticmethod
+    def _resolve_drupal_application_id(application):
+        """Resolve Drupal application id with legacy fallback for old records."""
+        return application.drupal_application_id or application.id
+
+    @staticmethod
+    def _validate_project_uuid_match(*, reservation, requested_project_uuid):
+        """Validate that reservation apartment belongs to requested project UUID."""
+        if not requested_project_uuid:
+            return
+
+        try:
+            normalized_requested_uuid = str(UUID(str(requested_project_uuid)))
+        except (TypeError, ValueError) as exc:
+            raise ValidationError({"project_uuid": ["Invalid UUID value."]}) from exc
+
+        apartment = get_apartment(
+            reservation.apartment_uuid,
+            include_project_fields=True,
+        )
+        apartment_project_uuid = getattr(apartment, "project_uuid", None)
+
+        if str(apartment_project_uuid) != normalized_requested_uuid:
+            raise ValidationError(
+                detail="Reservation does not belong to the requested project."
+            )
+
+    @staticmethod
+    def _normalize_message_item(*, raw_item, drupal_application_id, fallback_body):
+        """Normalize Drupal message item to stable API shape for frontend."""
+        if not isinstance(raw_item, dict):
+            raw_item = {}
+
+        normalized_item = dict(raw_item)
+        if not normalized_item.get("application_id"):
+            normalized_item["application_id"] = drupal_application_id
+        if not normalized_item.get("body"):
+            normalized_item["body"] = (
+                raw_item.get("message") or raw_item.get("text") or fallback_body
+            )
+        if normalized_item.get("body") is None:
+            normalized_item["body"] = ""
+        if not normalized_item.get("created"):
+            normalized_item["created"] = int(timezone.now().timestamp())
+
+        created_at = raw_item.get("created_at") or raw_item.get("createdAt")
+        if not created_at:
+            created_at = datetime.fromtimestamp(
+                int(normalized_item["created"]),
+                tz=datetime_timezone.utc,
+            ).isoformat()
+        normalized_item["created_at"] = created_at
+
+        return normalized_item
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="project_uuid",
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.QUERY,
+                required=False,
+                description="Optional project UUID guard for reservation lookup.",
+            )
+        ],
+        responses=ReservationMessageThreadSerializer,
+    )
+    @action(methods=["GET", "POST"], detail=True)
+    def messages(self, request, pk=None):
+        reservation = self.get_object()
+        self._validate_project_uuid_match(
+            reservation=reservation,
+            requested_project_uuid=request.query_params.get("project_uuid"),
+        )
+
+        application_apartment = reservation.application_apartment
+        if not application_apartment:
+            raise ValidationError("Reservation has no linked application.")
+
+        application = application_apartment.application
+        drupal_application_id = self._resolve_drupal_application_id(application)
+
+        if application.drupal_application_id is None:
+            _logger.info(
+                "Using legacy application id fallback for reservation_id=%s application_id=%s user_id=%s",  # noqa: E501
+                reservation.id,
+                application.id,
+                getattr(request.user, "id", None),
+            )
+
+        client = DrupalMessagingClient()
+
+        if request.method.upper() == "GET":
+            try:
+                thread_payload = client.get_thread(drupal_application_id)
+            except DrupalMessagingClientError as exc:
+                return self._handle_drupal_messaging_error(exc, drupal_application_id)
+
+            normalized_items = [
+                self._normalize_message_item(
+                    raw_item=item,
+                    drupal_application_id=drupal_application_id,
+                    fallback_body="",
+                )
+                for item in thread_payload.get("items", [])
+            ]
+
+            sorted_items = sorted(
+                normalized_items,
+                key=lambda item: item.get("created", 0),
+            )
+            response_payload = {
+                "application_id": thread_payload.get(
+                    "application_id", drupal_application_id
+                ),
+                "count": thread_payload.get("count", len(sorted_items)),
+                "items": sorted_items,
+            }
+
+            _logger.info(
+                "Fetched message thread from Drupal for reservation_id=%s application_id=%s user_id=%s item_count=%s",  # noqa: E501
+                reservation.id,
+                drupal_application_id,
+                getattr(request.user, "id", None),
+                len(sorted_items),
+            )
+            return Response(
+                ReservationMessageThreadSerializer(response_payload).data,
+                status=status.HTTP_200_OK,
+            )
+
+        serializer = ReservationMessageCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            created_payload = client.post_sales_reply(
+                application_id=drupal_application_id,
+                body=serializer.validated_data["body"],
+            )
+        except DrupalMessagingClientError as exc:
+            return self._handle_drupal_messaging_error(exc, drupal_application_id)
+
+        _logger.info(
+            "Posted sales message to Drupal for reservation_id=%s application_id=%s user_id=%s",  # noqa: E501
+            reservation.id,
+            drupal_application_id,
+            getattr(request.user, "id", None),
+        )
+
+        raw_item = created_payload.get("item", {}) if isinstance(created_payload, dict) else {}
+        normalized_item = self._normalize_message_item(
+            raw_item=raw_item,
+            drupal_application_id=drupal_application_id,
+            fallback_body=serializer.validated_data["body"],
+        )
+
+        return Response(
+            ReservationMessageSerializer(normalized_item).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    def _handle_drupal_messaging_error(self, exc, application_id):
+        if exc.code == "empty_body" or exc.status_code == 400:
+            if exc.code == "empty_body":
+                return Response(
+                    {"body": ["Message body cannot be empty."]},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            return Response(
+                {"detail": "Bad request to Drupal messaging API."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if exc.status_code == 404 or exc.code == "not_found":
+            return Response(
+                {"detail": "Application not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        if exc.status_code in {401, 403} or exc.code == "forbidden":
+            return Response(
+                {"detail": "Insufficient permissions."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if exc.code == "temporary_failure" or exc.status_code >= 500:
+            _logger.warning(
+                "Temporary Drupal messaging error for application_id=%s status=%s code=%s",
+                application_id,
+                exc.status_code,
+                exc.code,
+            )
+            return Response(
+                {"detail": ("Не удалось отправить сообщение, попробуйте еще раз.")},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        _logger.error(
+            "Unhandled Drupal messaging error for application_id=%s status=%s code=%s",
+            application_id,
+            exc.status_code,
+            exc.code,
+        )
+        return Response(
+            {"detail": "Drupal messaging integration error."},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
 
     @extend_schema(
         description="Create either a Hitas contract or a HASO contract PDF based on "

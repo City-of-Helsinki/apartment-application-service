@@ -403,3 +403,26 @@ class OfferMessageSerializer(serializers.Serializer):
             "body": body,
             "recipients": recipients,
         }
+
+
+class ReservationMessageSerializer(serializers.Serializer):
+    id = serializers.IntegerField(required=False)
+    application_id = serializers.IntegerField(required=False)
+    project_id = serializers.IntegerField(required=False, allow_null=True)
+    sender_role = serializers.CharField(required=False)
+    sender_uid = serializers.IntegerField(required=False, allow_null=True)
+    salesperson_uid = serializers.IntegerField(required=False, allow_null=True)
+    recipient_mail = serializers.CharField(required=False, allow_blank=True)
+    body = serializers.CharField()
+    created = serializers.IntegerField()
+    created_at = serializers.CharField(required=False, allow_blank=False)
+
+
+class ReservationMessageThreadSerializer(serializers.Serializer):
+    application_id = serializers.IntegerField()
+    count = serializers.IntegerField()
+    items = ReservationMessageSerializer(many=True)
+
+
+class ReservationMessageCreateSerializer(serializers.Serializer):
+    body = serializers.CharField(allow_blank=False, trim_whitespace=True)
