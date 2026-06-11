@@ -1,10 +1,6 @@
 import logging
-<<<<<<< HEAD
-from datetime import timedelta
-=======
-from uuid import UUID
 from datetime import datetime, timedelta, timezone as datetime_timezone
->>>>>>> aaf10fa (Message functional between saler and customer)
+from uuid import UUID
 from typing import Optional
 
 from dateutil import parser
@@ -925,3 +921,4 @@ def mark_offer_reminder_sent(request, offer_id):
         {"id": offer.id, "reminder_sent_at": offer.reminder_sent_at},
         status=status.HTTP_200_OK,
     )
+
