@@ -65,6 +65,56 @@ class DrupalMessagingClient:
             return str(payload.get("message") or payload.get("detail") or "")
         return ""
 
+    @staticmethod
+    def _build_headers(token: str) -> Dict[str, str]:
+        """Build standard headers for Drupal messaging requests."""
+        return {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}",
+        }
+
+    @staticmethod
+    def _raise_temporary_failure() -> None:
+        """Raise a normalized temporary upstream failure error."""
+        raise DrupalMessagingClientError(
+            status_code=503,
+            code="temporary_failure",
+            message="Drupal messaging API temporary failure.",
+        )
+
+    def _raise_non_retryable_error(self, response: requests.Response) -> None:
+        """Map non-retryable upstream responses into integration errors."""
+        status_code = response.status_code
+        message = self._extract_error_message(response)
+
+        if status_code == 404:
+            raise DrupalMessagingClientError(
+                status_code=404,
+                code="not_found",
+                message=message,
+            )
+
+        if status_code in {401, 403}:
+            raise DrupalMessagingClientError(
+                status_code=status_code,
+                code="forbidden",
+                message=message,
+            )
+
+        if status_code == 400:
+            raise DrupalMessagingClientError(
+                status_code=400,
+                code="invalid_request",
+                message=message,
+            )
+
+        raise DrupalMessagingClientError(
+            status_code=status_code,
+            code="upstream_error",
+            message=message,
+        )
+
     def _get_access_token(self) -> str:
         """Get OAuth access token from cache or Drupal token endpoint."""
         now = time.time()
@@ -138,11 +188,7 @@ class DrupalMessagingClient:
         for attempt in range(retries + 1):
             try:
                 token = self._get_access_token()
-                headers = {
-                    "Accept": "application/json",
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {token}",
-                }
+                headers = self._build_headers(token)
                 response = requests.request(
                     method,
                     url,
@@ -166,42 +212,11 @@ class DrupalMessagingClient:
             if response.status_code >= 500:
                 if attempt < retries:
                     continue
-                raise DrupalMessagingClientError(
-                    status_code=503,
-                    code="temporary_failure",
-                    message="Drupal messaging API temporary failure.",
-                )
+                self._raise_temporary_failure()
 
-            if response.status_code == 404:
-                raise DrupalMessagingClientError(
-                    status_code=404,
-                    code="not_found",
-                    message=self._extract_error_message(response),
-                )
-            if response.status_code in {401, 403}:
-                raise DrupalMessagingClientError(
-                    status_code=response.status_code,
-                    code="forbidden",
-                    message=self._extract_error_message(response),
-                )
-            if response.status_code == 400:
-                raise DrupalMessagingClientError(
-                    status_code=400,
-                    code="invalid_request",
-                    message=self._extract_error_message(response),
-                )
+            self._raise_non_retryable_error(response)
 
-            raise DrupalMessagingClientError(
-                status_code=response.status_code,
-                code="upstream_error",
-                message=self._extract_error_message(response),
-            )
-
-        raise DrupalMessagingClientError(
-            status_code=503,
-            code="temporary_failure",
-            message="Drupal messaging API temporary failure.",
-        )
+        self._raise_temporary_failure()
 
     def get_thread(self, application_id: int) -> Dict[str, Any]:
         """Fetch message thread for a specific application."""

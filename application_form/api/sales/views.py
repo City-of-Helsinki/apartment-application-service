@@ -506,16 +506,18 @@ class ApartmentReservationViewSet(
 
         if exc.code == "temporary_failure" or exc.status_code >= 500:
             _logger.warning(
-                "Temporary Drupal messaging error for application_id=%s status=%s code=%s",
+                (
+                    "Temporary Drupal messaging error for application_id=%s "
+                    "status=%s code=%s"
+                ),
                 application_id,
                 exc.status_code,
                 exc.code,
             )
             return Response(
-                {"detail": ("Не удалось отправить сообщение, попробуйте еще раз.")},
+                {"detail": "Unable to send message. Please try again."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
-
         _logger.error(
             "Unhandled Drupal messaging error for application_id=%s status=%s code=%s",
             application_id,
@@ -921,4 +923,3 @@ def mark_offer_reminder_sent(request, offer_id):
         {"id": offer.id, "reminder_sent_at": offer.reminder_sent_at},
         status=status.HTTP_200_OK,
     )
-
