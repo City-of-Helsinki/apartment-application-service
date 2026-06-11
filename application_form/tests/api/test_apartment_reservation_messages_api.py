@@ -140,7 +140,9 @@ def test_reservation_messages_get_normalizes_message_field_to_body(
 
 
 @pytest.mark.django_db
-def test_reservation_messages_post_success(sales_ui_salesperson_api_client, monkeypatch):
+def test_reservation_messages_post_success(
+    sales_ui_salesperson_api_client, monkeypatch
+):
     """Salesperson can post a message for reservation's linked application.
 
     - Request body is forwarded to client.
@@ -371,8 +373,7 @@ def test_reservation_messages_post_upstream_temporary_error(
 
     assert response.status_code == 503
     assert (
-        response.data["detail"]
-        == "Не удалось отправить сообщение, попробуйте еще раз."
+        response.data["detail"] == "Не удалось отправить сообщение, попробуйте еще раз."
     )
 
 
@@ -537,4 +538,7 @@ def test_reservation_messages_get_with_mismatching_project_uuid_returns_400(
     )
 
     assert response.status_code == 400
-    assert response.data["detail"] == "Reservation does not belong to the requested project."
+    assert (
+        response.data["detail"]
+        == "Reservation does not belong to the requested project."
+    )

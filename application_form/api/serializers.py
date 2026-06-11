@@ -132,7 +132,11 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
             "project_id": {"write_only": True},
             "has_hitas_ownership": {"write_only": True},
             "is_right_of_occupancy_housing_changer": {"write_only": True},
-            "drupal_application_id": {"write_only": True, "required": False, "allow_null": True},
+            "drupal_application_id": {
+                "write_only": True,
+                "required": False,
+                "allow_null": True,
+            },
         }
 
     def create(self, validated_data):
@@ -276,9 +280,9 @@ class ApplicationSerializer(ApplicationSerializerBase):
         validated_data["sender_names"] = self._get_senders_name_from_applicants_data(
             validated_data
         )
-        validated_data["method_of_arrival"] = (
-            ApplicationArrivalMethod.ELECTRONICAL_SYSTEM
-        )
+        validated_data[
+            "method_of_arrival"
+        ] = ApplicationArrivalMethod.ELECTRONICAL_SYSTEM
         return super().prepare_metadata(validated_data)
 
     def validate_ssn_suffix(self, value):

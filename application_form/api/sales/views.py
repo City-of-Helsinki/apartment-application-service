@@ -471,7 +471,9 @@ class ApartmentReservationViewSet(
             getattr(request.user, "id", None),
         )
 
-        raw_item = created_payload.get("item", {}) if isinstance(created_payload, dict) else {}
+        raw_item = (
+            created_payload.get("item", {}) if isinstance(created_payload, dict) else {}
+        )
         normalized_item = self._normalize_message_item(
             raw_item=raw_item,
             drupal_application_id=drupal_application_id,
