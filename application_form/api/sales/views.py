@@ -1,7 +1,8 @@
 import logging
-from datetime import datetime, timedelta, timezone as datetime_timezone
-from uuid import UUID
+from datetime import datetime, timedelta
+from datetime import timezone as datetime_timezone
 from typing import Optional
+from uuid import UUID
 
 from dateutil import parser
 from django.conf import settings
@@ -13,11 +14,7 @@ from django.utils import timezone, translation
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import (
-    OpenApiExample,
-    OpenApiParameter,
-    extend_schema,
-)
+from drf_spectacular.utils import extend_schema, OpenApiExample, OpenApiParameter
 from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.decorators import (
     action,
@@ -68,6 +65,10 @@ from application_form.pdf import (
 )
 from application_form.permissions import DrupalAuthentication, IsDrupalServer
 from application_form.services.application import cancel_reservation
+from application_form.services.drupal_messaging import (
+    DrupalMessagingClient,
+    DrupalMessagingClientError,
+)
 from application_form.services.lottery.exceptions import (
     ApplicationTimeNotFinishedException,
 )
@@ -75,10 +76,6 @@ from application_form.services.lottery.machine import distribute_apartments
 from application_form.services.queue import _adjust_positions
 from application_form.services.reservation import (
     transfer_reservation_to_another_customer,
-)
-from application_form.services.drupal_messaging import (
-    DrupalMessagingClient,
-    DrupalMessagingClientError,
 )
 from audit_log.viewsets import AuditLoggingModelViewSet
 from users.permissions import IsDjangoSalesperson, IsDrupalSalesperson

@@ -1,6 +1,5 @@
-import requests
-
 import pytest
+import requests
 
 from application_form.services.drupal_messaging import (
     DrupalMessagingClient,
