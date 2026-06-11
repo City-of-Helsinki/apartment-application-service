@@ -8,16 +8,16 @@ from application_form.tests.factories import ApartmentReservationFactory
 def _extract_detail_from_response(data):
     """Extract human-readable detail from DRF error response payload."""
     if isinstance(data, dict):
-        detail = data.get("detail")
-        if isinstance(detail, list) and detail:
-            return str(detail[0])
-        return str(detail)
+        if "detail" in data:
+            return _extract_detail_from_response(data["detail"])
+        if "message" in data:
+            return _extract_detail_from_response(data["message"])
 
     if isinstance(data, list) and data:
-        first_item = data[0]
-        if isinstance(first_item, dict) and "detail" in first_item:
-            return str(first_item["detail"])
-        return str(first_item)
+        return _extract_detail_from_response(data[0])
+
+    if data is None:
+        return ""
 
     return str(data)
 
