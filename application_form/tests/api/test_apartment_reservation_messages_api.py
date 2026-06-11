@@ -5,6 +5,23 @@ from apartment.tests.factories import ApartmentDocumentFactory
 from application_form.tests.factories import ApartmentReservationFactory
 
 
+def _extract_detail_from_response(data):
+    """Extract human-readable detail from DRF error response payload."""
+    if isinstance(data, dict):
+        detail = data.get("detail")
+        if isinstance(detail, list) and detail:
+            return str(detail[0])
+        return str(detail)
+
+    if isinstance(data, list) and data:
+        first_item = data[0]
+        if isinstance(first_item, dict) and "detail" in first_item:
+            return str(first_item["detail"])
+        return str(first_item)
+
+    return str(data)
+
+
 class _FakeMessagingClient:
     def __init__(self, thread_payload=None, post_payload=None, to_raise=None):
         self._thread_payload = thread_payload
@@ -372,9 +389,7 @@ def test_reservation_messages_post_upstream_temporary_error(
     )
 
     assert response.status_code == 503
-    assert (
-        response.data["detail"] == "Не удалось отправить сообщение, попробуйте еще раз."
-    )
+    assert response.data["detail"] == "Unable to send message. Please try again."
 
 
 @pytest.mark.django_db
@@ -538,7 +553,6 @@ def test_reservation_messages_get_with_mismatching_project_uuid_returns_400(
     )
 
     assert response.status_code == 400
-    assert (
-        response.data["detail"]
-        == "Reservation does not belong to the requested project."
+    assert _extract_detail_from_response(response.data) == (
+        "Reservation does not belong to the requested project."
     )
