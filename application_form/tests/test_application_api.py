@@ -59,6 +59,25 @@ def test_application_post(api_client, elastic_single_project_with_apartments):
 
 
 @pytest.mark.django_db
+def test_application_post_saves_drupal_application_id(
+    api_client, elastic_single_project_with_apartments
+):
+    profile = ProfileFactory()
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
+    data = create_application_data(profile)
+    data["drupal_application_id"] = 4321
+
+    response = api_client.post(
+        reverse("application_form:application-list"), data, format="json"
+    )
+
+    assert response.status_code == 201, response.data
+
+    application = Application.objects.get(external_uuid=data["application_uuid"])
+    assert application.drupal_application_id == 4321
+
+
+@pytest.mark.django_db
 def test_application_post_sets_nin(api_client, elastic_single_project_with_apartments):
     # Setup: Create application data with NIN and a profile without NIN
     profile: Profile
