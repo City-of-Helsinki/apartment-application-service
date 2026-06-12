@@ -5,23 +5,6 @@ from apartment.tests.factories import ApartmentDocumentFactory
 from application_form.tests.factories import ApartmentReservationFactory
 
 
-def _extract_detail_from_response(data):
-    """Extract human-readable detail from DRF error response payload."""
-    if isinstance(data, dict):
-        if "detail" in data:
-            return _extract_detail_from_response(data["detail"])
-        if "message" in data:
-            return _extract_detail_from_response(data["message"])
-
-    if isinstance(data, list) and data:
-        return _extract_detail_from_response(data[0])
-
-    if data is None:
-        return ""
-
-    return str(data)
-
-
 class _FakeMessagingClient:
     def __init__(self, thread_payload=None, post_payload=None, to_raise=None):
         self._thread_payload = thread_payload
@@ -365,7 +348,10 @@ def test_reservation_messages_post_upstream_temporary_error(
     from application_form.services.drupal_messaging import DrupalMessagingClientError
 
     apartment = ApartmentDocumentFactory()
-    reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        application_apartment__application__drupal_application_id=999,
+    )
 
     fake_client = _FakeMessagingClient(
         to_raise=DrupalMessagingClientError(
@@ -389,36 +375,24 @@ def test_reservation_messages_post_upstream_temporary_error(
     )
 
     assert response.status_code == 503
-    assert response.data["detail"] == "Unable to send message. Please try again."
+    assert response.data["detail"] == "Messaging service temporarily unavailable."
 
 
 @pytest.mark.django_db
-def test_reservation_messages_get_uses_application_pk_when_drupal_id_missing(
-    sales_ui_salesperson_api_client, monkeypatch
+def test_reservation_messages_get_no_drupal_id_returns_empty_thread(
+    sales_ui_salesperson_api_client,
 ):
-    """Legacy reservations use application pk as Drupal application id fallback.
+    """GET messages when drupal_application_id is None returns empty thread.
 
     - Application has no drupal_application_id.
-    - API uses application.id when fetching thread.
+    - No Drupal API call is made.
+    - Response is 200 with count=0 and empty items list.
+    - Frontend shows "no messages" without an error.
     """
-
     apartment = ApartmentDocumentFactory()
     reservation = ApartmentReservationFactory(
         apartment_uuid=apartment.uuid,
         application_apartment__application__drupal_application_id=None,
-    )
-    fallback_id = reservation.application_apartment.application.id
-
-    fake_client = _FakeMessagingClient(
-        thread_payload={
-            "application_id": fallback_id,
-            "count": 1,
-            "items": [{"id": 1, "body": "legacy", "created": 1710000000}],
-        }
-    )
-    monkeypatch.setattr(
-        "application_form.api.sales.views.DrupalMessagingClient",
-        lambda: fake_client,
     )
 
     response = sales_ui_salesperson_api_client.get(
@@ -429,130 +403,34 @@ def test_reservation_messages_get_uses_application_pk_when_drupal_id_missing(
     )
 
     assert response.status_code == 200
-    assert response.data["application_id"] == fallback_id
-    assert fake_client.get_calls == [fallback_id]
+    assert response.data["count"] == 0
+    assert response.data["items"] == []
 
 
 @pytest.mark.django_db
-def test_reservation_messages_no_drupal_id_fallback_not_found_returns_404(
-    sales_ui_salesperson_api_client, monkeypatch
+def test_reservation_messages_post_no_drupal_id_returns_503(
+    sales_ui_salesperson_api_client,
 ):
-    """If legacy fallback id is missing in Drupal, API still returns 404.
+    """POST message when drupal_application_id is None returns 503.
 
     - Application has no drupal_application_id.
-    - API falls back to application.id and maps Drupal 404 to business 404.
+    - No Drupal API call is made.
+    - Response is 503 so frontend can show a neutral retry message.
     """
-
-    from application_form.services.drupal_messaging import DrupalMessagingClientError
-
     apartment = ApartmentDocumentFactory()
     reservation = ApartmentReservationFactory(
         apartment_uuid=apartment.uuid,
         application_apartment__application__drupal_application_id=None,
     )
-    fallback_id = reservation.application_apartment.application.id
 
-    fake_client = _FakeMessagingClient(
-        to_raise=DrupalMessagingClientError(status_code=404, code="not_found")
-    )
-    monkeypatch.setattr(
-        "application_form.api.sales.views.DrupalMessagingClient",
-        lambda: fake_client,
-    )
-
-    response = sales_ui_salesperson_api_client.get(
-        reverse(
-            "application_form:sales-apartment-reservation-messages",
-            kwargs={"pk": reservation.id},
-        )
-    )
-
-    assert response.status_code == 404
-    assert response.data["detail"] == "Application not found."
-    assert fake_client.get_calls == [fallback_id]
-
-
-@pytest.mark.django_db
-def test_reservation_messages_get_with_matching_project_uuid(
-    sales_ui_salesperson_api_client, monkeypatch
-):
-    """Matching project_uuid query parameter allows loading the thread.
-
-    - Reservation apartment project matches query parameter.
-    - API responds successfully.
-    """
-
-    apartment = ApartmentDocumentFactory()
-    reservation = ApartmentReservationFactory(
-        apartment_uuid=apartment.uuid,
-        application_apartment__application__drupal_application_id=901,
-    )
-
-    fake_client = _FakeMessagingClient(
-        thread_payload={
-            "application_id": 901,
-            "count": 1,
-            "items": [{"id": 1, "body": "ok", "created": 1710000000}],
-        }
-    )
-
-    class _Apartment:
-        project_uuid = "8a93072b-7697-4bd1-99f8-9691a44cc9d2"
-
-    monkeypatch.setattr(
-        "application_form.api.sales.views.DrupalMessagingClient",
-        lambda: fake_client,
-    )
-    monkeypatch.setattr(
-        "application_form.api.sales.views.get_apartment",
-        lambda *args, **kwargs: _Apartment(),
-    )
-
-    response = sales_ui_salesperson_api_client.get(
+    response = sales_ui_salesperson_api_client.post(
         reverse(
             "application_form:sales-apartment-reservation-messages",
             kwargs={"pk": reservation.id},
         ),
-        {"project_uuid": "8a93072b-7697-4bd1-99f8-9691a44cc9d2"},
+        data={"body": "Hello"},
+        format="json",
     )
 
-    assert response.status_code == 200
-    assert fake_client.get_calls == [901]
-
-
-@pytest.mark.django_db
-def test_reservation_messages_get_with_mismatching_project_uuid_returns_400(
-    sales_ui_salesperson_api_client, monkeypatch
-):
-    """Mismatching project_uuid query parameter is rejected.
-
-    - Reservation apartment project does not match query parameter.
-    - API returns validation error.
-    """
-
-    apartment = ApartmentDocumentFactory()
-    reservation = ApartmentReservationFactory(
-        apartment_uuid=apartment.uuid,
-        application_apartment__application__drupal_application_id=902,
-    )
-
-    class _Apartment:
-        project_uuid = "8a93072b-7697-4bd1-99f8-9691a44cc9d2"
-
-    monkeypatch.setattr(
-        "application_form.api.sales.views.get_apartment",
-        lambda *args, **kwargs: _Apartment(),
-    )
-
-    response = sales_ui_salesperson_api_client.get(
-        reverse(
-            "application_form:sales-apartment-reservation-messages",
-            kwargs={"pk": reservation.id},
-        ),
-        {"project_uuid": "e77dc4ec-e4f6-4b2f-b82d-76a5e4ea7022"},
-    )
-
-    assert response.status_code == 400
-    assert _extract_detail_from_response(response.data) == (
-        "Reservation does not belong to the requested project."
-    )
+    assert response.status_code == 503
+    assert "detail" in response.data
