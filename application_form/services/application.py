@@ -179,12 +179,14 @@ def create_application(
     profile = data.pop("profile")
     applicant_data = data.pop("applicant")
     additional_applicant_data = data.pop("additional_applicant", None)
+    drupal_application_id = data.pop("drupal_application_id", None)
     customer = get_or_create_customer_from_profiles(
         profile, additional_applicant_data, data.get("has_children")
     )
     update_profile_from_application_data(profile, application_data)
     application = Application.objects.create(
         external_uuid=data.pop("external_uuid"),
+        drupal_application_id=drupal_application_id,
         applicants_count=2 if additional_applicant_data else 1,
         type=data.pop("type"),
         has_children=data.pop("has_children"),

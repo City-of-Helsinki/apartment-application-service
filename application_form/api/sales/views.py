@@ -1,5 +1,6 @@
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
+from datetime import timezone as datetime_timezone
 from typing import Optional
 
 from dateutil import parser
@@ -31,6 +32,9 @@ from application_form.api.sales.serializers import (
     OfferSerializer,
     ProjectExtraDataSerializer,
     ProjectUUIDSerializer,
+    ReservationMessageCreateSerializer,
+    ReservationMessageSerializer,
+    ReservationMessageThreadSerializer,
     RootApartmentReservationSerializer,
     SalesApplicationSerializer,
 )
@@ -60,6 +64,10 @@ from application_form.pdf import (
 )
 from application_form.permissions import DrupalAuthentication, IsDrupalServer
 from application_form.services.application import cancel_reservation
+from application_form.services.drupal_messaging import (
+    DrupalMessagingClient,
+    DrupalMessagingClientError,
+)
 from application_form.services.lottery.exceptions import (
     ApplicationTimeNotFinishedException,
 )
@@ -305,6 +313,190 @@ class ApartmentReservationViewSet(
         "apartment_installments", "apartment_installments__payments"
     )
     serializer_class = RootApartmentReservationSerializer
+
+    @staticmethod
+    def _normalize_message_item(*, raw_item, drupal_application_id, fallback_body):
+        """Normalize Drupal message item to stable API shape for frontend."""
+        if not isinstance(raw_item, dict):
+            raw_item = {}
+
+        normalized_item = dict(raw_item)
+        if not normalized_item.get("application_id"):
+            normalized_item["application_id"] = drupal_application_id
+        if not normalized_item.get("body"):
+            normalized_item["body"] = (
+                raw_item.get("message") or raw_item.get("text") or fallback_body
+            )
+        if normalized_item.get("body") is None:
+            normalized_item["body"] = ""
+        if not normalized_item.get("created"):
+            normalized_item["created"] = int(timezone.now().timestamp())
+
+        created_at = raw_item.get("created_at") or raw_item.get("createdAt")
+        if not created_at:
+            created_at = datetime.fromtimestamp(
+                int(normalized_item["created"]),
+                tz=datetime_timezone.utc,
+            ).isoformat()
+        normalized_item["created_at"] = created_at
+
+        return normalized_item
+
+    @extend_schema(
+        responses=ReservationMessageThreadSerializer,
+    )
+    @action(methods=["GET", "POST"], detail=True)
+    def messages(self, request, pk=None):
+        reservation = self.get_object()
+
+        application_apartment = reservation.application_apartment
+        if not application_apartment:
+            raise ValidationError("Reservation has no linked application.")
+
+        application = application_apartment.application
+        drupal_application_id = application.drupal_application_id
+        if drupal_application_id is None:
+            if request.method.upper() == "GET":
+                _logger.info(
+                    "messages GET: drupal_application_id not set for reservation_id=%s application_id=%s — returning empty thread",  # noqa: E501
+                    reservation.id,
+                    application.id,
+                )
+                return Response(
+                    ReservationMessageThreadSerializer(
+                        {"application_id": application.id, "count": 0, "items": []}
+                    ).data,
+                    status=status.HTTP_200_OK,
+                )
+            _logger.warning(
+                "messages POST: drupal_application_id not set for reservation_id=%s application_id=%s — messaging unavailable",  # noqa: E501
+                reservation.id,
+                application.id,
+            )
+            return Response(
+                {"detail": "Messaging unavailable: application has no Drupal ID."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        client = DrupalMessagingClient()
+
+        if request.method.upper() == "GET":
+            try:
+                thread_payload = client.get_thread(drupal_application_id)
+            except DrupalMessagingClientError as exc:
+                return self._handle_drupal_messaging_error(exc, drupal_application_id)
+
+            normalized_items = [
+                self._normalize_message_item(
+                    raw_item=item,
+                    drupal_application_id=drupal_application_id,
+                    fallback_body="",
+                )
+                for item in thread_payload.get("items", [])
+            ]
+
+            sorted_items = sorted(
+                normalized_items,
+                key=lambda item: item.get("created", 0),
+            )
+            response_payload = {
+                "application_id": thread_payload.get(
+                    "application_id", drupal_application_id
+                ),
+                "count": thread_payload.get("count", len(sorted_items)),
+                "items": sorted_items,
+            }
+
+            _logger.info(
+                "Fetched message thread from Drupal for reservation_id=%s application_id=%s user_id=%s item_count=%s",  # noqa: E501
+                reservation.id,
+                drupal_application_id,
+                getattr(request.user, "id", None),
+                len(sorted_items),
+            )
+            return Response(
+                ReservationMessageThreadSerializer(response_payload).data,
+                status=status.HTTP_200_OK,
+            )
+
+        serializer = ReservationMessageCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            created_payload = client.post_sales_reply(
+                application_id=drupal_application_id,
+                body=serializer.validated_data["body"],
+            )
+        except DrupalMessagingClientError as exc:
+            return self._handle_drupal_messaging_error(exc, drupal_application_id)
+
+        _logger.info(
+            "Posted sales message to Drupal for reservation_id=%s application_id=%s user_id=%s",  # noqa: E501
+            reservation.id,
+            drupal_application_id,
+            getattr(request.user, "id", None),
+        )
+
+        raw_item = (
+            created_payload.get("item", {}) if isinstance(created_payload, dict) else {}
+        )
+        normalized_item = self._normalize_message_item(
+            raw_item=raw_item,
+            drupal_application_id=drupal_application_id,
+            fallback_body=serializer.validated_data["body"],
+        )
+
+        return Response(
+            ReservationMessageSerializer(normalized_item).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    def _handle_drupal_messaging_error(self, exc, application_id):
+        if exc.code == "empty_body" or exc.status_code == 400:
+            if exc.code == "empty_body":
+                return Response(
+                    {"body": ["Message body cannot be empty."]},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            return Response(
+                {"detail": "Bad request to Drupal messaging API."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if exc.status_code == 404 or exc.code == "not_found":
+            return Response(
+                {"detail": "Application not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        if exc.status_code in {401, 403} or exc.code == "forbidden":
+            return Response(
+                {"detail": "Insufficient permissions."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if exc.code == "temporary_failure" or exc.status_code >= 500:
+            _logger.warning(
+                "Temporary Drupal messaging error for application_id=%s"
+                " status=%s code=%s",
+                application_id,
+                exc.status_code,
+                exc.code,
+            )
+            return Response(
+                {"detail": "Messaging service temporarily unavailable."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        _logger.error(
+            "Unhandled Drupal messaging error for application_id=%s status=%s code=%s",
+            application_id,
+            exc.status_code,
+            exc.code,
+        )
+        return Response(
+            {"detail": "Drupal messaging integration error."},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
 
     @extend_schema(
         description="Create either a Hitas contract or a HASO contract PDF based on "

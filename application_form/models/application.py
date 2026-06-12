@@ -19,6 +19,9 @@ class Application(TimestampedModel, CommonApplicationData):
     external_uuid = models.UUIDField(
         _("application identifier"), default=uuid4, editable=False
     )
+    drupal_application_id = models.IntegerField(
+        _("Drupal application node ID"), null=True, blank=True
+    )
 
     applicants_count = models.IntegerField(_("applicants count"))
     type = EnumField(ApplicationType, max_length=15, verbose_name=_("application type"))
