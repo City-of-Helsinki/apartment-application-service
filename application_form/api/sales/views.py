@@ -476,7 +476,8 @@ class ApartmentReservationViewSet(
 
         if exc.code == "temporary_failure" or exc.status_code >= 500:
             _logger.warning(
-                "Temporary Drupal messaging error for application_id=%s status=%s code=%s",
+                "Temporary Drupal messaging error for application_id=%s"
+                " status=%s code=%s",
                 application_id,
                 exc.status_code,
                 exc.code,
