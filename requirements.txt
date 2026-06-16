@@ -147,7 +147,7 @@ pydantic==2.13.3
     # via -r requirements.in
 pydantic-core==2.46.3
     # via pydantic
-pyjwt==2.8.0
+pyjwt==2.13.0
     # via
     #   djangorestframework-simplejwt
     #   social-auth-core
