@@ -1,8 +1,9 @@
+from datetime import datetime
+
 from django.db.models import Case, F, IntegerField, Prefetch, Q, Value, When
 from rest_framework import mixins, permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
-from datetime import datetime
 
 from apartment.elastic.queries import get_apartments_for_uuids
 from application_form.enums import ApartmentReservationState
@@ -89,12 +90,8 @@ class CustomerViewSet(AuditLoggingModelViewSet):
                 )
             if hetu:
                 queryset = queryset.filter(
-                    Q(
-                        primary_profile__national_identification_number=hetu
-                    )
-                    | Q(
-                        secondary_profile__national_identification_number=hetu
-                    )
+                    Q(primary_profile__national_identification_number=hetu)
+                    | Q(secondary_profile__national_identification_number=hetu)
                 )
             if date_of_birth_raw:
                 date_of_birth = self._parse_finnish_date(date_of_birth_raw)
