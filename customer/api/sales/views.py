@@ -2,6 +2,7 @@ from django.db.models import Case, F, IntegerField, Prefetch, Q, Value, When
 from rest_framework import mixins, permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
+from datetime import datetime
 
 from apartment.elastic.queries import get_apartments_for_uuids
 from application_form.enums import ApartmentReservationState
@@ -44,9 +45,18 @@ class CustomerViewSet(AuditLoggingModelViewSet):
             last_name = self.request.query_params.get("last_name", "")
             phone_number = self.request.query_params.get("phone_number", "")
             email = self.request.query_params.get("email", "")
+            hetu = self.request.query_params.get("hetu", "")
+            date_of_birth_raw = self.request.query_params.get("date_of_birth", "")
             search_values_less_than_min_length = all(
                 len(value) < self.SEARCH_VALUE_MIN_LENGTH
-                for value in [first_name, last_name, phone_number, email]
+                for value in [
+                    first_name,
+                    last_name,
+                    phone_number,
+                    email,
+                    hetu,
+                    date_of_birth_raw,
+                ]
             )
             if search_values_less_than_min_length:
                 return Customer.objects.none()
@@ -77,8 +87,41 @@ class CustomerViewSet(AuditLoggingModelViewSet):
                     Q(primary_profile__email__icontains=email)
                     | Q(secondary_profile__email__icontains=email)
                 )
+            if hetu:
+                queryset = queryset.filter(
+                    Q(
+                        primary_profile__national_identification_number=hetu
+                    )
+                    | Q(
+                        secondary_profile__national_identification_number=hetu
+                    )
+                )
+            if date_of_birth_raw:
+                date_of_birth = self._parse_finnish_date(date_of_birth_raw)
+                if date_of_birth is None:
+                    return Customer.objects.none()
+                queryset = queryset.filter(
+                    Q(primary_profile__date_of_birth=date_of_birth)
+                    | Q(secondary_profile__date_of_birth=date_of_birth)
+                )
             return queryset
         return super().get_queryset()
+
+    @staticmethod
+    def _parse_finnish_date(value):
+        """
+        Parse a date string in Finnish format (d.m.Y) into a date object.
+
+                Parameters:
+                        value (str): A date string in format d.m.Y, e.g. "3.9.1978"
+
+                Returns:
+                        date | None: Parsed date, or None if the format is invalid
+        """
+        try:
+            return datetime.strptime(value, "%d.%m.%Y").date()
+        except ValueError:
+            return None
 
     def get_serializer_class(self):
         if self.action == "list":
