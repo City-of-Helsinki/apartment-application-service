@@ -365,7 +365,20 @@ def _reserve_haso_apartment(apartment_uuid: uuid.UUID) -> None:
     If a winner has applied to other apartments in the same project with lower priority,
     then the applications with lower priority will be canceled and removed from their
     respective queues, unless their state is already "RESERVED".
+
+    If the apartment already has a sold reservation, the winner has been
+    irrevocably committed and this function returns without making any changes.
+    Without this guard, a cancel cascade from a late HASO application would
+    downgrade SOLD reservations back to RESERVED (ASU regression).
     """
+    if _apartment_has_locked_winner(apartment_uuid):
+        _logger.info(
+            "Skipping _reserve_haso_apartment for apartment %s: apartment already "
+            "has a sold reservation",
+            apartment_uuid,
+        )
+        return
+
     # Get the applications in the queue, ordered by their queue position
     applications = get_ordered_applications(apartment_uuid)
 
@@ -397,6 +410,9 @@ def _update_reservation_state(
     """
     Update the state of the apartment application to either "RESERVED" or "REVIEW",
     depending on whether there is one or more winning candidates.
+
+    Defensive guard: sold reservations are skipped so a sold reservation is
+    never downgraded by automatic winner recalculation.
     """
     application_state = ApartmentReservationState.RESERVED
     if applications.count() > 1:
@@ -405,10 +421,33 @@ def _update_reservation_state(
         application_apartment = application.application_apartments.get(
             apartment_uuid=apartment_uuid
         )
-        application_apartment.apartment_reservation.set_state(application_state)
+        reservation = application_apartment.apartment_reservation
+        if reservation.state in LOCKED_RESERVATION_STATES:
+            _logger.warning(
+                "Refusing to downgrade sold reservation %s (apartment=%s) to %s "
+                "during winner recalculation",
+                reservation.pk,
+                apartment_uuid,
+                application_state,
+            )
+            continue
+        reservation.set_state(application_state)
 
 
 def _reserve_apartment(apartment_uuid: uuid.UUID) -> Optional[ApplicationApartment]:
+    """
+    HITAS winner declaration. Mirrors `_reserve_haso_apartment`'s sold-state
+    guard so a sold reservation is never downgraded by a cancel cascade or
+    lottery re-run.
+    """
+    if _apartment_has_locked_winner(apartment_uuid):
+        _logger.info(
+            "Skipping _reserve_apartment for apartment %s: apartment already "
+            "has a sold reservation",
+            apartment_uuid,
+        )
+        return None
+
     # The winning application is whoever is at first position in the queue
     winning_application = get_ordered_applications(apartment_uuid).first()
 
