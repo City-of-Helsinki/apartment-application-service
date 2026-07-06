@@ -209,6 +209,10 @@ class CustomerOfferDetailsView(GenericAPIView):
         return Response(
             {
                 "subject": details["subject"],
+                "intro": details["intro"],
+                "content": details["content"],
                 "items": details["items"],
+                "project_materialbank_url": details["project_materialbank_url"],
+                "apartment_url": details["apartment_url"],
             }
         )

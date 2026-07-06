@@ -62,7 +62,7 @@ public_urlpatterns = [
         name="customer_offer_message",
     ),
     path(
-        r"profiles/me/offers/<int:offer_id>/offer_details/",
+        r"profiles/me/offers/<int:offer_id>/details/",
         CustomerOfferDetailsView.as_view(),
         name="customer_offer_details",
     ),

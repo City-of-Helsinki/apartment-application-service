@@ -1,10 +1,25 @@
 from datetime import date
 from decimal import Decimal
 from typing import Optional, Union
+from uuid import UUID
 
 from apartment.elastic.queries import get_apartment
 from apartment.models import ProjectExtraData
 from application_form.models import ApartmentReservation, Offer
+
+
+def get_offer_message_intro_and_content(project_uuid: UUID) -> tuple[str, str]:
+    """
+    Return normalized offer message intro and content for a project.
+    """
+    try:
+        project_data = ProjectExtraData.objects.get(project_uuid=project_uuid)
+    except ProjectExtraData.DoesNotExist:
+        return "", ""
+
+    intro = _normalize_offer_message_part(project_data.offer_message_intro)
+    content = _normalize_offer_message_part(project_data.offer_message_content)
+    return intro, content
 
 
 def get_offer_message_subject_and_body(
@@ -18,17 +33,9 @@ def get_offer_message_subject_and_body(
         except Offer.DoesNotExist:
             pass
 
-    try:
-        project_data = ProjectExtraData.objects.get(project_uuid=apartment.project_uuid)
-        intro = (
-            project_data.offer_message_intro.replace("\r\n", "\n").rstrip("\n") + "\n"
-        )
-        content = (
-            project_data.offer_message_content.replace("\r\n", "\n").rstrip("\n") + "\n"
-        )
-    except ProjectExtraData.DoesNotExist:
-        intro = ""
-        content = ""
+    intro, content = get_offer_message_intro_and_content(apartment.project_uuid)
+    intro = f"{intro}\n" if intro else ""
+    content = f"{content}\n" if content else ""
 
     dynamic = _get_offer_message_body_dynamic_part(
         reservation, apartment, valid_until=valid_until
@@ -42,6 +49,22 @@ def get_offer_message_subject_and_body(
     )
 
     return subject, body
+
+
+def get_offer_materialbank_urls(apartment) -> dict[str, str]:
+    """
+    Return materialbank and apartment page URLs for an offer.
+    """
+    project_materialbank_url = ""
+    attachment_urls = getattr(apartment, "project_attachment_urls", None) or []
+    if attachment_urls:
+        project_materialbank_url = str(attachment_urls[0])
+
+    apartment_url = getattr(apartment, "url", None) or ""
+    return {
+        "project_materialbank_url": project_materialbank_url,
+        "apartment_url": str(apartment_url),
+    }
 
 
 def get_offer_details_items(
@@ -190,3 +213,7 @@ def _get_date_str(value: Union[date, None]) -> str:
     if value is None:
         return "Ei tiedossa"
     return value.strftime("%-d.%-m.%Y")
+
+
+def _normalize_offer_message_part(value: str) -> str:
+    return value.replace("\r\n", "\n").rstrip("\n")
