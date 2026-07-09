@@ -7,7 +7,10 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from apartment.elastic.queries import get_apartment_uuids
-from application_form.api.sales.serializers import OfferDetailsSerializer, OfferMessageSerializer
+from application_form.api.sales.serializers import (
+    OfferDetailsSerializer,
+    OfferMessageSerializer,
+)
 from application_form.api.serializers import (
     ApartmentReservationSerializer,
     ApplicantSerializerBase,

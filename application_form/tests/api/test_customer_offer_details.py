@@ -24,7 +24,9 @@ def test_customer_offer_details_returns_structured_items(api_client):
     reservation.save(update_fields=["has_children"])
 
     client = _customer_client(profile)
-    url = reverse("application_form:customer_offer_details", kwargs={"offer_id": offer.id})
+    url = reverse(
+        "application_form:customer_offer_details", kwargs={"offer_id": offer.id}
+    )
     response = client.get(url)
 
     assert response.status_code == 200
@@ -57,7 +59,9 @@ def test_customer_offer_details_returns_project_message_parts(api_client):
     _reservation, offer = _create_offered_reservation(profile, apartment=apartment)
 
     client = _customer_client(profile)
-    url = reverse("application_form:customer_offer_details", kwargs={"offer_id": offer.id})
+    url = reverse(
+        "application_form:customer_offer_details", kwargs={"offer_id": offer.id}
+    )
     response = client.get(url)
 
     assert response.status_code == 200
@@ -82,7 +86,9 @@ def test_customer_offer_details_returns_materialbank_urls(api_client):
     _reservation, offer = _create_offered_reservation(profile, apartment=apartment)
 
     client = _customer_client(profile)
-    url = reverse("application_form:customer_offer_details", kwargs={"offer_id": offer.id})
+    url = reverse(
+        "application_form:customer_offer_details", kwargs={"offer_id": offer.id}
+    )
     response = client.get(url)
 
     assert response.status_code == 200
@@ -101,7 +107,9 @@ def test_customer_offer_details_other_profile_returns_404(api_client):
 
     other_profile = ProfileFactory()
     client = _customer_client(other_profile)
-    url = reverse("application_form:customer_offer_details", kwargs={"offer_id": offer.id})
+    url = reverse(
+        "application_form:customer_offer_details", kwargs={"offer_id": offer.id}
+    )
     response = client.get(url)
 
     assert response.status_code == 404
@@ -115,8 +123,9 @@ def test_customer_offer_details_unauthorized(api_client):
     profile = ProfileFactory()
     _reservation, offer = _create_offered_reservation(profile=profile)
 
-    url = reverse("application_form:customer_offer_details", kwargs={"offer_id": offer.id})
+    url = reverse(
+        "application_form:customer_offer_details", kwargs={"offer_id": offer.id}
+    )
     response = api_client.get(url)
 
     assert response.status_code == 401
-

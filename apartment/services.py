@@ -104,7 +104,10 @@ def get_offer_details_items(
                     "key": "maintenance_fee",
                     "value": _get_price_str(apartment.maintenance_fee),
                 },
-                {"key": "has_children", "value": _get_bool_str(reservation.has_children)},
+                {
+                    "key": "has_children",
+                    "value": _get_bool_str(reservation.has_children),
+                },
             ]
         )
     elif ownership_type == "haso":
@@ -128,7 +131,10 @@ def get_offer_details_items(
                     "key": "right_of_residence",
                     "value": _get_int_str(reservation.right_of_residence),
                 },
-                {"key": "is_age_over_55", "value": _get_bool_str(reservation.is_age_over_55)},
+                {
+                    "key": "is_age_over_55",
+                    "value": _get_bool_str(reservation.is_age_over_55),
+                },
                 {
                     "key": "is_right_of_occupancy_housing_changer",
                     "value": _get_bool_str(
