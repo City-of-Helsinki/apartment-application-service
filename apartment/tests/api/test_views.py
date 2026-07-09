@@ -213,21 +213,25 @@ def test_project_list_contains_apartment_sale_state_counts(
             apartment_uuid=first_apartment.uuid,
             state=ApartmentReservationState.SOLD,
             list_position=1,
+            queue_position=1,
         )
         ApartmentReservationFactory(
             apartment_uuid=apartments[1].uuid,
             state=ApartmentReservationState.RESERVED,
             list_position=1,
+            queue_position=1,
         )
         ApartmentReservationFactory(
             apartment_uuid=apartments[2].uuid,
             state=ApartmentReservationState.RESERVED,
             list_position=1,
+            queue_position=1,
         )
         ApartmentReservationFactory(
             apartment_uuid=apartments[2].uuid,
             state=ApartmentReservationState.OFFERED,
             list_position=2,
+            queue_position=2,
         )
 
         response = sales_ui_salesperson_api_client.get(

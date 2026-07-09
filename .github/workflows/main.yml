@@ -20,15 +20,15 @@ env:
   OIKOTIE_APARTMENTS_UPDATE_SCHEMA_URL: "foo.bar/oikotie-apartments-update.rng"
   OIKOTIE_HOUSINGCOMPANIES_BATCH_SCHEMA_URL: "foo.bar/oikotie-housingcompanies-batch.rng"
 
-  ELASTICSEARCH_VERSION: '7.9.1'
+  ELASTICSEARCH_VERSION: "7.9.1"
   ELASTICSEARCH_HOST: localhost
   ELASTICSEARCH_URL: http://localhost
   APARTMENT_INDEX_NAME: test-apartment
   APARTMENT_DATA_TRANSFER_PATH: test_files
   # poppler-utils package contains the pdftotext-program that is used in some tests
   # newer versions of the program parse PDF's differently causing the tests to fail
-  POPPLER_UTILS_VERSION: '22.02.0-2ubuntu0.12'
-  GETTEXT_VERSION: '0.21-4ubuntu4'
+  POPPLER_UTILS_VERSION: "22.02.0-2ubuntu0.13"
+  GETTEXT_VERSION: "0.21-4ubuntu4"
   PUBLIC_PGP_KEY: |
     -----BEGIN PGP PUBLIC KEY BLOCK-----
 
@@ -98,10 +98,10 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.12'
-          cache: 'pip'
+          python-version: "3.12"
+          cache: "pip"
           cache-dependency-path: requirements-dev.txt
-  
+
       - name: Install dependencies
         run: pip install -U pip==24.2
 
@@ -159,16 +159,16 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
-          cache: 'pip'
+          cache: "pip"
           cache-dependency-path: requirements*.txt
-       
+
       - name: Update apt packages
         run: sudo apt-get update
-        
+
       - name: psycopg2 prerequisites
         run: sudo apt-get install libpq-dev
 
-      - name: Install poppler-utils for pdftotext  # used in tests
+      - name: Install poppler-utils for pdftotext # used in tests
         run: sudo apt-get install poppler-utils=${{env.POPPLER_UTILS_VERSION}}
 
       - name: Install gettext to make Django translation files # for tests
@@ -194,7 +194,7 @@ jobs:
           container port: 9200
           host node port: 9300
           node port: 9300
-          discovery type: 'single-node'
+          discovery type: "single-node"
 
       - name: Run migrations
         run: |
@@ -207,7 +207,6 @@ jobs:
       - name: Compile messages
         run: |
           ./manage.py compilemessages
-
 
       - name: Run tests
         run: |

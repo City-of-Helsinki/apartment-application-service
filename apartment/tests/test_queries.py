@@ -112,7 +112,7 @@ def test_sale_state_counts_categorizes_by_winning_reservation_state(
     elasticsearch,
 ):
     """
-    Verify that the winning reservation (list_position=1) drives categorization.
+    Verify that the winning reservation (queue_position=1) drives categorization.
 
     - SOLD state -> sold_apartment_count.
     - RESERVED state -> reserved_apartment_count.
@@ -130,16 +130,19 @@ def test_sale_state_counts_categorizes_by_winning_reservation_state(
         apartment_uuid=sold_apt.uuid,
         state=ApartmentReservationState.SOLD,
         list_position=1,
+        queue_position=1,
     )
     ApartmentReservationFactory(
         apartment_uuid=reserved_apt.uuid,
         state=ApartmentReservationState.RESERVED,
         list_position=1,
+        queue_position=1,
     )
     ApartmentReservationFactory(
         apartment_uuid=submitted_apt.uuid,
         state=ApartmentReservationState.SUBMITTED,
         list_position=1,
+        queue_position=1,
     )
 
     result = get_project_apartment_sale_state_counts([str(first.project_uuid)])
@@ -152,14 +155,14 @@ def test_sale_state_counts_categorizes_by_winning_reservation_state(
 
 
 @pytest.mark.django_db
-def test_sale_state_counts_only_counts_list_position_one(
+def test_sale_state_counts_only_counts_queue_position_one(
     elasticsearch,
 ):
     """
-    Verify that only the winning (list_position=1) reservation is considered.
+    Verify that only the winning (queue_position=1) reservation is considered.
 
-    - A later list_position=2 reservation must not influence the count.
-    - With list_position=1 RESERVED and list_position=2 OFFERED the apartment
+    - A later queue_position=2 reservation must not influence the count.
+    - With queue_position=1 RESERVED and queue_position=2 OFFERED the apartment
       is counted as reserved.
     """
     first = ApartmentDocumentFactory()
@@ -169,11 +172,13 @@ def test_sale_state_counts_only_counts_list_position_one(
         apartment_uuid=first.uuid,
         state=ApartmentReservationState.RESERVED,
         list_position=1,
+        queue_position=1,
     )
     ApartmentReservationFactory(
         apartment_uuid=first.uuid,
         state=ApartmentReservationState.OFFERED,
         list_position=2,
+        queue_position=2,
     )
 
     result = get_project_apartment_sale_state_counts([str(first.project_uuid)])
@@ -181,6 +186,41 @@ def test_sale_state_counts_only_counts_list_position_one(
     assert result[str(first.project_uuid)] == {
         "sold_apartment_count": 0,
         "reserved_apartment_count": 1,
+        "free_apartment_count": 0,
+    }
+
+
+@pytest.mark.django_db
+def test_sale_state_counts_uses_queue_position_when_list_position_diverges(
+    elasticsearch,
+):
+    """
+    Verify sold apartments are counted when queue_position=1 but list_position>1.
+
+    - Canceled reservations keep their list_position but lose queue_position.
+    - The buyer at queue_position=1 must be counted as sold, not free.
+    """
+    first = ApartmentDocumentFactory()
+    add_to_store([first])
+
+    ApartmentReservationFactory(
+        apartment_uuid=first.uuid,
+        state=ApartmentReservationState.CANCELED,
+        list_position=1,
+        queue_position=None,
+    )
+    ApartmentReservationFactory(
+        apartment_uuid=first.uuid,
+        state=ApartmentReservationState.SOLD,
+        list_position=7,
+        queue_position=1,
+    )
+
+    result = get_project_apartment_sale_state_counts([str(first.project_uuid)])
+
+    assert result[str(first.project_uuid)] == {
+        "sold_apartment_count": 1,
+        "reserved_apartment_count": 0,
         "free_apartment_count": 0,
     }
 
@@ -202,6 +242,7 @@ def test_sale_state_counts_excludes_canceled_reservations(
         apartment_uuid=first.uuid,
         state=ApartmentReservationState.CANCELED,
         list_position=1,
+        queue_position=None,
     )
 
     result = get_project_apartment_sale_state_counts([str(first.project_uuid)])
@@ -231,11 +272,13 @@ def test_sale_state_counts_keeps_projects_independent(
         apartment_uuid=project_a_apt.uuid,
         state=ApartmentReservationState.SOLD,
         list_position=1,
+        queue_position=1,
     )
     ApartmentReservationFactory(
         apartment_uuid=project_b_apt.uuid,
         state=ApartmentReservationState.RESERVED,
         list_position=1,
+        queue_position=1,
     )
 
     result = get_project_apartment_sale_state_counts(

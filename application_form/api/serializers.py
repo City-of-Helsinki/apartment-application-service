@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from enumfields.drf import EnumField, EnumSupportSerializerMixin
@@ -37,6 +38,7 @@ from application_form.models import (
 from application_form.services.application import (
     cancel_reservation,
     create_application,
+    get_sold_apartment_uuids,
     send_sales_notification_email,
 )
 from application_form.services.offer import update_offer
@@ -118,6 +120,7 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
             "apartments",
             "has_hitas_ownership",
             "is_right_of_occupancy_housing_changer",
+            "drupal_application_id",
         )
         extra_kwargs = {
             # We only support creating applications for now,
@@ -129,6 +132,11 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
             "project_id": {"write_only": True},
             "has_hitas_ownership": {"write_only": True},
             "is_right_of_occupancy_housing_changer": {"write_only": True},
+            "drupal_application_id": {
+                "write_only": True,
+                "required": False,
+                "allow_null": True,
+            },
         }
 
     def create(self, validated_data):
@@ -176,6 +184,19 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
                 {
                     "detail": "User already has offered or sold apartment in this project"  # noqa: E501
                 },
+                code=400,
+            )
+
+        target_apartment_uuids = [
+            apartment["identifier"]
+            for apartment in validated_data.get("apartments", [])
+        ]
+        if (
+            not settings.ALLOW_APPLICATIONS_TO_SOLD_APARTMENTS
+            and get_sold_apartment_uuids(target_apartment_uuids)
+        ):
+            raise serializers.ValidationError(
+                {"detail": "Cannot apply to a sold apartment"},
                 code=400,
             )
 
