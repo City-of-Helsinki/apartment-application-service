@@ -12,6 +12,8 @@ from application_form.api.sales.views import (
 )
 from application_form.api.views import (
     ApplicationViewSet,
+    CustomerOfferDetailsView,
+    CustomerOfferMessageView,
     CustomerOfferUpdateView,
     DeleteApplicationView,
     LatestApplicantInfo,
@@ -53,6 +55,16 @@ public_urlpatterns = [
         r"profiles/me/offers/<int:offer_id>/",
         CustomerOfferUpdateView.as_view(),
         name="customer_offer_update",
+    ),
+    path(
+        r"profiles/me/offers/<int:offer_id>/offer_message/",
+        CustomerOfferMessageView.as_view(),
+        name="customer_offer_message",
+    ),
+    path(
+        r"profiles/me/offers/<int:offer_id>/details/",
+        CustomerOfferDetailsView.as_view(),
+        name="customer_offer_details",
     ),
 ]
 

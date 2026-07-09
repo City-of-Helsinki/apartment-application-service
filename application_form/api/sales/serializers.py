@@ -16,7 +16,12 @@ from apartment.elastic.queries import (
     get_project,
 )
 from apartment.models import ProjectExtraData
-from apartment.services import get_offer_message_subject_and_body
+from apartment.services import (
+    get_offer_details_items,
+    get_offer_materialbank_urls,
+    get_offer_message_intro_and_content,
+    get_offer_message_subject_and_body,
+)
 from application_form.api.serializers import (
     ApartmentReservationSerializerBase,
     ApplicantSerializerBase,
@@ -402,6 +407,43 @@ class OfferMessageSerializer(serializers.Serializer):
             "subject": subject,
             "body": body,
             "recipients": recipients,
+        }
+
+
+class OfferDetailsSerializer(serializers.Serializer):
+    subject = serializers.CharField()
+    intro = serializers.CharField()
+    content = serializers.CharField()
+    items = serializers.ListField(child=serializers.DictField())
+    project_materialbank_url = serializers.CharField()
+    apartment_url = serializers.CharField()
+
+    class Meta:
+        fields = (
+            "subject",
+            "intro",
+            "content",
+            "items",
+            "project_materialbank_url",
+            "apartment_url",
+        )
+
+    def to_representation(self, instance: ApartmentReservation):
+        subject, _body = get_offer_message_subject_and_body(
+            instance, valid_until=self.context.get("valid_until")
+        )
+        items = get_offer_details_items(
+            instance, valid_until=self.context.get("valid_until")
+        )
+        apartment = get_apartment(instance.apartment_uuid, include_project_fields=True)
+        intro, content = get_offer_message_intro_and_content(apartment.project_uuid)
+        materialbank_urls = get_offer_materialbank_urls(apartment)
+        return {
+            "subject": subject,
+            "intro": intro,
+            "content": content,
+            "items": items,
+            **materialbank_urls,
         }
 
 

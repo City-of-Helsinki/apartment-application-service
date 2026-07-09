@@ -1,10 +1,25 @@
 from datetime import date
 from decimal import Decimal
 from typing import Optional, Union
+from uuid import UUID
 
 from apartment.elastic.queries import get_apartment
 from apartment.models import ProjectExtraData
 from application_form.models import ApartmentReservation, Offer
+
+
+def get_offer_message_intro_and_content(project_uuid: UUID) -> tuple[str, str]:
+    """
+    Return normalized offer message intro and content for a project.
+    """
+    try:
+        project_data = ProjectExtraData.objects.get(project_uuid=project_uuid)
+    except ProjectExtraData.DoesNotExist:
+        return "", ""
+
+    intro = _normalize_offer_message_part(project_data.offer_message_intro)
+    content = _normalize_offer_message_part(project_data.offer_message_content)
+    return intro, content
 
 
 def get_offer_message_subject_and_body(
@@ -18,17 +33,9 @@ def get_offer_message_subject_and_body(
         except Offer.DoesNotExist:
             pass
 
-    try:
-        project_data = ProjectExtraData.objects.get(project_uuid=apartment.project_uuid)
-        intro = (
-            project_data.offer_message_intro.replace("\r\n", "\n").rstrip("\n") + "\n"
-        )
-        content = (
-            project_data.offer_message_content.replace("\r\n", "\n").rstrip("\n") + "\n"
-        )
-    except ProjectExtraData.DoesNotExist:
-        intro = ""
-        content = ""
+    intro, content = get_offer_message_intro_and_content(apartment.project_uuid)
+    intro = f"{intro}\n" if intro else ""
+    content = f"{content}\n" if content else ""
 
     dynamic = _get_offer_message_body_dynamic_part(
         reservation, apartment, valid_until=valid_until
@@ -42,6 +49,105 @@ def get_offer_message_subject_and_body(
     )
 
     return subject, body
+
+
+def get_offer_materialbank_urls(apartment) -> dict[str, str]:
+    """
+    Return materialbank and apartment page URLs for an offer.
+    """
+    project_materialbank_url = ""
+    attachment_urls = getattr(apartment, "project_attachment_urls", None) or []
+    if attachment_urls:
+        project_materialbank_url = str(attachment_urls[0])
+
+    apartment_url = getattr(apartment, "url", None) or ""
+    return {
+        "project_materialbank_url": project_materialbank_url,
+        "apartment_url": str(apartment_url),
+    }
+
+
+def get_offer_details_items(
+    reservation: ApartmentReservation, valid_until: Optional[date] = None
+) -> list[dict[str, str]]:
+    """
+    Return offer details as ordered key/value items (dynamic part of the email).
+
+    The returned values match the formatting used in the offer email body.
+    Keys are stable machine identifiers so the caller can translate labels.
+    """
+    apartment = get_apartment(reservation.apartment_uuid, include_project_fields=True)
+
+    if not valid_until:
+        try:
+            valid_until = reservation.offer.valid_until
+        except Offer.DoesNotExist:
+            pass
+
+    items: list[dict[str, str]] = [
+        {"key": "apartment_number", "value": str(apartment.apartment_number)},
+        {"key": "apartment_structure", "value": str(apartment.apartment_structure)},
+        {"key": "living_area", "value": str(apartment.living_area)},
+        {"key": "floor", "value": f"{apartment.floor}. krs"},
+    ]
+
+    ownership_type = apartment.project_ownership_type.lower()
+    if ownership_type in ("hitas", "puolihitas"):
+        items.extend(
+            [
+                {"key": "sales_price", "value": _get_price_str(apartment.sales_price)},
+                {
+                    "key": "debt_free_sales_price",
+                    "value": _get_price_str(apartment.debt_free_sales_price),
+                },
+                {
+                    "key": "maintenance_fee",
+                    "value": _get_price_str(apartment.maintenance_fee),
+                },
+                {
+                    "key": "has_children",
+                    "value": _get_bool_str(reservation.has_children),
+                },
+            ]
+        )
+    elif ownership_type == "haso":
+        items.extend(
+            [
+                {
+                    "key": "current_right_of_occupancy_payment",
+                    "value": _get_price_str(
+                        apartment.current_right_of_occupancy_payment
+                    ),
+                },
+                {
+                    "key": "right_of_occupancy_fee",
+                    "value": _get_price_str(apartment.right_of_occupancy_fee),
+                },
+                {
+                    "key": "right_of_occupancy_deposit",
+                    "value": _get_price_str(apartment.right_of_occupancy_deposit),
+                },
+                {
+                    "key": "right_of_residence",
+                    "value": _get_int_str(reservation.right_of_residence),
+                },
+                {
+                    "key": "is_age_over_55",
+                    "value": _get_bool_str(reservation.is_age_over_55),
+                },
+                {
+                    "key": "is_right_of_occupancy_housing_changer",
+                    "value": _get_bool_str(
+                        reservation.is_right_of_occupancy_housing_changer
+                    ),
+                },
+            ]
+        )
+    else:
+        raise ValueError(f'Unknown project ownership_type "{ownership_type}"')
+
+    items.append({"key": "valid_until", "value": _get_date_str(valid_until)})
+    return items
 
 
 def _get_offer_message_body_dynamic_part(
@@ -113,3 +219,7 @@ def _get_date_str(value: Union[date, None]) -> str:
     if value is None:
         return "Ei tiedossa"
     return value.strftime("%-d.%-m.%Y")
+
+
+def _normalize_offer_message_part(value: str) -> str:
+    return value.replace("\r\n", "\n").rstrip("\n")
