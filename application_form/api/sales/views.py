@@ -7,6 +7,7 @@ from dateutil import parser
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import transaction
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone, translation
@@ -856,8 +857,48 @@ def _get_pending_offer_reminders(days_before: int):
     return results
 
 
+def _claim_offer_message_sent(offer: Offer) -> None:
+    """
+    Mark an offer as messaged so it is not returned again.
+    """
+    offer.message_sent_at = timezone.now()
+    offer.save(update_fields=["message_sent_at", "updated_at"])
+
+
+def _try_claim_offer_message(offer_id: int) -> bool:
+    """
+    Atomically claim a pending offer for message delivery.
+
+    Returns:
+        True when this caller claimed the offer, False if already claimed.
+    """
+    with transaction.atomic():
+        offer = (
+            Offer.objects.select_for_update()
+            .filter(
+                pk=offer_id,
+                state=OfferState.PENDING,
+                message_sent_at__isnull=True,
+            )
+            .first()
+        )
+        if offer is None:
+            return False
+        _claim_offer_message_sent(offer)
+        return True
+
+
 def _get_pending_offer_messages():
-    offers = (
+    """
+    Claim and return pending offers that need the initial customer email.
+
+    Claims (sets message_sent_at) before returning so concurrent cron runs
+    cannot send duplicate emails. Offers without recipients are claimed
+    without returning. Offers whose apartment is missing from the search
+    index are left unclaimed for a later retry.
+    """
+    today = timezone.localdate()
+    candidates = list(
         Offer.objects.select_related(
             "apartment_reservation__customer__primary_profile",
             "apartment_reservation__customer__secondary_profile",
@@ -865,12 +906,13 @@ def _get_pending_offer_messages():
         .filter(
             state=OfferState.PENDING,
             message_sent_at__isnull=True,
+            valid_until__gte=today,
             apartment_reservation__state=ApartmentReservationState.OFFERED,
         )
         .order_by("created_at", "id")
     )
     results = []
-    for offer in offers:
+    for offer in candidates:
         reservation = offer.apartment_reservation
         apartment_uuid = reservation.apartment_uuid
         try:
@@ -882,10 +924,6 @@ def _get_pending_offer_messages():
                 apartment_uuid,
             )
             continue
-        subject, body = get_offer_message_subject_and_body(
-            reservation,
-            valid_until=offer.valid_until,
-        )
         recipients = [
             p
             for p in (
@@ -894,6 +932,19 @@ def _get_pending_offer_messages():
             )
             if p and p.email
         ]
+        if not recipients:
+            _logger.warning(
+                "Marking offer %s message as sent: no recipient emails.",
+                offer.id,
+            )
+            _try_claim_offer_message(offer.id)
+            continue
+        subject, body = get_offer_message_subject_and_body(
+            reservation,
+            valid_until=offer.valid_until,
+        )
+        if not _try_claim_offer_message(offer.id):
+            continue
         results.append(
             {
                 "id": offer.id,
@@ -913,7 +964,7 @@ def _get_pending_offer_messages():
 @authentication_classes([DrupalAuthentication])
 def pending_offer_messages(request):
     """
-    Returns pending offers that need the initial offer email sent to customers.
+    Claims and returns pending offers that need the initial offer email.
     """
     messages = _get_pending_offer_messages()
     serializer = PendingOfferMessageSerializer(messages, many=True)
