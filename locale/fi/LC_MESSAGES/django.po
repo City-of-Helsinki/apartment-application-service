@@ -197,6 +197,14 @@ msgstr ""
 msgid "concluded at"
 msgstr ""
 
+#: application_form/models/offer.py:37
+msgid "reminder sent at"
+msgstr "muistutus lähetetty"
+
+#: application_form/models/offer.py:40
+msgid "message sent at"
+msgstr "viesti lähetetty"
+
 #: application_form/models/offer.py:36
 #: application_form/models/reservation.py:164
 #: application_form/models/reservation.py:177

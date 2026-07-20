@@ -410,6 +410,15 @@ class OfferMessageSerializer(serializers.Serializer):
         }
 
 
+class PendingOfferMessageSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    valid_until = serializers.DateField()
+    project_uuid = serializers.UUIDField()
+    subject = serializers.CharField()
+    body = serializers.CharField()
+    recipients = RecipientSerializer(many=True)
+
+
 class OfferDetailsSerializer(serializers.Serializer):
     subject = serializers.CharField()
     intro = serializers.CharField()
