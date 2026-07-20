@@ -37,6 +37,9 @@ class Offer(TimestampedModel):
     reminder_sent_at = models.DateTimeField(
         verbose_name=_("reminder sent at"), null=True, blank=True
     )
+    message_sent_at = models.DateTimeField(
+        verbose_name=_("message sent at"), null=True, blank=True
+    )
 
     objects = OfferQuerySet.as_manager()
     # Metadata fields
