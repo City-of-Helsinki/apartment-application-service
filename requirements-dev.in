@@ -19,3 +19,5 @@ pytest-django
 pytest-sugar
 python-dateutil
 pytest-freezegun
+# PDF text extraction for contract PDF tests (replaces poppler-utils/pdftotext)
+pypdfium2==5.12.1

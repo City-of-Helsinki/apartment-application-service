@@ -132,6 +132,8 @@ pylint-django==2.5.3
     # via -r requirements-dev.in
 pylint-plugin-utils==0.8.2
     # via pylint-django
+pypdfium2==5.12.1
+    # via -r requirements-dev.in
 pyproject-hooks==1.0.0
     # via
     #   build
