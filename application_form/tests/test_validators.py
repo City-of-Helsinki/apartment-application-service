@@ -64,13 +64,35 @@ def test_ssn_suffix_validator_invalid_control_character():
 
 
 @pytest.mark.django_db
-def test_project_applicant_validator(elastic_hitas_project_with_5_apartments):
+def test_project_applicant_validator(elasticsearch):
     """
     Applicants can apply only once to the project.
-    Uses Hitas project to avoid validator early-return for late Haso submissions
-    (project_ownership_type, application_end_time, can_apply_afterwards are fuzzy).
+
+    Uses a HITAS project with can_apply_afterwards=False to ensure the duplicate
+    applicant check is not bypassed by the late-apply early-return path.
     """
-    project_uuid, apartments = elastic_hitas_project_with_5_apartments
+    from apartment.tests.factories import add_to_store, ApartmentDocumentFactory
+    from django.utils import timezone
+    from datetime import timedelta
+
+    apartments = []
+    first_apt = ApartmentDocumentFactory(
+        project_ownership_type="Hitas",
+        project_can_apply_afterwards=False,
+        project_application_end_time=timezone.now() + timedelta(days=1),
+    )
+    apartments.append(first_apt)
+    for _ in range(4):
+        apartments.append(
+            ApartmentDocumentFactory(
+                project_uuid=first_apt.project_uuid,
+                project_ownership_type="Hitas",
+                project_can_apply_afterwards=False,
+                project_application_end_time=timezone.now() + timedelta(days=1),
+            )
+        )
+    add_to_store(apartments)
+    project_uuid = first_apt.project_uuid
     first_apartment_uuid = apartments[0].uuid
 
     application = ApplicationFactory()

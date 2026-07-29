@@ -85,7 +85,12 @@ class ProjectApplicantValidator:
                 > project.project_application_end_time
             )
             is_haso = project.project_ownership_type.lower() == OwnershipType.HASO.value
-            if is_submitted_late and is_haso and project.project_can_apply_afterwards:
+            is_hitas = (
+                project.project_ownership_type.lower() == OwnershipType.HITAS.value
+            )
+            if is_submitted_late and project.project_can_apply_afterwards and (
+                is_haso or is_hitas
+            ):
                 return
 
         apartment_uuids = [str(u) for u in get_apartment_uuids(project_uuid)]

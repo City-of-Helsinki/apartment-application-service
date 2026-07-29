@@ -10,11 +10,13 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.fields import IntegerField, UUIDField
 
 from apartment.elastic.queries import (
+    get_apartment,
     get_apartment_project_uuid,
     get_apartment_uuids,
     get_project,
 )
 from apartment.enums import OwnershipType
+from connections.enums import ApartmentStateOfSale
 from apartment_application_service.settings import (
     METADATA_HANDLER_INFORMATION,
     METADATA_HASO_PROCESS_NUMBER,
@@ -200,13 +202,64 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
                 code=400,
             )
 
-        if is_submitted_late and (
-            not project.project_can_apply_afterwards or not is_haso
-        ):
+        is_hitas = (
+            project.project_ownership_type.lower() == OwnershipType.HITAS.value
+        )
+
+        if is_submitted_late and not project.project_can_apply_afterwards:
             raise serializers.ValidationError(
                 {"detail": "Cannot submit late application to this apartment"},
                 code=400,
             )
+
+        if is_submitted_late and not is_haso and not is_hitas:
+            raise serializers.ValidationError(
+                {"detail": "Cannot submit late application to this apartment"},
+                code=400,
+            )
+
+        if is_submitted_late and is_hitas:
+            # Late HITAS reservations: exactly one apartment allowed
+            if len(validated_data.get("apartments", [])) != 1:
+                raise serializers.ValidationError(
+                    {
+                        "detail": (
+                            "HITAS post-period reservation must contain "
+                            "exactly one apartment"
+                        )
+                    },
+                    code=400,
+                )
+            # Apartment must be free (not sold or otherwise unavailable)
+            target_uuid = validated_data["apartments"][0]["identifier"]
+            target_apartment = get_apartment(target_uuid)
+            sold_states = {
+                ApartmentStateOfSale.SOLD.value,
+                ApartmentStateOfSale.RESERVED.value,
+                ApartmentStateOfSale.RESERVED_HASO.value,
+            }
+            if (
+                target_apartment.apartment_state_of_sale
+                and target_apartment.apartment_state_of_sale.upper() in sold_states
+            ):
+                raise serializers.ValidationError(
+                    {"detail": "Cannot reserve an apartment that is not free"},
+                    code=400,
+                )
+            # Customer must not already have an active reservation in the project
+            existing_reservations = ApartmentReservation.objects.filter(
+                apartment_uuid__in=project_apartment_uuids,
+                application_apartment__application__customer__primary_profile__id=profile.id,  # noqa: E501
+            ).exclude(state=ApartmentReservationState.CANCELED)
+            if existing_reservations.exists():
+                raise serializers.ValidationError(
+                    {
+                        "detail": (
+                            "Customer already has a reservation in this project"
+                        )
+                    },
+                    code=400,
+                )
 
         application = create_application(
             validated_data,
@@ -232,6 +285,15 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
                     cancellation_reason=ApartmentReservationCancellationReason.CANCELED,
                 )
 
+            send_sales_notification_email(
+                application,
+                project,
+                application_apartment_uuids=[
+                    apt["identifier"] for apt in validated_data.get("apartments")
+                ],
+            )
+
+        if is_submitted_late and is_hitas and project.project_can_apply_afterwards:
             send_sales_notification_email(
                 application,
                 project,
