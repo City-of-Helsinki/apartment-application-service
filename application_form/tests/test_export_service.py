@@ -207,9 +207,20 @@ def _validate_mailing_list_csv(
 
     content_rows = csv_rows[1:]
 
-    reservations = sorted(
-        reservations, key=lambda x: get_apartment(x.apartment_uuid).apartment_number
-    )
+    if export_service is not None:
+        reservations = sorted(
+            reservations,
+            key=lambda reservation: export_service.get_order_key(
+                [get_apartment(reservation.apartment_uuid).apartment_number]
+            ),
+        )
+    else:
+        reservations = sorted(
+            reservations,
+            key=lambda reservation: get_apartment(
+                reservation.apartment_uuid
+            ).apartment_number,
+        )
 
     class empty_profile:
         first_name = None
