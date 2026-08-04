@@ -628,6 +628,34 @@ msgstr ""
 msgid "profiles"
 msgstr ""
 
+#: application_form/api/serializers.py
+msgid "HITAS post-period reservation must contain exactly one apartment"
+msgstr "HITAS-jälkivarauksen tulee sisältää täsmälleen yksi asunto"
+
+#: application_form/api/serializers.py
+msgid "Apartment not found"
+msgstr "Asuntoa ei löydy"
+
+#: application_form/api/serializers.py
+msgid "Cannot reserve an apartment that is not free"
+msgstr "Asuntoa, joka ei ole vapaa, ei voi varata"
+
+#: application_form/api/serializers.py
+msgid "Customer already has a reservation in this project"
+msgstr "Asiakkaalla on jo varaus tässä kohteessa"
+
+#: application_form/api/serializers.py
+msgid "User already has offered or sold apartment in this project"
+msgstr "Käyttäjällä on jo tarjottu tai myyty asunto tässä kohteessa"
+
+#: application_form/api/serializers.py
+msgid "Cannot apply to a sold apartment"
+msgstr "Myytyyn asuntoon ei voi hakea"
+
+#: application_form/api/serializers.py
+msgid "Cannot submit late application to this apartment"
+msgstr "Myöhäistä hakemusta ei voi lähettää tähän asuntoon"
+
 #~ msgid "refund"
 #~ msgstr "Hyvitys"
 

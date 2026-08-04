@@ -312,6 +312,18 @@ def elastic_hitas_project_application_end_time_finished(elasticsearch):
     apartment = ApartmentDocumentFactory(
         project_ownership_type="Hitas",
         project_application_end_time=timezone.now() - timedelta(days=1),
+        project_can_apply_afterwards=True,
+    )
+    add_to_store([apartment])
+    yield apartment.project_uuid, apartment
+
+
+@fixture
+def elastic_hitas_project_no_late_apply(elasticsearch):
+    apartment = ApartmentDocumentFactory(
+        project_ownership_type="Hitas",
+        project_application_end_time=timezone.now() - timedelta(days=1),
+        project_can_apply_afterwards=False,
     )
     add_to_store([apartment])
     yield apartment.project_uuid, apartment

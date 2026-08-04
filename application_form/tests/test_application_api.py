@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 from uuid import UUID
 
 import pytest
+from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 from freezegun import freeze_time
@@ -1392,9 +1393,12 @@ def test_application_post_haso_submitted_late(
 
     late_submit_data["profile"] = profile.id
 
-    response = drupal_server_api_client.post(
-        reverse("application_form:application-list"), late_submit_data, format="json"
-    )
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        response = drupal_server_api_client.post(
+            reverse("application_form:application-list"),
+            late_submit_data,
+            format="json",
+        )
     assert response.status_code == 201
     application = Application.objects.get(
         external_uuid=response.json()["application_uuid"]
@@ -1458,7 +1462,7 @@ Haetut asunnot:\n"""
     )
     assert second_application.submitted_late is True
 
-    # Test that HITAS apartment late submit isn't allowed (should only work with HASO)
+    # HITAS late submit is rejected when project_can_apply_afterwards is False
     apartments_late_submit_hitas = generate_apartments(
         elasticsearch,
         5,
@@ -1468,6 +1472,7 @@ Haetut asunnot:\n"""
             "project_application_start_time": application_start_time,
             "project_application_end_time": application_end_time,
             "project_ownership_type": OwnershipType.HITAS.value,
+            "project_can_apply_afterwards": False,
         },
     )
 

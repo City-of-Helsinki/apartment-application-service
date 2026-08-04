@@ -4,6 +4,7 @@ from uuid import UUID
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import extend_schema_field
 from enumfields.drf import EnumSupportSerializerMixin
 from rest_framework import serializers
@@ -15,6 +16,7 @@ from apartment.elastic.queries import (
     get_apartment_uuids,
     get_project,
 )
+from apartment.enums import OwnershipType
 from apartment.models import ProjectExtraData
 from apartment.services import (
     get_offer_details_items,
@@ -126,12 +128,15 @@ class SalesApplicationSerializer(ApplicationSerializerBase):
         if submitted_late is None:
             validated_data["submitted_late"] = False
         elif submitted_late:
-            project_is_haso = project.project_ownership_type.lower() == "haso"
+            is_haso = project.project_ownership_type.lower() == OwnershipType.HASO.value
+            is_hitas = (
+                project.project_ownership_type.lower() == OwnershipType.HITAS.value
+            )
             if is_after_deadline and (
-                not project.project_can_apply_afterwards or not project_is_haso
+                not project.project_can_apply_afterwards or not (is_haso or is_hitas)
             ):
                 raise serializers.ValidationError(
-                    {"detail": "Cannot submit late application to this apartment"},
+                    {"detail": _("Cannot submit late application to this apartment")},
                     code=400,
                 )
 

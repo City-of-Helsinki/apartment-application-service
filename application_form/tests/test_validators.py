@@ -1,8 +1,10 @@
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
+from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
+from apartment.tests.factories import add_to_store, ApartmentDocumentFactory
 from application_form.tests.factories import (
     ApplicantFactory,
     ApplicationApartmentFactory,
@@ -64,13 +66,31 @@ def test_ssn_suffix_validator_invalid_control_character():
 
 
 @pytest.mark.django_db
-def test_project_applicant_validator(elastic_hitas_project_with_5_apartments):
+def test_project_applicant_validator(elasticsearch):
     """
     Applicants can apply only once to the project.
-    Uses Hitas project to avoid validator early-return for late Haso submissions
-    (project_ownership_type, application_end_time, can_apply_afterwards are fuzzy).
+
+    Uses a HITAS project with can_apply_afterwards=False to ensure the duplicate
+    applicant check is not bypassed by the late-apply early-return path.
     """
-    project_uuid, apartments = elastic_hitas_project_with_5_apartments
+    apartments = []
+    first_apt = ApartmentDocumentFactory(
+        project_ownership_type="Hitas",
+        project_can_apply_afterwards=False,
+        project_application_end_time=timezone.now() + timedelta(days=1),
+    )
+    apartments.append(first_apt)
+    for _ in range(4):
+        apartments.append(
+            ApartmentDocumentFactory(
+                project_uuid=first_apt.project_uuid,
+                project_ownership_type="Hitas",
+                project_can_apply_afterwards=False,
+                project_application_end_time=timezone.now() + timedelta(days=1),
+            )
+        )
+    add_to_store(apartments)
+    project_uuid = first_apt.project_uuid
     first_apartment_uuid = apartments[0].uuid
 
     application = ApplicationFactory()
@@ -91,3 +111,44 @@ def test_project_applicant_validator(elastic_hitas_project_with_5_apartments):
         validator(project_uuid, applicant_list[1])
 
     validator(project_uuid, (date(2000, 2, 29), "TAAAA"))
+
+
+@pytest.mark.django_db
+def test_project_applicant_validator_skips_late_hitas_when_can_apply_afterwards(
+    elastic_hitas_project_application_end_time_finished,
+):
+    """
+    Late HITAS applicants skip the duplicate-applicant check when
+    project_can_apply_afterwards is True.
+
+    - Existing applicant DOB/SSN does not raise when late apply is allowed
+    """
+    project_uuid, apartment = elastic_hitas_project_application_end_time_finished
+
+    application = ApplicationFactory()
+    applicant = ApplicantFactory(application=application)
+    ApplicationApartmentFactory(apartment_uuid=apartment.uuid, application=application)
+
+    validator = ProjectApplicantValidator()
+    validator(project_uuid, (applicant.date_of_birth, applicant.ssn_suffix))
+
+
+@pytest.mark.django_db
+def test_project_applicant_validator_enforced_for_late_hitas_when_cannot_apply_afterwards(  # noqa: E501
+    elastic_hitas_project_no_late_apply,
+):
+    """
+    Late HITAS applicants are still subject to the duplicate-applicant check when
+    project_can_apply_afterwards is False.
+
+    - Existing applicant DOB/SSN raises PermissionDenied
+    """
+    project_uuid, apartment = elastic_hitas_project_no_late_apply
+
+    application = ApplicationFactory()
+    applicant = ApplicantFactory(application=application)
+    ApplicationApartmentFactory(apartment_uuid=apartment.uuid, application=application)
+
+    validator = ProjectApplicantValidator()
+    with pytest.raises(PermissionDenied):
+        validator(project_uuid, (applicant.date_of_birth, applicant.ssn_suffix))
