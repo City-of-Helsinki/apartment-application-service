@@ -88,8 +88,10 @@ class ProjectApplicantValidator:
             is_hitas = (
                 project.project_ownership_type.lower() == OwnershipType.HITAS.value
             )
-            if is_submitted_late and project.project_can_apply_afterwards and (
-                is_haso or is_hitas
+            if (
+                is_submitted_late
+                and project.project_can_apply_afterwards
+                and (is_haso or is_hitas)
             ):
                 return
 

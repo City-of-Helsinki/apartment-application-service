@@ -1458,7 +1458,7 @@ Haetut asunnot:\n"""
     )
     assert second_application.submitted_late is True
 
-    # Test that HITAS apartment late submit isn't allowed (should only work with HASO)
+    # HITAS late submit is rejected when project_can_apply_afterwards is False
     apartments_late_submit_hitas = generate_apartments(
         elasticsearch,
         5,
@@ -1468,6 +1468,7 @@ Haetut asunnot:\n"""
             "project_application_start_time": application_start_time,
             "project_application_end_time": application_end_time,
             "project_ownership_type": OwnershipType.HITAS.value,
+            "project_can_apply_afterwards": False,
         },
     )
 
