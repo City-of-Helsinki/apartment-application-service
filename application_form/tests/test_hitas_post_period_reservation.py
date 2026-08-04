@@ -31,6 +31,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.translation import gettext
 
 from apartment.enums import OwnershipType
 from apartment.tests.factories import add_to_store, ApartmentDocumentFactory
@@ -192,7 +193,7 @@ def test_hitas_post_period_reservation_rejected_when_can_apply_afterwards_false(
     response, _ = _post_hitas_reservation(api_client, profile, apartment)
 
     assert response.status_code == 400
-    assert _detail_message(response) == (
+    assert _detail_message(response) == gettext(
         "Cannot submit late application to this apartment"
     )
 
@@ -237,7 +238,7 @@ def test_hitas_post_period_reservation_rejected_with_multiple_apartments(
     )
 
     assert response.status_code == 400
-    assert _detail_message(response) == (
+    assert _detail_message(response) == gettext(
         "HITAS post-period reservation must contain exactly one apartment"
     )
 
@@ -269,7 +270,7 @@ def test_hitas_post_period_reservation_rejected_when_customer_already_has_reserv
     response, _ = _post_hitas_reservation(api_client, profile, apartment)
 
     assert response.status_code == 400
-    assert _detail_message(response) == (
+    assert _detail_message(response) == gettext(
         "Customer already has a reservation in this project"
     )
 
@@ -291,7 +292,9 @@ def test_hitas_post_period_reservation_rejected_for_sold_apartment(
     response, _ = _post_hitas_reservation(api_client, profile, apartment)
 
     assert response.status_code == 400
-    assert _detail_message(response) == "Cannot reserve an apartment that is not free"
+    assert _detail_message(response) == gettext(
+        "Cannot reserve an apartment that is not free"
+    )
 
 
 @pytest.mark.django_db
@@ -311,7 +314,9 @@ def test_hitas_post_period_reservation_rejected_for_reserved_apartment(
     response, _ = _post_hitas_reservation(api_client, profile, apartment)
 
     assert response.status_code == 400
-    assert _detail_message(response) == "Cannot reserve an apartment that is not free"
+    assert _detail_message(response) == gettext(
+        "Cannot reserve an apartment that is not free"
+    )
 
 
 @pytest.mark.django_db
@@ -331,7 +336,9 @@ def test_hitas_post_period_reservation_rejected_for_reserved_haso_apartment(
     response, _ = _post_hitas_reservation(api_client, profile, apartment)
 
     assert response.status_code == 400
-    assert _detail_message(response) == "Cannot reserve an apartment that is not free"
+    assert _detail_message(response) == gettext(
+        "Cannot reserve an apartment that is not free"
+    )
 
 
 @pytest.mark.django_db
@@ -350,7 +357,9 @@ def test_hitas_post_period_reservation_rejected_when_state_of_sale_missing(
     response, _ = _post_hitas_reservation(api_client, profile, apartment)
 
     assert response.status_code == 400
-    assert _detail_message(response) == "Cannot reserve an apartment that is not free"
+    assert _detail_message(response) == gettext(
+        "Cannot reserve an apartment that is not free"
+    )
 
 
 @pytest.mark.django_db
@@ -373,7 +382,7 @@ def test_hitas_post_period_reservation_rejected_when_apartment_not_found(
         response, _ = _post_hitas_reservation(api_client, profile, apartment)
 
     assert response.status_code == 400
-    assert _detail_message(response) == "Apartment not found"
+    assert _detail_message(response) == gettext("Apartment not found")
 
 
 @pytest.mark.django_db
@@ -429,7 +438,7 @@ def test_hitas_post_period_reservation_rejected_for_sales_created_reservation(
     response, _ = _post_hitas_reservation(api_client, profile, apartment)
 
     assert response.status_code == 400
-    assert _detail_message(response) == (
+    assert _detail_message(response) == gettext(
         "Customer already has a reservation in this project"
     )
 

@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 from uuid import UUID
 
 import pytest
+from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
 from freezegun import freeze_time
@@ -1392,9 +1393,12 @@ def test_application_post_haso_submitted_late(
 
     late_submit_data["profile"] = profile.id
 
-    response = drupal_server_api_client.post(
-        reverse("application_form:application-list"), late_submit_data, format="json"
-    )
+    with TestCase.captureOnCommitCallbacks(execute=True):
+        response = drupal_server_api_client.post(
+            reverse("application_form:application-list"),
+            late_submit_data,
+            format="json",
+        )
     assert response.status_code == 201
     application = Application.objects.get(
         external_uuid=response.json()["application_uuid"]

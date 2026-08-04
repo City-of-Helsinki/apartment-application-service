@@ -1,6 +1,7 @@
 import pytest
 from django.test import override_settings
 from django.urls import reverse
+from django.utils.translation import gettext
 
 from apartment.utils import get_apartment_state_of_sale_from_event
 from application_form.enums import ApartmentReservationState
@@ -54,7 +55,9 @@ def test_application_to_sold_apartment_is_rejected(
     )
 
     assert response.status_code == 400
-    assert response.data["detail"]["message"] == "Cannot apply to a sold apartment"
+    assert str(response.data["detail"]["message"]) == gettext(
+        "Cannot apply to a sold apartment"
+    )
     assert ApartmentReservation.objects.count() == reservation_count_before
     sold_reservation.refresh_from_db()
     assert sold_reservation.state == ApartmentReservationState.SOLD
@@ -86,7 +89,9 @@ def test_sales_application_to_sold_apartment_is_rejected(
     )
 
     assert response.status_code == 400
-    assert response.data["detail"]["message"] == "Cannot apply to a sold apartment"
+    assert str(response.data["detail"]["message"]) == gettext(
+        "Cannot apply to a sold apartment"
+    )
 
 
 @pytest.mark.django_db
