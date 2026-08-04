@@ -1000,6 +1000,40 @@ def test_project_detail_apartment_states(
 
 
 @pytest.mark.django_db
+def test_project_detail_apartment_state_sold_with_additional_active_reservation(
+    sales_ui_salesperson_api_client, elastic_project_with_5_apartments
+):
+    project_uuid, apartments = elastic_project_with_5_apartments
+    apartment = apartments[0]
+
+    ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        queue_position=1,
+        list_position=1,
+        state=ApartmentReservationState.SOLD,
+    )
+    ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        queue_position=2,
+        list_position=2,
+        state=ApartmentReservationState.RESERVED,
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("apartment:project-detail", kwargs={"project_uuid": project_uuid}),
+        format="json",
+    )
+    assert response.status_code == 200
+
+    apartment_data = next(
+        item
+        for item in response.data["apartments"]
+        if item["apartment_uuid"] == str(apartment.uuid)
+    )
+    assert apartment_data["state"] == "sold"
+
+
+@pytest.mark.django_db
 def test_export_sale_report_unauthorized(
     user_api_client, elastic_project_with_5_apartments
 ):

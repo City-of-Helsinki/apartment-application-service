@@ -85,12 +85,20 @@ def get_apartment_state_from_reserved_reservations(reserved_reservations):
     reservation_list = list(reserved_reservations)
     if len(reservation_list) == 0:
         return ApartmentState.FREE.value
-    elif len(reservation_list) > 1:
-        return ApartmentState.REVIEW.value
+    if any(
+        reservation.state == ApartmentReservationState.SOLD
+        for reservation in reservation_list
+    ):
+        return ApartmentState.SOLD.value
 
-    return ApartmentState.get_from_reserved_reservation_state(
-        reservation_list[0].state
-    ).value
+    state = (
+        ApartmentState.REVIEW
+        if len(reservation_list) > 1
+        else ApartmentState.get_from_reserved_reservation_state(
+            reservation_list[0].state
+        )
+    )
+    return state.value
 
 
 def form_description_with_link(elastic_apartment: ApartmentDocument):
