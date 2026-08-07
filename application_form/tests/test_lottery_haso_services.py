@@ -595,3 +595,80 @@ def test_winning_does_not_cancel_higher_priority_applications(
     assert app_apt1.apartment_reservation.state == ApartmentReservationState.RESERVED
     assert app_apt2.apartment_reservation.state == ApartmentReservationState.SUBMITTED
     assert app_apt3.apartment_reservation.state == ApartmentReservationState.RESERVED
+
+
+@mark.django_db
+def test_late_haso_reservation_inserted_by_queue_position_order_not_list_position(
+    monkeypatch,
+):
+    """
+    Regression test: late HASO reservation must be inserted based on
+    right_of_residence_ordering_number relative to existing queue_position order,
+    not list_position order.
+
+    Scenario mirrors a real production bug where:
+        - Sukunimi (ror=1234) had a low list_position=3 but high queue_position=3
+        - BAK (ror=233) had high list_position=5 but low queue_position=1
+        - Marttila (ror=1112) had high list_position=8 and queue_position=2
+        - Adding Ramona (ror=900) should land at queue=2 (between BAK and Marttila)
+          because 233 < 900 < 1112 by ordering_number
+        - With the bug (order_by list_position), Sukunimi is iterated first
+          (list=3), its ror=1234 > 900, so Ramona incorrectly lands at queue=3
+    """
+    apartment_uuid = uuid.uuid4()
+    monkeypatch.setattr(
+        "application_form.services.reservation.get_apartment",
+        lambda apartment_uuid, include_project_fields=True: SimpleNamespace(
+            project_ownership_type="Haso"
+        ),
+    )
+
+    sukunimi = ApartmentReservationFactory(
+        apartment_uuid=apartment_uuid,
+        list_position=3,
+        queue_position=3,
+        submitted_late=True,
+        right_of_residence=1234,
+        right_of_residence_is_old_batch=False,
+        state=ApartmentReservationState.SUBMITTED,
+        application_apartment=None,
+    )
+    bak = ApartmentReservationFactory(
+        apartment_uuid=apartment_uuid,
+        list_position=5,
+        queue_position=1,
+        submitted_late=True,
+        right_of_residence=233,
+        right_of_residence_is_old_batch=False,
+        state=ApartmentReservationState.RESERVED,
+        application_apartment=None,
+    )
+    marttila = ApartmentReservationFactory(
+        apartment_uuid=apartment_uuid,
+        list_position=8,
+        queue_position=2,
+        submitted_late=True,
+        right_of_residence=1112,
+        right_of_residence_is_old_batch=False,
+        state=ApartmentReservationState.SUBMITTED,
+        application_apartment=None,
+    )
+
+    ramona = create_late_reservation(
+        {
+            "apartment_uuid": apartment_uuid,
+            "customer": CustomerFactory(
+                right_of_residence=900,
+                right_of_residence_is_old_batch=False,
+            ),
+        }
+    )
+
+    bak.refresh_from_db()
+    marttila.refresh_from_db()
+    sukunimi.refresh_from_db()
+
+    assert bak.queue_position == 1
+    assert ramona.queue_position == 2
+    assert marttila.queue_position == 3
+    assert sukunimi.queue_position == 4
