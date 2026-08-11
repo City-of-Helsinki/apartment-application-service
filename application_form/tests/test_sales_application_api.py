@@ -4,6 +4,7 @@ import pytest
 from django.contrib.auth.models import Group
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.translation import gettext
 
 from apartment.enums import OwnershipType
 from apartment_application_service.settings import (
@@ -332,9 +333,7 @@ def test_sales_application_post_after_deadline_fails_if_lottery_exists(
 
 
 @pytest.mark.django_db
-def test_sales_application_post_late_allowed_after_lottery(
-    api_client, elasticsearch
-):
+def test_sales_application_post_late_allowed_after_lottery(api_client, elasticsearch):
     """
     Explicit late applications must succeed after lottery when reopening is enabled.
 
@@ -435,7 +434,9 @@ def test_sales_application_post_late_after_lottery_rejected_without_reopening(
         reverse("application_form:sales-application-list"), data, format="json"
     )
     assert response.status_code == 400
-    assert "late application" in str(response.data).lower()
+    assert response.data["detail"]["message"] == gettext(
+        "Cannot submit late application to this apartment"
+    )
     assert "lottery" not in str(response.data).lower()
 
 
