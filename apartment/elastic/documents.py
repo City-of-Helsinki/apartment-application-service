@@ -140,6 +140,7 @@ class ApartmentDocument(BaseModel):
 
     project_building_type: Optional[str] = None
     project_description: Optional[str] = None
+    project_upcoming_description: Optional[str] = None
     project_accessibility: Optional[str] = None
     project_smoke_free: Optional[str] = None
 
