@@ -4,6 +4,7 @@ from uuid import UUID
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import extend_schema_field
 from enumfields.drf import EnumSupportSerializerMixin
 from rest_framework import serializers
@@ -106,11 +107,18 @@ class SalesApplicationSerializer(ApplicationSerializerBase):
                 > project.project_application_end_time
             )
 
-        if is_after_deadline and self._has_lottery_event(project_uuid):
+        if (
+            is_after_deadline
+            and not submitted_late
+            and self._has_lottery_event(project_uuid)
+        ):
             raise serializers.ValidationError(
                 {
                     "detail": (
-                        "Cannot submit application after lottery has been executed."
+                        _(
+                            "Cannot submit application after lottery has been "
+                            "executed."
+                        )
                     )
                 },
                 code=400,
@@ -126,7 +134,7 @@ class SalesApplicationSerializer(ApplicationSerializerBase):
                 not project.project_can_apply_afterwards or not project_is_haso
             ):
                 raise serializers.ValidationError(
-                    {"detail": "Cannot submit late application to this apartment"},
+                    {"detail": _("Cannot submit late application to this apartment")},
                     code=400,
                 )
 
