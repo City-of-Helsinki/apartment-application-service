@@ -144,6 +144,7 @@ class ApartmentDocumentFactory(factory.Factory):
 
     project_building_type = "BLOCK_OF_FLATS"
     project_description = fuzzy.FuzzyText(length=200)
+    project_upcoming_description = fuzzy.FuzzyText(length=200)
     url = fuzzy.FuzzyText(length=20)
     project_accessibility = fuzzy.FuzzyText()
     project_smoke_free = fuzzy.FuzzyText()
