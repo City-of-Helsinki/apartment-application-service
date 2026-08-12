@@ -113,7 +113,11 @@ class SalesApplicationSerializer(ApplicationSerializerBase):
                 > project.project_application_end_time
             )
 
-        if is_after_deadline and self._has_lottery_event(project_uuid):
+        if (
+            is_after_deadline
+            and not submitted_late
+            and self._has_lottery_event(project_uuid)
+        ):
             raise serializers.ValidationError(
                 {
                     "detail": (
