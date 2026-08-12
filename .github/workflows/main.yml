@@ -99,6 +99,13 @@ jobs:
           cache: "pip"
           cache-dependency-path: requirements-dev.txt
 
+      # git+https deps (django-oikotie) need a working CA trust store
+      - name: Ensure CA certificates
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ca-certificates git
+          sudo update-ca-certificates
+
       - name: Install dependencies
         run: pip install -U pip==24.2
 
@@ -167,6 +174,12 @@ jobs:
 
       - name: Install gettext to make Django translation files # for tests
         run: sudo apt-get install gettext=${{env.GETTEXT_VERSION}}
+
+      # git+https deps (django-oikotie) need a working CA trust store
+      - name: Ensure CA certificates
+        run: |
+          sudo apt-get install -y ca-certificates git
+          sudo update-ca-certificates
 
       - name: Install dependencies
         run: |
