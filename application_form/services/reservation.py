@@ -191,7 +191,7 @@ def calculate_new_positions(
         late_reservations = (
             existing_reservations.filter(submitted_late=True)
             .exclude(state=ApartmentReservationState.OFFERED)
-            .order_by("list_position")
+            .order_by("queue_position")
         )
         if late_reservations:
             positions = calculate_haso_positions(
