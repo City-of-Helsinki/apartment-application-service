@@ -698,3 +698,245 @@ def test_customer_apartment_reservations_ordering(sales_ui_salesperson_api_clien
         canceled_first.id,
         canceled_second.id,
     ]
+
+
+@pytest.mark.django_db
+def test_get_customer_api_list_search_by_hetu_primary_profile(
+    sales_ui_salesperson_api_client,
+):
+    """
+    Search by hetu (national_identification_number) returns the customer whose
+    primary profile hetu matches exactly.
+
+    - Creates two customers with distinct hetu values on their primary profiles
+    - Searches for the hetu of the first customer
+    - Expects exactly one result matching that customer
+    """
+    hetu = "070780-111A"
+    target_customer = CustomerFactory(
+        primary_profile=ProfileFactory(national_identification_number=hetu),
+        secondary_profile=None,
+    )
+    CustomerFactory(
+        primary_profile=ProfileFactory(national_identification_number="080890-222B"),
+        secondary_profile=None,
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("customer:sales-customer-list"),
+        data={"hetu": hetu},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert len(response.data) == 1
+    assert response.data[0]["id"] == target_customer.id
+
+
+@pytest.mark.django_db
+def test_get_customer_api_list_search_by_hetu_secondary_profile(
+    sales_ui_salesperson_api_client,
+):
+    """
+    Search by hetu returns the customer whose secondary profile hetu matches.
+
+    - Creates a customer whose secondary profile has a known hetu
+    - Creates another customer that should not be returned
+    - Expects exactly one result matching the customer with that secondary profile hetu
+    """
+    hetu = "080890-222B"
+    target_customer = CustomerFactory(
+        primary_profile=ProfileFactory(national_identification_number="070780-111A"),
+        secondary_profile=ProfileFactory(national_identification_number=hetu),
+    )
+    CustomerFactory(
+        primary_profile=ProfileFactory(national_identification_number="010170-333C"),
+        secondary_profile=None,
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("customer:sales-customer-list"),
+        data={"hetu": hetu},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert len(response.data) == 1
+    assert response.data[0]["id"] == target_customer.id
+
+
+@pytest.mark.django_db
+def test_get_customer_api_list_search_by_hetu_no_match(
+    sales_ui_salesperson_api_client,
+):
+    """
+    Search by hetu with no matching customer returns an empty list.
+
+    - Creates a customer with a different hetu
+    - Searches for a hetu that does not exist in the database
+    - Expects an empty list
+    """
+    CustomerFactory(
+        primary_profile=ProfileFactory(national_identification_number="070780-111A"),
+        secondary_profile=None,
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("customer:sales-customer-list"),
+        data={"hetu": "010199-999X"},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data == []
+
+
+@pytest.mark.django_db
+def test_get_customer_api_list_search_by_date_of_birth_primary_profile(
+    sales_ui_salesperson_api_client,
+):
+    """
+    Search by date_of_birth (Finnish format d.m.Y) returns the customer whose
+    primary profile date of birth matches exactly.
+
+    - Creates two customers with distinct dates of birth on their primary profiles
+    - Searches using the Finnish date format for the first customer
+    - Expects exactly one result matching that customer
+    """
+    import datetime
+
+    dob = datetime.date(1978, 9, 3)
+    target_customer = CustomerFactory(
+        primary_profile=ProfileFactory(date_of_birth=dob),
+        secondary_profile=None,
+    )
+    CustomerFactory(
+        primary_profile=ProfileFactory(date_of_birth=datetime.date(1990, 1, 15)),
+        secondary_profile=None,
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("customer:sales-customer-list"),
+        data={"date_of_birth": "3.9.1978"},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert len(response.data) == 1
+    assert response.data[0]["id"] == target_customer.id
+
+
+@pytest.mark.django_db
+def test_get_customer_api_list_search_by_date_of_birth_secondary_profile(
+    sales_ui_salesperson_api_client,
+):
+    """
+    Search by date_of_birth returns the customer whose secondary profile date of
+    birth matches exactly.
+
+    - Creates a customer whose secondary profile has a known date of birth
+    - Creates another customer that should not be returned
+    - Expects exactly one result matching the customer with that secondary profile dob
+    """
+    import datetime
+
+    dob = datetime.date(1985, 12, 31)
+    target_customer = CustomerFactory(
+        primary_profile=ProfileFactory(date_of_birth=datetime.date(1980, 7, 7)),
+        secondary_profile=ProfileFactory(date_of_birth=dob),
+    )
+    CustomerFactory(
+        primary_profile=ProfileFactory(date_of_birth=datetime.date(1975, 3, 20)),
+        secondary_profile=None,
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("customer:sales-customer-list"),
+        data={"date_of_birth": "31.12.1985"},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert len(response.data) == 1
+    assert response.data[0]["id"] == target_customer.id
+
+
+@pytest.mark.django_db
+def test_get_customer_api_list_search_by_date_of_birth_no_match(
+    sales_ui_salesperson_api_client,
+):
+    """
+    Search by date_of_birth with no matching customer returns an empty list.
+
+    - Creates a customer with a different date of birth
+    - Searches for a date that does not exist in the database
+    - Expects an empty list
+    """
+    import datetime
+
+    CustomerFactory(
+        primary_profile=ProfileFactory(date_of_birth=datetime.date(1980, 7, 7)),
+        secondary_profile=None,
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("customer:sales-customer-list"),
+        data={"date_of_birth": "1.1.2000"},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data == []
+
+
+@pytest.mark.django_db
+def test_get_customer_api_list_search_by_date_of_birth_invalid_format(
+    sales_ui_salesperson_api_client,
+):
+    """
+    Search by date_of_birth with an invalid date string returns an empty list
+    instead of raising an exception.
+
+    - Sends a malformed date string
+    - Expects an empty list and HTTP 200
+    """
+    CustomerFactory(secondary_profile=None)
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("customer:sales-customer-list"),
+        data={"date_of_birth": "not-a-date"},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data == []
+
+
+@pytest.mark.django_db
+def test_get_customer_api_list_search_by_hetu_alone_bypasses_min_length_check(
+    sales_ui_salesperson_api_client,
+):
+    """
+    Providing only hetu (without first_name, last_name, phone_number or email)
+    is sufficient to trigger a search and does not return an empty list due to
+    the minimum-length guard applied to other search fields.
+
+    - Creates one customer with a known hetu
+    - Searches using only the hetu parameter
+    - Expects one result (not an empty list due to min-length guard)
+    """
+    hetu = "070780-111A"
+    target_customer = CustomerFactory(
+        primary_profile=ProfileFactory(national_identification_number=hetu),
+        secondary_profile=None,
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("customer:sales-customer-list"),
+        data={"hetu": hetu},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert len(response.data) == 1
+    assert response.data[0]["id"] == target_customer.id
