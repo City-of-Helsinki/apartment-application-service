@@ -13,7 +13,7 @@ from application_form.enums import (
     ApartmentReservationState,
 )
 from application_form.models import ApartmentReservation
-from application_form.services.queue import _adjust_positions
+from application_form.services.queue import _adjust_positions, get_reservation_state
 from application_form.utils import lock_table
 from customer.models import Customer
 
@@ -155,12 +155,6 @@ def create_late_reservation(
 
 def get_existing_reservations(apartment_uuid: str) -> QuerySet:
     return ApartmentReservation.objects.filter(apartment_uuid=apartment_uuid)
-
-
-def get_reservation_state(existing_reservations: QuerySet) -> str:
-    if existing_reservations.reserved().exists():
-        return ApartmentReservationState.SUBMITTED
-    return ApartmentReservationState.RESERVED
 
 
 def get_max_positions(existing_reservations: QuerySet) -> tuple:

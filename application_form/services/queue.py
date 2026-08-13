@@ -4,7 +4,7 @@ from typing import List, Optional
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
-from django.db.models import F, Max
+from django.db.models import F, Max, QuerySet
 
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import get_apartment
@@ -27,6 +27,24 @@ from customer.models import Customer
 logger = getLogger(__name__)
 
 User = get_user_model()
+
+
+def get_reservation_state(
+    existing_reservations: QuerySet,
+) -> ApartmentReservationState:
+    """
+    Choose initial reservation state from existing apartment reservations.
+
+    Parameters:
+        existing_reservations (QuerySet): Reservations already on the apartment.
+
+    Returns:
+        ApartmentReservationState: RESERVED when no reserved reservations exist,
+        otherwise SUBMITTED.
+    """
+    if existing_reservations.reserved().exists():
+        return ApartmentReservationState.SUBMITTED
+    return ApartmentReservationState.RESERVED
 
 
 def add_application_to_queues(
@@ -88,12 +106,24 @@ def add_application_to_queues(
                 raise ValueError(f"unsupported application type {application.type}")
 
             application = application_apartment.application
+            existing_reservations = ApartmentReservation.objects.filter(
+                apartment_uuid=apartment_uuid
+            )
+            # Late applications (e.g. HITAS "tee varaus") get RESERVED when the
+            # apartment has no other reserved reservations; otherwise SUBMITTED.
+            # On-time applications stay SUBMITTED until lottery.
+            state = (
+                get_reservation_state(existing_reservations)
+                if application.submitted_late
+                else ApartmentReservationState.SUBMITTED
+            )
             apartment_reservation = ApartmentReservation(
                 customer=application.customer,
                 queue_position=queue_position,
                 list_position=list_position,
                 application_apartment=application_apartment,
                 apartment_uuid=apartment_uuid,
+                state=state,
                 right_of_residence=application.right_of_residence,
                 right_of_residence_is_old_batch=application.right_of_residence_is_old_batch,  # noqa: E501
                 has_children=application.has_children,

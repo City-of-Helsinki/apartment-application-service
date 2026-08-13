@@ -6,11 +6,15 @@ free HITAS apartment when `project_can_apply_afterwards` is True. The rules are:
 - Only one apartment per reservation (single apartment enforced)
 - Apartment must be FREE_FOR_RESERVATIONS
 - Customer may not already have an active reservation in the project
+- Initial reservation state is RESERVED when the apartment has no other reserved
+  reservations; otherwise SUBMITTED
 - Salesperson email is sent on successful reservation
 - HASO late-apply path is unchanged
 
 Tests:
-- Positive: HITAS free apartment after period with can_apply_afterwards
+- Positive: HITAS free apartment after period with can_apply_afterwards → RESERVED
+- Positive: existing reserved reservation → new late reservation is SUBMITTED
+- Positive: only canceled prior reservations → new late reservation is RESERVED
 - Reject: period not ended (normal HITAS apply still works)
 - Reject: can_apply_afterwards is False for HITAS
 - Reject: more than one apartment submitted
@@ -125,7 +129,8 @@ def test_hitas_post_period_reservation_succeeds(api_client, elasticsearch):
     project_can_apply_afterwards is True.
 
     - POST /v1/applications/ returns 201
-    - ApartmentReservation is created with submitted state
+    - ApartmentReservation is created as RESERVED when the apartment has no other
+      reserved reservations
     - Application is marked submitted_late
     """
     apartment = _make_hitas_free_apartment_after_period()
@@ -145,7 +150,78 @@ def test_hitas_post_period_reservation_succeeds(api_client, elasticsearch):
         apartment_uuid=apartment.uuid,
         application_apartment__application=application,
     )
+    assert reservation.state == ApartmentReservationState.RESERVED
+
+
+@pytest.mark.django_db
+def test_hitas_post_period_reservation_is_submitted_when_apartment_already_reserved(
+    api_client, elasticsearch
+):
+    """
+    A late HITAS reservation is SUBMITTED when the apartment already has a reserved
+    reservation.
+
+    - Existing reserved reservation for another customer remains RESERVED
+    - New late reservation is created as SUBMITTED
+    """
+    apartment = _make_hitas_free_apartment_after_period()
+    existing_customer = CustomerFactory()
+    ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        customer=existing_customer,
+        state=ApartmentReservationState.RESERVED,
+        queue_position=1,
+        list_position=1,
+        application_apartment=None,
+    )
+    profile = ProfileFactory()
+
+    with patch("application_form.api.serializers.send_sales_notification_email"):
+        with TestCase.captureOnCommitCallbacks(execute=True):
+            response, data = _post_hitas_reservation(api_client, profile, apartment)
+
+    assert response.status_code == 201
+    application = Application.objects.get(external_uuid=data["application_uuid"])
+    reservation = ApartmentReservation.objects.get(
+        apartment_uuid=apartment.uuid,
+        application_apartment__application=application,
+    )
     assert reservation.state == ApartmentReservationState.SUBMITTED
+
+
+@pytest.mark.django_db
+def test_hitas_post_period_reservation_is_reserved_when_only_canceled_exist(
+    api_client, elasticsearch
+):
+    """
+    Canceled reservations do not block RESERVED state for a late HITAS reservation.
+
+    - Existing canceled reservation is ignored for initial state selection
+    - New late reservation is created as RESERVED
+    """
+    apartment = _make_hitas_free_apartment_after_period()
+    other_customer = CustomerFactory()
+    ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        customer=other_customer,
+        state=ApartmentReservationState.CANCELED,
+        queue_position=None,
+        list_position=1,
+        application_apartment=None,
+    )
+    profile = ProfileFactory()
+
+    with patch("application_form.api.serializers.send_sales_notification_email"):
+        with TestCase.captureOnCommitCallbacks(execute=True):
+            response, data = _post_hitas_reservation(api_client, profile, apartment)
+
+    assert response.status_code == 201
+    application = Application.objects.get(external_uuid=data["application_uuid"])
+    reservation = ApartmentReservation.objects.get(
+        apartment_uuid=apartment.uuid,
+        application_apartment__application=application,
+    )
+    assert reservation.state == ApartmentReservationState.RESERVED
 
 
 @pytest.mark.django_db
