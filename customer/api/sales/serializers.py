@@ -12,6 +12,10 @@ from application_form.api.serializers import (
 )
 from application_form.models import ApartmentReservation, LotteryEvent
 from customer.models import Customer, CustomerComment
+from customer.profile_resolver import (
+    resolve_customer_profiles_for_customer,
+    ResolvedProfileData,
+)
 from invoicing.api.serializers import ApartmentInstallmentSerializer
 from users.api.sales.serializers import ProfileSerializer
 from users.models import Profile
@@ -131,6 +135,41 @@ class CustomerSerializer(serializers.ModelSerializer):
             "right_of_residence_is_old_batch",
             "secondary_profile",
         )
+
+    def _apply_resolved_profile_data(
+        self, profile_data: dict, resolved_profile: ResolvedProfileData
+    ) -> None:
+        """Apply resolved profile values to serialized response payload."""
+        if profile_data is None or resolved_profile is None:
+            return
+
+        profile_data["first_name"] = resolved_profile.first_name
+        profile_data["last_name"] = resolved_profile.last_name
+        profile_data["email"] = resolved_profile.email
+        profile_data["phone_number"] = resolved_profile.phone_number
+        profile_data["street_address"] = resolved_profile.street_address
+        profile_data["city"] = resolved_profile.city
+        profile_data["postal_code"] = resolved_profile.postal_code
+        profile_data["contact_language"] = resolved_profile.contact_language
+        profile_data["national_identification_number"] = (
+            resolved_profile.national_identification_number
+        )
+        profile_data["date_of_birth"] = (
+            resolved_profile.date_of_birth.isoformat()
+            if resolved_profile.date_of_birth
+            else None
+        )
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        primary_profile, secondary_profile = resolve_customer_profiles_for_customer(
+            instance
+        )
+        self._apply_resolved_profile_data(data.get("primary_profile"), primary_profile)
+        self._apply_resolved_profile_data(
+            data.get("secondary_profile"), secondary_profile
+        )
+        return data
 
     @transaction.atomic
     def create(self, validated_data):

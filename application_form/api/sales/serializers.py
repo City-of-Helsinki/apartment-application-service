@@ -35,6 +35,7 @@ from application_form.services.offer import create_offer, update_offer
 from application_form.services.reservation import create_late_reservation
 from cost_index.api.serializers import ApartmentRevaluationSerializer
 from customer.models import Customer
+from customer.profile_resolver import resolve_customer_profiles_for_reservation
 from invoicing.api.serializers import (
     ApartmentInstallmentCandidateSerializer,
     ApartmentInstallmentSerializer,
@@ -401,17 +402,25 @@ class OfferMessageSerializer(serializers.Serializer):
         subject, body = get_offer_message_subject_and_body(
             instance, valid_until=self.context.get("valid_until")
         )
-        recipients = RecipientSerializer(
-            [
-                p
-                for p in (
-                    instance.customer.primary_profile,
-                    instance.customer.secondary_profile,
-                )
-                if p
-            ],
-            many=True,
-        ).data
+
+        primary_profile, secondary_profile = resolve_customer_profiles_for_reservation(
+            instance
+        )
+
+        recipients = []
+        for profile in (
+            primary_profile,
+            secondary_profile,
+        ):
+            if not profile:
+                continue
+            recipients.append(
+                {
+                    "name": profile.full_name,
+                    "email": profile.email,
+                }
+            )
+
         return {
             "subject": subject,
             "body": body,
