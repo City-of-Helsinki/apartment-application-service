@@ -12,6 +12,7 @@ from apartment.elastic.queries import get_apartment
 from apartment_application_service.pdf import create_pdf, PDFCurrencyField, PDFData
 from apartment_application_service.utils import SafeAttributeObject
 from application_form.models import ApartmentReservation
+from customer.profile_resolver import resolve_customer_profiles_for_reservation
 from invoicing.enums import (
     InstallmentPercentageSpecifier,
     InstallmentType,
@@ -397,9 +398,11 @@ def get_hitas_contract_pdf_data(
     sales_price_paid_time: str,
     salesperson: User,
 ) -> Union[HitasContractPDFData, HitasCompleteApartmentContractPDFData]:
-    customer = SafeAttributeObject(reservation.customer)
-    primary_profile = SafeAttributeObject(customer.primary_profile)
-    secondary_profile = SafeAttributeObject(customer.secondary_profile)
+    primary_profile_data, secondary_profile_data = (
+        resolve_customer_profiles_for_reservation(reservation)
+    )
+    primary_profile = SafeAttributeObject(primary_profile_data)
+    secondary_profile = SafeAttributeObject(secondary_profile_data)
 
     # use contract for complete apartment
     # can possibly be None, use bool() to convert to False in that case
@@ -587,13 +590,21 @@ def get_hitas_contract_pdf_data(
     # further info on how Django resolves language preference:
     # https://docs.djangoproject.com/en/5.1/topics/i18n/translation/
     with translation.override("fi"):
-        payment_1_price = hitas_price(payment_1.value * 100)
-        payment_terms_rest_of_price = f"{payment_1.type.label}"
+        payment_1_value = payment_1.value if payment_1.value is not None else Decimal(0)
+        payment_1_price = hitas_price(payment_1_value * 100)
+        payment_terms_rest_of_price = (
+            f"{payment_1.type.label}" if payment_1.type is not None else ""
+        )
         if payment_1.due_date:
             due_date = payment_1.due_date.strftime("%d.%m.%Y")
             payment_terms_rest_of_price += f" {due_date}"
 
-        payment_terms_rest_of_price += f" {payment_1_price.formatted_number_string()} {payment_1_price.suffix}"  # noqa: E501
+        if payment_1_price is not None:
+            payment_terms_rest_of_price += (
+                f" {payment_1_price.formatted_number_string()} {payment_1_price.suffix}"
+            )
+
+        payment_terms_rest_of_price = payment_terms_rest_of_price.strip()
 
     # full apartment contract data is mostly the same fields but with some changes
     full_apartment_contract_data = {

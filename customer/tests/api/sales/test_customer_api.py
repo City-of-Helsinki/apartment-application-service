@@ -16,7 +16,11 @@ from application_form.enums import (
     ApartmentReservationState,
 )
 from application_form.models import LotteryEvent
-from application_form.tests.factories import ApartmentReservationFactory
+from application_form.tests.factories import (
+    ApartmentReservationFactory,
+    ApplicantFactory,
+    ApplicationFactory,
+)
 from customer.api.sales.views import CustomerViewSet
 from customer.models import Customer
 from customer.tests.factories import CustomerFactory
@@ -76,6 +80,47 @@ def test_get_customer_api_detail(sales_ui_salesperson_api_client):
     )
     # Reservations are now served by a dedicated paginated sub-resource.
     assert "apartment_reservations" not in response.data
+
+
+@pytest.mark.django_db
+def test_get_customer_api_detail_resolves_profile_fields_from_latest_applicant(
+    sales_ui_salesperson_api_client,
+):
+    """
+    - Customer detail resolves missing and dash-like profile fields.
+    - Latest primary applicant is used as fallback source.
+    """
+    customer = CustomerFactory(
+        primary_profile__email="-",
+        primary_profile__phone_number="",
+        primary_profile__street_address="-",
+        primary_profile__postal_code=" ",
+        primary_profile__city="-",
+    )
+
+    application = ApplicationFactory(customer=customer)
+    ApplicantFactory(
+        application=application,
+        is_primary_applicant=True,
+        email="ramona2@test.tst",
+        phone_number="0100200",
+        street_address="Kekekatu 22",
+        postal_code="00200",
+        city="Helsinki",
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("customer:sales-customer-detail", args=(customer.pk,)),
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    primary = response.data["primary_profile"]
+    assert primary["email"] == "ramona2@test.tst"
+    assert primary["phone_number"] == "0100200"
+    assert primary["street_address"] == "Kekekatu 22"
+    assert primary["postal_code"] == "00200"
+    assert primary["city"] == "Helsinki"
 
 
 @pytest.mark.django_db
