@@ -342,82 +342,131 @@ class ApartmentReservationViewSet(
 
         return normalized_item
 
+    @staticmethod
+    def _empty_message_thread_response(application_id):
+        """Return an empty message thread payload for legacy/non-linked cases."""
+        return Response(
+            ReservationMessageThreadSerializer(
+                {"application_id": application_id, "count": 0, "items": []}
+            ).data,
+            status=status.HTTP_200_OK,
+        )
+
+    def _resolve_message_application(self, request, reservation):
+        """Resolve linked application and Drupal id for reservation messages."""
+        application_apartment = reservation.application_apartment
+        if not application_apartment:
+            if request.method.upper() == "GET":
+                _logger.info(
+                    "messages GET: no linked application for reservation_id=%s "
+                    "- returning empty thread",
+                    reservation.id,
+                )
+                return None, None, self._empty_message_thread_response(None)
+            raise ValidationError("Reservation has no linked application.")
+
+        application = application_apartment.application
+        drupal_application_id = application.drupal_application_id
+        if drupal_application_id is not None:
+            return application, drupal_application_id, None
+
+        if request.method.upper() == "GET":
+            _logger.info(
+                "messages GET: drupal_application_id not set for reservation_id=%s "
+                "application_id=%s - returning empty thread",
+                reservation.id,
+                application.id,
+            )
+            return (
+                application,
+                drupal_application_id,
+                self._empty_message_thread_response(application.id),
+            )
+
+        _logger.warning(
+            "messages POST: drupal_application_id not set for reservation_id=%s "
+            "application_id=%s - messaging unavailable",
+            reservation.id,
+            application.id,
+        )
+        return (
+            application,
+            drupal_application_id,
+            Response(
+                {"detail": "Messaging unavailable: application has no Drupal ID."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            ),
+        )
+
+    def _get_messages_thread_response(self, request, reservation, application_id):
+        """Fetch Drupal thread for GET and normalize response payload."""
+        client = DrupalMessagingClient()
+        try:
+            thread_payload = client.get_thread(application_id)
+        except DrupalMessagingClientError as exc:
+            if exc.status_code == 404 or exc.code == "not_found":
+                _logger.info(
+                    "messages GET: no Drupal thread for reservation_id=%s "
+                    "application_id=%s - returning empty thread",
+                    reservation.id,
+                    application_id,
+                )
+                return self._empty_message_thread_response(application_id)
+            return self._handle_drupal_messaging_error(exc, application_id)
+
+        normalized_items = [
+            self._normalize_message_item(
+                raw_item=item,
+                drupal_application_id=application_id,
+                fallback_body="",
+            )
+            for item in thread_payload.get("items", [])
+        ]
+
+        sorted_items = sorted(
+            normalized_items,
+            key=lambda item: item.get("created", 0),
+        )
+        response_payload = {
+            "application_id": thread_payload.get("application_id", application_id),
+            "count": thread_payload.get("count", len(sorted_items)),
+            "items": sorted_items,
+        }
+
+        _logger.info(
+            "Fetched message thread from Drupal for reservation_id=%s "
+            "application_id=%s user_id=%s item_count=%s",
+            reservation.id,
+            application_id,
+            getattr(request.user, "id", None),
+            len(sorted_items),
+        )
+        return Response(
+            ReservationMessageThreadSerializer(response_payload).data,
+            status=status.HTTP_200_OK,
+        )
+
     @extend_schema(
         responses=ReservationMessageThreadSerializer,
     )
     @action(methods=["GET", "POST"], detail=True)
     def messages(self, request, pk=None):
         reservation = self.get_object()
+        _, drupal_application_id, early_response = self._resolve_message_application(
+            request,
+            reservation,
+        )
+        if early_response is not None:
+            return early_response
 
-        application_apartment = reservation.application_apartment
-        if not application_apartment:
-            raise ValidationError("Reservation has no linked application.")
-
-        application = application_apartment.application
-        drupal_application_id = application.drupal_application_id
-        if drupal_application_id is None:
-            if request.method.upper() == "GET":
-                _logger.info(
-                    "messages GET: drupal_application_id not set for reservation_id=%s application_id=%s — returning empty thread",  # noqa: E501
-                    reservation.id,
-                    application.id,
-                )
-                return Response(
-                    ReservationMessageThreadSerializer(
-                        {"application_id": application.id, "count": 0, "items": []}
-                    ).data,
-                    status=status.HTTP_200_OK,
-                )
-            _logger.warning(
-                "messages POST: drupal_application_id not set for reservation_id=%s application_id=%s — messaging unavailable",  # noqa: E501
-                reservation.id,
-                application.id,
-            )
-            return Response(
-                {"detail": "Messaging unavailable: application has no Drupal ID."},
-                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        if request.method.upper() == "GET":
+            return self._get_messages_thread_response(
+                request,
+                reservation,
+                drupal_application_id,
             )
 
         client = DrupalMessagingClient()
-
-        if request.method.upper() == "GET":
-            try:
-                thread_payload = client.get_thread(drupal_application_id)
-            except DrupalMessagingClientError as exc:
-                return self._handle_drupal_messaging_error(exc, drupal_application_id)
-
-            normalized_items = [
-                self._normalize_message_item(
-                    raw_item=item,
-                    drupal_application_id=drupal_application_id,
-                    fallback_body="",
-                )
-                for item in thread_payload.get("items", [])
-            ]
-
-            sorted_items = sorted(
-                normalized_items,
-                key=lambda item: item.get("created", 0),
-            )
-            response_payload = {
-                "application_id": thread_payload.get(
-                    "application_id", drupal_application_id
-                ),
-                "count": thread_payload.get("count", len(sorted_items)),
-                "items": sorted_items,
-            }
-
-            _logger.info(
-                "Fetched message thread from Drupal for reservation_id=%s application_id=%s user_id=%s item_count=%s",  # noqa: E501
-                reservation.id,
-                drupal_application_id,
-                getattr(request.user, "id", None),
-                len(sorted_items),
-            )
-            return Response(
-                ReservationMessageThreadSerializer(response_payload).data,
-                status=status.HTTP_200_OK,
-            )
 
         serializer = ReservationMessageCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
