@@ -271,9 +271,9 @@ def test_reservation_messages_post_empty_body_validation(
 def test_reservation_messages_get_upstream_not_found(
     sales_ui_salesperson_api_client, monkeypatch
 ):
-    """404 from Drupal is mapped to a clear business error.
+    """GET 404 from Drupal is tolerated for legacy data.
 
-    - Missing application returns 404 in Django API.
+    - Missing application in Drupal returns 200 with empty thread.
     """
 
     from application_form.services.drupal_messaging import DrupalMessagingClientError
@@ -296,8 +296,41 @@ def test_reservation_messages_get_upstream_not_found(
         )
     )
 
-    assert response.status_code == 404
-    assert response.data["detail"] == "Application not found."
+    assert response.status_code == 200
+    assert (
+        response.data["application_id"]
+        == reservation.application_apartment.application.drupal_application_id
+    )
+    assert response.data["count"] == 0
+    assert response.data["items"] == []
+
+
+@pytest.mark.django_db
+def test_reservation_messages_get_without_linked_application_returns_empty_thread(
+    sales_ui_salesperson_api_client,
+):
+    """GET with no linked application is tolerated for legacy reservations.
+
+    - Reservation without linked application returns 200 with empty thread.
+    """
+
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        application_apartment=None,
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse(
+            "application_form:sales-apartment-reservation-messages",
+            kwargs={"pk": reservation.id},
+        )
+    )
+
+    assert response.status_code == 200
+    assert response.data["application_id"] is None
+    assert response.data["count"] == 0
+    assert response.data["items"] == []
 
 
 @pytest.mark.django_db
