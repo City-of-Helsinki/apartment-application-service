@@ -16,6 +16,7 @@ from application_form.enums import (
     ApartmentQueueChangeEventType,
     ApartmentReservationCancellationReason,
     ApartmentReservationState,
+    ApplicationType,
 )
 from application_form.models import (
     ApartmentReservation,
@@ -29,6 +30,7 @@ from application_form.services.queue import (
     remove_queue_gaps,
     remove_reservation_from_queue,
 )
+from application_form.services.reservation import get_reservation_state
 from audit_log import audit_logging
 from audit_log.enums import Operation
 from customer.services import get_or_create_customer_from_profiles
@@ -259,8 +261,36 @@ def create_application(
             apartment_uuids,
             application.external_uuid,
         )
+        if application.type in (ApplicationType.HITAS, ApplicationType.PUOLIHITAS):
+            _reserve_hitas_post_period_application(application, user)
 
     return application
+
+
+def _reserve_hitas_post_period_application(
+    application: Application, user: Optional[User] = None
+) -> None:
+    """
+    Mark HITAS/puolihitas post-period reservations as reserved.
+
+    A post-period reservation occupies a free apartment immediately, matching
+    salesperson-created late reservations. If another reserved reservation
+    already exists, the new one stays submitted.
+
+    Parameters:
+        application: Late HITAS or puolihitas application.
+        user: Optional user recorded on the state-change event.
+    """
+    for application_apartment in application.application_apartments.select_related(
+        "apartment_reservation"
+    ):
+        reservation = application_apartment.apartment_reservation
+        existing_reservations = ApartmentReservation.objects.filter(
+            apartment_uuid=reservation.apartment_uuid
+        )
+        state = get_reservation_state(existing_reservations)
+        if reservation.state != state:
+            reservation.set_state(state, user=user)
 
 
 def update_profile_from_application_data(profile: Profile, data: dict) -> None:
