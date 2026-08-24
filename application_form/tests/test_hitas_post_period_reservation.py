@@ -5,13 +5,17 @@ After the application period has ended, a customer can make a reservation on a
 free HITAS apartment when `project_can_apply_afterwards` is True. The rules are:
 - Only one apartment per reservation (single apartment enforced)
 - Apartment must be FREE_FOR_RESERVATIONS
+- Successful reservation is marked RESERVED (apartment is no longer free)
 - Customer may not already have an active reservation in the project
 - Salesperson email is sent on successful reservation
 - HASO late-apply path is unchanged
 
 Tests:
 - Positive: HITAS free apartment after period with can_apply_afterwards
-- Reject: period not ended (normal HITAS apply still works)
+- Positive: reservation and apartment are marked RESERVED
+- Positive: Drupal apartment_states reports RESERVED
+- Positive: stays SUBMITTED when another reserved reservation exists
+- Reject: period not ended (normal HITAS apply still works, stays SUBMITTED)
 - Reject: can_apply_afterwards is False for HITAS
 - Reject: more than one apartment submitted
 - Reject: customer already has an active reservation in the project
@@ -20,7 +24,7 @@ Tests:
 - Reject: get_apartment raises ObjectDoesNotExist
 - Allow: prior canceled reservation does not block
 - Email: salesperson notification sent on success
-- HASO late apply unchanged (still cancels prior, still works)
+- HASO late apply unchanged (still cancels prior, new stays SUBMITTED)
 """
 
 from datetime import datetime, timedelta
@@ -33,8 +37,9 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext
 
-from apartment.enums import OwnershipType
+from apartment.enums import ApartmentState, OwnershipType
 from apartment.tests.factories import add_to_store, ApartmentDocumentFactory
+from apartment.utils import get_apartment_state_from_apartment_uuid
 from application_form.enums import ApartmentReservationState, ApplicationType
 from application_form.models import ApartmentReservation, Application
 from application_form.tests.conftest import create_application_data, generate_apartments
@@ -42,6 +47,7 @@ from application_form.tests.factories import (
     ApartmentReservationFactory,
     ApplicationApartmentFactory,
     ApplicationFactory,
+    LotteryEventFactory,
 )
 from connections.enums import ApartmentStateOfSale
 from customer.tests.factories import CustomerFactory
@@ -125,7 +131,8 @@ def test_hitas_post_period_reservation_succeeds(api_client, elasticsearch):
     project_can_apply_afterwards is True.
 
     - POST /v1/applications/ returns 201
-    - ApartmentReservation is created with submitted state
+    - ApartmentReservation is created with reserved state
+    - Apartment derived state is reserved
     - Application is marked submitted_late
     """
     apartment = _make_hitas_free_apartment_after_period()
@@ -145,7 +152,14 @@ def test_hitas_post_period_reservation_succeeds(api_client, elasticsearch):
         apartment_uuid=apartment.uuid,
         application_apartment__application=application,
     )
-    assert reservation.state == ApartmentReservationState.SUBMITTED
+    assert reservation.state == ApartmentReservationState.RESERVED
+    assert reservation.state_change_events.filter(
+        state=ApartmentReservationState.RESERVED
+    ).exists()
+    assert (
+        get_apartment_state_from_apartment_uuid(apartment.uuid)
+        == ApartmentState.RESERVED.value
+    )
 
 
 @pytest.mark.django_db
@@ -174,6 +188,74 @@ def test_hitas_post_period_reservation_salesperson_email_sent(
     assert response.status_code == 201
     application = Application.objects.get(external_uuid=data["application_uuid"])
     assert call_args[0][0] == application
+
+
+@pytest.mark.django_db
+def test_hitas_post_period_reservation_marks_apartment_reserved_for_drupal(
+    api_client, drupal_server_api_client, elasticsearch
+):
+    """
+    After a HITAS post-period reservation, Drupal apartment_states reports RESERVED.
+
+    - POST /v1/applications/ returns 201
+    - GET /v1/sales/apartment_states/ returns RESERVED for the apartment
+    """
+    apartment = _make_hitas_free_apartment_after_period()
+    LotteryEventFactory(apartment_uuid=apartment.uuid)
+    profile = ProfileFactory()
+
+    with patch("application_form.api.serializers.send_sales_notification_email"):
+        with TestCase.captureOnCommitCallbacks(execute=True):
+            response, _ = _post_hitas_reservation(api_client, profile, apartment)
+
+    assert response.status_code == 201
+
+    states_response = drupal_server_api_client.get(
+        reverse("application_form:apartment_states")
+    )
+    assert states_response.status_code == 200
+    assert states_response.data[str(apartment.uuid)] == ApartmentStateOfSale.RESERVED
+
+
+@pytest.mark.django_db
+def test_hitas_post_period_reservation_stays_submitted_when_already_reserved(
+    api_client, elasticsearch
+):
+    """
+    A HITAS post-period reservation stays SUBMITTED when another reserved
+    reservation already exists for the apartment.
+
+    This is a defensive case: the public API rejects non-free apartments, but
+    salesperson-created late reservations use the same rule.
+
+    - Existing reserved reservation is unchanged
+    - New reservation is SUBMITTED
+    - Apartment derived state stays reserved
+    """
+    apartment = _make_hitas_free_apartment_after_period()
+    ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        state=ApartmentReservationState.RESERVED,
+        list_position=1,
+        queue_position=1,
+    )
+    profile = ProfileFactory()
+
+    with patch("application_form.api.serializers.send_sales_notification_email"):
+        with TestCase.captureOnCommitCallbacks(execute=True):
+            response, data = _post_hitas_reservation(api_client, profile, apartment)
+
+    assert response.status_code == 201
+    application = Application.objects.get(external_uuid=data["application_uuid"])
+    new_reservation = ApartmentReservation.objects.get(
+        apartment_uuid=apartment.uuid,
+        application_apartment__application=application,
+    )
+    assert new_reservation.state == ApartmentReservationState.SUBMITTED
+    assert (
+        get_apartment_state_from_apartment_uuid(apartment.uuid)
+        == ApartmentState.RESERVED.value
+    )
 
 
 @pytest.mark.django_db
@@ -484,6 +566,15 @@ def test_hitas_normal_period_application_still_allowed_multi_apartment(
     )
 
     assert response.status_code == 201
+    application = Application.objects.get(external_uuid=data["application_uuid"])
+    reservations = ApartmentReservation.objects.filter(
+        application_apartment__application=application
+    )
+    assert reservations.count() == 2
+    assert all(
+        reservation.state == ApartmentReservationState.SUBMITTED
+        for reservation in reservations
+    )
 
 
 @pytest.mark.django_db
@@ -557,3 +648,12 @@ def test_haso_late_apply_still_cancels_prior_reservation_unchanged(
         application_apartment__application=first_application,
     )
     assert first_reservation.state == ApartmentReservationState.CANCELED
+
+    second_application = Application.objects.get(
+        external_uuid=second_data["application_uuid"]
+    )
+    second_reservation = ApartmentReservation.objects.get(
+        apartment_uuid=second_apartment.uuid,
+        application_apartment__application=second_application,
+    )
+    assert second_reservation.state == ApartmentReservationState.SUBMITTED
