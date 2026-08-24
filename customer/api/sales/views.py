@@ -1,9 +1,11 @@
 from datetime import datetime
 
 from django.db.models import Case, F, IntegerField, Prefetch, Q, Value, When
+from django.shortcuts import get_object_or_404
 from rest_framework import mixins, permissions, viewsets
 from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.response import Response
 
 from apartment.elastic.queries import get_apartments_for_uuids
 from application_form.enums import ApartmentReservationState
@@ -21,6 +23,177 @@ from customer.api.sales.serializers import (
 )
 from customer.models import Customer, CustomerComment
 from invoicing.models import ApartmentInstallment
+
+_ALONE_PARTNER_SENTINEL = "<ALONE>"
+
+
+def _normalize_hetu(value):
+    return (value or "").strip()
+
+
+def _get_participant_partners(*, hetu: str) -> set[str]:
+    """Return distinct partner hetu values for a person across all customers."""
+    candidates = Customer.objects.select_related(
+        "primary_profile", "secondary_profile"
+    ).filter(
+        Q(primary_profile__national_identification_number=hetu)
+        | Q(secondary_profile__national_identification_number=hetu)
+    )
+
+    partners = set()
+    for candidate in candidates:
+        candidate_primary_hetu = _normalize_hetu(
+            getattr(candidate.primary_profile, "national_identification_number", None)
+        )
+        candidate_secondary_hetu = _normalize_hetu(
+            getattr(candidate.secondary_profile, "national_identification_number", None)
+        )
+        if candidate_primary_hetu == hetu:
+            partners.add(candidate_secondary_hetu or _ALONE_PARTNER_SENTINEL)
+        if candidate_secondary_hetu == hetu:
+            partners.add(candidate_primary_hetu or _ALONE_PARTNER_SENTINEL)
+
+    return partners
+
+
+def _get_customer_hetu_candidates(customer: Customer) -> list[str]:
+    """Return normalized primary and secondary hetu candidates for customer."""
+    return [
+        _normalize_hetu(
+            getattr(customer.primary_profile, "national_identification_number", None)
+        ),
+        _normalize_hetu(
+            getattr(customer.secondary_profile, "national_identification_number", None)
+        ),
+    ]
+
+
+def _get_hetu_customer_candidates(hetu: str) -> list[Customer]:
+    """Return customers where the given hetu appears in primary or secondary."""
+    return list(
+        Customer.objects.select_related("primary_profile", "secondary_profile")
+        .filter(
+            Q(primary_profile__national_identification_number=hetu)
+            | Q(secondary_profile__national_identification_number=hetu)
+        )
+        .order_by("id")
+    )
+
+
+def _build_hetu_participation(
+    *,
+    candidates: list[Customer],
+    hetu: str,
+) -> tuple[set, set]:
+    """Return participant customer IDs and partner hetu set for one hetu."""
+    participant_customer_ids = set()
+    participant_partners = set()
+
+    for candidate in candidates:
+        candidate_primary_hetu = _normalize_hetu(
+            getattr(candidate.primary_profile, "national_identification_number", None)
+        )
+        candidate_secondary_hetu = _normalize_hetu(
+            getattr(candidate.secondary_profile, "national_identification_number", None)
+        )
+
+        if candidate_primary_hetu == hetu:
+            participant_customer_ids.add(candidate.id)
+            participant_partners.add(
+                candidate_secondary_hetu or _ALONE_PARTNER_SENTINEL
+            )
+        if candidate_secondary_hetu == hetu:
+            participant_customer_ids.add(candidate.id)
+            participant_partners.add(candidate_primary_hetu or _ALONE_PARTNER_SENTINEL)
+
+    return participant_customer_ids, participant_partners
+
+
+def _resolve_safe_solo_customer_group_ids(customer: Customer) -> list[int] | None:
+    """Return safe-solo group IDs, or None when customer is not safe-solo."""
+    hetu_candidates = _get_customer_hetu_candidates(customer)
+
+    hetu_candidates = [hetu for hetu in hetu_candidates if hetu]
+
+    for hetu in hetu_candidates:
+        candidates = _get_hetu_customer_candidates(hetu)
+
+        if len(candidates) <= 1:
+            continue
+
+        participant_customer_ids, participant_partners = _build_hetu_participation(
+            candidates=candidates,
+            hetu=hetu,
+        )
+
+        if (
+            len(participant_customer_ids) > 1
+            and participant_partners == {_ALONE_PARTNER_SENTINEL}
+            and customer.id in participant_customer_ids
+        ):
+            return sorted(participant_customer_ids)
+
+    return None
+
+
+def _resolve_strict_safe_pair_customer_group_ids(
+    customer: Customer,
+) -> list[int] | None:
+    """Return strict safe-pair group IDs, or None when not eligible."""
+    primary_hetu, secondary_hetu = _get_customer_hetu_candidates(customer)
+
+    if not (primary_hetu and secondary_hetu):
+        return None
+
+    pair_candidates = list(
+        Customer.objects.select_related("primary_profile", "secondary_profile")
+        .filter(
+            Q(
+                primary_profile__national_identification_number=primary_hetu,
+                secondary_profile__national_identification_number=secondary_hetu,
+            )
+            | Q(
+                primary_profile__national_identification_number=secondary_hetu,
+                secondary_profile__national_identification_number=primary_hetu,
+            )
+        )
+        .order_by("id")
+    )
+
+    pair_customer_ids = []
+    for candidate in pair_candidates:
+        (
+            candidate_primary_hetu,
+            candidate_secondary_hetu,
+        ) = _get_customer_hetu_candidates(candidate)
+        if {candidate_primary_hetu, candidate_secondary_hetu} == {
+            primary_hetu,
+            secondary_hetu,
+        }:
+            pair_customer_ids.append(candidate.id)
+
+    if len(pair_customer_ids) <= 1 or customer.id not in pair_customer_ids:
+        return None
+
+    primary_partners = _get_participant_partners(hetu=primary_hetu)
+    secondary_partners = _get_participant_partners(hetu=secondary_hetu)
+    if primary_partners == {secondary_hetu} and secondary_partners == {primary_hetu}:
+        return sorted(pair_customer_ids)
+
+    return None
+
+
+def _resolve_customer_group_customer_ids(customer: Customer) -> list[int]:
+    """Return grouping IDs for strict safe-solo and strict safe-pair rules."""
+    safe_solo_group = _resolve_safe_solo_customer_group_ids(customer)
+    if safe_solo_group is not None:
+        return safe_solo_group
+
+    safe_pair_group = _resolve_strict_safe_pair_customer_group_ids(customer)
+    if safe_pair_group is not None:
+        return safe_pair_group
+
+    return [customer.id]
 
 
 class CustomerReservationsPagination(PageNumberPagination):
@@ -127,6 +300,31 @@ class CustomerViewSet(AuditLoggingModelViewSet):
             return CustomerApartmentReservationSerializer
         return super().get_serializer_class()
 
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+
+        if self.get_serializer_class() is not CustomerListSerializer:
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data)
+
+        customers = list(
+            queryset.select_related("primary_profile", "secondary_profile")
+        )
+        by_id = {customer.id: customer for customer in customers}
+
+        deduplicated_customers = []
+        seen_canonical_ids = set()
+        for customer in customers:
+            grouped_ids = _resolve_customer_group_customer_ids(customer)
+            canonical_id = min(grouped_ids)
+            if canonical_id in seen_canonical_ids:
+                continue
+            seen_canonical_ids.add(canonical_id)
+            deduplicated_customers.append(by_id.get(canonical_id, customer))
+
+        serializer = self.get_serializer(deduplicated_customers, many=True)
+        return Response(serializer.data)
+
     @action(
         detail=True,
         methods=["get"],
@@ -148,8 +346,9 @@ class CustomerViewSet(AuditLoggingModelViewSet):
           3. id ascending
         """
         customer = self.get_object()
+        grouped_customer_ids = _resolve_customer_group_customer_ids(customer)
         queryset = (
-            ApartmentReservation.objects.filter(customer=customer)
+            ApartmentReservation.objects.filter(customer_id__in=grouped_customer_ids)
             .annotate(
                 _is_canceled=Case(
                     When(
@@ -220,11 +419,15 @@ class CustomerCommentViewSet(
 
     def get_queryset(self):
         customer_id = self.kwargs["customer_pk"]
-        return CustomerComment.objects.filter(customer_id=customer_id).select_related(
-            "author_user", "customer"
-        )
+        customer = get_object_or_404(Customer, pk=customer_id)
+        grouped_customer_ids = _resolve_customer_group_customer_ids(customer)
+        return CustomerComment.objects.filter(
+            customer_id__in=grouped_customer_ids
+        ).select_related("author_user", "customer")
 
     def perform_create(self, serializer):
-        customer = Customer.objects.get(pk=self.kwargs["customer_pk"])
+        customer = get_object_or_404(Customer, pk=self.kwargs["customer_pk"])
+        grouped_customer_ids = _resolve_customer_group_customer_ids(customer)
+        canonical_customer = Customer.objects.get(pk=min(grouped_customer_ids))
         user = self.request.user
-        serializer.save(customer=customer, author_user=user)
+        serializer.save(customer=canonical_customer, author_user=user)

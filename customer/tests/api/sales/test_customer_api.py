@@ -22,7 +22,7 @@ from application_form.tests.factories import (
     ApplicationFactory,
 )
 from customer.api.sales.views import CustomerViewSet
-from customer.models import Customer
+from customer.models import Customer, CustomerComment
 from customer.tests.factories import CustomerFactory
 from customer.tests.utils import assert_customer_list_match_data
 from invoicing.tests.factories import ApartmentInstallmentFactory
@@ -985,3 +985,266 @@ def test_get_customer_api_list_search_by_hetu_alone_bypasses_min_length_check(
     assert response.status_code == status.HTTP_200_OK
     assert len(response.data) == 1
     assert response.data[0]["id"] == target_customer.id
+
+
+@pytest.mark.django_db
+def test_get_customer_api_list_deduplicates_safe_solo_customers_by_hetu(
+    sales_ui_salesperson_api_client,
+):
+    """
+    Safe-solo duplicates are represented as one row in sales customer list.
+
+    - Two customers have different primary profiles but the same hetu.
+    - Both are solo customers (secondary profile is null).
+    - Query by shared email returns a single deduplicated row.
+    """
+    shared_hetu = "311299A1234"
+    shared_email = "solo_dedupe@example.com"
+    customer_1 = CustomerFactory(
+        primary_profile=ProfileFactory(
+            first_name="Test",
+            last_name="Solo",
+            email=shared_email,
+            national_identification_number=shared_hetu,
+        ),
+        secondary_profile=None,
+    )
+    customer_2 = CustomerFactory(
+        primary_profile=ProfileFactory(
+            first_name="Test",
+            last_name="Solo",
+            email=shared_email,
+            national_identification_number=shared_hetu,
+        ),
+        secondary_profile=None,
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("customer:sales-customer-list"),
+        data={"email": shared_email},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert len(response.data) == 1
+    assert response.data[0]["id"] == min(customer_1.id, customer_2.id)
+
+
+@pytest.mark.django_db
+def test_customer_apartment_reservations_aggregates_safe_solo_group(
+    sales_ui_salesperson_api_client,
+):
+    """
+    Apartment reservations endpoint aggregates rows from safe-solo duplicates.
+
+    - Two solo customers share the same hetu.
+    - Reservations exist under both customer IDs.
+    - Sub-resource returns reservations from both customers.
+    """
+    shared_hetu = "311299A1234"
+    customer_1 = CustomerFactory(
+        primary_profile=ProfileFactory(national_identification_number=shared_hetu),
+        secondary_profile=None,
+    )
+    customer_2 = CustomerFactory(
+        primary_profile=ProfileFactory(national_identification_number=shared_hetu),
+        secondary_profile=None,
+    )
+
+    apartment_1 = ApartmentDocumentFactory()
+    apartment_2 = ApartmentDocumentFactory()
+
+    reservation_1 = ApartmentReservationFactory(
+        customer=customer_1,
+        apartment_uuid=apartment_1.uuid,
+        application_apartment__apartment_uuid=apartment_1.uuid,
+    )
+    reservation_2 = ApartmentReservationFactory(
+        customer=customer_2,
+        apartment_uuid=apartment_2.uuid,
+        application_apartment__apartment_uuid=apartment_2.uuid,
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse(
+            "customer:sales-customer-apartment-reservations",
+            args=(customer_1.pk,),
+        ),
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data["count"] == 2
+    returned_ids = {item["id"] for item in response.data["results"]}
+    assert returned_ids == {reservation_1.id, reservation_2.id}
+
+
+@pytest.mark.django_db
+def test_customer_comments_aggregates_safe_solo_group(
+    sales_ui_salesperson_api_client,
+):
+    """
+    Customer comments endpoint lists comments across safe-solo duplicates.
+
+    - Two solo customers share the same hetu.
+    - Both customers have comments.
+    - Nested comments endpoint returns the aggregated set.
+    """
+    shared_hetu = "311299A1234"
+    customer_1 = CustomerFactory(
+        primary_profile=ProfileFactory(national_identification_number=shared_hetu),
+        secondary_profile=None,
+    )
+    customer_2 = CustomerFactory(
+        primary_profile=ProfileFactory(national_identification_number=shared_hetu),
+        secondary_profile=None,
+    )
+    comment_1 = CustomerComment.objects.create(customer=customer_1, content="one")
+    comment_2 = CustomerComment.objects.create(customer=customer_2, content="two")
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("customer:customer-comments", kwargs={"customer_pk": customer_1.pk}),
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    returned_ids = {item["id"] for item in response.data}
+    assert returned_ids == {comment_1.id, comment_2.id}
+
+
+@pytest.mark.django_db
+def test_get_customer_api_list_deduplicates_strict_safe_pair_by_hetu(
+    sales_ui_salesperson_api_client,
+):
+    """
+    Strict safe-pair duplicates are represented as one row in sales list.
+
+    - Two customers share the same pair hetu values (A+B).
+    - Neither A nor B appears with other partners or alone.
+    - Query by one pair hetu returns a single deduplicated row.
+    """
+    hetu_a = "150190A111K"
+    hetu_b = "200292A222L"
+
+    customer_1 = CustomerFactory(
+        primary_profile=ProfileFactory(
+            first_name="Pair",
+            last_name="One",
+            email="pair_primary@example.com",
+            national_identification_number=hetu_a,
+        ),
+        secondary_profile=ProfileFactory(
+            first_name="Pair",
+            last_name="Two",
+            email="pair_secondary@example.com",
+            national_identification_number=hetu_b,
+        ),
+    )
+    customer_2 = CustomerFactory(
+        primary_profile=ProfileFactory(
+            first_name="Pair",
+            last_name="One",
+            email="pair_primary@example.com",
+            national_identification_number=hetu_a,
+        ),
+        secondary_profile=ProfileFactory(
+            first_name="Pair",
+            last_name="Two",
+            email="pair_secondary@example.com",
+            national_identification_number=hetu_b,
+        ),
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("customer:sales-customer-list"),
+        data={"hetu": hetu_a},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert len(response.data) == 1
+    assert response.data[0]["id"] == min(customer_1.id, customer_2.id)
+
+
+@pytest.mark.django_db
+def test_customer_apartment_reservations_aggregates_strict_safe_pair_group(
+    sales_ui_salesperson_api_client,
+):
+    """
+    Apartment reservations endpoint aggregates rows from strict safe-pair duplicates.
+
+    - Two customers share the same pair hetu values (A+B).
+    - Reservations exist under both customer IDs.
+    - Sub-resource returns reservations from both customers.
+    """
+    hetu_a = "150190A111K"
+    hetu_b = "200292A222L"
+    customer_1 = CustomerFactory(
+        primary_profile=ProfileFactory(national_identification_number=hetu_a),
+        secondary_profile=ProfileFactory(national_identification_number=hetu_b),
+    )
+    customer_2 = CustomerFactory(
+        primary_profile=ProfileFactory(national_identification_number=hetu_a),
+        secondary_profile=ProfileFactory(national_identification_number=hetu_b),
+    )
+
+    apartment_1 = ApartmentDocumentFactory()
+    apartment_2 = ApartmentDocumentFactory()
+
+    reservation_1 = ApartmentReservationFactory(
+        customer=customer_1,
+        apartment_uuid=apartment_1.uuid,
+        application_apartment__apartment_uuid=apartment_1.uuid,
+    )
+    reservation_2 = ApartmentReservationFactory(
+        customer=customer_2,
+        apartment_uuid=apartment_2.uuid,
+        application_apartment__apartment_uuid=apartment_2.uuid,
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse(
+            "customer:sales-customer-apartment-reservations",
+            args=(customer_1.pk,),
+        ),
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data["count"] == 2
+    returned_ids = {item["id"] for item in response.data["results"]}
+    assert returned_ids == {reservation_1.id, reservation_2.id}
+
+
+@pytest.mark.django_db
+def test_customer_comments_aggregates_strict_safe_pair_group(
+    sales_ui_salesperson_api_client,
+):
+    """
+    Customer comments endpoint lists comments across strict safe-pair duplicates.
+
+    - Two customers share the same pair hetu values (A+B).
+    - Both customers have comments.
+    - Nested comments endpoint returns the aggregated set.
+    """
+    hetu_a = "150190A111K"
+    hetu_b = "200292A222L"
+    customer_1 = CustomerFactory(
+        primary_profile=ProfileFactory(national_identification_number=hetu_a),
+        secondary_profile=ProfileFactory(national_identification_number=hetu_b),
+    )
+    customer_2 = CustomerFactory(
+        primary_profile=ProfileFactory(national_identification_number=hetu_a),
+        secondary_profile=ProfileFactory(national_identification_number=hetu_b),
+    )
+    comment_1 = CustomerComment.objects.create(customer=customer_1, content="one")
+    comment_2 = CustomerComment.objects.create(customer=customer_2, content="two")
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("customer:customer-comments", kwargs={"customer_pk": customer_1.pk}),
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    returned_ids = {item["id"] for item in response.data}
+    assert returned_ids == {comment_1.id, comment_2.id}
