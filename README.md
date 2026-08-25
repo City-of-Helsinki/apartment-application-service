@@ -69,6 +69,7 @@ If you have the `make` command available, you can use the following commands to 
 * `make lint` - Run linters (flake8, black, isort)
 * `make test` - Run tests
 * `make check-sanitizerconfig` - Verify `.sanitizerconfig` covers all Django models
+* `make create-sanitized-dump` - Create an anonymized SQL dump (rotates old dumps)
 * `make fix` - Run code formmitng fixes (isort, black)
 * `make requirements` - Update all requirements `*.txt` files from their
   corresponding `*.in` files
@@ -85,12 +86,22 @@ rewrites PII in the dump stream. Production rows are not updated.
 ### Create a dump (production)
 
 ```bash
+make create-sanitized-dump
+```
+
+This writes `sanitized_YYYYMMDDHHMMSS.sql` under `SANITIZED_DUMP_DIR` (default:
+current directory). Before creating, it deletes the fifth-oldest dump and any
+older ones (keeps the four newest). Override the directory with
+`make create-sanitized-dump SANITIZED_DUMP_DIR=/tmp`.
+
+Alternatively:
+
+```bash
 ./manage.py create_sanitized_dump > /tmp/sanitized_$(date +%Y%m%d%H%M).sql
 ```
 
 On OpenShift, run the command in an application pod and copy the file out
 afterwards. Do not commit dump files.
-
 Encrypted fields are replaced with fakes re-encrypted using `DUMP_PUBLIC_PGP_KEY`
 (defaults to the public test key from `.env.example`). Session, social-auth,
 audit, and log table data are omitted from the dump.
