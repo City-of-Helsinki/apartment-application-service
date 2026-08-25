@@ -25,8 +25,7 @@ RUN dnf install -y \
     && update-ca-trust \
     && pip install -U pip \
     && pip install --no-cache-dir -r /app/requirements.txt \
-    && pip install --no-cache-dir -r /app/requirements-prod.txt \
-    && dnf clean all
+    && pip install --no-cache-dir  -r /app/requirements-prod.txt
 
 COPY --chown=1001:1001 docker-entrypoint.sh /entrypoint/docker-entrypoint.sh
 ENTRYPOINT ["/entrypoint/docker-entrypoint.sh"]
