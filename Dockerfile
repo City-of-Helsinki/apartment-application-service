@@ -16,7 +16,9 @@ COPY --chown=1001:1001 requirements.txt /app/requirements.txt
 COPY --chown=1001:1001 requirements-prod.txt /app/requirements-prod.txt
 
 # git + ca-certificates required for pip installs from git+https (e.g. django-oikotie)
-RUN dnf update -y && dnf install -y \
+# Skip "dnf update -y": live UBI repos can conflict with packages baked into
+# ubi9/python-312 (e.g. sqlite vs sqlite-libs version skew).
+RUN dnf install -y \
     nc \
     git \
     ca-certificates \
