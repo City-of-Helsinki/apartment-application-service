@@ -1,4 +1,4 @@
-check: lint check-django check-migrations check-requirements test
+check: lint check-django check-migrations check-requirements check-sanitizerconfig test
 
 fix: fix-imports fix-code-style
 
@@ -28,6 +28,9 @@ check-migrations:
 
 check-requirements:
 	./check-requirements-files
+
+check-sanitizerconfig:
+	./manage.py check_sanitizerconfig
 
 test:
 	pytest
