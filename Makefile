@@ -32,6 +32,22 @@ check-requirements:
 check-sanitizerconfig:
 	./manage.py check_sanitizerconfig
 
+# Directory for anonymized dumps (gitignored sanitized_*.sql files).
+SANITIZED_DUMP_DIR ?= .
+
+create-sanitized-dump:
+	@mkdir -p "$(SANITIZED_DUMP_DIR)"
+	@# Delete the 5th-oldest dump and older (keep the four newest).
+	@old=$$(ls -1t "$(SANITIZED_DUMP_DIR)"/sanitized_*.sql 2>/dev/null | tail -n +5); \
+	if [ -n "$$old" ]; then \
+		echo "Removing old dumps:"; \
+		echo "$$old"; \
+		echo "$$old" | xargs rm -f --; \
+	fi
+	@outfile="$(SANITIZED_DUMP_DIR)/sanitized_$$(date +%Y%m%d%H%M%S).sql"; \
+	./manage.py create_sanitized_dump > "$$outfile"; \
+	echo "Created $$outfile"
+
 test:
 	pytest
 
