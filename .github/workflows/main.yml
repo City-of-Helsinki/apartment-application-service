@@ -137,6 +137,7 @@ jobs:
         run: |
           ./manage.py makemigrations --no-input --dry-run
           ./manage.py makemigrations --no-input --check
+          ./manage.py check_sanitizerconfig
 
   test:
     runs-on: ubuntu-22.04
@@ -171,6 +172,9 @@ jobs:
 
       - name: psycopg2 prerequisites
         run: sudo apt-get install libpq-dev
+
+      - name: Install PostgreSQL client for sanitized dump tests
+        run: sudo apt-get install postgresql-client
 
       - name: Install gettext to make Django translation files # for tests
         run: sudo apt-get install gettext=${{env.GETTEXT_VERSION}}

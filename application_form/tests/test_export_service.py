@@ -618,6 +618,11 @@ def test_export_applicants_mailing_list_short_includes_phone_numbers(reservation
     # Keep the test deterministic: short+reserved export excludes canceled rows.
     reservation_queryset.update(state=ApartmentReservationState.SUBMITTED)
     reservation = reservation_queryset.first()
+    # The factory picks a random state; the RESERVED export leaves out canceled
+    # reservations, so pin the state to keep this reservation's row exported.
+    ApartmentReservation.objects.filter(pk=reservation.pk).update(
+        state=ApartmentReservationState.RESERVED
+    )
     reservation.customer.primary_profile.phone_number = "0401234567"
     reservation.customer.primary_profile.save(update_fields=["phone_number"])
 
