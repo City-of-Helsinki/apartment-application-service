@@ -20,6 +20,7 @@ RUN dnf update -y && dnf install -y \
     nc \
     git \
     ca-certificates \
+    postgresql \
     && update-ca-trust \
     && pip install -U pip \
     && pip install --no-cache-dir -r /app/requirements.txt \

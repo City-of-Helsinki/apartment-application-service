@@ -65,14 +65,53 @@ The project is now running at [localhost:8081](http://localhost:8081)
 
 If you have the `make` command available, you can use the following commands to run certain common tasks:
 
-* `make check` - Run all checks (linting, Django checks, tests)
+* `make check` - Run all checks (linting, Django checks, sanitizer config, tests)
 * `make lint` - Run linters (flake8, black, isort)
 * `make test` - Run tests
+* `make check-sanitizerconfig` - Verify `.sanitizerconfig` covers all Django models
 * `make fix` - Run code formmitng fixes (isort, black)
 * `make requirements` - Update all requirements `*.txt` files from their
   corresponding `*.in` files
 * `make deploy` - Run the deployment tasks (migrate, compilemessages,
   collectstatic)
+
+
+## Anonymized database dump
+
+Production personal data must never be copied into local or shared environments
+as-is. Use Django's sanitized dump command, which runs a read-only `pg_dump` and
+rewrites PII in the dump stream. Production rows are not updated.
+
+### Create a dump (production)
+
+```bash
+./manage.py create_sanitized_dump > /tmp/sanitized_$(date +%Y%m%d%H%M).sql
+```
+
+On OpenShift, run the command in an application pod and copy the file out
+afterwards. Do not commit dump files.
+
+Encrypted fields are replaced with fakes re-encrypted using `DUMP_PUBLIC_PGP_KEY`
+(defaults to the public test key from `.env.example`). Session, social-auth,
+audit, and log table data are omitted from the dump.
+
+### Restore locally
+
+1. Start from an empty local database (same Postgres major version as production).
+2. Import the SQL dump, for example:
+
+```bash
+psql "$DATABASE_URL" -f sanitized_YYYYMMDDHHMM.sql
+```
+
+3. Use the example PGP keys from `.env.example` (or set matching
+   `PUBLIC_PGP_KEY` / `PRIVATE_PGP_KEY` for the dump public key you used).
+4. All user passwords in the dump are set to `localdev`.
+5. Run `python manage.py migrate` if the dump is older than your current code.
+
+When models gain new fields, update `.sanitizerconfig` (or regenerate with
+`python scripts/generate_sanitizerconfig.py` via `manage.py shell` and re-apply
+PII mappings) and keep `make check-sanitizerconfig` green.
 
 
 ## Tests

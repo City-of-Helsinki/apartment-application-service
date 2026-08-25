@@ -7,6 +7,8 @@ from django.utils.translation import gettext_lazy as _
 from sentry_sdk.integrations.django import DjangoIntegration
 from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
 
+from sanitizers.keys import DEFAULT_DUMP_PUBLIC_PGP_KEY
+
 from .utils import is_module_available, scrub_sensitive_payload
 from .version import get_version
 
@@ -84,6 +86,7 @@ env = environ.Env(
     HASHIDS_SALT=(str, ""),
     PUBLIC_PGP_KEY=(str, ""),
     PRIVATE_PGP_KEY=(str, ""),
+    DUMP_PUBLIC_PGP_KEY=(str, ""),
     SAP_SFTP_USERNAME=(str, ""),
     SAP_SFTP_PASSWORD=(str, ""),
     SAP_SFTP_HOST=(str, ""),
@@ -213,6 +216,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "pgcrypto",
     "resilient_logger",
+    "sanitized_dump",
     # local apps
     "apartment",
     "application_form",
@@ -457,6 +461,13 @@ SIMPLE_JWT = {"ACCESS_TOKEN_LIFETIME": timedelta(minutes=30)}
 # For pgcrypto
 PUBLIC_PGP_KEY = env.str("PUBLIC_PGP_KEY", multiline=True)
 PRIVATE_PGP_KEY = env.str("PRIVATE_PGP_KEY", multiline=True)
+# Public key used when re-encrypting fake PII in anonymized dumps.
+# Defaults to the local/test key so restored dumps work with .env.example.
+DUMP_PUBLIC_PGP_KEY = env.str(
+    "DUMP_PUBLIC_PGP_KEY",
+    default=DEFAULT_DUMP_PUBLIC_PGP_KEY,
+    multiline=True,
+)
 
 # Metadata constants =
 METADATA_HANDLER_INFORMATION = env.str("METADATA_HANDLER_INFORMATION")

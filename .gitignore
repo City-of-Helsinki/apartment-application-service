@@ -148,3 +148,7 @@ schemas/*
 
 # MacOS specific .DS_STORE directory metadata
 .DS_STORE
+
+# Anonymized database dumps (never commit)
+sanitized_*.sql
+*.sanitized.sql

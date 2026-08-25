@@ -1,0 +1,364 @@
+config:
+  addons: []
+  extra_parameters:
+    pg_dump:
+    - --format=plain
+    - --clean
+    - --if-exists
+    - --no-owner
+    - --no-acl
+    - --exclude-table-data=public.django_session
+    - --exclude-table-data=public.django_admin_log
+    - --exclude-table-data=public.audit_log_auditlog
+    - --exclude-table-data=public.resilient_logger_resilientlogentry
+    - --exclude-table-data=public.asko_import_askoimportlogentry
+    - --exclude-table-data=public.social_auth_usersocialauth
+    - --exclude-table-data=public.social_auth_partial
+    - --exclude-table-data=public.social_auth_code
+    - --exclude-table-data=public.social_auth_nonce
+    - --exclude-table-data=public.social_auth_association
+    - --exclude-table-data=public.helusers_oidcbackchannellogoutevent
+strategy:
+  apartment_projectextradata:
+    created_at: null
+    id: null
+    offer_message_content: null
+    offer_message_intro: null
+    project_uuid: null
+    updated_at: null
+  application_form_apartmentqueuechangeevent:
+    comment: person.comment
+    id: null
+    queue_application_id: null
+    timestamp: null
+    type: null
+  application_form_apartmentreservation:
+    apartment_uuid: null
+    application_apartment_id: null
+    customer_id: null
+    handler: pgp.pgp_handler
+    has_children: null
+    has_hitas_ownership: null
+    id: null
+    is_age_over_55: null
+    is_right_of_occupancy_housing_changer: null
+    list_position: null
+    queue_position: null
+    queue_position_before_cancelation: null
+    right_of_residence: null
+    right_of_residence_is_old_batch: null
+    state: null
+    submitted_late: null
+  application_form_apartmentreservationstatechangeevent:
+    cancellation_reason: null
+    comment: person.comment
+    id: null
+    replaced_by_id: null
+    reservation_id: null
+    state: null
+    timestamp: null
+    user_id: null
+  application_form_applicant:
+    age: null
+    application_id: null
+    city: person.city
+    contact_language: null
+    created_at: null
+    date_of_birth: pgp.pgp_date
+    email: person.email
+    first_name: person.first_name
+    id: null
+    is_primary_applicant: null
+    last_name: person.last_name
+    phone_number: person.phone_number
+    postal_code: person.postal_code
+    ssn_suffix: pgp.pgp_ssn_suffix
+    street_address: person.street_address
+    updated_at: null
+  application_form_application:
+    applicants_count: null
+    created_at: null
+    customer_id: null
+    drupal_application_id: null
+    external_uuid: null
+    handler_information: person.handler_information
+    has_children: null
+    has_hitas_ownership: null
+    id: null
+    is_right_of_occupancy_housing_changer: null
+    method_of_arrival: null
+    process_number: null
+    right_of_residence: null
+    right_of_residence_is_old_batch: null
+    sender_names: person.sender_names
+    submitted_late: null
+    type: null
+    updated_at: null
+  application_form_applicationapartment:
+    apartment_uuid: null
+    application_id: null
+    id: null
+    priority_number: null
+  application_form_lotteryevent:
+    apartment_uuid: null
+    handler: pgp.pgp_handler
+    id: null
+    timestamp: null
+  application_form_lotteryeventresult:
+    application_apartment_id: null
+    event_id: null
+    id: null
+    result_position: null
+  application_form_offer:
+    apartment_reservation_id: null
+    comment: person.comment
+    concluded_at: null
+    created_at: null
+    handler: pgp.pgp_handler
+    id: null
+    message_sent_at: null
+    reminder_sent_at: null
+    state: null
+    updated_at: null
+    valid_until: null
+  asko_import_askoimportlogentry:
+    asko_id: null
+    asko_link_id: null
+    content_type_id: null
+    created_at: null
+    exception: null
+    id: null
+    level: null
+    message: null
+    message_template: null
+  asko_import_askolink:
+    asko_id: null
+    created_at: null
+    id: null
+    object_id_int: null
+    object_id_uuid: null
+    object_type_id: null
+    updated_at: null
+  audit_log_auditlog:
+    created_at: null
+    id: null
+    message: null
+    sent_at: null
+  auth_group:
+    id: null
+    name: null
+  auth_group_permissions:
+    group_id: null
+    id: null
+    permission_id: null
+  auth_permission:
+    codename: null
+    content_type_id: null
+    id: null
+    name: null
+  connections_mappedapartment:
+    apartment_uuid: null
+    created_at: null
+    last_mapped_to_etuovi: null
+    last_mapped_to_oikotie: null
+    mapped_etuovi: null
+    mapped_oikotie: null
+    updated_at: null
+  cost_index_apartmentrevaluation:
+    alteration_work: null
+    apartment_reservation_id: null
+    created_at: null
+    end_cost_index_value: null
+    end_date: null
+    end_right_of_occupancy_payment: null
+    id: null
+    start_cost_index_value: null
+    start_date: null
+    start_right_of_occupancy_payment: null
+    updated_at: null
+  cost_index_costindex:
+    id: null
+    valid_from: null
+    value: null
+  customer_customer:
+    additional_information: person.additional_information
+    created_at: null
+    has_children: null
+    has_hitas_ownership: null
+    id: null
+    is_age_over_55: null
+    is_right_of_occupancy_housing_changer: null
+    last_contact_date: null
+    primary_profile_id: null
+    right_of_residence: null
+    right_of_residence_is_old_batch: null
+    secondary_profile_id: null
+    updated_at: null
+  customer_customercomment:
+    author_id: null
+    author_user_id: null
+    content: person.comment
+    created_at: null
+    customer_id: null
+    id: null
+  django_admin_log:
+    action_flag: null
+    action_time: null
+    change_message: null
+    content_type_id: null
+    id: null
+    object_id: null
+    object_repr: null
+    user_id: null
+  django_content_type:
+    app_label: null
+    id: null
+    model: null
+  django_session:
+    expire_date: null
+    session_data: null
+    session_key: null
+  helusers_adgroup:
+    display_name: null
+    id: null
+    name: null
+  helusers_adgroupmapping:
+    ad_group_id: null
+    group_id: null
+    id: null
+  helusers_oidcbackchannellogoutevent:
+    created_at: null
+    id: null
+    iss: null
+    sid: null
+    sub: null
+  invoicing_apartmentinstallment:
+    account_number: person.account_number
+    added_to_be_sent_to_sap_at: null
+    apartment_reservation_id: null
+    created_at: null
+    due_date: null
+    handler: person.first_name
+    id: null
+    invoice_number: null
+    reference_number: person.reference_number
+    sent_to_sap_at: null
+    type: null
+    updated_at: null
+    value: null
+  invoicing_payment:
+    amount: null
+    apartment_installment_id: null
+    batch_id: null
+    created_at: null
+    id: null
+    payment_date: null
+    updated_at: null
+  invoicing_paymentbatch:
+    created_at: null
+    filename: null
+    id: null
+    updated_at: null
+  invoicing_projectinstallmenttemplate:
+    account_number: person.account_number
+    created_at: null
+    due_date: null
+    id: null
+    percentage_specifier: null
+    project_uuid: null
+    type: null
+    unit: null
+    updated_at: null
+    value: null
+  resilient_logger_resilientlogentry:
+    context: null
+    created_at: null
+    id: null
+    is_sent: null
+    level: null
+    message: null
+  social_auth_association:
+    assoc_type: null
+    handle: null
+    id: null
+    issued: null
+    lifetime: null
+    secret: null
+    server_url: null
+  social_auth_code:
+    code: null
+    email: null
+    id: null
+    timestamp: null
+    verified: null
+  social_auth_nonce:
+    id: null
+    salt: null
+    server_url: null
+    timestamp: null
+  social_auth_partial:
+    backend: null
+    data: null
+    id: null
+    next_step: null
+    timestamp: null
+    token: null
+  social_auth_usersocialauth:
+    created: null
+    extra_data: null
+    id: null
+    modified: null
+    provider: null
+    uid: null
+    user_id: null
+  users_profile:
+    calling_name: person.first_name
+    city: person.city
+    contact_language: null
+    created_at: null
+    date_of_birth: pgp.pgp_date
+    email: person.email
+    first_name: person.first_name
+    id: null
+    last_name: person.last_name
+    middle_name: person.first_name
+    national_identification_number: pgp.pgp_hetu
+    phone_number: person.phone_number
+    phone_number_nightly: person.phone_number
+    postal_code: person.postal_code
+    street_address: person.street_address
+    updated_at: null
+    user_id: null
+  users_user:
+    date_joined: null
+    department_name: null
+    email: person.email
+    first_name: person.first_name
+    id: null
+    is_active: null
+    is_staff: null
+    is_superuser: null
+    last_login: null
+    last_name: person.last_name
+    password: person.password
+    username: person.username
+    uuid: null
+  users_user_ad_groups:
+    adgroup_id: null
+    id: null
+    user_id: null
+  users_user_groups:
+    group_id: null
+    id: null
+    user_id: null
+  users_user_user_permissions:
+    id: null
+    permission_id: null
+    user_id: null
+  users_userkeyvalue:
+    created_at: null
+    id: null
+    key: null
+    updated_at: null
+    user_id: null
+    value: person.key_value
