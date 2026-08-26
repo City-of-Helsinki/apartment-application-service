@@ -28,11 +28,61 @@ _ALONE_PARTNER_SENTINEL = "<ALONE>"
 
 
 def _normalize_hetu(value):
+    """Return a normalized hetu-like string with surrounding whitespace removed."""
     return (value or "").strip()
 
 
-def _get_participant_partners(*, hetu: str) -> set[str]:
+def _has_meaningful_value(value) -> bool:
+    """Return whether value should overwrite merged list attributes."""
+    if value is None:
+        return False
+    if isinstance(value, str):
+        normalized_value = value.strip()
+        return bool(normalized_value and normalized_value != "-")
+    return True
+
+
+def _merge_customer_list_row_from_latest(
+    *,
+    canonical_customer: Customer,
+    latest_customer: Customer,
+) -> Customer:
+    """Merge list-visible attributes from latest customer into canonical customer."""
+    if canonical_customer.id == latest_customer.id:
+        return canonical_customer
+
+    primary_profile_fields = [
+        "first_name",
+        "last_name",
+        "email",
+        "phone_number",
+    ]
+    for field_name in primary_profile_fields:
+        latest_value = getattr(latest_customer.primary_profile, field_name)
+        if _has_meaningful_value(latest_value):
+            setattr(canonical_customer.primary_profile, field_name, latest_value)
+
+    if canonical_customer.secondary_profile and latest_customer.secondary_profile:
+        secondary_profile_fields = ["first_name", "last_name"]
+        for field_name in secondary_profile_fields:
+            latest_value = getattr(latest_customer.secondary_profile, field_name)
+            if _has_meaningful_value(latest_value):
+                setattr(canonical_customer.secondary_profile, field_name, latest_value)
+
+    if _has_meaningful_value(latest_customer.right_of_residence):
+        canonical_customer.right_of_residence = latest_customer.right_of_residence
+
+    return canonical_customer
+
+
+def _get_participant_partners(*, hetu: str, cache: dict | None = None) -> set[str]:
     """Return distinct partner hetu values for a person across all customers."""
+    participant_partners_cache = (
+        cache.setdefault("participant_partners_cache", {}) if cache is not None else {}
+    )
+    if hetu in participant_partners_cache:
+        return participant_partners_cache[hetu]
+
     candidates = Customer.objects.select_related(
         "primary_profile", "secondary_profile"
     ).filter(
@@ -53,6 +103,7 @@ def _get_participant_partners(*, hetu: str) -> set[str]:
         if candidate_secondary_hetu == hetu:
             partners.add(candidate_primary_hetu or _ALONE_PARTNER_SENTINEL)
 
+    participant_partners_cache[hetu] = partners
     return partners
 
 
@@ -68,9 +119,19 @@ def _get_customer_hetu_candidates(customer: Customer) -> list[str]:
     ]
 
 
-def _get_hetu_customer_candidates(hetu: str) -> list[Customer]:
+def _get_hetu_customer_candidates(
+    hetu: str,
+    *,
+    cache: dict | None = None,
+) -> list[Customer]:
     """Return customers where the given hetu appears in primary or secondary."""
-    return list(
+    hetu_candidates_cache = (
+        cache.setdefault("hetu_candidates_cache", {}) if cache is not None else {}
+    )
+    if hetu in hetu_candidates_cache:
+        return hetu_candidates_cache[hetu]
+
+    candidates = list(
         Customer.objects.select_related("primary_profile", "secondary_profile")
         .filter(
             Q(primary_profile__national_identification_number=hetu)
@@ -78,6 +139,9 @@ def _get_hetu_customer_candidates(hetu: str) -> list[Customer]:
         )
         .order_by("id")
     )
+
+    hetu_candidates_cache[hetu] = candidates
+    return candidates
 
 
 def _build_hetu_participation(
@@ -109,16 +173,28 @@ def _build_hetu_participation(
     return participant_customer_ids, participant_partners
 
 
-def _resolve_safe_solo_customer_group_ids(customer: Customer) -> list[int] | None:
+def _resolve_safe_solo_customer_group_ids(
+    customer: Customer,
+    *,
+    cache: dict | None = None,
+) -> list[int] | None:
     """Return safe-solo group IDs, or None when customer is not safe-solo."""
     hetu_candidates = _get_customer_hetu_candidates(customer)
 
     hetu_candidates = [hetu for hetu in hetu_candidates if hetu]
+    safe_solo_cache = cache.setdefault("safe_solo_cache", {}) if cache else {}
 
     for hetu in hetu_candidates:
-        candidates = _get_hetu_customer_candidates(hetu)
+        if hetu in safe_solo_cache:
+            cached_group = safe_solo_cache[hetu]
+            if cached_group and customer.id in cached_group:
+                return cached_group
+            continue
+
+        candidates = _get_hetu_customer_candidates(hetu, cache=cache)
 
         if len(candidates) <= 1:
+            safe_solo_cache[hetu] = None
             continue
 
         participant_customer_ids, participant_partners = _build_hetu_participation(
@@ -131,13 +207,19 @@ def _resolve_safe_solo_customer_group_ids(customer: Customer) -> list[int] | Non
             and participant_partners == {_ALONE_PARTNER_SENTINEL}
             and customer.id in participant_customer_ids
         ):
-            return sorted(participant_customer_ids)
+            grouped_ids = sorted(participant_customer_ids)
+            safe_solo_cache[hetu] = grouped_ids
+            return grouped_ids
+
+        safe_solo_cache[hetu] = None
 
     return None
 
 
 def _resolve_strict_safe_pair_customer_group_ids(
     customer: Customer,
+    *,
+    cache: dict | None = None,
 ) -> list[int] | None:
     """Return strict safe-pair group IDs, or None when not eligible."""
     primary_hetu, secondary_hetu = _get_customer_hetu_candidates(customer)
@@ -145,6 +227,15 @@ def _resolve_strict_safe_pair_customer_group_ids(
     if not (primary_hetu and secondary_hetu):
         return None
 
+    pair_key = tuple(sorted([primary_hetu, secondary_hetu]))
+    safe_pair_cache = cache.setdefault("safe_pair_cache", {}) if cache else {}
+    if pair_key in safe_pair_cache:
+        cached_group = safe_pair_cache[pair_key]
+        if cached_group and customer.id in cached_group:
+            return cached_group
+        return None
+
+    pair_customer_ids = []
     pair_candidates = list(
         Customer.objects.select_related("primary_profile", "secondary_profile")
         .filter(
@@ -160,12 +251,10 @@ def _resolve_strict_safe_pair_customer_group_ids(
         .order_by("id")
     )
 
-    pair_customer_ids = []
     for candidate in pair_candidates:
-        (
-            candidate_primary_hetu,
-            candidate_secondary_hetu,
-        ) = _get_customer_hetu_candidates(candidate)
+        candidate_primary_hetu, candidate_secondary_hetu = (
+            _get_customer_hetu_candidates(candidate)
+        )
         if {candidate_primary_hetu, candidate_secondary_hetu} == {
             primary_hetu,
             secondary_hetu,
@@ -173,26 +262,48 @@ def _resolve_strict_safe_pair_customer_group_ids(
             pair_customer_ids.append(candidate.id)
 
     if len(pair_customer_ids) <= 1 or customer.id not in pair_customer_ids:
+        safe_pair_cache[pair_key] = None
         return None
 
-    primary_partners = _get_participant_partners(hetu=primary_hetu)
-    secondary_partners = _get_participant_partners(hetu=secondary_hetu)
+    primary_partners = _get_participant_partners(hetu=primary_hetu, cache=cache)
+    secondary_partners = _get_participant_partners(hetu=secondary_hetu, cache=cache)
     if primary_partners == {secondary_hetu} and secondary_partners == {primary_hetu}:
-        return sorted(pair_customer_ids)
+        grouped_ids = sorted(pair_customer_ids)
+        safe_pair_cache[pair_key] = grouped_ids
+        return grouped_ids
 
+    safe_pair_cache[pair_key] = None
     return None
 
 
-def _resolve_customer_group_customer_ids(customer: Customer) -> list[int]:
+def _resolve_customer_group_customer_ids(
+    customer: Customer,
+    *,
+    cache: dict | None = None,
+) -> list[int]:
     """Return grouping IDs for strict safe-solo and strict safe-pair rules."""
-    safe_solo_group = _resolve_safe_solo_customer_group_ids(customer)
+    customer_group_cache = (
+        cache.setdefault("customer_group_cache", {}) if cache is not None else {}
+    )
+    if customer.id in customer_group_cache:
+        return customer_group_cache[customer.id]
+
+    safe_solo_group = _resolve_safe_solo_customer_group_ids(customer, cache=cache)
     if safe_solo_group is not None:
+        for grouped_customer_id in safe_solo_group:
+            customer_group_cache[grouped_customer_id] = safe_solo_group
         return safe_solo_group
 
-    safe_pair_group = _resolve_strict_safe_pair_customer_group_ids(customer)
+    safe_pair_group = _resolve_strict_safe_pair_customer_group_ids(
+        customer,
+        cache=cache,
+    )
     if safe_pair_group is not None:
+        for grouped_customer_id in safe_pair_group:
+            customer_group_cache[grouped_customer_id] = safe_pair_group
         return safe_pair_group
 
+    customer_group_cache[customer.id] = [customer.id]
     return [customer.id]
 
 
@@ -311,16 +422,36 @@ class CustomerViewSet(AuditLoggingModelViewSet):
             queryset.select_related("primary_profile", "secondary_profile")
         )
         by_id = {customer.id: customer for customer in customers}
+        grouping_cache = {}
 
         deduplicated_customers = []
         seen_canonical_ids = set()
         for customer in customers:
-            grouped_ids = _resolve_customer_group_customer_ids(customer)
+            grouped_ids = _resolve_customer_group_customer_ids(
+                customer,
+                cache=grouping_cache,
+            )
             canonical_id = min(grouped_ids)
             if canonical_id in seen_canonical_ids:
                 continue
+
+            group_customers = [
+                by_id[customer_id]
+                for customer_id in sorted(grouped_ids)
+                if customer_id in by_id
+            ]
+            if not group_customers:
+                continue
+
+            canonical_customer = group_customers[0]
+            latest_customer = group_customers[-1]
             seen_canonical_ids.add(canonical_id)
-            deduplicated_customers.append(by_id.get(canonical_id, customer))
+            deduplicated_customers.append(
+                _merge_customer_list_row_from_latest(
+                    canonical_customer=canonical_customer,
+                    latest_customer=latest_customer,
+                )
+            )
 
         serializer = self.get_serializer(deduplicated_customers, many=True)
         return Response(serializer.data)
