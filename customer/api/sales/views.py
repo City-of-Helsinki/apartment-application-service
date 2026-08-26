@@ -421,24 +421,37 @@ class CustomerViewSet(AuditLoggingModelViewSet):
         customers = list(
             queryset.select_related("primary_profile", "secondary_profile")
         )
-        by_id = {customer.id: customer for customer in customers}
         grouping_cache = {}
+        grouped_ids_by_customer_id = {}
+        all_grouped_customer_ids = set()
 
-        deduplicated_customers = []
-        seen_canonical_ids = set()
         for customer in customers:
             grouped_ids = _resolve_customer_group_customer_ids(
                 customer,
                 cache=grouping_cache,
             )
+            grouped_ids_by_customer_id[customer.id] = grouped_ids
+            all_grouped_customer_ids.update(grouped_ids)
+
+        group_customers_by_id = {
+            customer.id: customer
+            for customer in Customer.objects.select_related(
+                "primary_profile", "secondary_profile"
+            ).filter(id__in=all_grouped_customer_ids)
+        }
+
+        deduplicated_customers = []
+        seen_canonical_ids = set()
+        for customer in customers:
+            grouped_ids = grouped_ids_by_customer_id[customer.id]
             canonical_id = min(grouped_ids)
             if canonical_id in seen_canonical_ids:
                 continue
 
             group_customers = [
-                by_id[customer_id]
+                group_customers_by_id[customer_id]
                 for customer_id in sorted(grouped_ids)
-                if customer_id in by_id
+                if customer_id in group_customers_by_id
             ]
             if not group_customers:
                 continue
