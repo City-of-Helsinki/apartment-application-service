@@ -1077,6 +1077,51 @@ def test_get_customer_api_list_merged_safe_solo_prefers_latest_non_empty_values(
 
 
 @pytest.mark.django_db
+def test_get_customer_api_list_merges_latest_group_values_outside_filtered_rows(
+    sales_ui_salesperson_api_client,
+):
+    """
+    List merge must use latest duplicate values from full group, not only filtered rows.
+
+    - Old customer matches first_name filter and enters queryset.
+    - Newer duplicate with same hetu has different first_name and is outside filter.
+    - Response still includes merged values from newest duplicate.
+    """
+    shared_hetu = "260991-943W"
+    customer_old = CustomerFactory(
+        primary_profile=ProfileFactory(
+            first_name="Huhtiistinen2",
+            last_name="Ilmari Folke2",
+            email="old@example.com",
+            national_identification_number=shared_hetu,
+        ),
+        secondary_profile=None,
+    )
+    customer_latest = CustomerFactory(
+        primary_profile=ProfileFactory(
+            first_name="UusiEtunimi",
+            last_name="UusiSukunimi",
+            email="new@example.com",
+            national_identification_number=shared_hetu,
+        ),
+        secondary_profile=None,
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("customer:sales-customer-list"),
+        data={"first_name": "Huhtiistinen2"},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert len(response.data) == 1
+    assert response.data[0]["id"] == min(customer_old.id, customer_latest.id)
+    assert response.data[0]["primary_first_name"] == "UusiEtunimi"
+    assert response.data[0]["primary_last_name"] == "UusiSukunimi"
+    assert response.data[0]["primary_email"] == "new@example.com"
+
+
+@pytest.mark.django_db
 def test_customer_apartment_reservations_aggregates_safe_solo_group(
     sales_ui_salesperson_api_client,
 ):
