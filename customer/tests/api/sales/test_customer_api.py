@@ -1031,6 +1031,52 @@ def test_get_customer_api_list_deduplicates_safe_solo_customers_by_hetu(
 
 
 @pytest.mark.django_db
+def test_get_customer_api_list_merged_safe_solo_prefers_latest_non_empty_values(
+    sales_ui_salesperson_api_client,
+):
+    """
+    Merged safe-solo row prefers non-empty values from latest duplicate.
+
+    - Two solo customers share the same hetu, so they are merged in list response.
+    - Latest customer contains a new primary email and no phone number value.
+    - Response uses latest non-empty email, while keeping earlier phone number.
+    """
+    shared_hetu = "311299A1234"
+    customer_1 = CustomerFactory(
+        primary_profile=ProfileFactory(
+            first_name="Test",
+            last_name="Solo",
+            email="older@example.com",
+            phone_number="0401234567",
+            national_identification_number=shared_hetu,
+        ),
+        secondary_profile=None,
+    )
+    customer_2 = CustomerFactory(
+        primary_profile=ProfileFactory(
+            first_name="Test",
+            last_name="Solo",
+            email="latest@example.com",
+            phone_number="-",
+            national_identification_number=shared_hetu,
+        ),
+        secondary_profile=None,
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("customer:sales-customer-list"),
+        data={"hetu": shared_hetu},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert len(response.data) == 1
+    assert response.data[0]["id"] == min(customer_1.id, customer_2.id)
+    assert response.data[0]["primary_email"] == "latest@example.com"
+    assert response.data[0]["primary_phone_number"] == "0401234567"
+
+
+@pytest.mark.django_db
 def test_customer_apartment_reservations_aggregates_safe_solo_group(
     sales_ui_salesperson_api_client,
 ):
@@ -1164,6 +1210,62 @@ def test_get_customer_api_list_deduplicates_strict_safe_pair_by_hetu(
     assert response.status_code == status.HTTP_200_OK
     assert len(response.data) == 1
     assert response.data[0]["id"] == min(customer_1.id, customer_2.id)
+
+
+@pytest.mark.django_db
+def test_get_customer_api_list_merged_strict_pair_prefers_latest_non_empty_values(
+    sales_ui_salesperson_api_client,
+):
+    """
+    Merged strict-pair row prefers non-empty values from latest duplicate.
+
+    - Two strict-pair duplicates share the same A+B hetu values.
+    - Latest duplicate has updated primary email and right_of_residence.
+    - Response uses updated values while keeping canonical merged row id.
+    """
+    hetu_a = "150190A111K"
+    hetu_b = "200292A222L"
+
+    customer_1 = CustomerFactory(
+        primary_profile=ProfileFactory(
+            first_name="Pair",
+            last_name="One",
+            email="older_pair@example.com",
+            national_identification_number=hetu_a,
+        ),
+        secondary_profile=ProfileFactory(
+            first_name="Pair",
+            last_name="Two",
+            national_identification_number=hetu_b,
+        ),
+        right_of_residence=12,
+    )
+    customer_2 = CustomerFactory(
+        primary_profile=ProfileFactory(
+            first_name="Pair",
+            last_name="One",
+            email="latest_pair@example.com",
+            national_identification_number=hetu_a,
+        ),
+        secondary_profile=ProfileFactory(
+            first_name="Pair",
+            last_name="Two",
+            national_identification_number=hetu_b,
+        ),
+        right_of_residence=34,
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("customer:sales-customer-list"),
+        data={"hetu": hetu_a},
+        format="json",
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    assert len(response.data) == 1
+    assert response.data[0]["id"] == min(customer_1.id, customer_2.id)
+    assert response.data[0]["primary_email"] == "latest_pair@example.com"
+    assert response.data[0]["right_of_residence"] == 34
 
 
 @pytest.mark.django_db
