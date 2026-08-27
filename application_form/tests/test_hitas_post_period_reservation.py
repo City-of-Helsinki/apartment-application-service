@@ -14,7 +14,9 @@ Tests:
 - Positive: HITAS free apartment after period with can_apply_afterwards
 - Positive: reservation and apartment are marked RESERVED
 - Positive: Drupal apartment_states reports RESERVED
-- Positive: stays SUBMITTED when another reserved reservation exists
+- Positive: sales UI project-detail reports reserved
+- Reject: apartment already has a reserved reservation in Django
+- Reject: second customer cannot reserve the same apartment
 - Reject: period not ended (normal HITAS apply still works, stays SUBMITTED)
 - Reject: can_apply_afterwards is False for HITAS
 - Reject: more than one apartment submitted
@@ -218,22 +220,58 @@ def test_hitas_post_period_reservation_marks_apartment_reserved_for_drupal(
 
 
 @pytest.mark.django_db
-def test_hitas_post_period_reservation_stays_submitted_when_already_reserved(
+def test_hitas_post_period_reservation_sales_ui_reports_reserved(
+    api_client, sales_ui_salesperson_api_client, elasticsearch
+):
+    """
+    After a HITAS post-period reservation, the salesperson project-detail
+    API reports the apartment as reserved.
+
+    - POST /v1/applications/ returns 201
+    - GET project-detail apartment.state is reserved
+    - reserved_apartment_count is 1
+    """
+    apartment = _make_hitas_free_apartment_after_period()
+    profile = ProfileFactory()
+
+    with patch("application_form.api.serializers.send_sales_notification_email"):
+        with TestCase.captureOnCommitCallbacks(execute=True):
+            response, _ = _post_hitas_reservation(api_client, profile, apartment)
+
+    assert response.status_code == 201
+
+    detail = sales_ui_salesperson_api_client.get(
+        reverse(
+            "apartment:project-detail",
+            kwargs={"project_uuid": apartment.project_uuid},
+        ),
+        format="json",
+    )
+    assert detail.status_code == 200
+    apartment_data = next(
+        item
+        for item in detail.data["apartments"]
+        if item["apartment_uuid"] == str(apartment.uuid)
+    )
+    assert apartment_data["state"] == ApartmentState.RESERVED.value
+    assert detail.data["reserved_apartment_count"] == 1
+    assert detail.data["free_apartment_count"] == 0
+
+
+@pytest.mark.django_db
+def test_hitas_post_period_reservation_rejected_when_db_already_reserved(
     api_client, elasticsearch
 ):
     """
-    A HITAS post-period reservation stays SUBMITTED when another reserved
-    reservation already exists for the apartment.
+    A HITAS post-period reservation is rejected when Django already has a
+    reserved reservation, even if Elasticsearch still says the apartment is
+    free.
 
-    This is a defensive case: the public API rejects non-free apartments, but
-    salesperson-created late reservations use the same rule.
-
+    - POST returns 400 with the not-free detail message
     - Existing reserved reservation is unchanged
-    - New reservation is SUBMITTED
-    - Apartment derived state stays reserved
     """
     apartment = _make_hitas_free_apartment_after_period()
-    ApartmentReservationFactory(
+    existing = ApartmentReservationFactory(
         apartment_uuid=apartment.uuid,
         state=ApartmentReservationState.RESERVED,
         list_position=1,
@@ -241,20 +279,50 @@ def test_hitas_post_period_reservation_stays_submitted_when_already_reserved(
     )
     profile = ProfileFactory()
 
+    response, _ = _post_hitas_reservation(api_client, profile, apartment)
+
+    assert response.status_code == 400
+    assert _detail_message(response) == gettext(
+        "Cannot reserve an apartment that is not free"
+    )
+    existing.refresh_from_db()
+    assert existing.state == ApartmentReservationState.RESERVED
+    assert (
+        ApartmentReservation.objects.filter(apartment_uuid=apartment.uuid).count() == 1
+    )
+
+
+@pytest.mark.django_db
+def test_hitas_post_period_second_customer_reservation_rejected(
+    api_client, elasticsearch
+):
+    """
+    After a successful HITAS post-period reservation, another customer cannot
+    reserve the same apartment while Elasticsearch still reports it as free.
+
+    - First POST returns 201
+    - Second POST from a different profile returns 400
+    """
+    apartment = _make_hitas_free_apartment_after_period()
+    first_profile = ProfileFactory()
+    second_profile = ProfileFactory()
+
     with patch("application_form.api.serializers.send_sales_notification_email"):
         with TestCase.captureOnCommitCallbacks(execute=True):
-            response, data = _post_hitas_reservation(api_client, profile, apartment)
+            first_response, _ = _post_hitas_reservation(
+                api_client, first_profile, apartment
+            )
 
-    assert response.status_code == 201
-    application = Application.objects.get(external_uuid=data["application_uuid"])
-    new_reservation = ApartmentReservation.objects.get(
-        apartment_uuid=apartment.uuid,
-        application_apartment__application=application,
+    assert first_response.status_code == 201
+
+    second_response, _ = _post_hitas_reservation(api_client, second_profile, apartment)
+
+    assert second_response.status_code == 400
+    assert _detail_message(second_response) == gettext(
+        "Cannot reserve an apartment that is not free"
     )
-    assert new_reservation.state == ApartmentReservationState.SUBMITTED
     assert (
-        get_apartment_state_from_apartment_uuid(apartment.uuid)
-        == ApartmentState.RESERVED.value
+        ApartmentReservation.objects.filter(apartment_uuid=apartment.uuid).count() == 1
     )
 
 
