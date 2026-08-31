@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Tuple
+from typing import Optional
 
 from django.contrib.auth import get_user_model
 from django.db import transaction
@@ -13,6 +13,10 @@ from application_form.enums import (
     ApartmentReservationState,
 )
 from application_form.models import ApartmentReservation
+from application_form.services.haso_ranking import (
+    find_haso_insert_target,
+    protected_queue_floor,
+)
 from application_form.services.queue import _adjust_positions
 from application_form.utils import lock_table
 from customer.models import Customer
@@ -71,27 +75,6 @@ def transfer_reservation_to_another_customer(
     )
 
     return state_change_event
-
-
-def calculate_haso_positions(
-    reservations, right_of_residence_ordering_number
-) -> Optional[Tuple[int, int]]:
-    """
-    Calculate new queue position in late reservations based on
-    right of residence ordering number if right of residence is not smaller
-    than any of the existing reservations just return keep the max queue position + 1
-    """
-    for apartment_reservation in reservations:
-        if (
-            right_of_residence_ordering_number
-            < apartment_reservation.right_of_residence_ordering_number
-            and apartment_reservation.queue_position is not None
-        ):
-            return (
-                apartment_reservation.queue_position,
-                apartment_reservation.list_position,
-            )
-    return None
 
 
 def create_late_reservation(
@@ -184,34 +167,57 @@ def calculate_new_positions(
     right_of_residence_ordering_number: int,
     existing_reservations: QuerySet,
 ) -> tuple:
+    """
+    Resolve the list and queue positions of a new late reservation.
+
+    HASO reservations are ranked by right of residence number within the late
+    pool, but never ahead of a reservation that has already been offered.
+
+    Parameters:
+        max_list_position (int): Largest list position in use, or None.
+        max_queue_position (int): Largest active queue position in use, or None.
+        ownership_type (str): Project ownership type.
+        right_of_residence_ordering_number (int): Ordering number of the new
+            reservation's customer.
+        existing_reservations (QuerySet): All reservations of the apartment.
+
+    Returns:
+        tuple: New list position and queue position.
+    """
     new_list_position = (max_list_position or 0) + 1
     new_queue_position = (max_queue_position or 0) + 1
 
     if ownership_type.lower() == "haso":
-        late_reservations = (
-            existing_reservations.filter(submitted_late=True)
-            .exclude(state=ApartmentReservationState.OFFERED)
-            .order_by("queue_position")
+        active_reservations = existing_reservations.exclude(
+            state=ApartmentReservationState.CANCELED
         )
-        if late_reservations:
-            positions = calculate_haso_positions(
-                late_reservations,
-                right_of_residence_ordering_number,
+        late_reservations = active_reservations.filter(submitted_late=True).order_by(
+            "queue_position"
+        )
+        target = find_haso_insert_target(
+            late_reservations,
+            right_of_residence_ordering_number,
+            protected_floor=protected_queue_floor(active_reservations),
+        )
+        if target is not None:
+            new_queue_position = target.queue_position
+            new_list_position = target.list_position
+            # Both shifts cover every reservation of the apartment. Shifting
+            # only a filtered subset would leave duplicate queue positions
+            # behind whenever a skipped reservation sits at or after the
+            # insertion point.
+            _adjust_positions(
+                existing_reservations,
+                "list_position",
+                new_list_position,
+                by=1,
             )
-            if positions is not None:
-                new_queue_position, new_list_position = positions
-                _adjust_positions(
-                    existing_reservations,
-                    "list_position",
-                    new_list_position,
-                    by=1,
-                )
-                _adjust_positions(
-                    late_reservations,
-                    "queue_position",
-                    new_queue_position,
-                    by=1,
-                )
+            _adjust_positions(
+                existing_reservations,
+                "queue_position",
+                new_queue_position,
+                by=1,
+            )
 
     return new_list_position, new_queue_position
 

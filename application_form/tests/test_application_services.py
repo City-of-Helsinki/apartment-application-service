@@ -2,16 +2,20 @@ from datetime import date
 
 import pytest
 
-from application_form.enums import ApplicationType
+from application_form.enums import ApartmentReservationState, ApplicationType
 from application_form.models import ApartmentReservation
 from application_form.services.application import (
+    cancel_reservations_replaced_by_late_application,
     create_application,
     get_ordered_applications,
 )
+from application_form.services.queue import add_application_to_queues
 from application_form.tests.conftest import (
     create_validated_application_data,
     prepare_metadata,
 )
+from application_form.tests.factories import ApplicationFactory
+from customer.tests.factories import CustomerFactory
 from users.tests.factories import ProfileFactory
 
 
@@ -130,6 +134,80 @@ def test_create_application_adds_haso_application_to_queue_by_right_of_residence
             application1,
             application2,
         ]
+
+
+@pytest.mark.django_db
+def test_cancel_reservations_replaced_by_late_application(
+    elastic_haso_project_with_5_apartments,
+):
+    """
+    A HASO late resubmit cancels the customer's earlier reservations only.
+
+    - Customer has an earlier application in the project
+    - A late application replaces it
+    - Earlier reservations are canceled, the new ones stay active
+    - The cancellation comment names the new highest priority reservation,
+      regardless of the order the reservations were created in
+    """
+    _, apartments = elastic_haso_project_with_5_apartments
+    profile = ProfileFactory()
+    customer = CustomerFactory(primary_profile=profile)
+
+    old_application = ApplicationFactory(
+        type=ApplicationType.HASO, customer=customer, right_of_residence=5
+    )
+    old_application.application_apartments.create(
+        apartment_uuid=apartments[0].uuid, priority_number=1
+    )
+    add_application_to_queues(old_application)
+
+    new_application = ApplicationFactory(
+        type=ApplicationType.HASO,
+        customer=customer,
+        right_of_residence=5,
+        submitted_late=True,
+    )
+    new_application.application_apartments.create(
+        apartment_uuid=apartments[1].uuid, priority_number=2
+    )
+    new_application.application_apartments.create(
+        apartment_uuid=apartments[0].uuid, priority_number=1
+    )
+    add_application_to_queues(new_application)
+
+    cancel_reservations_replaced_by_late_application(
+        new_application, [apartment.uuid for apartment in apartments], profile
+    )
+
+    old_states = ApartmentReservation.objects.filter(
+        application_apartment__application=old_application
+    ).values_list("state", flat=True)
+    assert set(old_states) == {ApartmentReservationState.CANCELED}
+
+    new_reservations = ApartmentReservation.objects.filter(
+        application_apartment__application=new_application
+    )
+    assert new_reservations.exists()
+    assert not new_reservations.filter(
+        state=ApartmentReservationState.CANCELED
+    ).exists()
+
+    expected_reservation = new_reservations.get(
+        application_apartment__priority_number=1
+    )
+    assert expected_reservation.pk != new_reservations.order_by("pk").first().pk
+    canceled_comments = {
+        event.comment
+        for reservation in ApartmentReservation.objects.filter(
+            application_apartment__application=old_application
+        )
+        for event in reservation.state_change_events.filter(
+            state=ApartmentReservationState.CANCELED
+        )
+    }
+    assert canceled_comments == {
+        f"Peruttu ja korvattu jälkihakemuksella, varaus id: {expected_reservation.pk}"
+    }
 
 
 @pytest.mark.django_db
