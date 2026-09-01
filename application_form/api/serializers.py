@@ -47,6 +47,7 @@ from application_form.services.application import (
 )
 from application_form.services.constants import COMMITTED_RESERVATION_STATES
 from application_form.services.offer import update_offer
+from application_form.utils import lock_table
 from application_form.validators import ProjectApplicantValidator, SSNSuffixValidator
 from connections.enums import ApartmentStateOfSale
 from customer.models import Customer
@@ -188,19 +189,26 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
                 code=400,
             )
 
-        existing_reservations = (
-            ApartmentReservation.objects.select_for_update()
-            .active()
-            .filter(
+        with lock_table(ApartmentReservation):
+            if (
+                ApartmentReservation.objects.reserved()
+                .filter(apartment_uuid=target_uuid)
+                .exists()
+            ):
+                raise serializers.ValidationError(
+                    {"detail": _("Cannot reserve an apartment that is not free")},
+                    code=400,
+                )
+
+            existing_reservations = ApartmentReservation.objects.active().filter(
                 apartment_uuid__in=project_apartment_uuids,
                 customer__primary_profile=profile,
             )
-        )
-        if existing_reservations.exists():
-            raise serializers.ValidationError(
-                {"detail": _("Customer already has a reservation in this project")},
-                code=400,
-            )
+            if existing_reservations.exists():
+                raise serializers.ValidationError(
+                    {"detail": _("Customer already has a reservation in this project")},
+                    code=400,
+                )
 
     def _validate_no_blocking_reservations(self, profile, project_apartment_uuids):
         """
