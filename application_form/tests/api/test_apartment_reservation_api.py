@@ -451,6 +451,70 @@ def test_apartment_reservation_set_state_updates_submitted_late(
 
 
 @pytest.mark.django_db
+def test_apartment_reservation_submitted_late_change_does_not_pass_offered_reservation(
+    elasticsearch, sales_ui_salesperson_api_client
+):
+    """
+    Recalculating a HASO position after a submitted_late change must not pass an
+    already offered reservation.
+
+    - OFFER_EXPIRED late reservation sits behind a SUBMITTED late one
+    - An on-time reservation with the best right of residence becomes late
+    - The offered reservation keeps its position and the moved one goes last
+    """
+    apartment = ApartmentDocumentFactory(project_ownership_type="HASO")
+    submitted_reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        state=ApartmentReservationState.SUBMITTED,
+        queue_position=1,
+        list_position=1,
+        submitted_late=True,
+        right_of_residence=500,
+        right_of_residence_is_old_batch=False,
+    )
+    offered_reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        state=ApartmentReservationState.OFFER_EXPIRED,
+        queue_position=2,
+        list_position=2,
+        submitted_late=True,
+        right_of_residence=800,
+        right_of_residence_is_old_batch=False,
+    )
+    moved_reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        state=ApartmentReservationState.SUBMITTED,
+        queue_position=3,
+        list_position=3,
+        submitted_late=False,
+        right_of_residence=100,
+        right_of_residence_is_old_batch=False,
+    )
+
+    response = sales_ui_salesperson_api_client.post(
+        reverse(
+            "application_form:sales-apartment-reservation-set-state",
+            kwargs={"pk": moved_reservation.id},
+        ),
+        data={
+            "state": ApartmentReservationState.SUBMITTED.value,
+            "submitted_late": True,
+            "comment": "",
+        },
+        format="json",
+    )
+    assert response.status_code == 200
+
+    submitted_reservation.refresh_from_db()
+    offered_reservation.refresh_from_db()
+    moved_reservation.refresh_from_db()
+
+    assert submitted_reservation.queue_position == 1
+    assert offered_reservation.queue_position == 2
+    assert moved_reservation.queue_position == 3
+
+
+@pytest.mark.django_db
 def test_apartment_reservation_set_state_position_change_has_no_gaps(
     elasticsearch, sales_ui_salesperson_api_client
 ):

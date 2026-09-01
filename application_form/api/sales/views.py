@@ -71,6 +71,10 @@ from application_form.services.drupal_messaging import (
     DrupalMessagingClient,
     DrupalMessagingClientError,
 )
+from application_form.services.haso_ranking import (
+    find_haso_insert_target,
+    protected_queue_floor,
+)
 from application_form.services.lottery.exceptions import (
     ApplicationTimeNotFinishedException,
 )
@@ -201,27 +205,18 @@ def _recalculate_queue_position_for_haso_on_submitted_late_change(
     if reservation.pk:
         active_qs = active_qs.exclude(pk=reservation.pk)
 
-    current_queue_length = active_qs.count()
-    queue_position = current_queue_length + 1
-    offered_or_sold_states = {
-        ApartmentReservationState.OFFER_ACCEPTED,
-        ApartmentReservationState.OFFERED,
-        ApartmentReservationState.SOLD,
-    }
-
     same_late_group = active_qs.filter(
         submitted_late=reservation.submitted_late
     ).order_by("queue_position")
-    for other in same_late_group:
-        other_ordering_number = other.right_of_residence_ordering_number
-        if (
-            other_ordering_number is not None
-            and ordering_number < other_ordering_number
-            and other.state not in offered_or_sold_states
-        ):
-            return other.queue_position
+    target = find_haso_insert_target(
+        same_late_group,
+        ordering_number,
+        protected_floor=protected_queue_floor(active_qs),
+    )
+    if target is not None:
+        return target.queue_position
 
-    return queue_position
+    return active_qs.count() + 1
 
 
 def _clamp_queue_position_and_shift_gaps(

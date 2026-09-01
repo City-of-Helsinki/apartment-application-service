@@ -40,11 +40,12 @@ from application_form.models import (
     Offer,
 )
 from application_form.services.application import (
-    cancel_reservation,
+    cancel_reservations_replaced_by_late_application,
     create_application,
     get_sold_apartment_uuids,
     send_sales_notification_email,
 )
+from application_form.services.constants import COMMITTED_RESERVATION_STATES
 from application_form.services.offer import update_offer
 from application_form.validators import ProjectApplicantValidator, SSNSuffixValidator
 from connections.enums import ApartmentStateOfSale
@@ -203,7 +204,7 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
 
     def _validate_no_blocking_reservations(self, profile, project_apartment_uuids):
         """
-        Reject create when the customer already has offered/sold apartments.
+        Reject create when the customer is already committed to an apartment.
 
         Parameters:
             profile: Primary profile of the applying customer.
@@ -215,11 +216,7 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
         reservations_in_project = ApartmentReservation.objects.filter(
             application_apartment__application__customer__primary_profile__id=profile.id,  # noqa: E501
             apartment_uuid__in=project_apartment_uuids,
-            state__in=[
-                ApartmentReservationState.OFFERED,
-                ApartmentReservationState.OFFER_ACCEPTED,
-                ApartmentReservationState.SOLD,
-            ],
+            state__in=COMMITTED_RESERVATION_STATES,
         )
         if reservations_in_project.exists():
             raise serializers.ValidationError(
@@ -229,35 +226,6 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
                     )
                 },
                 code=400,
-            )
-
-    def _cancel_replaced_haso_reservations(
-        self, application, project_apartment_uuids, profile
-    ):
-        """
-        Cancel prior HASO reservations replaced by a late application.
-
-        Parameters:
-            application: Newly created late HASO application.
-            project_apartment_uuids (list): Apartment UUIDs in the project.
-            profile: Primary profile of the applying customer.
-        """
-        project_reservations = ApartmentReservation.objects.filter(
-            apartment_uuid__in=project_apartment_uuids,
-            application_apartment__application__customer__primary_profile__id=profile.id,  # noqa: E501
-        )
-        new_reservation = project_reservations.last()
-        project_reservations_to_cancel = project_reservations.exclude(
-            application_apartment__in=application.application_apartments.all()
-        )
-        for reservation in project_reservations_to_cancel:
-            cancel_reservation(
-                reservation,
-                comment=(
-                    "Peruttu ja korvattu jälkihakemuksella, "
-                    f"varaus id: {new_reservation.pk}"
-                ),
-                cancellation_reason=ApartmentReservationCancellationReason.CANCELED,
             )
 
     def _schedule_sales_notification_email(self, application, project, validated_data):
@@ -357,7 +325,7 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
             )
 
             if is_submitted_late and is_haso:
-                self._cancel_replaced_haso_reservations(
+                cancel_reservations_replaced_by_late_application(
                     application, project_apartment_uuids, profile
                 )
 

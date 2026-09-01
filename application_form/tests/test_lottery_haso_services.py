@@ -272,6 +272,126 @@ def test_haso_application_without_reservation_order():
     ]
 
 
+@mark.parametrize(
+    "protected_state",
+    (
+        ApartmentReservationState.OFFERED,
+        ApartmentReservationState.OFFER_EXPIRED,
+        ApartmentReservationState.OFFER_ACCEPTED,
+        ApartmentReservationState.ACCEPTED_BY_MUNICIPALITY,
+        ApartmentReservationState.SOLD,
+    ),
+)
+@mark.django_db
+def test_create_late_reservation_does_not_jump_already_offered_queue_head(
+    protected_state,
+):
+    """
+    Salesperson-created late HASO reservations must not take queue position 1
+    from a reservation that has already been offered, including OFFER_EXPIRED.
+
+    - Existing late reservation at position 1 is in a post-offer state
+    - A SUBMITTED late reservation sits behind it
+    - New late reservation has a better (lower) right of residence number
+    - The offered reservation stays at position 1
+    - The new reservation is inserted after it, before the SUBMITTED one
+    """
+    apartment = ApartmentDocumentFactory(project_ownership_type="Haso")
+    add_to_store([apartment])
+
+    offered_reservation = create_late_reservation(
+        {
+            "apartment_uuid": apartment.uuid,
+            "customer": CustomerFactory(right_of_residence=500),
+        }
+    )
+    offered_reservation.set_state(protected_state)
+
+    submitted_reservation = create_late_reservation(
+        {
+            "apartment_uuid": apartment.uuid,
+            "customer": CustomerFactory(right_of_residence=800),
+        }
+    )
+
+    new_reservation = create_late_reservation(
+        {
+            "apartment_uuid": apartment.uuid,
+            "customer": CustomerFactory(right_of_residence=100),
+        }
+    )
+
+    offered_reservation.refresh_from_db()
+    submitted_reservation.refresh_from_db()
+
+    assert offered_reservation.queue_position == 1
+    assert new_reservation.queue_position == 2
+    assert submitted_reservation.queue_position == 3
+
+
+@mark.parametrize(
+    "protected_state",
+    (
+        ApartmentReservationState.OFFERED,
+        ApartmentReservationState.OFFER_EXPIRED,
+        ApartmentReservationState.OFFER_ACCEPTED,
+        ApartmentReservationState.ACCEPTED_BY_MUNICIPALITY,
+        ApartmentReservationState.SOLD,
+    ),
+)
+@mark.django_db
+def test_create_late_reservation_does_not_pass_offered_reservation_behind_head(
+    protected_state,
+):
+    """
+    Salesperson-created late HASO reservations must not pass an offered
+    reservation that sits behind the queue head, and must not create duplicate
+    queue positions while doing so.
+
+    - SUBMITTED late reservation at position 1, offered one at position 2
+    - New late reservation has the best right of residence number
+    - Existing reservations keep their positions
+    - New reservation goes behind the offered one
+    """
+    apartment = ApartmentDocumentFactory(project_ownership_type="Haso")
+    add_to_store([apartment])
+
+    submitted_reservation = create_late_reservation(
+        {
+            "apartment_uuid": apartment.uuid,
+            "customer": CustomerFactory(right_of_residence=500),
+        }
+    )
+    offered_reservation = create_late_reservation(
+        {
+            "apartment_uuid": apartment.uuid,
+            "customer": CustomerFactory(right_of_residence=800),
+        }
+    )
+    offered_reservation.set_state(protected_state)
+
+    new_reservation = create_late_reservation(
+        {
+            "apartment_uuid": apartment.uuid,
+            "customer": CustomerFactory(right_of_residence=100),
+        }
+    )
+
+    submitted_reservation.refresh_from_db()
+    offered_reservation.refresh_from_db()
+
+    assert submitted_reservation.queue_position == 1
+    assert offered_reservation.queue_position == 2
+    assert new_reservation.queue_position == 3
+
+    positions = list(
+        ApartmentReservation.objects.active()
+        .filter(apartment_uuid=apartment.uuid)
+        .values_list("queue_position", flat=True)
+    )
+    assert sorted(positions) == [1, 2, 3]
+
+
 @mark.django_db
 def test_late_reservation_insert_shifts_non_late_list_positions(monkeypatch):
     apartment_uuid = uuid.uuid4()

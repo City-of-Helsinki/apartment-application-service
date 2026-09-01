@@ -167,6 +167,55 @@ def cancel_reservation(
     return state_change_event
 
 
+def cancel_reservations_replaced_by_late_application(
+    application: Application,
+    project_apartment_uuids: Iterable[uuid.UUID],
+    profile: Profile,
+) -> None:
+    """
+    Cancel the customer's earlier reservations in a project after a resubmit.
+
+    A HASO late application replaces the customer's previous reservations in the
+    same project, so those are canceled and the new ones take over. Only the
+    customer's own reservations are touched.
+
+    Parameters:
+        application (Application): Newly created late HASO application.
+        project_apartment_uuids (Iterable[uuid.UUID]): Apartments in the project.
+        profile (Profile): Primary profile of the applying customer.
+    """
+    application_apartments = application.application_apartments.all()
+    new_reservation = (
+        ApartmentReservation.objects.filter(
+            application_apartment__in=application_apartments
+        )
+        .order_by("application_apartment__priority_number", "pk")
+        .first()
+    )
+    if new_reservation is None:
+        _logger.warning(
+            "Late application %s has no reservation, skipping cancellation of "
+            "replaced reservations",
+            application.external_uuid,
+        )
+        return
+
+    reservations_to_cancel = ApartmentReservation.objects.filter(
+        apartment_uuid__in=project_apartment_uuids,
+        application_apartment__application__customer__primary_profile__id=profile.id,
+    ).exclude(application_apartment__in=application_apartments)
+
+    for reservation in reservations_to_cancel:
+        cancel_reservation(
+            reservation,
+            comment=(
+                "Peruttu ja korvattu jälkihakemuksella, "
+                f"varaus id: {new_reservation.pk}"
+            ),
+            cancellation_reason=ApartmentReservationCancellationReason.CANCELED,
+        )
+
+
 @transaction.atomic
 def create_application(
     application_data: dict,

@@ -188,6 +188,121 @@ def test_queue_preview_adds_new_reservation_at_requested_position(
 
 
 @pytest.mark.django_db
+def test_queue_preview_add_does_not_jump_offer_expired_haso_queue_head(
+    sales_ui_salesperson_api_client,
+):
+    """
+    Previewing a new HASO late reservation must not place it ahead of an
+    OFFER_EXPIRED queue head, even with a better right of residence number.
+
+    - Existing late reservation at position 1 is OFFER_EXPIRED
+    - New customer has a lower right of residence number
+    - Preview keeps the offered reservation at position 1
+    """
+    apartment = ApartmentDocumentFactory(project_ownership_type="HASO")
+    offered_reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        queue_position=1,
+        list_position=1,
+        submitted_late=True,
+        right_of_residence=500,
+        right_of_residence_is_old_batch=False,
+        state=ApartmentReservationState.OFFER_EXPIRED,
+    )
+    submitted_reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        queue_position=2,
+        list_position=2,
+        submitted_late=True,
+        right_of_residence=800,
+        right_of_residence_is_old_batch=False,
+        state=ApartmentReservationState.SUBMITTED,
+    )
+    new_customer = CustomerFactory(
+        right_of_residence=100,
+        right_of_residence_is_old_batch=False,
+    )
+
+    response = sales_ui_salesperson_api_client.post(
+        _queue_preview_url(apartment.uuid),
+        data={
+            "customer_id": new_customer.id,
+            "submitted_late": True,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    response_by_id = {
+        item["id"]: item for item in response.data if item["id"] is not None
+    }
+    response_by_customer = {
+        item["customer"]["id"]: item for item in response.data if item.get("customer")
+    }
+    assert response_by_id[offered_reservation.id]["queue_position"] == 1
+    assert response_by_customer[new_customer.id]["queue_position"] == 2
+    assert response_by_id[submitted_reservation.id]["queue_position"] == 3
+
+
+@pytest.mark.django_db
+def test_queue_preview_add_does_not_pass_offer_expired_behind_queue_head(
+    sales_ui_salesperson_api_client,
+):
+    """
+    Previewing a new HASO late reservation must not pass an OFFER_EXPIRED
+    reservation that sits behind the queue head.
+
+    - SUBMITTED late reservation at position 1, OFFER_EXPIRED one at position 2
+    - New customer has the best right of residence number
+    - Existing reservations keep their positions and the newcomer goes last
+    """
+    apartment = ApartmentDocumentFactory(project_ownership_type="HASO")
+    submitted_reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        queue_position=1,
+        list_position=1,
+        submitted_late=True,
+        right_of_residence=500,
+        right_of_residence_is_old_batch=False,
+        state=ApartmentReservationState.SUBMITTED,
+    )
+    offered_reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        queue_position=2,
+        list_position=2,
+        submitted_late=True,
+        right_of_residence=800,
+        right_of_residence_is_old_batch=False,
+        state=ApartmentReservationState.OFFER_EXPIRED,
+    )
+    new_customer = CustomerFactory(
+        right_of_residence=100,
+        right_of_residence_is_old_batch=False,
+    )
+
+    response = sales_ui_salesperson_api_client.post(
+        _queue_preview_url(apartment.uuid),
+        data={
+            "customer_id": new_customer.id,
+            "submitted_late": True,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    response_by_id = {
+        item["id"]: item for item in response.data if item["id"] is not None
+    }
+    response_by_customer = {
+        item["customer"]["id"]: item for item in response.data if item.get("customer")
+    }
+    assert response_by_id[submitted_reservation.id]["queue_position"] == 1
+    assert response_by_id[offered_reservation.id]["queue_position"] == 2
+    assert response_by_customer[new_customer.id]["queue_position"] == 3
+    assert _active_positions_from_response(response.data) == [1, 2, 3]
+
+
+@pytest.mark.django_db
 def test_queue_preview_keeps_canceled_reservations_out_of_active_positions(
     sales_ui_salesperson_api_client,
 ):
