@@ -77,6 +77,280 @@ def test_new_reservation_wont_override_first_one_if_asu_1802(elasticsearch):
     )
 
 
+def _add_haso_application_to_queue(
+    apartment_uuid,
+    *,
+    right_of_residence,
+    submitted_late=False,
+    state=None,
+):
+    """
+    Create a HASO application, add it to the apartment queue, and optionally
+    move the resulting reservation to ``state``.
+    """
+    application = ApplicationFactory(
+        type=ApplicationType.HASO,
+        right_of_residence=right_of_residence,
+        submitted_late=submitted_late,
+    )
+    application.application_apartments.create(
+        apartment_uuid=apartment_uuid, priority_number=1
+    )
+    add_application_to_queues(application)
+    reservation = application.application_apartments.get(
+        apartment_uuid=apartment_uuid
+    ).apartment_reservation
+    if state is not None:
+        reservation.set_state(state)
+    return application, reservation
+
+
+@mark.parametrize(
+    "protected_state",
+    (
+        ApartmentReservationState.OFFERED,
+        ApartmentReservationState.OFFER_EXPIRED,
+        ApartmentReservationState.OFFER_ACCEPTED,
+        ApartmentReservationState.ACCEPTED_BY_MUNICIPALITY,
+        ApartmentReservationState.SOLD,
+    ),
+)
+@mark.django_db
+def test_late_haso_application_does_not_jump_already_offered_reservation(
+    elastic_haso_project_with_5_apartments,
+    protected_state,
+):
+    """
+    Late HASO applications must not take queue position 1 from a reservation
+    that has already been offered.
+
+    Production incident (Nihdinlaituri A10): a late application jumped to
+    position 1 while the current winner was in OFFER_EXPIRED
+    ("tarjous vanhentunut").
+
+    - Existing late reservation at position 1 is in a post-offer state
+    - A SUBMITTED late reservation sits behind it
+    - New late application has a better (lower) right of residence number
+    - The offered reservation stays at position 1
+    - The new reservation is inserted after it, before the SUBMITTED one
+    """
+    _, apartments = elastic_haso_project_with_5_apartments
+    apartment_uuid = apartments[0].uuid
+
+    offered_app, offered_reservation = _add_haso_application_to_queue(
+        apartment_uuid,
+        right_of_residence=500,
+        submitted_late=True,
+        state=protected_state,
+    )
+    submitted_app, submitted_reservation = _add_haso_application_to_queue(
+        apartment_uuid,
+        right_of_residence=800,
+        submitted_late=True,
+    )
+
+    new_app, new_reservation = _add_haso_application_to_queue(
+        apartment_uuid,
+        right_of_residence=100,
+        submitted_late=True,
+    )
+
+    offered_reservation.refresh_from_db()
+    submitted_reservation.refresh_from_db()
+    new_reservation.refresh_from_db()
+
+    assert offered_reservation.queue_position == 1
+    assert new_reservation.queue_position == 2
+    assert submitted_reservation.queue_position == 3
+    assert list(get_ordered_applications(apartment_uuid)) == [
+        offered_app,
+        new_app,
+        submitted_app,
+    ]
+
+
+@mark.django_db
+def test_haso_application_does_not_jump_offer_expired_on_time_reservation(
+    elastic_haso_project_with_5_apartments,
+):
+    """
+    On-time HASO applications must not jump an OFFER_EXPIRED queue head.
+
+    - Existing on-time reservation at position 1 is OFFER_EXPIRED
+    - New on-time application has a better (lower) right of residence number
+    - OFFER_EXPIRED reservation stays at position 1
+    """
+    _, apartments = elastic_haso_project_with_5_apartments
+    apartment_uuid = apartments[0].uuid
+
+    offered_app, offered_reservation = _add_haso_application_to_queue(
+        apartment_uuid,
+        right_of_residence=500,
+        submitted_late=False,
+        state=ApartmentReservationState.OFFER_EXPIRED,
+    )
+
+    new_app, new_reservation = _add_haso_application_to_queue(
+        apartment_uuid,
+        right_of_residence=100,
+        submitted_late=False,
+    )
+
+    offered_reservation.refresh_from_db()
+    new_reservation.refresh_from_db()
+
+    assert offered_reservation.queue_position == 1
+    assert new_reservation.queue_position == 2
+    assert list(get_ordered_applications(apartment_uuid)) == [offered_app, new_app]
+
+
+@mark.parametrize(
+    "protected_state",
+    (
+        ApartmentReservationState.OFFERED,
+        ApartmentReservationState.OFFER_EXPIRED,
+        ApartmentReservationState.OFFER_ACCEPTED,
+        ApartmentReservationState.ACCEPTED_BY_MUNICIPALITY,
+        ApartmentReservationState.SOLD,
+    ),
+)
+@mark.django_db
+def test_late_haso_application_does_not_pass_offered_reservation_behind_queue_head(
+    elastic_haso_project_with_5_apartments,
+    protected_state,
+):
+    """
+    An already offered reservation must not be passed even when it is not the
+    queue head.
+
+    - SUBMITTED late reservation at position 1, offered one at position 2
+    - New late application has the best right of residence number
+    - Both existing reservations keep their positions
+    - New reservation goes behind the offered one
+    """
+    _, apartments = elastic_haso_project_with_5_apartments
+    apartment_uuid = apartments[0].uuid
+
+    submitted_app, submitted_reservation = _add_haso_application_to_queue(
+        apartment_uuid,
+        right_of_residence=500,
+        submitted_late=True,
+    )
+    offered_app, offered_reservation = _add_haso_application_to_queue(
+        apartment_uuid,
+        right_of_residence=800,
+        submitted_late=True,
+        state=protected_state,
+    )
+
+    new_app, new_reservation = _add_haso_application_to_queue(
+        apartment_uuid,
+        right_of_residence=100,
+        submitted_late=True,
+    )
+
+    submitted_reservation.refresh_from_db()
+    offered_reservation.refresh_from_db()
+    new_reservation.refresh_from_db()
+
+    assert submitted_reservation.queue_position == 1
+    assert offered_reservation.queue_position == 2
+    assert new_reservation.queue_position == 3
+    assert list(get_ordered_applications(apartment_uuid)) == [
+        submitted_app,
+        offered_app,
+        new_app,
+    ]
+
+
+@mark.django_db
+def test_late_haso_application_does_not_pass_salesperson_created_offered_reservation(
+    elastic_haso_project_with_5_apartments,
+):
+    """
+    Offered reservations without an application are protected too.
+
+    Salesperson-created reservations have no linked application, so they are
+    invisible to the right of residence scan and can only be protected through
+    the queue floor.
+
+    - Salesperson-created OFFER_EXPIRED reservation holds position 1
+    - New late application has the best right of residence number
+    - The offered reservation keeps position 1
+    """
+    _, apartments = elastic_haso_project_with_5_apartments
+    apartment_uuid = apartments[0].uuid
+
+    offered_reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment_uuid,
+        application_apartment=None,
+        queue_position=1,
+        list_position=1,
+        submitted_late=True,
+        right_of_residence=500,
+        right_of_residence_is_old_batch=False,
+        state=ApartmentReservationState.OFFER_EXPIRED,
+    )
+
+    _, new_reservation = _add_haso_application_to_queue(
+        apartment_uuid,
+        right_of_residence=100,
+        submitted_late=True,
+    )
+
+    offered_reservation.refresh_from_db()
+    new_reservation.refresh_from_db()
+
+    assert offered_reservation.queue_position == 1
+    assert new_reservation.queue_position == 2
+
+
+@mark.django_db
+def test_late_haso_application_still_orders_among_submitted_late_reservations(
+    elastic_haso_project_with_5_apartments,
+):
+    """
+    Late HASO applications must still be ordered by right of residence among
+    other late reservations that have not been offered.
+
+    - Two SUBMITTED late reservations exist
+    - New late application has a right of residence between them
+    - New reservation is inserted between the two SUBMITTED ones
+    """
+    _, apartments = elastic_haso_project_with_5_apartments
+    apartment_uuid = apartments[0].uuid
+
+    first_app, first_reservation = _add_haso_application_to_queue(
+        apartment_uuid,
+        right_of_residence=200,
+        submitted_late=True,
+    )
+    second_app, second_reservation = _add_haso_application_to_queue(
+        apartment_uuid,
+        right_of_residence=800,
+        submitted_late=True,
+    )
+
+    new_app, new_reservation = _add_haso_application_to_queue(
+        apartment_uuid,
+        right_of_residence=400,
+        submitted_late=True,
+    )
+
+    first_reservation.refresh_from_db()
+    second_reservation.refresh_from_db()
+    new_reservation.refresh_from_db()
+
+    assert first_reservation.queue_position == 1
+    assert new_reservation.queue_position == 2
+    assert second_reservation.queue_position == 3
+    assert list(get_ordered_applications(apartment_uuid)) == [
+        first_app,
+        new_app,
+        second_app,
+    ]
+
+
 @mark.django_db
 def test_get_ordered_applications_returns_empty_queryset_when_no_applications(
     elastic_project_with_5_apartments,
