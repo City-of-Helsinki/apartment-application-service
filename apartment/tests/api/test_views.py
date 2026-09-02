@@ -1,3 +1,7 @@
+import codecs
+import csv
+import io
+import re
 import uuid
 from datetime import datetime, timedelta
 from unittest.mock import patch
@@ -33,6 +37,11 @@ from users.tests.utils import assert_customer_match_data
 def _store_apartment(apartment):
     add_to_store([apartment])
     return apartment
+
+
+def _read_csv_response_rows(response):
+    decoded_content = response.content.decode("utf-8-sig")
+    return list(csv.reader(io.StringIO(decoded_content), delimiter=";"))
 
 
 @pytest.mark.django_db
@@ -915,6 +924,265 @@ def test_export_lottery_result_csv_per_project(
 
     assert "," not in content_disposition
     assert response.status_code == 200
+
+
+@pytest.mark.django_db
+def test_export_unsold_apartments_csv_per_project_unauthorized(
+    user_api_client, elastic_project_with_5_apartments
+):
+    project_uuid, _ = elastic_project_with_5_apartments
+
+    response = user_api_client.get(
+        reverse(
+            "apartment:project-detail-export-unsold-apartments",
+            kwargs={"project_uuid": project_uuid},
+        ),
+        format="json",
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_export_unsold_apartments_csv_headers_and_filename(
+    sales_ui_salesperson_api_client,
+):
+    apartment = ApartmentDocumentFactory(
+        project_ownership_type="Hitas",
+        apartment_number="A1",
+        apartment_state_of_sale="FREE_FOR_RESERVATIONS",
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse(
+            "apartment:project-detail-export-unsold-apartments",
+            kwargs={"project_uuid": apartment.project_uuid},
+        ),
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
+    assert response.content.startswith(codecs.BOM_UTF8)
+    assert re.match(
+        rf"attachment; filename=myymattomat_asunnot_{apartment.project_uuid}"
+        r"_\d{4}-\d{2}-\d{2}\.csv$",
+        response.headers["Content-Disposition"],
+    )
+
+
+@pytest.mark.django_db
+def test_export_unsold_apartments_csv_hitas_columns(
+    sales_ui_salesperson_api_client,
+):
+    first = ApartmentDocumentFactory(
+        project_ownership_type="Hitas",
+        apartment_number="B2",
+        apartment_state_of_sale="FREE_FOR_RESERVATIONS",
+        floor=3,
+        living_area=55.5,
+        apartment_structure="2h+k",
+        sales_price=100000,
+        loan_share=20000,
+        debt_free_sales_price=120000,
+        maintenance_fee=300,
+        financing_fee=150,
+    )
+    ApartmentDocumentFactory(
+        project_uuid=first.project_uuid,
+        project_ownership_type="Hitas",
+        apartment_number="A1",
+        apartment_state_of_sale="RESERVED",
+        floor=1,
+        living_area=45.0,
+        apartment_structure="1h+kt",
+        sales_price=80000,
+        loan_share=10000,
+        debt_free_sales_price=90000,
+        maintenance_fee=250,
+        financing_fee=120,
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse(
+            "apartment:project-detail-export-unsold-apartments",
+            kwargs={"project_uuid": first.project_uuid},
+        ),
+        format="json",
+    )
+
+    rows = _read_csv_response_rows(response)
+    assert rows[0] == [
+        "Asunnon numero",
+        "Kerros",
+        "Pinta-ala",
+        "Huoneiston tyyppi",
+        "Myyntihinta",
+        "Yhtiölainaosuus",
+        "Velaton hinta",
+        "Hoitovastike",
+        "Rahoitusvastike",
+    ]
+    assert [row[0] for row in rows[1:]] == ["A1", "B2"]
+
+
+@pytest.mark.django_db
+def test_export_unsold_apartments_csv_haso_columns(
+    sales_ui_salesperson_api_client,
+):
+    first = ApartmentDocumentFactory(
+        project_ownership_type="Haso",
+        apartment_number="A1",
+        apartment_state_of_sale="FREE_FOR_RESERVATIONS",
+        floor=2,
+        living_area=48.5,
+        apartment_structure="2h+k",
+        maintenance_fee=410,
+        right_of_occupancy_payment=99000,
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse(
+            "apartment:project-detail-export-unsold-apartments",
+            kwargs={"project_uuid": first.project_uuid},
+        ),
+        format="json",
+    )
+
+    rows = _read_csv_response_rows(response)
+    assert rows[0] == [
+        "Asunnon numero",
+        "Kerros",
+        "Pinta-ala",
+        "Huoneiston tyyppi",
+        "Kayttovastike",
+        "Asumisoikeusmaksu",
+    ]
+
+
+@pytest.mark.django_db
+def test_export_unsold_apartments_csv_excludes_sold_and_includes_other_states(
+    sales_ui_salesperson_api_client,
+):
+    first = ApartmentDocumentFactory(
+        project_ownership_type="Hitas",
+        apartment_number="A1",
+        apartment_state_of_sale="SOLD",
+    )
+    ApartmentDocumentFactory(
+        project_uuid=first.project_uuid,
+        project_ownership_type="Hitas",
+        apartment_number="A2",
+        apartment_state_of_sale="RESERVED",
+    )
+    ApartmentDocumentFactory(
+        project_uuid=first.project_uuid,
+        project_ownership_type="Hitas",
+        apartment_number="A3",
+        apartment_state_of_sale="FREE_FOR_RESERVATIONS",
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse(
+            "apartment:project-detail-export-unsold-apartments",
+            kwargs={"project_uuid": first.project_uuid},
+        ),
+        format="json",
+    )
+
+    rows = _read_csv_response_rows(response)
+    apartment_numbers = [row[0] for row in rows[1:]]
+    assert "A1" not in apartment_numbers
+    assert apartment_numbers == ["A2", "A3"]
+
+
+@pytest.mark.django_db
+def test_export_unsold_apartments_csv_empty_set_returns_only_header(
+    sales_ui_salesperson_api_client,
+):
+    apartment = ApartmentDocumentFactory(
+        project_ownership_type="Haso",
+        apartment_number="A1",
+        apartment_state_of_sale="SOLD",
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse(
+            "apartment:project-detail-export-unsold-apartments",
+            kwargs={"project_uuid": apartment.project_uuid},
+        ),
+        format="json",
+    )
+
+    rows = _read_csv_response_rows(response)
+    assert len(rows) == 1
+    assert rows[0] == [
+        "Asunnon numero",
+        "Kerros",
+        "Pinta-ala",
+        "Huoneiston tyyppi",
+        "Kayttovastike",
+        "Asumisoikeusmaksu",
+    ]
+
+
+@pytest.mark.django_db
+def test_export_unsold_apartments_csv_project_not_found(
+    sales_ui_salesperson_api_client,
+):
+    response = sales_ui_salesperson_api_client.get(
+        reverse(
+            "apartment:project-detail-export-unsold-apartments",
+            kwargs={"project_uuid": uuid.uuid4()},
+        ),
+        format="json",
+    )
+
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_export_unsold_apartments_csv_unsupported_ownership_type(
+    sales_ui_salesperson_api_client,
+):
+    apartment = ApartmentDocumentFactory(
+        project_ownership_type="Puolihitas",
+        apartment_number="A1",
+        apartment_state_of_sale="FREE_FOR_RESERVATIONS",
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse(
+            "apartment:project-detail-export-unsold-apartments",
+            kwargs={"project_uuid": apartment.project_uuid},
+        ),
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "Unsupported ownership type" in str(response.data)
+
+
+@pytest.mark.django_db
+def test_export_unsold_apartments_csv_uses_semicolon_delimiter(
+    sales_ui_salesperson_api_client,
+):
+    apartment = ApartmentDocumentFactory(
+        project_ownership_type="Hitas",
+        apartment_number="A1",
+        apartment_state_of_sale="FREE_FOR_RESERVATIONS",
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse(
+            "apartment:project-detail-export-unsold-apartments",
+            kwargs={"project_uuid": apartment.project_uuid},
+        ),
+        format="json",
+    )
+
+    first_line = response.content.decode("utf-8-sig").splitlines()[0]
+    assert ";" in first_line
 
 
 @pytest.mark.django_db
