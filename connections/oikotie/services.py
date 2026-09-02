@@ -23,8 +23,9 @@ _logger = logging.getLogger(__name__)
 
 def get_apartments_for_oikotie() -> Iterable:
     """
-    Returns raw ApartmentDocument objects where publish_on_oikotie=True
-    and apartment_state_of_sale != SOLD
+    Returns raw ApartmentDocument objects where publish_on_oikotie=True,
+    apartment_state_of_sale is FOR_SALE, the apartment is published, and
+    the project is published.
 
     Returns:
         Iterator[ApartmentDocument]: Iterator of ApartmentDocument objects
@@ -33,6 +34,8 @@ def get_apartments_for_oikotie() -> Iterable:
         _language="fi",
         apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE,
         publish_on_oikotie=True,
+        apartment_published=True,
+        project_published=True,
         include_project_fields=True,
     )
 
