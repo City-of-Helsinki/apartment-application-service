@@ -154,6 +154,8 @@ def invalid_data_elastic_apartments_for_sale(elastic_apartments):
         _language="fi",
         publish_on_etuovi=True,
         publish_on_oikotie=False,
+        apartment_published=True,
+        project_published=True,
     )
     # should fail with oikotie housing companies
     elastic_apartment_2 = ApartmentMinimalFactory.create(
@@ -162,6 +164,8 @@ def invalid_data_elastic_apartments_for_sale(elastic_apartments):
         _language="fi",
         publish_on_etuovi=False,
         publish_on_oikotie=True,
+        apartment_published=True,
+        project_published=True,
     )
     # should fail with oikotie apartments and housing companies
     elastic_apartment_3 = ApartmentMinimalFactory.create(
@@ -171,6 +175,8 @@ def invalid_data_elastic_apartments_for_sale(elastic_apartments):
         _language="fi",
         publish_on_etuovi=False,
         publish_on_oikotie=True,
+        apartment_published=True,
+        project_published=True,
     )
 
     apartments = [

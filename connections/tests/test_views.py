@@ -26,7 +26,30 @@ from connections.enums import (
 )
 from connections.etuovi.services import get_apartments_for_etuovi
 from connections.oikotie.services import get_apartments_for_oikotie
+from connections.tests.factories import ApartmentMinimalFactory
 from connections.utils import validate_apartment_required_fields
+
+
+def _for_sale_vendor_apartment(**overrides):
+    """
+    Create an apartment that otherwise qualifies for Etuovi and Oikotie export.
+
+    Parameters:
+    overrides: Field values that replace the for-sale published defaults.
+
+    Returns:
+    Apartment document stored in the test apartment store.
+    """
+    defaults = {
+        "_language": "fi",
+        "apartment_state_of_sale": ApartmentStateOfSale.FOR_SALE,
+        "publish_on_etuovi": True,
+        "publish_on_oikotie": True,
+        "apartment_published": True,
+        "project_published": True,
+    }
+    defaults.update(overrides)
+    return ApartmentMinimalFactory.create(**defaults)
 
 
 @integration_test
@@ -298,6 +321,8 @@ class TestGetApartmentsForEtuovi:
             _language="fi",
             apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE,
             publish_on_etuovi=True,
+            apartment_published=True,
+            project_published=True,
             include_project_fields=True,
         )
 
@@ -321,6 +346,8 @@ class TestGetApartmentsForOikotie:
             _language="fi",
             apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE,
             publish_on_oikotie=True,
+            apartment_published=True,
+            project_published=True,
             include_project_fields=True,
         )
 
@@ -328,6 +355,72 @@ class TestGetApartmentsForOikotie:
         assert hasattr(result, "__iter__")
         # Verify we can iterate over the result
         list(result)  # Consume the iterator
+
+
+@pytest.mark.usefixtures("elasticsearch")
+@pytest.mark.parametrize(
+    "fetch_apartments",
+    [get_apartments_for_etuovi, get_apartments_for_oikotie],
+    ids=["etuovi", "oikotie"],
+)
+class TestVendorApartmentFetchExcludesUnpublished:
+    """Vendor fetch helpers must skip unpublished apartments and projects."""
+
+    def test_returns_published_apartments_in_published_projects(
+        self, fetch_apartments
+    ):
+        """
+        - Apartments with apartment_published=True and project_published=True
+          are returned.
+        """
+        included = _for_sale_vendor_apartment()
+
+        result_uuids = [apartment.uuid for apartment in fetch_apartments()]
+
+        assert included.uuid in result_uuids
+
+    def test_does_not_return_unpublished_apartments(self, fetch_apartments):
+        """
+        - Apartments with apartment_published=False are not returned.
+        - A published apartment in the same query is still returned.
+        """
+        included = _for_sale_vendor_apartment(apartment_published=True)
+        unpublished = _for_sale_vendor_apartment(apartment_published=False)
+
+        result_uuids = [apartment.uuid for apartment in fetch_apartments()]
+
+        assert included.uuid in result_uuids
+        assert unpublished.uuid not in result_uuids
+
+    def test_does_not_return_apartments_in_unpublished_projects(
+        self, fetch_apartments
+    ):
+        """
+        - Apartments with project_published=False are not returned.
+        - An apartment in a published project is still returned.
+        """
+        included = _for_sale_vendor_apartment(project_published=True)
+        unpublished_project = _for_sale_vendor_apartment(project_published=False)
+
+        result_uuids = [apartment.uuid for apartment in fetch_apartments()]
+
+        assert included.uuid in result_uuids
+        assert unpublished_project.uuid not in result_uuids
+
+    def test_does_not_return_unpublished_apartment_in_unpublished_project(
+        self, fetch_apartments
+    ):
+        """
+        - Apartments with apartment_published=False and
+          project_published=False are not returned.
+        """
+        unpublished = _for_sale_vendor_apartment(
+            apartment_published=False, project_published=False
+        )
+
+        result_uuids = [apartment.uuid for apartment in fetch_apartments()]
+
+        assert unpublished.uuid not in result_uuids
 
 
 class TestGetOikotieRequiredFieldsForOwnershipType:
