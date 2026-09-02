@@ -366,9 +366,7 @@ class TestGetApartmentsForOikotie:
 class TestVendorApartmentFetchExcludesUnpublished:
     """Vendor fetch helpers must skip unpublished apartments and projects."""
 
-    def test_returns_published_apartments_in_published_projects(
-        self, fetch_apartments
-    ):
+    def test_returns_published_apartments_in_published_projects(self, fetch_apartments):
         """
         - Apartments with apartment_published=True and project_published=True
           are returned.
@@ -392,9 +390,7 @@ class TestVendorApartmentFetchExcludesUnpublished:
         assert included.uuid in result_uuids
         assert unpublished.uuid not in result_uuids
 
-    def test_does_not_return_apartments_in_unpublished_projects(
-        self, fetch_apartments
-    ):
+    def test_does_not_return_apartments_in_unpublished_projects(self, fetch_apartments):
         """
         - Apartments with project_published=False are not returned.
         - An apartment in a published project is still returned.
