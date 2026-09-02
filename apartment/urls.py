@@ -9,6 +9,7 @@ from apartment.api.views import (
     ProjectExportApplicantsAPIView,
     ProjectExportApplicantsMailingListAPIView,
     ProjectExportLotteryResultsAPIView,
+    ProjectExportUnsoldApartmentsAPIView,
     ProjectExtraDataAPIView,
     SaleReportAPIView,
     SaleReportSelectedProjectsAPIView,
@@ -64,6 +65,11 @@ urlpatterns = [
         "sales/projects/<uuid:project_uuid>/export_lottery_result/",
         ProjectExportLotteryResultsAPIView.as_view(),
         name="project-detail-lottery-result",
+    ),
+    path(
+        "sales/projects/<uuid:project_uuid>/export_unsold_apartments/",
+        ProjectExportUnsoldApartmentsAPIView.as_view(),
+        name="project-detail-export-unsold-apartments",
     ),
     path(
         "sales/projects/<uuid:project_uuid>/extra_data/",

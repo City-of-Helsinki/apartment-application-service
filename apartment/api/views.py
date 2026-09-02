@@ -45,6 +45,7 @@ from application_form.services.export import (
     ApplicantExportService,
     ApplicantMailingListExportService,
     ProjectLotteryResultExportService,
+    UnsoldApartmentsExportService,
     XlsxSalesReportExportService,
 )
 from application_form.services.queue import preview_queue_change
@@ -234,6 +235,36 @@ class ProjectExportLotteryResultsAPIView(APIView):
         response["Content-Disposition"] = "attachment; filename={file_name}.csv".format(
             file_name=file_name
         )
+        return response
+
+
+class ProjectExportUnsoldApartmentsAPIView(APIView):
+    http_method_names = ["get"]
+
+    def get(self, request, project_uuid):
+        """Export unsold apartments of a project as CSV."""
+        try:
+            project = get_project(project_uuid)
+            apartments = get_apartments(project_uuid, include_project_fields=True)
+            export_service = UnsoldApartmentsExportService(project, apartments)
+        except ObjectDoesNotExist:
+            raise NotFound()
+        except ValueError as error:
+            raise ValidationError(str(error)) from error
+        except Exception as error:
+            _logger.exception(
+                "Unexpected error during unsold apartments export for project %s",
+                project_uuid,
+            )
+            raise error
+
+        file_date = timezone.localdate().isoformat()
+        file_name = f"myymattomat_asunnot_{project_uuid}_{file_date}.csv"
+        response = HttpResponse(
+            export_service.get_csv_bytes(),
+            content_type="text/csv; charset=utf-8",
+        )
+        response["Content-Disposition"] = f"attachment; filename={file_name}"
         return response
 
 
