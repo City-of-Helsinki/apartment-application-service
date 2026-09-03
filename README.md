@@ -120,9 +120,15 @@ psql "$DATABASE_URL" -f sanitized_YYYYMMDDHHMM.sql
 4. All user passwords in the dump are set to `localdev`.
 5. Run `python manage.py migrate` if the dump is older than your current code.
 
-When models gain new fields, update `.sanitizerconfig` (or regenerate with
-`python scripts/generate_sanitizerconfig.py` via `manage.py shell` and re-apply
-PII mappings) and keep `make check-sanitizerconfig` green.
+When models gain new fields, regenerate `.sanitizerconfig` with
+`python scripts/generate_sanitizerconfig.py` via `manage.py shell` and keep
+`make check-sanitizerconfig` green. User-input field types (`CharField`,
+`TextField`, `DateField`, `DateTimeField`, integer/decimal/float variants) on
+first-party apps are assigned type-based sanitizers automatically. Named PII
+mappings in `sanitizers/config.py` still override those defaults. Structural
+fields (primary/foreign keys, enums, choice fields, `auto_now` timestamps) and
+the exclusions `ApartmentReservation.queue_position` and `right_of_residence`
+stay unsanitized.
 
 
 ## Tests

@@ -22,8 +22,8 @@ strategy:
   apartment_projectextradata:
     created_at: null
     id: null
-    offer_message_content: null
-    offer_message_intro: null
+    offer_message_content: types.text
+    offer_message_intro: types.text
     project_uuid: null
     updated_at: null
   application_form_apartmentqueuechangeevent:
@@ -37,14 +37,14 @@ strategy:
     application_apartment_id: null
     customer_id: null
     handler: pgp.pgp_handler
-    has_children: null
+    has_children: pgp.pgp_text
     has_hitas_ownership: null
     id: null
-    is_age_over_55: null
+    is_age_over_55: pgp.pgp_text
     is_right_of_occupancy_housing_changer: null
-    list_position: null
+    list_position: types.integer
     queue_position: null
-    queue_position_before_cancelation: null
+    queue_position_before_cancelation: types.integer
     right_of_residence: null
     right_of_residence_is_old_batch: null
     state: null
@@ -59,7 +59,7 @@ strategy:
     timestamp: null
     user_id: null
   application_form_applicant:
-    age: null
+    age: types.integer
     application_id: null
     city: person.city
     contact_language: null
@@ -76,10 +76,10 @@ strategy:
     street_address: person.street_address
     updated_at: null
   application_form_application:
-    applicants_count: null
+    applicants_count: types.integer
     created_at: null
     customer_id: null
-    drupal_application_id: null
+    drupal_application_id: types.integer
     external_uuid: null
     handler_information: person.handler_information
     has_children: null
@@ -87,7 +87,7 @@ strategy:
     id: null
     is_right_of_occupancy_housing_changer: null
     method_of_arrival: null
-    process_number: null
+    process_number: types.char
     right_of_residence: null
     right_of_residence_is_old_batch: null
     sender_names: person.sender_names
@@ -98,7 +98,7 @@ strategy:
     apartment_uuid: null
     application_id: null
     id: null
-    priority_number: null
+    priority_number: types.integer
   application_form_lotteryevent:
     apartment_uuid: null
     handler: pgp.pgp_handler
@@ -108,19 +108,19 @@ strategy:
     application_apartment_id: null
     event_id: null
     id: null
-    result_position: null
+    result_position: types.integer
   application_form_offer:
     apartment_reservation_id: null
     comment: person.comment
-    concluded_at: null
+    concluded_at: types.datetime
     created_at: null
     handler: pgp.pgp_handler
     id: null
-    message_sent_at: null
-    reminder_sent_at: null
+    message_sent_at: types.datetime
+    reminder_sent_at: types.datetime
     state: null
     updated_at: null
-    valid_until: null
+    valid_until: types.date
   asko_import_askoimportlogentry:
     asko_id: null
     asko_link_id: null
@@ -165,21 +165,21 @@ strategy:
     mapped_oikotie: null
     updated_at: null
   cost_index_apartmentrevaluation:
-    alteration_work: null
+    alteration_work: types.decimal
     apartment_reservation_id: null
     created_at: null
-    end_cost_index_value: null
-    end_date: null
-    end_right_of_occupancy_payment: null
+    end_cost_index_value: types.decimal
+    end_date: types.date
+    end_right_of_occupancy_payment: types.decimal
     id: null
-    start_cost_index_value: null
-    start_date: null
-    start_right_of_occupancy_payment: null
+    start_cost_index_value: types.decimal
+    start_date: types.date
+    start_right_of_occupancy_payment: types.decimal
     updated_at: null
   cost_index_costindex:
     id: null
-    valid_from: null
-    value: null
+    valid_from: types.date
+    value: types.decimal
   customer_customer:
     additional_information: person.additional_information
     created_at: null
@@ -188,7 +188,7 @@ strategy:
     id: null
     is_age_over_55: null
     is_right_of_occupancy_housing_changer: null
-    last_contact_date: null
+    last_contact_date: types.date
     primary_profile_id: null
     right_of_residence: null
     right_of_residence_is_old_batch: null
@@ -234,42 +234,42 @@ strategy:
     sub: null
   invoicing_apartmentinstallment:
     account_number: person.account_number
-    added_to_be_sent_to_sap_at: null
+    added_to_be_sent_to_sap_at: types.datetime
     apartment_reservation_id: null
-    created_at: null
-    due_date: null
+    created_at: types.datetime
+    due_date: types.date
     handler: person.first_name
     id: null
-    invoice_number: null
+    invoice_number: types.integer
     reference_number: person.reference_number
-    sent_to_sap_at: null
+    sent_to_sap_at: types.datetime
     type: null
-    updated_at: null
-    value: null
+    updated_at: types.datetime
+    value: types.decimal
   invoicing_payment:
-    amount: null
+    amount: types.decimal
     apartment_installment_id: null
     batch_id: null
     created_at: null
     id: null
-    payment_date: null
+    payment_date: types.date
     updated_at: null
   invoicing_paymentbatch:
     created_at: null
-    filename: null
+    filename: types.char
     id: null
     updated_at: null
   invoicing_projectinstallmenttemplate:
     account_number: person.account_number
-    created_at: null
-    due_date: null
+    created_at: types.datetime
+    due_date: types.date
     id: null
     percentage_specifier: null
     project_uuid: null
     type: null
     unit: null
-    updated_at: null
-    value: null
+    updated_at: types.datetime
+    value: types.decimal
   resilient_logger_resilientlogentry:
     context: null
     created_at: null
@@ -330,15 +330,15 @@ strategy:
     updated_at: null
     user_id: null
   users_user:
-    date_joined: null
-    department_name: null
+    date_joined: types.datetime
+    department_name: types.char
     email: person.email
     first_name: person.first_name
     id: null
     is_active: null
     is_staff: null
     is_superuser: null
-    last_login: null
+    last_login: types.datetime
     last_name: person.last_name
     password: person.password
     username: person.username
@@ -358,7 +358,7 @@ strategy:
   users_userkeyvalue:
     created_at: null
     id: null
-    key: null
+    key: types.char
     updated_at: null
     user_id: null
     value: person.key_value
