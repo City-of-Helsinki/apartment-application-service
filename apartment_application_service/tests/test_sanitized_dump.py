@@ -6,12 +6,15 @@ Tests for anonymized production dump configuration and sanitizers.
 - PGP sanitizers replace ciphertext with decryptable fakes
 - Unique fields stay unique across many calls
 - Missing config fields fail the sync check
+- Type-based auto-assignment covers user-input fields
+- Named exclusions and structural skips stay unsanitized
 - Integration: sanitized dump must not contain original PII
 """
 
 import shutil
 import subprocess
-from datetime import date
+from datetime import date, datetime
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -22,11 +25,17 @@ from django.db import connection
 from sanitized_dump.config import Configuration
 from sanitized_dump.utils.db import db_setting_to_db_string
 
-from sanitizers import person, pgp
+from sanitizers import person, pgp, types
+from sanitizers.config import build_configuration, build_sanitizer_strategy
 from users.tests.factories import ProfileFactory
 
 BASE_DIR = Path(settings.BASE_DIR)
 CONFIG_PATH = BASE_DIR / ".sanitizerconfig"
+
+
+def _strategy():
+    """Build strategy dict from models for assignment assertions."""
+    return build_sanitizer_strategy()
 
 
 def test_sanitizerconfig_is_in_sync_with_models():
@@ -272,3 +281,195 @@ def test_sanitized_dump_does_not_contain_original_pii():
     assert distinctive_email not in dump
     assert distinctive_hetu not in dump
     assert "COPY" in dump
+
+
+@pytest.mark.django_db
+def test_type_based_assignment_for_user_input_fields():
+    """
+    - Char/Text/Date/DateTime/Decimal/Integer fields on first-party models
+      get matching types.* sanitizers when no PII override exists
+    """
+    strategy = _strategy()
+    assert strategy["application_form_application"]["process_number"] == "types.char"
+    assert strategy["apartment_projectextradata"]["offer_message_intro"] == "types.text"
+    assert strategy["customer_customer"]["last_contact_date"] == "types.date"
+    assert (
+        strategy["invoicing_apartmentinstallment"]["added_to_be_sent_to_sap_at"]
+        == "types.datetime"
+    )
+    assert strategy["invoicing_apartmentinstallment"]["value"] == "types.decimal"
+    assert strategy["invoicing_payment"]["amount"] == "types.decimal"
+    assert strategy["application_form_applicant"]["age"] == "types.integer"
+    assert (
+        strategy["application_form_application"]["applicants_count"] == "types.integer"
+    )
+    assert (
+        strategy["application_form_apartmentreservation"]["list_position"]
+        == "types.integer"
+    )
+    assert (
+        strategy["application_form_lotteryeventresult"]["result_position"]
+        == "types.integer"
+    )
+    assert strategy["cost_index_costindex"]["value"] == "types.decimal"
+    assert strategy["cost_index_costindex"]["valid_from"] == "types.date"
+
+
+@pytest.mark.django_db
+def test_named_exclusions_stay_null():
+    """
+    - ApartmentReservation.queue_position stays null
+    - right_of_residence on Application, ApartmentReservation, Customer stays null
+    - queue_position_before_cancelation is still type-sanitized
+    """
+    strategy = _strategy()
+    reservation = strategy["application_form_apartmentreservation"]
+    assert reservation["queue_position"] is None
+    assert reservation["right_of_residence"] is None
+    assert reservation["queue_position_before_cancelation"] == "types.integer"
+    assert strategy["application_form_application"]["right_of_residence"] is None
+    assert strategy["customer_customer"]["right_of_residence"] is None
+
+
+@pytest.mark.django_db
+def test_structural_skips_stay_null():
+    """
+    - Primary keys, foreign keys, EnumField, choice fields, auto timestamps stay null
+    """
+    strategy = _strategy()
+    reservation = strategy["application_form_apartmentreservation"]
+    assert reservation["id"] is None
+    assert reservation["customer_id"] is None
+    assert reservation["application_apartment_id"] is None
+    assert reservation["state"] is None
+    assert strategy["application_form_applicant"]["contact_language"] is None
+    assert strategy["application_form_applicant"]["created_at"] is None
+    assert strategy["application_form_applicant"]["updated_at"] is None
+    assert strategy["application_form_offer"]["created_at"] is None
+    assert strategy["users_profile"]["contact_language"] is None
+
+
+@pytest.mark.django_db
+def test_pii_overrides_win_over_type_defaults():
+    """
+    - Explicit PII mappings override type-based defaults
+    """
+    strategy = _strategy()
+    assert strategy["users_profile"]["email"] == "person.email"
+    assert strategy["users_profile"]["date_of_birth"] == "pgp.pgp_date"
+    assert strategy["users_profile"]["national_identification_number"] == "pgp.pgp_hetu"
+    assert strategy["application_form_applicant"]["first_name"] == "person.first_name"
+    assert (
+        strategy["application_form_apartmentreservation"]["handler"]
+        == "pgp.pgp_handler"
+    )
+    assert strategy["customer_customer"]["additional_information"] == (
+        "person.additional_information"
+    )
+
+
+@pytest.mark.django_db
+def test_pgp_fields_without_pii_get_pgp_sanitizers():
+    """
+    - Encrypted boolean/char fields without a named PII entry use pgp sanitizers
+      rather than plaintext types.*
+    """
+    strategy = _strategy()
+    reservation = strategy["application_form_apartmentreservation"]
+    # Encrypted booleans are PGP fields; they must not get types.integer/char
+    assert reservation["has_children"] == "pgp.pgp_text"
+    assert reservation["is_age_over_55"] == "pgp.pgp_text"
+
+
+@pytest.mark.django_db
+def test_third_party_and_operational_apps_not_auto_assigned():
+    """
+    - asko_import / connections / auth columns stay null (no type auto-assign)
+    """
+    strategy = _strategy()
+    assert strategy["asko_import_askolink"]["asko_id"] is None
+    assert strategy["asko_import_askoimportlogentry"]["message"] is None
+    assert strategy["connections_mappedapartment"]["last_mapped_to_etuovi"] is None
+    assert strategy["auth_group"]["name"] is None
+    assert strategy["django_session"]["session_data"] is None
+
+
+@pytest.mark.parametrize(
+    "sanitizer,sample,expected_type",
+    [
+        (types.sanitize_char, "process-123", str),
+        (types.sanitize_text, "Long free text about apartment", str),
+        (types.sanitize_date, "2024-06-15", str),
+        (types.sanitize_datetime, "2024-06-15 12:00:00+00", str),
+        (types.sanitize_integer, "42", str),
+        (types.sanitize_decimal, "1234.56", str),
+        (types.sanitize_float, "3.14", str),
+    ],
+)
+def test_type_sanitizers_replace_values(sanitizer, sample, expected_type):
+    """
+    - Generic type sanitizers replace non-empty values with dump-compatible strings
+    """
+    result = sanitizer(sample)
+    assert result is not None
+    assert isinstance(result, expected_type)
+    assert result != sample
+    assert result != ""
+
+
+@pytest.mark.parametrize(
+    "sanitizer",
+    [
+        types.sanitize_char,
+        types.sanitize_text,
+        types.sanitize_date,
+        types.sanitize_datetime,
+        types.sanitize_integer,
+        types.sanitize_decimal,
+        types.sanitize_float,
+    ],
+)
+def test_type_sanitizers_passthrough_null_and_empty(sanitizer):
+    """
+    - Null and empty inputs are returned unchanged for type sanitizers
+    """
+    assert sanitizer(None) is None
+    assert sanitizer("") == ""
+
+
+def test_type_sanitizers_produce_unique_values():
+    """
+    - Integer/date/char type sanitizers stay unique across many calls
+    """
+    integers = {types.sanitize_integer(str(i)) for i in range(50)}
+    dates = {types.sanitize_date(f"2020-01-{(i % 28) + 1:02d}") for i in range(50)}
+    chars = {types.sanitize_char(f"value-{i}") for i in range(50)}
+    assert len(integers) == 50
+    assert len(dates) == 50
+    assert len(chars) == 50
+
+
+def test_type_sanitizer_outputs_are_parseable():
+    """
+    - Date/datetime/decimal/integer outputs parse to expected Python types
+    """
+    assert date.fromisoformat(types.sanitize_date("1990-01-01"))
+    assert datetime.fromisoformat(types.sanitize_datetime("2020-01-01 00:00:00"))
+    assert Decimal(types.sanitize_decimal("10.00"))
+    assert int(types.sanitize_integer("7"))
+    assert float(types.sanitize_float("1.5"))
+
+
+@pytest.mark.django_db
+def test_committed_sanitizerconfig_matches_generator():
+    """
+    - Committed .sanitizerconfig strategy matches build_configuration() output
+    """
+    generated = build_configuration()
+    with CONFIG_PATH.open() as handle:
+        committed = yaml.safe_load(handle)
+    assert committed["strategy"] == generated["strategy"]
+    assert (
+        committed["config"]["extra_parameters"]
+        == generated["config"]["extra_parameters"]
+    )
