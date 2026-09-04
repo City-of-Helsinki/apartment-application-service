@@ -41,7 +41,10 @@ def _store_apartment(apartment):
 
 def _read_csv_response_rows(response):
     decoded_content = response.content.decode("utf-8-sig")
-    return list(csv.reader(io.StringIO(decoded_content), delimiter=";"))
+    rows = list(csv.reader(io.StringIO(decoded_content), delimiter=";"))
+    if rows and rows[0] and rows[0][0] == "sep=":
+        return rows[1:]
+    return rows
 
 
 @pytest.mark.django_db
@@ -920,6 +923,7 @@ def test_export_unsold_apartments_csv_headers_and_filename(
     assert response.status_code == 200
     assert response.headers["Content-Type"] == "text/csv; charset=utf-8"
     assert response.content.startswith(codecs.BOM_UTF8)
+    assert response.content.decode("utf-8-sig").startswith("sep=;\r\n")
     assert re.match(
         rf"attachment; filename=myymattomat_asunnot_{apartment.project_uuid}"
         r"_\d{4}-\d{2}-\d{2}\.csv$",
@@ -955,8 +959,8 @@ def test_export_unsold_apartments_csv_hitas_columns(
         sales_price=80000,
         loan_share=10000,
         debt_free_sales_price=90000,
-        maintenance_fee=250,
-        financing_fee=120,
+        maintenance_fee=25005,
+        financing_fee=12050,
     )
 
     response = sales_ui_salesperson_api_client.get(
@@ -980,6 +984,8 @@ def test_export_unsold_apartments_csv_hitas_columns(
         "Rahoitusvastike",
     ]
     assert [row[0] for row in rows[1:]] == ["A1", "B2"]
+    assert rows[1][7] == "250,05"
+    assert rows[1][8] == "120,50"
 
 
 @pytest.mark.django_db
@@ -993,8 +999,8 @@ def test_export_unsold_apartments_csv_haso_columns(
         floor=2,
         living_area=48.5,
         apartment_structure="2h+k",
-        maintenance_fee=410,
-        right_of_occupancy_payment=99000,
+        maintenance_fee=41050,
+        right_of_occupancy_payment=9900050,
     )
 
     response = sales_ui_salesperson_api_client.get(
@@ -1014,6 +1020,8 @@ def test_export_unsold_apartments_csv_haso_columns(
         "Kayttovastike",
         "Asumisoikeusmaksu",
     ]
+    assert rows[1][4] == "410,50"
+    assert rows[1][5] == "99000,50"
 
 
 @pytest.mark.django_db
@@ -1137,8 +1145,9 @@ def test_export_unsold_apartments_csv_uses_semicolon_delimiter(
         format="json",
     )
 
-    first_line = response.content.decode("utf-8-sig").splitlines()[0]
-    assert ";" in first_line
+    csv_lines = response.content.decode("utf-8-sig").splitlines()
+    assert csv_lines[0] == "sep=;"
+    assert ";" in csv_lines[1]
 
 
 @pytest.mark.django_db
