@@ -249,6 +249,12 @@ class UnsoldApartmentsExportService(CSVExportService):
         ("Asumisoikeusmaksu", "right_of_occupancy_payment"),
     ]
 
+    CENTS_FIELDS = {
+        "maintenance_fee",
+        "financing_fee",
+        "right_of_occupancy_payment",
+    }
+
     def __init__(self, project, apartments):
         """Initialize export service with project metadata and project apartments."""
         self.project = project
@@ -295,12 +301,26 @@ class UnsoldApartmentsExportService(CSVExportService):
         row = []
         for _, field_name in self.COLUMNS:
             value = getattr(apartment, field_name, "")
+            if field_name in self.CENTS_FIELDS and value is not None:
+                value = self._format_cents(value)
             row.append("" if value is None else value)
         return row
+
+    @staticmethod
+    def _format_cents(value: int) -> str:
+        """Convert integer cents to Finnish decimal format with two decimals."""
+        return f"{(Decimal(value) / 100).quantize(Decimal('0.01')):.2f}".replace(
+            ".", ","
+        )
 
     def get_csv_bytes(self):
         """Return CSV bytes encoded as UTF-8 with BOM for Excel compatibility."""
         return self.get_csv_string().encode(self.FILE_ENCODING)
+
+    def get_csv_string(self):
+        """Return CSV string with explicit delimiter hint for Excel."""
+        csv_body = super().get_csv_string()
+        return f"sep={self.CSV_DELIMITER}\r\n{csv_body}"
 
 
 class ApplicantMailingListExportService(CSVExportService):
