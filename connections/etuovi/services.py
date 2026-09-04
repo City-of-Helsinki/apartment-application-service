@@ -20,20 +20,24 @@ _logger = logging.getLogger(__name__)
 def get_apartments_for_etuovi() -> Iterable:
     """
     Returns raw ApartmentDocument objects where publish_on_etuovi=True,
-    apartment_state_of_sale is FOR_SALE, the apartment is published, and
+    apartment_state_of_sale is not SOLD, the apartment is published, and
     the project is published.
 
     Returns:
         Iterator[ApartmentDocument]: Iterator of ApartmentDocument objects
     """
 
-    return get_apartments(
+    apartments = get_apartments(
         _language="fi",
-        apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE,
         publish_on_etuovi=True,
         apartment_published=True,
         project_published=True,
         include_project_fields=True,
+    )
+    return (
+        apartment
+        for apartment in apartments
+        if apartment.apartment_state_of_sale != ApartmentStateOfSale.SOLD
     )
 
 
