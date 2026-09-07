@@ -107,6 +107,41 @@ def test_project_list_get(sales_ui_salesperson_api_client):
 
 
 @pytest.mark.django_db
+def test_project_list_excludes_archived_by_default(sales_ui_salesperson_api_client):
+    active_project = ApartmentDocumentFactory(project_archived=False)
+    archived_project = ApartmentDocumentFactory(project_archived=True)
+    add_to_store([active_project, archived_project])
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("apartment:project-list"), format="json"
+    )
+
+    assert response.status_code == 200
+    result_uuids = {item["uuid"] for item in response.data["results"]}
+    assert str(active_project.project_uuid) in result_uuids
+    assert str(archived_project.project_uuid) not in result_uuids
+
+
+@pytest.mark.django_db
+def test_project_list_include_archived_returns_archived_projects(
+    sales_ui_salesperson_api_client,
+):
+    active_project = ApartmentDocumentFactory(project_archived=False)
+    archived_project = ApartmentDocumentFactory(project_archived=True)
+    add_to_store([active_project, archived_project])
+
+    response = sales_ui_salesperson_api_client.get(
+        f"{reverse('apartment:project-list')}?include_archived=true",
+        format="json",
+    )
+
+    assert response.status_code == 200
+    result_uuids = {item["uuid"] for item in response.data["results"]}
+    assert str(active_project.project_uuid) in result_uuids
+    assert str(archived_project.project_uuid) in result_uuids
+
+
+@pytest.mark.django_db
 @pytest.mark.usefixtures("elastic_apartments")
 def test_get_correct_project_data(sales_ui_salesperson_api_client):
     project = ApartmentDocumentFactory()
