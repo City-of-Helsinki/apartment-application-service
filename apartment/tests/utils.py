@@ -75,7 +75,7 @@ class TestDrupalSearchClient(DrupalSearchClient):
 
         filtered = data
         for key, value in params.items():
-            if key in {"limit", "offset"}:
+            if key in {"limit", "offset", "include_archived"}:
                 continue
             filtered = [obj for obj in filtered if is_match(obj, key, value)]
         return filtered
