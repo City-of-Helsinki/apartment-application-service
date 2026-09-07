@@ -120,7 +120,9 @@ class ProjectAPIView(APIView):
             serializer = ProjectListQueryParamsSerializer(data=request.query_params)
             serializer.is_valid(raise_exception=True)
             project_filters = {}
-            if not serializer.validated_data["include_archived"]:
+            if serializer.validated_data["include_archived"]:
+                project_filters["include_archived"] = True
+            else:
                 project_filters["project_archived"] = False
             project_data = get_projects(**project_filters)
             return self._get_list(request, project_data)
