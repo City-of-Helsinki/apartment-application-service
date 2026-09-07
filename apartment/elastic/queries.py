@@ -262,12 +262,9 @@ def get_project(project_uuid):
     return _to_project_results(sources[:1])[0]
 
 
-def get_projects(include_archived=False, **filters):
+def get_projects(**filters):
     sources = _fetch_all("projects", params=filters)
-    projects = _to_project_results(sources)
-    if include_archived:
-        return projects
-    return [project for project in projects if project.project_archived is not True]
+    return _to_project_results(sources)
 
 
 def get_project_apartment_sale_state_counts(
