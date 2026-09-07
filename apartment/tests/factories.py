@@ -185,7 +185,7 @@ class ApartmentDocumentFactory(factory.Factory):
     project_payment_recipient = fuzzy.FuzzyText()
     project_payment_recipient_final = fuzzy.FuzzyText()
     project_published = Faker("boolean")
-    project_archived = Faker("boolean")
+    project_archived = False
 
     project_use_complete_contract = False
 
