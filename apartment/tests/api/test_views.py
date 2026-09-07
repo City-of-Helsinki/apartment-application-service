@@ -142,6 +142,27 @@ def test_project_list_include_archived_returns_archived_projects(
 
 
 @pytest.mark.django_db
+def test_project_list_forwards_include_archived_to_projects_query(
+    sales_ui_salesperson_api_client, monkeypatch
+):
+    captured_filters = {}
+
+    def _mock_get_projects(**filters):
+        captured_filters.update(filters)
+        return []
+
+    monkeypatch.setattr("apartment.api.views.get_projects", _mock_get_projects)
+
+    response = sales_ui_salesperson_api_client.get(
+        f"{reverse('apartment:project-list')}?include_archived=true",
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert captured_filters == {"include_archived": True}
+
+
+@pytest.mark.django_db
 @pytest.mark.usefixtures("elastic_apartments")
 def test_get_correct_project_data(sales_ui_salesperson_api_client):
     project = ApartmentDocumentFactory()
