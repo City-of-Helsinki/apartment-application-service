@@ -8,6 +8,7 @@ from django.http import Http404, HttpResponse
 from django.utils import timezone
 from django.utils.text import format_lazy
 from django.utils.translation import gettext_lazy as _
+from rest_framework import serializers
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.generics import RetrieveUpdateAPIView
 from rest_framework.pagination import PageNumberPagination
@@ -61,6 +62,10 @@ class ProjectListPagination(PageNumberPagination):
     max_page_size = 50
 
 
+class ProjectListQueryParamsSerializer(serializers.Serializer):
+    include_archived = serializers.BooleanField(required=False, default=False)
+
+
 class ApartmentAPIView(APIView):
     http_method_names = ["get"]
 
@@ -112,7 +117,12 @@ class ProjectAPIView(APIView):
                 project_data = get_project(project_uuid)
                 return self._get_single(project_data)
 
-            project_data = get_projects()
+            serializer = ProjectListQueryParamsSerializer(data=request.query_params)
+            serializer.is_valid(raise_exception=True)
+            project_filters = {}
+            if not serializer.validated_data["include_archived"]:
+                project_filters["project_archived"] = False
+            project_data = get_projects(**project_filters)
             return self._get_list(request, project_data)
         except ObjectDoesNotExist:
             raise NotFound()
