@@ -4,6 +4,7 @@ import pytest
 from django.contrib.auth.models import Group
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.translation import gettext
 
 from apartment.enums import OwnershipType
 from apartment_application_service.settings import (
@@ -298,6 +299,114 @@ def test_sales_application_post_after_deadline_fails_if_lottery_exists(
     )
     assert response.status_code == 400
     assert "lottery" in str(response.data).lower()
+
+
+@pytest.mark.django_db
+def test_sales_application_post_late_allowed_after_lottery(api_client, elasticsearch):
+    """
+    Explicit late applications must succeed after lottery when reopening is enabled.
+
+    - Regular post-deadline submit after lottery is blocked elsewhere
+    - submitted_late=True with project_can_apply_afterwards=True creates the
+      application and marks it submitted_late
+    - Works for HASO projects that already have LotteryEvent rows
+    """
+    salesperson_profile = ProfileFactory()
+    salesperson_group = Group.objects.get(name__iexact=Roles.DRUPAL_SALESPERSON.name)
+    salesperson_group.user_set.add(salesperson_profile.user)
+
+    customer_profile = ProfileFactory()
+    api_client.credentials(
+        HTTP_AUTHORIZATION=f"Bearer {_create_token(salesperson_profile)}"
+    )
+
+    application_start_time = (datetime.now() - timedelta(days=20)).replace(
+        tzinfo=timezone.get_default_timezone()
+    )
+    application_end_time = application_start_time - timedelta(days=10)
+
+    apartments = generate_apartments(
+        elasticsearch,
+        3,
+        {
+            "apartment_state_of_sale": ApartmentStateOfSale.FOR_SALE.value,
+            "_language": "fi",
+            "project_application_start_time": application_start_time,
+            "project_application_end_time": application_end_time,
+            "project_can_apply_afterwards": True,
+            "project_ownership_type": OwnershipType.HASO.value,
+        },
+    )
+
+    for apartment in apartments:
+        LotteryEvent.objects.create(apartment_uuid=apartment.uuid)
+
+    data = create_application_data(
+        customer_profile, num_applicants=1, apartments=apartments
+    )
+    data["profile"] = customer_profile.id
+    data["submitted_late"] = True
+
+    application = post_application(api_client, data)
+    assert application.submitted_late is True
+
+
+@pytest.mark.django_db
+def test_sales_application_post_late_after_lottery_rejected_without_reopening(
+    api_client, elasticsearch
+):
+    """
+    Late applications after lottery still require project_can_apply_afterwards.
+
+    - Lottery has been executed
+    - submitted_late=True but project_can_apply_afterwards=False
+    - Response is 400 with the late-application rejection message
+    - Must not use the regular "lottery executed" message
+    """
+    salesperson_profile = ProfileFactory()
+    salesperson_group = Group.objects.get(name__iexact=Roles.DRUPAL_SALESPERSON.name)
+    salesperson_group.user_set.add(salesperson_profile.user)
+
+    customer_profile = ProfileFactory()
+    api_client.credentials(
+        HTTP_AUTHORIZATION=f"Bearer {_create_token(salesperson_profile)}"
+    )
+
+    application_start_time = (datetime.now() - timedelta(days=20)).replace(
+        tzinfo=timezone.get_default_timezone()
+    )
+    application_end_time = application_start_time - timedelta(days=10)
+
+    apartments = generate_apartments(
+        elasticsearch,
+        3,
+        {
+            "apartment_state_of_sale": ApartmentStateOfSale.FOR_SALE.value,
+            "_language": "fi",
+            "project_application_start_time": application_start_time,
+            "project_application_end_time": application_end_time,
+            "project_can_apply_afterwards": False,
+            "project_ownership_type": OwnershipType.HASO.value,
+        },
+    )
+
+    for apartment in apartments:
+        LotteryEvent.objects.create(apartment_uuid=apartment.uuid)
+
+    data = create_application_data(
+        customer_profile, num_applicants=1, apartments=apartments
+    )
+    data["profile"] = customer_profile.id
+    data["submitted_late"] = True
+
+    response = api_client.post(
+        reverse("application_form:sales-application-list"), data, format="json"
+    )
+    assert response.status_code == 400
+    assert response.data["detail"]["message"] == gettext(
+        "Cannot submit late application to this apartment"
+    )
+    assert "lottery" not in str(response.data).lower()
 
 
 def post_application(client, data):

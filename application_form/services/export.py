@@ -225,6 +225,104 @@ class CSVExportService:
         return io.getvalue()
 
 
+class UnsoldApartmentsExportService(CSVExportService):
+    """Build CSV content for unsold apartments in a single project."""
+
+    HITAS_COLUMNS = [
+        ("Asunnon numero", "apartment_number"),
+        ("Kerros", "floor"),
+        ("Pinta-ala", "living_area"),
+        ("Huoneiston tyyppi", "apartment_structure"),
+        ("Myyntihinta", "sales_price"),
+        ("Yhtiölainaosuus", "loan_share"),
+        ("Velaton hinta", "debt_free_sales_price"),
+        ("Hoitovastike", "maintenance_fee"),
+        ("Rahoitusvastike", "financing_fee"),
+    ]
+
+    HASO_COLUMNS = [
+        ("Asunnon numero", "apartment_number"),
+        ("Kerros", "floor"),
+        ("Pinta-ala", "living_area"),
+        ("Huoneiston tyyppi", "apartment_structure"),
+        ("Kayttovastike", "maintenance_fee"),
+        ("Asumisoikeusmaksu", "right_of_occupancy_payment"),
+    ]
+
+    CENTS_FIELDS = {
+        "maintenance_fee",
+        "financing_fee",
+        "right_of_occupancy_payment",
+    }
+
+    def __init__(self, project, apartments):
+        """Initialize export service with project metadata and project apartments."""
+        self.project = project
+        self.apartments = apartments
+        self.COLUMNS = self._get_columns_for_ownership_type()
+
+    def _get_columns_for_ownership_type(self):
+        """Return CSV columns based on project ownership type."""
+        ownership_type = (self.project.project_ownership_type or "").strip().lower()
+        if ownership_type == OwnershipType.HITAS.value:
+            return self.HITAS_COLUMNS
+        if ownership_type == OwnershipType.HASO.value:
+            return self.HASO_COLUMNS
+
+        raise ValueError(
+            "Unsupported ownership type for unsold apartments export: "
+            f"{self.project.project_ownership_type}. Supported values are "
+            "Hitas and Haso."
+        )
+
+    def get_rows(self):
+        """Return CSV rows with header and unsold apartment rows."""
+        rows = [self._get_header_row()]
+        unsold_apartments = [
+            apartment
+            for apartment in self.apartments
+            if (apartment.apartment_state_of_sale or "").lower()
+            != ApartmentState.SOLD.value
+        ]
+        sorted_apartments = sorted(
+            unsold_apartments,
+            key=lambda apartment: get_apartment_number_sort_tuple(
+                apartment.apartment_number or ""
+            ),
+        )
+
+        rows.extend(
+            self.get_row(apartment=apartment) for apartment in sorted_apartments
+        )
+        return rows
+
+    def get_row(self, apartment):
+        """Map one apartment document into a CSV row."""
+        row = []
+        for _, field_name in self.COLUMNS:
+            value = getattr(apartment, field_name, "")
+            if field_name in self.CENTS_FIELDS and value is not None:
+                value = self._format_cents(value)
+            row.append("" if value is None else value)
+        return row
+
+    @staticmethod
+    def _format_cents(value: int) -> str:
+        """Convert integer cents to Finnish decimal format with two decimals."""
+        return f"{(Decimal(value) / 100).quantize(Decimal('0.01')):.2f}".replace(
+            ".", ","
+        )
+
+    def get_csv_bytes(self):
+        """Return CSV bytes encoded as UTF-8 with BOM for Excel compatibility."""
+        return self.get_csv_string().encode(self.FILE_ENCODING)
+
+    def get_csv_string(self):
+        """Return CSV string with explicit delimiter hint for Excel."""
+        csv_body = super().get_csv_string()
+        return f"sep={self.CSV_DELIMITER}\r\n{csv_body}"
+
+
 class ApplicantMailingListExportService(CSVExportService):
     COLUMNS = [
         ("Asunnon numero", "apartment_number"),

@@ -58,6 +58,8 @@ class ApartmentMinimalFactory(ApartmentDocumentFactory):
     url = fuzzy.FuzzyText(length=20)
     publish_on_etuovi = Faker("boolean")
     publish_on_oikotie = Faker("boolean")
+    apartment_published = True
+    project_published = True
 
     @classmethod
     def create_batch_with_flags_published_and_state_of_sale(
@@ -76,6 +78,8 @@ class ApartmentMinimalFactory(ApartmentDocumentFactory):
                 publish_on_etuovi=published_on_etuovi,
                 publish_on_oikotie=published_on_oikotie,
                 apartment_state_of_sale=for_sale,
+                apartment_published=True,
+                project_published=True,
                 _language="fi",
             )
             for i in range(size)
@@ -90,6 +94,8 @@ class ApartmentMinimalFactory(ApartmentDocumentFactory):
                 publish_on_etuovi=True,
                 publish_on_oikotie=True,
                 apartment_state_of_sale="FOR_SALE",
+                apartment_published=True,
+                project_published=True,
                 _language="fi",
             )
             for _ in range(size)

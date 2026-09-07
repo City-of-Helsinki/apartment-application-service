@@ -26,7 +26,30 @@ from connections.enums import (
 )
 from connections.etuovi.services import get_apartments_for_etuovi
 from connections.oikotie.services import get_apartments_for_oikotie
+from connections.tests.factories import ApartmentMinimalFactory
 from connections.utils import validate_apartment_required_fields
+
+
+def _for_sale_vendor_apartment(**overrides):
+    """
+    Create an apartment that otherwise qualifies for Etuovi and Oikotie export.
+
+    Parameters:
+    overrides: Field values that replace the for-sale published defaults.
+
+    Returns:
+    Apartment document stored in the test apartment store.
+    """
+    defaults = {
+        "_language": "fi",
+        "apartment_state_of_sale": ApartmentStateOfSale.FOR_SALE,
+        "publish_on_etuovi": True,
+        "publish_on_oikotie": True,
+        "apartment_published": True,
+        "project_published": True,
+    }
+    defaults.update(overrides)
+    return ApartmentMinimalFactory.create(**defaults)
 
 
 @integration_test
@@ -284,50 +307,190 @@ class TestValidateApartmentRequiredFields:
         assert "field5" not in missing_fields
 
 
-class TestGetApartmentsForEtuovi:
-    """Test get_apartments_for_etuovi function"""
+_VENDOR_FETCH_EXPECTED_KWARGS = {
+    "etuovi": {
+        "_language": "fi",
+        "publish_on_etuovi": True,
+        "apartment_published": True,
+        "project_published": True,
+        "include_project_fields": True,
+    },
+    "oikotie": {
+        "_language": "fi",
+        "publish_on_oikotie": True,
+        "apartment_published": True,
+        "project_published": True,
+        "include_project_fields": True,
+    },
+}
 
-    @patch("connections.etuovi.services.get_apartments")
-    def test_filters_correctly(self, mock_get_apartments):
-        """Test that function filters apartments correctly"""
-        mock_get_apartments.return_value = [Mock(), Mock()]
 
-        result = get_apartments_for_etuovi()
+@pytest.mark.parametrize(
+    "fetch_apartments,patch_target,expected_kwargs",
+    [
+        (
+            get_apartments_for_etuovi,
+            "connections.etuovi.services.get_apartments",
+            _VENDOR_FETCH_EXPECTED_KWARGS["etuovi"],
+        ),
+        (
+            get_apartments_for_oikotie,
+            "connections.oikotie.services.get_apartments",
+            _VENDOR_FETCH_EXPECTED_KWARGS["oikotie"],
+        ),
+    ],
+    ids=["etuovi", "oikotie"],
+)
+class TestGetApartmentsForVendor:
+    """Vendor fetch helpers query published apartments and exclude SOLD."""
 
-        mock_get_apartments.assert_called_once_with(
-            _language="fi",
-            apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE,
-            publish_on_etuovi=True,
-            include_project_fields=True,
+    def test_does_not_filter_by_for_sale_state(
+        self, fetch_apartments, patch_target, expected_kwargs
+    ):
+        """
+        - get_apartments is called without apartment_state_of_sale=FOR_SALE.
+        - Publish and language filters are still applied.
+        """
+        with patch(patch_target) as mock_get_apartments:
+            mock_get_apartments.return_value = []
+
+            result = fetch_apartments()
+
+            mock_get_apartments.assert_called_once_with(**expected_kwargs)
+            assert "apartment_state_of_sale" not in mock_get_apartments.call_args.kwargs
+            assert hasattr(result, "__iter__")
+            list(result)
+
+    def test_excludes_sold_apartments_from_get_apartments_results(
+        self, fetch_apartments, patch_target, expected_kwargs  # noqa: ARG002
+    ):
+        """
+        - Apartments with apartment_state_of_sale=SOLD are not returned.
+        - Apartments in any other sale state are returned.
+        """
+        sold = Mock(apartment_state_of_sale=ApartmentStateOfSale.SOLD)
+        reserved = Mock(apartment_state_of_sale=ApartmentStateOfSale.RESERVED)
+        for_sale = Mock(apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE)
+
+        with patch(patch_target) as mock_get_apartments:
+            mock_get_apartments.return_value = [sold, reserved, for_sale]
+
+            result = list(fetch_apartments())
+
+        assert sold not in result
+        assert reserved in result
+        assert for_sale in result
+
+
+@pytest.mark.usefixtures("elasticsearch")
+@pytest.mark.parametrize(
+    "fetch_apartments",
+    [get_apartments_for_etuovi, get_apartments_for_oikotie],
+    ids=["etuovi", "oikotie"],
+)
+class TestVendorApartmentFetchExcludesUnpublished:
+    """Vendor fetch helpers must skip unpublished apartments and projects."""
+
+    def test_returns_published_apartments_in_published_projects(self, fetch_apartments):
+        """
+        - Apartments with apartment_published=True and project_published=True
+          are returned.
+        """
+        included = _for_sale_vendor_apartment()
+
+        result_uuids = [apartment.uuid for apartment in fetch_apartments()]
+
+        assert included.uuid in result_uuids
+
+    def test_does_not_return_unpublished_apartments(self, fetch_apartments):
+        """
+        - Apartments with apartment_published=False are not returned.
+        - A published apartment in the same query is still returned.
+        """
+        included = _for_sale_vendor_apartment(apartment_published=True)
+        unpublished = _for_sale_vendor_apartment(apartment_published=False)
+
+        result_uuids = [apartment.uuid for apartment in fetch_apartments()]
+
+        assert included.uuid in result_uuids
+        assert unpublished.uuid not in result_uuids
+
+    def test_does_not_return_apartments_in_unpublished_projects(self, fetch_apartments):
+        """
+        - Apartments with project_published=False are not returned.
+        - An apartment in a published project is still returned.
+        """
+        included = _for_sale_vendor_apartment(project_published=True)
+        unpublished_project = _for_sale_vendor_apartment(project_published=False)
+
+        result_uuids = [apartment.uuid for apartment in fetch_apartments()]
+
+        assert included.uuid in result_uuids
+        assert unpublished_project.uuid not in result_uuids
+
+    def test_does_not_return_unpublished_apartment_in_unpublished_project(
+        self, fetch_apartments
+    ):
+        """
+        - Apartments with apartment_published=False and
+          project_published=False are not returned.
+        """
+        unpublished = _for_sale_vendor_apartment(
+            apartment_published=False, project_published=False
         )
 
-        # Verify result is iterable
-        assert hasattr(result, "__iter__")
-        # Verify we can iterate over the result
-        list(result)  # Consume the iterator
+        result_uuids = [apartment.uuid for apartment in fetch_apartments()]
+
+        assert unpublished.uuid not in result_uuids
 
 
-class TestGetApartmentsForOikotie:
-    """Test get_apartments_for_oikotie function"""
+@pytest.mark.usefixtures("elasticsearch")
+@pytest.mark.parametrize(
+    "fetch_apartments",
+    [get_apartments_for_etuovi, get_apartments_for_oikotie],
+    ids=["etuovi", "oikotie"],
+)
+class TestVendorApartmentFetchExcludesSold:
+    """Vendor fetch helpers must include unsold apartments and skip SOLD."""
 
-    @patch("connections.oikotie.services.get_apartments")
-    def test_filters_correctly(self, mock_get_apartments):
-        """Test that function filters apartments correctly"""
-        mock_get_apartments.return_value = [Mock(), Mock()]
+    @pytest.mark.parametrize(
+        "state_of_sale",
+        [
+            ApartmentStateOfSale.FOR_SALE,
+            ApartmentStateOfSale.OPEN_FOR_APPLICATIONS,
+            ApartmentStateOfSale.FREE_FOR_RESERVATIONS,
+            ApartmentStateOfSale.RESERVED,
+            ApartmentStateOfSale.RESERVED_HASO,
+        ],
+    )
+    def test_returns_apartments_that_are_not_sold(
+        self, fetch_apartments, state_of_sale
+    ):
+        """
+        - Apartments whose sale state is not SOLD are returned.
+        """
+        included = _for_sale_vendor_apartment(apartment_state_of_sale=state_of_sale)
 
-        result = get_apartments_for_oikotie()
+        result_uuids = [apartment.uuid for apartment in fetch_apartments()]
 
-        mock_get_apartments.assert_called_once_with(
-            _language="fi",
-            apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE,
-            publish_on_oikotie=True,
-            include_project_fields=True,
+        assert included.uuid in result_uuids
+
+    def test_does_not_return_sold_apartments(self, fetch_apartments):
+        """
+        - Apartments with apartment_state_of_sale=SOLD are not returned.
+        - An unsold apartment in the same query is still returned.
+        """
+        included = _for_sale_vendor_apartment(
+            apartment_state_of_sale=ApartmentStateOfSale.RESERVED
+        )
+        sold = _for_sale_vendor_apartment(
+            apartment_state_of_sale=ApartmentStateOfSale.SOLD
         )
 
-        # Verify result is iterable
-        assert hasattr(result, "__iter__")
-        # Verify we can iterate over the result
-        list(result)  # Consume the iterator
+        result_uuids = [apartment.uuid for apartment in fetch_apartments()]
+
+        assert included.uuid in result_uuids
+        assert sold.uuid not in result_uuids
 
 
 class TestGetOikotieRequiredFieldsForOwnershipType:
