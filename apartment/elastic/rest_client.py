@@ -163,6 +163,13 @@ class DrupalSearchClient:
         return payload
 
     def _normalize_pagination_params(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Map Django-style limit/offset onto Drupal search query params.
+
+        Drupal getPaginationWithPage uses `from` when present. Converting
+        offset to `page` with the requested size repeats or skips hits when
+        the server caps size below that request (apartments max is 250).
+        """
         size_value = params.pop("limit", None)
         if size_value is not None and "size" not in params:
             params["size"] = size_value
@@ -174,17 +181,6 @@ class DrupalSearchClient:
         offset_value = params.pop("offset", None)
         if offset_value is None:
             return params
-
-        if "size" in params:
-            try:
-                size = int(params["size"])
-                offset = int(offset_value)
-            except (TypeError, ValueError):
-                params["from"] = offset_value
-                return params
-            if size > 0:
-                params["page"] = max(1, (offset // size) + 1)
-                return params
 
         if "from" not in params:
             params["from"] = offset_value
