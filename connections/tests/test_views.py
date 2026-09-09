@@ -52,6 +52,27 @@ def _for_sale_vendor_apartment(**overrides):
     return ApartmentMinimalFactory.create(**defaults)
 
 
+def _unfiltered_vendor_hit(**overrides):
+    """
+    Build an apartment as Drupal may return it when query filters are ignored.
+
+    Parameters:
+        overrides: Field values that replace the published-for-vendor defaults.
+
+    Returns:
+        Mock apartment with Etuovi/Oikotie export flags set.
+    """
+    attrs = {
+        "apartment_state_of_sale": ApartmentStateOfSale.FOR_SALE,
+        "publish_on_etuovi": True,
+        "publish_on_oikotie": True,
+        "apartment_published": True,
+        "project_published": True,
+    }
+    attrs.update(overrides)
+    return Mock(**attrs)
+
+
 @integration_test
 def test_fetch_all_adaptive_pagination():
     """
@@ -127,25 +148,54 @@ def test_get_apartments_for_etuovi_only_returns_publish_on_etuovi():
     - Every returned apartment has publish_on_etuovi=True.
     - Apartments Drupal lists without that flag are absent from the result.
     """
+    _assert_vendor_export_only_returns_publish_flag(
+        get_apartments_for_etuovi, "publish_on_etuovi"
+    )
+
+
+@integration_test
+def test_get_apartments_for_oikotie_only_returns_publish_on_oikotie():
+    """
+    Against real Drupal, get_apartments_for_oikotie must not return apartments
+    that are not flagged for Oikotie.
+
+    - Every returned apartment has publish_on_oikotie=True.
+    - Apartments Drupal lists without that flag are absent from the result.
+    """
+    _assert_vendor_export_only_returns_publish_flag(
+        get_apartments_for_oikotie, "publish_on_oikotie"
+    )
+
+
+def _assert_vendor_export_only_returns_publish_flag(fetch_apartments, publish_attr):
+    """
+    Assert a vendor fetch helper returns only apartments with the given flag.
+
+    Parameters:
+        fetch_apartments: get_apartments_for_etuovi or get_apartments_for_oikotie.
+        publish_attr (str): Document flag name, e.g. publish_on_etuovi.
+    """
     import apartment.elastic.queries as queries
 
     queries._client = None
 
-    etuovi_apartments = list(get_apartments_for_etuovi())
-    assert all(apartment.publish_on_etuovi is True for apartment in etuovi_apartments)
+    vendor_apartments = list(fetch_apartments())
+    assert all(
+        getattr(apartment, publish_attr) is True for apartment in vendor_apartments
+    )
 
     all_apartments = get_apartments(
         _language="fi",
         include_project_fields=True,
         t=str(int(time.time())),
     )
-    etuovi_uuids = {apartment.uuid for apartment in etuovi_apartments}
-    not_for_etuovi_uuids = {
+    vendor_uuids = {apartment.uuid for apartment in vendor_apartments}
+    not_for_vendor_uuids = {
         apartment.uuid
         for apartment in all_apartments
-        if apartment.publish_on_etuovi is not True
+        if getattr(apartment, publish_attr) is not True
     }
-    assert not_for_etuovi_uuids.isdisjoint(etuovi_uuids)
+    assert not_for_vendor_uuids.isdisjoint(vendor_uuids)
 
 
 @pytest.mark.parametrize("endpoint", ["projects", "apartments"])
@@ -398,9 +448,13 @@ class TestGetApartmentsForVendor:
         - Apartments with apartment_state_of_sale=SOLD are not returned.
         - Apartments in any other sale state are returned.
         """
-        sold = Mock(apartment_state_of_sale=ApartmentStateOfSale.SOLD)
-        reserved = Mock(apartment_state_of_sale=ApartmentStateOfSale.RESERVED)
-        for_sale = Mock(apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE)
+        sold = _unfiltered_vendor_hit(apartment_state_of_sale=ApartmentStateOfSale.SOLD)
+        reserved = _unfiltered_vendor_hit(
+            apartment_state_of_sale=ApartmentStateOfSale.RESERVED
+        )
+        for_sale = _unfiltered_vendor_hit(
+            apartment_state_of_sale=ApartmentStateOfSale.FOR_SALE
+        )
 
         with patch(patch_target) as mock_get_apartments:
             mock_get_apartments.return_value = [sold, reserved, for_sale]
@@ -410,6 +464,30 @@ class TestGetApartmentsForVendor:
         assert sold not in result
         assert reserved in result
         assert for_sale in result
+
+    def test_excludes_apartments_not_flagged_for_vendor(
+        self, fetch_apartments, patch_target, expected_kwargs
+    ):
+        """
+        Drupal may ignore vendor publish query params; the helper must still
+        drop unflagged apartments.
+
+        - Flagged apartments are returned.
+        - Apartments with the vendor publish flag set to False are not.
+        """
+        included = _unfiltered_vendor_hit()
+        if "publish_on_etuovi" in expected_kwargs:
+            excluded = _unfiltered_vendor_hit(publish_on_etuovi=False)
+        else:
+            excluded = _unfiltered_vendor_hit(publish_on_oikotie=False)
+
+        with patch(patch_target) as mock_get_apartments:
+            mock_get_apartments.return_value = [included, excluded]
+
+            result = list(fetch_apartments())
+
+        assert included in result
+        assert excluded not in result
 
 
 @pytest.mark.usefixtures("elasticsearch")
@@ -475,24 +553,34 @@ class TestVendorApartmentFetchExcludesUnpublished:
 
 
 @pytest.mark.usefixtures("elasticsearch")
-class TestGetApartmentsForEtuoviPublishOnEtuovi:
-    """get_apartments_for_etuovi must return only Etuovi-flagged apartments."""
+@pytest.mark.parametrize(
+    "fetch_apartments,publish_attr",
+    [
+        (get_apartments_for_etuovi, "publish_on_etuovi"),
+        (get_apartments_for_oikotie, "publish_on_oikotie"),
+    ],
+    ids=["etuovi", "oikotie"],
+)
+class TestGetApartmentsForVendorPublishFlag:
+    """Vendor fetch helpers must return only apartments flagged for that vendor."""
 
-    def test_only_returns_apartments_with_publish_on_etuovi_true(self):
+    def test_only_returns_apartments_with_vendor_publish_flag_true(
+        self, fetch_apartments, publish_attr
+    ):
         """
-        - Apartments with publish_on_etuovi=True are returned.
-        - Apartments with publish_on_etuovi=False are not returned.
-        - Every returned apartment has publish_on_etuovi=True.
+        - Apartments with the vendor publish flag True are returned.
+        - Apartments with the vendor publish flag False are not returned.
+        - Every returned apartment has the vendor publish flag True.
         """
-        included = _for_sale_vendor_apartment(publish_on_etuovi=True)
-        excluded = _for_sale_vendor_apartment(publish_on_etuovi=False)
+        included = _for_sale_vendor_apartment(**{publish_attr: True})
+        excluded = _for_sale_vendor_apartment(**{publish_attr: False})
 
-        result = list(get_apartments_for_etuovi())
+        result = list(fetch_apartments())
         result_uuids = [apartment.uuid for apartment in result]
 
         assert included.uuid in result_uuids
         assert excluded.uuid not in result_uuids
-        assert all(apartment.publish_on_etuovi is True for apartment in result)
+        assert all(getattr(apartment, publish_attr) is True for apartment in result)
 
 
 @pytest.mark.usefixtures("elasticsearch")
