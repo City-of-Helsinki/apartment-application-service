@@ -118,6 +118,36 @@ def test_drupal_search_api_integration():
     ) == apartment_uuid
 
 
+@integration_test
+def test_get_apartments_for_etuovi_only_returns_publish_on_etuovi():
+    """
+    Against real Drupal, get_apartments_for_etuovi must not return apartments
+    that are not flagged for Etuovi.
+
+    - Every returned apartment has publish_on_etuovi=True.
+    - Apartments Drupal lists without that flag are absent from the result.
+    """
+    import apartment.elastic.queries as queries
+
+    queries._client = None
+
+    etuovi_apartments = list(get_apartments_for_etuovi())
+    assert all(apartment.publish_on_etuovi is True for apartment in etuovi_apartments)
+
+    all_apartments = get_apartments(
+        _language="fi",
+        include_project_fields=True,
+        t=str(int(time.time())),
+    )
+    etuovi_uuids = {apartment.uuid for apartment in etuovi_apartments}
+    not_for_etuovi_uuids = {
+        apartment.uuid
+        for apartment in all_apartments
+        if apartment.publish_on_etuovi is not True
+    }
+    assert not_for_etuovi_uuids.isdisjoint(etuovi_uuids)
+
+
 @pytest.mark.parametrize("endpoint", ["projects", "apartments"])
 @integration_test
 def test_drupal_rest_api_oauth2_bruteforce_protection(endpoint):
@@ -442,6 +472,27 @@ class TestVendorApartmentFetchExcludesUnpublished:
         result_uuids = [apartment.uuid for apartment in fetch_apartments()]
 
         assert unpublished.uuid not in result_uuids
+
+
+@pytest.mark.usefixtures("elasticsearch")
+class TestGetApartmentsForEtuoviPublishOnEtuovi:
+    """get_apartments_for_etuovi must return only Etuovi-flagged apartments."""
+
+    def test_only_returns_apartments_with_publish_on_etuovi_true(self):
+        """
+        - Apartments with publish_on_etuovi=True are returned.
+        - Apartments with publish_on_etuovi=False are not returned.
+        - Every returned apartment has publish_on_etuovi=True.
+        """
+        included = _for_sale_vendor_apartment(publish_on_etuovi=True)
+        excluded = _for_sale_vendor_apartment(publish_on_etuovi=False)
+
+        result = list(get_apartments_for_etuovi())
+        result_uuids = [apartment.uuid for apartment in result]
+
+        assert included.uuid in result_uuids
+        assert excluded.uuid not in result_uuids
+        assert all(apartment.publish_on_etuovi is True for apartment in result)
 
 
 @pytest.mark.usefixtures("elasticsearch")
