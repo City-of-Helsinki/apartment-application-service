@@ -34,10 +34,14 @@ def get_apartments_for_etuovi() -> Iterable:
         project_published=True,
         include_project_fields=True,
     )
+    # Drupal GET /apartments ignores these query params; enforce them here.
     return (
         apartment
         for apartment in apartments
         if apartment.apartment_state_of_sale != ApartmentStateOfSale.SOLD
+        and apartment.publish_on_etuovi is True
+        and apartment.apartment_published is True
+        and apartment.project_published is True
     )
 
 
