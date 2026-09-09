@@ -44,60 +44,115 @@ def _parse_hits(payload: Dict) -> Tuple[List[Dict], Optional[int]]:
     return sources, total
 
 
-def _fetch_all(path: str, params: Dict) -> List[Dict]:
-    client = _get_client()
-    sources: List[Dict] = []
-    total: Optional[int] = None
+def _request_page(
+    client: DrupalSearchClient,
+    path: str,
+    params: Dict,
+    offset: int,
+    limit: int,
+    timeout: Optional[int] = None,
+) -> Tuple[List[Dict], Optional[int]]:
+    """
+    Return one Drupal search page and its reported total.
 
-    # When caller sets explicit limit (e.g. get_apartment), use simple path.
-    if "limit" in params:
-        offset = 0
-        limit = int(params.get("limit", settings.DRUPAL_SEARCH_API_PAGE_SIZE))
-        page_params = {**params, "offset": offset, "limit": limit}
-        payload = client.get(path, params=page_params)
-        page_sources, page_total = _parse_hits(payload)
-        return page_sources
+    Parameters:
+        client (DrupalSearchClient): Search API client.
+        path (str): Relative listing path (e.g. apartments).
+        params (Dict): Caller filters; limit/offset are overwritten.
+        offset (int): Hit offset for this page.
+        limit (int): Requested page size (Drupal may cap it).
+        timeout (Optional[int]): Per-request timeout in seconds.
 
-    # Adaptive pagination: try size=1000 with low timeout (cache probe).
+    Returns:
+        Tuple[List[Dict], Optional[int]]: Page sources and hits.total.value.
+    """
+    page_params = {**params, "limit": limit, "offset": offset}
+    payload = client.get(path, params=page_params, timeout=timeout)
+    return _parse_hits(payload)
+
+
+def _fetch_first_page(
+    client: DrupalSearchClient, path: str, params: Dict
+) -> Tuple[List[Dict], Optional[int], int]:
+    """
+    Fetch the first page, falling back to a smaller size on timeout.
+
+    Parameters:
+        client (DrupalSearchClient): Search API client.
+        path (str): Relative listing path.
+        params (Dict): Caller filters.
+
+    Returns:
+        Tuple[List[Dict], Optional[int], int]: First-page sources, total, and
+        the page size to use for later requests.
+    """
     initial_size = 1000
     fallback_size = settings.DRUPAL_SEARCH_API_PAGE_SIZE
-    initial_timeout = settings.DRUPAL_SEARCH_API_INITIAL_TIMEOUT
-    full_timeout = settings.DRUPAL_SEARCH_API_TIMEOUT
-    page_sources: List[Dict] = []
-    limit = initial_size
-
     try:
-        page_params = {**params, "limit": initial_size, "offset": 0}
-
-        payload = client.get(path, params=page_params, timeout=initial_timeout)
-        page_sources, total = _parse_hits(payload)
-        sources.extend(page_sources)
-        offset = initial_size
+        page_sources, total = _request_page(
+            client,
+            path,
+            params,
+            0,
+            initial_size,
+            timeout=settings.DRUPAL_SEARCH_API_INITIAL_TIMEOUT,
+        )
+        return page_sources, total, initial_size
     except requests.exceptions.Timeout:
         try:
-            payload = client.get(path, params=page_params, timeout=full_timeout)
-            page_sources, total = _parse_hits(payload)
-            sources.extend(page_sources)
-            offset = initial_size
+            page_sources, total = _request_page(
+                client,
+                path,
+                params,
+                0,
+                initial_size,
+                timeout=settings.DRUPAL_SEARCH_API_TIMEOUT,
+            )
+            return page_sources, total, initial_size
         except requests.exceptions.Timeout:
-            limit = fallback_size
-            page_params = {**params, "limit": fallback_size, "offset": 0}
-            payload = client.get(path, params=page_params)
-            page_sources, total = _parse_hits(payload)
-            sources.extend(page_sources)
-            offset = fallback_size
+            page_sources, total = _request_page(client, path, params, 0, fallback_size)
+            return page_sources, total, fallback_size
+
+
+def _fetch_all(path: str, params: Dict) -> List[Dict]:
+    """
+    Fetch every hit from a Drupal search listing endpoint.
+
+    Drupal apartment endpoints cap page size at 250 even when a larger limit
+    is requested. Offset advances by the number of hits actually returned.
+    Paging stops when hits.total is reached or a page is empty.
+
+    Parameters:
+        path (str): Relative listing path (e.g. apartments).
+        params (Dict): Query filters. An explicit limit disables paging.
+
+    Returns:
+        List[Dict]: Concatenated _source dicts from all pages.
+    """
+    client = _get_client()
+
+    if "limit" in params:
+        limit = int(params.get("limit", settings.DRUPAL_SEARCH_API_PAGE_SIZE))
+        page_sources, _page_total = _request_page(client, path, params, 0, limit)
+        return page_sources
+
+    page_sources, total, limit = _fetch_first_page(client, path, params)
+    sources: List[Dict] = list(page_sources)
+    offset = len(page_sources)
 
     while True:
         if total is not None and offset >= total:
             break
-        if not page_sources or len(page_sources) < limit:
+        if not page_sources:
             break
 
-        page_params = {**params, "limit": limit, "offset": offset}
-        payload = client.get(path, params=page_params)
-        page_sources, _ = _parse_hits(payload)
+        page_sources, page_total = _request_page(client, path, params, offset, limit)
+        if page_total is not None:
+            total = page_total
+        if not page_sources:
+            break
         sources.extend(page_sources)
-        offset += limit
+        offset += len(page_sources)
 
     return sources
 
