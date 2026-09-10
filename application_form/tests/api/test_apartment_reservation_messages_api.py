@@ -241,9 +241,7 @@ def test_reservation_messages_post_sends_co_applicant_email_when_known(
     )
 
     assert response.status_code == 201
-    assert fake_client.post_calls == [
-        (drupal_id, "Hei", "co.applicant@example.com")
-    ]
+    assert fake_client.post_calls == [(drupal_id, "Hei", "co.applicant@example.com")]
 
 
 @pytest.mark.django_db

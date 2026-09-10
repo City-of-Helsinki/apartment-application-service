@@ -118,9 +118,7 @@ def test_post_sales_reply_sends_expected_payload(settings, monkeypatch):
 
 
 @pytest.mark.django_db
-def test_post_sales_reply_includes_co_applicant_email_when_given(
-    settings, monkeypatch
-):
+def test_post_sales_reply_includes_co_applicant_email_when_given(settings, monkeypatch):
     """Verify POST payload includes co_applicant_email when available.
 
     - Sends user body as-is.
@@ -212,9 +210,7 @@ def test_post_sales_reply_omits_blank_co_applicant_email(settings, monkeypatch):
 
 
 @pytest.mark.django_db
-def test_post_sales_reply_logs_co_applicant_presence(
-    settings, monkeypatch, caplog
-):
+def test_post_sales_reply_logs_co_applicant_presence(settings, monkeypatch, caplog):
     """Debug log should include metadata without exposing email value.
 
     - Logs application_id and sender_role.
