@@ -226,7 +226,12 @@ class DrupalMessagingClient:
             expected_statuses=(200,),
         )
 
-    def post_sales_reply(self, application_id: int, body: str) -> Dict[str, Any]:
+    def post_sales_reply(
+        self,
+        application_id: int,
+        body: str,
+        co_applicant_email: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """Create a salesperson message for a specific application."""
         if not isinstance(body, str) or not body.strip():
             raise DrupalMessagingClientError(
@@ -235,9 +240,21 @@ class DrupalMessagingClient:
                 message="Message body cannot be empty.",
             )
 
+        payload = {"body": body, "sender_role": "sales"}
+        if isinstance(co_applicant_email, str) and co_applicant_email.strip():
+            payload["co_applicant_email"] = co_applicant_email.strip()
+
+        _logger.debug(
+            "Posting sales message to Drupal: application_id=%s sender_role=%s "
+            "co_applicant_email_included=%s",
+            application_id,
+            payload["sender_role"],
+            "co_applicant_email" in payload,
+        )
+
         return self._request(
             method="POST",
             path=f"applications/{application_id}/messages",
-            payload={"body": body, "sender_role": "sales"},
+            payload=payload,
             expected_statuses=(200, 201),
         )
