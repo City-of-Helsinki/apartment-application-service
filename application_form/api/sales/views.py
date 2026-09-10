@@ -350,6 +350,18 @@ class ApartmentReservationViewSet(
             status=status.HTTP_200_OK,
         )
 
+    @staticmethod
+    def _get_co_applicant_email(application):
+        """Return secondary profile email if known for outgoing sales messages."""
+        customer = getattr(application, "customer", None)
+        secondary_profile = getattr(customer, "secondary_profile", None)
+        email = getattr(secondary_profile, "email", None)
+        if not isinstance(email, str):
+            return None
+
+        normalized_email = email.strip()
+        return normalized_email or None
+
     def _resolve_message_application(self, request, reservation):
         """Resolve linked application and Drupal id for reservation messages."""
         application_apartment = reservation.application_apartment
@@ -468,11 +480,15 @@ class ApartmentReservationViewSet(
 
         serializer = ReservationMessageCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        co_applicant_email = self._get_co_applicant_email(
+            reservation.application_apartment.application
+        )
 
         try:
             created_payload = client.post_sales_reply(
                 application_id=drupal_application_id,
                 body=serializer.validated_data["body"],
+                co_applicant_email=co_applicant_email,
             )
         except DrupalMessagingClientError as exc:
             return self._handle_drupal_messaging_error(exc, drupal_application_id)
