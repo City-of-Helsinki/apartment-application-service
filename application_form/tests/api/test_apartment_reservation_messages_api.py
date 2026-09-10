@@ -3,6 +3,7 @@ from django.urls import reverse
 
 from apartment.tests.factories import ApartmentDocumentFactory
 from application_form.tests.factories import ApartmentReservationFactory
+from users.tests.factories import ProfileFactory
 
 
 class _FakeMessagingClient:
@@ -19,8 +20,8 @@ class _FakeMessagingClient:
             raise self._to_raise
         return self._thread_payload
 
-    def post_sales_reply(self, application_id, body):
-        self.post_calls.append((application_id, body))
+    def post_sales_reply(self, application_id, body, co_applicant_email=None):
+        self.post_calls.append((application_id, body, co_applicant_email))
         if self._to_raise:
             raise self._to_raise
         return self._post_payload
@@ -189,7 +190,60 @@ def test_reservation_messages_post_success(
     assert response.data["created"] == 1710000000
     assert "created_at" in response.data
     assert "T" in response.data["created_at"]
-    assert fake_client.post_calls == [(drupal_id, "Hei")]
+    assert fake_client.post_calls == [(drupal_id, "Hei", None)]
+
+
+@pytest.mark.django_db
+def test_reservation_messages_post_sends_co_applicant_email_when_known(
+    sales_ui_salesperson_api_client, monkeypatch
+):
+    """POST includes co_applicant_email when secondary profile email exists.
+
+    - sender_role remains sales.
+    - Payload includes co_applicant_email for Drupal.
+    """
+
+    apartment = ApartmentDocumentFactory()
+    secondary_profile = ProfileFactory(email="co.applicant@example.com")
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        application_apartment__application__drupal_application_id=890,
+        application_apartment__application__customer__secondary_profile=(
+            secondary_profile
+        ),
+    )
+    drupal_id = reservation.application_apartment.application.drupal_application_id
+
+    fake_client = _FakeMessagingClient(
+        post_payload={
+            "message": "Message created.",
+            "item": {
+                "id": 12,
+                "application_id": drupal_id,
+                "sender_role": "sales",
+                "body": "Hei",
+                "created": 1710000002,
+            },
+        }
+    )
+    monkeypatch.setattr(
+        "application_form.api.sales.views.DrupalMessagingClient",
+        lambda: fake_client,
+    )
+
+    response = sales_ui_salesperson_api_client.post(
+        reverse(
+            "application_form:sales-apartment-reservation-messages",
+            kwargs={"pk": reservation.id},
+        ),
+        data={"body": "Hei"},
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert fake_client.post_calls == [
+        (drupal_id, "Hei", "co.applicant@example.com")
+    ]
 
 
 @pytest.mark.django_db

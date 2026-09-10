@@ -88,7 +88,14 @@ def test_post_sales_reply_sends_expected_payload(settings, monkeypatch):
             payload={"access_token": "token-post", "expires_in": 3600},
         )
 
-    def fake_request(method, url, json=None, headers=None, timeout=None, verify=None):
+    def fake_request(
+        method,
+        url,
+        json=None,
+        headers=None,
+        timeout=None,
+        verify=None,
+    ):
         assert method == "POST"
         captured["url"] = url
         captured["payload"] = json
@@ -108,6 +115,145 @@ def test_post_sales_reply_sends_expected_payload(settings, monkeypatch):
     assert captured["url"] == "https://drupal.example/applications/12/messages"
     assert captured["payload"] == {"body": "hello", "sender_role": "sales"}
     assert captured["auth"] == "Bearer token-post"
+
+
+@pytest.mark.django_db
+def test_post_sales_reply_includes_co_applicant_email_when_given(
+    settings, monkeypatch
+):
+    """Verify POST payload includes co_applicant_email when available.
+
+    - Sends user body as-is.
+    - Enforces sender_role="sales".
+    - Includes co_applicant_email when provided.
+    """
+    from django.core.cache import cache as django_cache
+
+    django_cache.clear()
+    _configure_drupal_search_settings(settings)
+
+    captured = {}
+
+    monkeypatch.setattr(
+        requests,
+        "post",
+        lambda *args, **kwargs: _FakeResponse(
+            status_code=200,
+            payload={"access_token": "token-post", "expires_in": 3600},
+        ),
+    )
+
+    def fake_request(
+        method,
+        url,
+        json=None,
+        headers=None,
+        timeout=None,
+        verify=None,
+    ):
+        captured["payload"] = json
+        return _FakeResponse(
+            status_code=201,
+            payload={"item": {"id": 2, "application_id": 12, "body": "hello"}},
+        )
+
+    monkeypatch.setattr(requests, "request", fake_request)
+
+    client = DrupalMessagingClient()
+    client.post_sales_reply(
+        12,
+        "hello",
+        co_applicant_email="co.applicant@example.com",
+    )
+
+    assert captured["payload"] == {
+        "body": "hello",
+        "sender_role": "sales",
+        "co_applicant_email": "co.applicant@example.com",
+    }
+
+
+@pytest.mark.django_db
+def test_post_sales_reply_omits_blank_co_applicant_email(settings, monkeypatch):
+    """Blank co_applicant_email should not break integration payload.
+
+    - Request is still sent successfully.
+    - Payload omits co_applicant_email when blank.
+    """
+    from django.core.cache import cache as django_cache
+
+    django_cache.clear()
+    _configure_drupal_search_settings(settings)
+
+    captured = {}
+
+    monkeypatch.setattr(
+        requests,
+        "post",
+        lambda *args, **kwargs: _FakeResponse(
+            status_code=200,
+            payload={"access_token": "token-post", "expires_in": 3600},
+        ),
+    )
+
+    def fake_request(method, url, json=None, headers=None, timeout=None, verify=None):
+        captured["payload"] = json
+        return _FakeResponse(
+            status_code=201,
+            payload={"item": {"id": 3, "application_id": 12, "body": "hello"}},
+        )
+
+    monkeypatch.setattr(requests, "request", fake_request)
+
+    client = DrupalMessagingClient()
+    client.post_sales_reply(12, "hello", co_applicant_email="   ")
+
+    assert captured["payload"] == {"body": "hello", "sender_role": "sales"}
+
+
+@pytest.mark.django_db
+def test_post_sales_reply_logs_co_applicant_presence(
+    settings, monkeypatch, caplog
+):
+    """Debug log should include metadata without exposing email value.
+
+    - Logs application_id and sender_role.
+    - Logs only whether co_applicant_email was included.
+    """
+    from django.core.cache import cache as django_cache
+
+    django_cache.clear()
+    _configure_drupal_search_settings(settings)
+
+    monkeypatch.setattr(
+        requests,
+        "post",
+        lambda *args, **kwargs: _FakeResponse(
+            status_code=200,
+            payload={"access_token": "token-post", "expires_in": 3600},
+        ),
+    )
+    monkeypatch.setattr(
+        requests,
+        "request",
+        lambda *args, **kwargs: _FakeResponse(
+            status_code=201,
+            payload={"item": {"id": 4, "application_id": 12, "body": "hello"}},
+        ),
+    )
+
+    client = DrupalMessagingClient()
+    with caplog.at_level("DEBUG"):
+        client.post_sales_reply(
+            12,
+            "hello",
+            co_applicant_email="co.applicant@example.com",
+        )
+
+    assert "application_id=12" in caplog.text
+    assert "sender_role=sales" in caplog.text
+    assert "co_applicant_email_included=True" in caplog.text
+    assert "co.applicant@example.com" not in caplog.text
 
 
 @pytest.mark.django_db
