@@ -72,7 +72,10 @@ def ensure_str(
 ) -> Optional[str]:
     """
     Convert Elasticsearch AttrList or other types to str for XML serialization.
+
     AttrList is not accepted by lxml when setting element text/attributes.
+    Empty or whitespace-only strings are treated as missing so optional
+    schema fields with URL patterns are omitted instead of emitted empty.
     """
     if value is None:
         return None
@@ -81,11 +84,28 @@ def ensure_str(
         if not items:
             return None
         if multi_join and len(items) > 1:
-            return ", ".join(str(x) for x in items if x is not None)
-        return str(items[0]) if items[0] is not None else None
-    if isinstance(value, (str, bytes)):
-        return value.decode() if isinstance(value, bytes) else value
-    return str(value)
+            text = ", ".join(str(x) for x in items if x is not None)
+        elif items[0] is None:
+            return None
+        else:
+            item = items[0]
+            if isinstance(item, bytes):
+                text = item.decode()
+            elif isinstance(item, str):
+                text = item
+            else:
+                text = str(item)
+    elif isinstance(value, bytes):
+        text = value.decode()
+    elif isinstance(value, str):
+        text = value
+    else:
+        text = str(value)
+
+    text = text.strip()
+    if not text:
+        return None
+    return text
 
 
 def ensure_date(value: Union[date, AttrList, None]) -> Optional[date]:
@@ -102,10 +122,9 @@ def ensure_date(value: Union[date, AttrList, None]) -> Optional[date]:
 
 
 def map_apartment_type(elastic_apartment: ElasticApartment) -> ApartmentType:
-    project_building_type = ensure_str(
-        getattr(elastic_apartment, "project_building_type", None)
-    )
-    if project_building_type == "":
+    raw_building_type = getattr(elastic_apartment, "project_building_type", None)
+    project_building_type = ensure_str(raw_building_type)
+    if project_building_type is None and isinstance(raw_building_type, str):
         project_building_type = "BLOCK_OF_FLATS"
     if project_building_type and project_building_type in APARTMENT_TYPE_MAPPING.keys():
         return APARTMENT_TYPE_MAPPING[project_building_type]

@@ -15,6 +15,7 @@ from apartment.enums import OwnershipType
 from apartment.tests.factories import ApartmentDocumentFactory
 from connections.models import MappedApartment
 from connections.oikotie.oikotie_mapper import (
+    ensure_str,
     form_description,
     map_address,
     map_apartment,
@@ -54,6 +55,28 @@ from connections.tests.utils import (
     publish_elastic_apartments,
     unpublish_elastic_oikotie_apartments,
 )
+
+
+class TestEnsureStr:
+    def test_ensure_str_none_stays_none(self):
+        """None is passed through as missing."""
+        assert ensure_str(None) is None
+
+    def test_ensure_str_empty_or_whitespace_is_none(self):
+        """
+        - Empty strings from Drupal/ES are treated as missing.
+        - Whitespace-only strings are treated as missing.
+        """
+        assert ensure_str("") is None
+        assert ensure_str("   ") is None
+        assert ensure_str(b"") is None
+        assert ensure_str(b"   ") is None
+
+    def test_ensure_str_preserves_non_empty_text(self):
+        """Non-empty strings and bytes are returned as stripped str."""
+        assert ensure_str("https://example.com") == "https://example.com"
+        assert ensure_str(b"https://example.com") == "https://example.com"
+        assert ensure_str("  https://example.com  ") == "https://example.com"
 
 
 class TestOikotieMapper:
@@ -379,6 +402,33 @@ class TestOikotieMapper:
         assert pictures[0].url == "https://test.example.com/image-0.jpg"
         assert pictures[99].url == "https://test.example.com/image-99.jpg"
         assert [picture.index for picture in pictures] == list(range(1, 101))
+
+    @pytest.mark.parametrize("value", ["", "   ", None])
+    def test_elastic_to_oikotie__virtual_presentation__blank_is_omitted(self, value):
+        """
+        - Empty or whitespace virtual presentation URLs are treated as missing.
+        - Oikotie schema requires VirtualPresentation to match http[s]?://.*.
+        """
+        elastic_apartment = ApartmentDocumentFactory(
+            project_virtual_presentation_url=value
+        )
+        mapped_apartment = map_oikotie_apartment(elastic_apartment)
+
+        assert mapped_apartment.virtual_presentation is None
+        assert mapped_apartment.to_etree().find("VirtualPresentation") is None
+
+    def test_elastic_to_oikotie__virtual_presentation__url_is_preserved(self):
+        """A real http(s) virtual presentation URL is mapped onto the apartment."""
+        url = "https://example.com/virtual-tour"
+        elastic_apartment = ApartmentDocumentFactory(
+            project_virtual_presentation_url=url
+        )
+        mapped_apartment = map_oikotie_apartment(elastic_apartment)
+        element = mapped_apartment.to_etree().find("VirtualPresentation")
+
+        assert mapped_apartment.virtual_presentation == url
+        assert element is not None
+        assert element.text == url
 
     def test_elastic_to_oikotie__real_estate_agent__mapping_types(self):
         elastic_apartment = ApartmentDocumentFactory()
