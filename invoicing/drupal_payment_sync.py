@@ -1,20 +1,21 @@
 import logging
-import time
 from datetime import datetime, timedelta
 from decimal import Decimal
 from threading import Thread
 from typing import Any, Dict, Optional
-from urllib.parse import urljoin, urlparse
 from uuid import uuid4
 
 import requests
 from django.conf import settings
-from django.core.cache import cache
 from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from apartment.elastic.queries import get_apartment
+from application_form.services.drupal_messaging import (
+    DrupalMessagingClient,
+    DrupalMessagingClientError,
+)
 from invoicing.models import DrupalPaymentSyncOutboxEvent
 
 logger = logging.getLogger(__name__)
@@ -24,7 +25,6 @@ DEFAULT_DRUPAL_PAYMENTS_SYNC_PATH = "/api/asu/application-payments/sync"
 DEFAULT_DRUPAL_PAYMENTS_SYNC_MAX_ATTEMPTS = 3
 DEFAULT_DRUPAL_PAYMENTS_SYNC_BACKOFF_BASE_SECONDS = 30
 DEFAULT_DRUPAL_PAYMENTS_SYNC_BACKOFF_MAX_SECONDS = 1800
-DRUPAL_PAYMENTS_SYNC_TOKEN_CACHE_KEY = "drupal_payment_sync:oauth_access_token:v1"
 
 
 class DrupalPaymentSyncError(Exception):
@@ -135,33 +135,6 @@ def _extract_value(data: Any, key: str) -> Any:
     if isinstance(data, dict):
         return data.get(key)
     return getattr(data, key, None)
-
-
-def _build_safe_url(base_url: str, path: str) -> str:
-    """Build a URL safely from configured base URL and relative path."""
-    if not isinstance(path, str) or not path.strip():
-        raise ValueError("Path must be a non-empty string.")
-
-    candidate = path.strip()
-    if "://" in candidate or candidate.startswith("//"):
-        raise ValueError("Absolute URLs are not allowed.")
-
-    segments = [segment for segment in candidate.split("/") if segment != ""]
-    if any(segment in {".", ".."} for segment in segments):
-        raise ValueError("Path traversal segments are not allowed.")
-
-    base = base_url.rstrip("/") + "/"
-    full = urljoin(base, "/".join(segments))
-
-    base_parsed = urlparse(base)
-    full_parsed = urlparse(full)
-    if (base_parsed.scheme, base_parsed.netloc) != (
-        full_parsed.scheme,
-        full_parsed.netloc,
-    ):
-        raise ValueError("Resolved URL escaped configured base URL.")
-
-    return full
 
 
 def build_drupal_payment_idempotency_key(
@@ -309,62 +282,27 @@ def _get_sync_auth_token() -> str:
     if explicit_token:
         return explicit_token
 
-    oauth_token = _get_oauth_access_token()
-    if oauth_token:
-        return oauth_token
+    # Skip OAuth fallback when required settings are not configured.
+    if all(
+        (
+            getattr(settings, "DRUPAL_SEARCH_API_TOKEN_URL", ""),
+            getattr(settings, "DRUPAL_SEARCH_API_CLIENT_ID", ""),
+            getattr(settings, "DRUPAL_SEARCH_API_CLIENT_SECRET", ""),
+        )
+    ):
+        oauth_token = _get_oauth_access_token()
+        if oauth_token:
+            return oauth_token
 
     return getattr(settings, "DRUPAL_SERVER_AUTH_TOKEN", "")
 
 
 def _get_oauth_access_token() -> str:
-    """Fetch and cache OAuth token from Drupal token endpoint."""
-    token_url = getattr(settings, "DRUPAL_SEARCH_API_TOKEN_URL", "")
-    client_id = getattr(settings, "DRUPAL_SEARCH_API_CLIENT_ID", "")
-    client_secret = getattr(settings, "DRUPAL_SEARCH_API_CLIENT_SECRET", "")
-
-    if not token_url or not client_id or not client_secret:
-        return ""
-
-    now = time.time()
-    cached = cache.get(DRUPAL_PAYMENTS_SYNC_TOKEN_CACHE_KEY)
-    if isinstance(cached, dict):
-        token = cached.get("token", "")
-        expires_at = float(cached.get("expires_at", 0))
-        if token and now < expires_at:
-            return token
-
+    """Fetch OAuth token using the project's existing Drupal client flow."""
     try:
-        response = requests.post(
-            token_url,
-            data={
-                "grant_type": "client_credentials",
-                "client_id": client_id,
-                "client_secret": client_secret,
-                "scope": "rest_client",
-            },
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-            timeout=_sync_timeout(),
-            verify=_sync_verify_ssl(),
-        )
-    except requests.RequestException:
+        return DrupalMessagingClient()._get_access_token()
+    except DrupalMessagingClientError:
         return ""
-
-    if response.status_code >= 400:
-        return ""
-
-    payload = response.json()
-    token = str(payload.get("access_token", ""))
-    if not token:
-        return ""
-
-    expires_in = int(payload.get("expires_in", 3600))
-    expires_at = now + max(expires_in - 30, 1)
-    cache.set(
-        DRUPAL_PAYMENTS_SYNC_TOKEN_CACHE_KEY,
-        {"token": token, "expires_at": expires_at},
-        timeout=max(expires_in - 30, 1),
-    )
-    return token
 
 
 def _post_event_to_drupal(
@@ -372,7 +310,7 @@ def _post_event_to_drupal(
     correlation_id: str,
 ) -> None:
     """Send a single outbox payment event to Drupal endpoint."""
-    url = _build_safe_url(
+    url = DrupalMessagingClient._build_safe_url(
         _sync_base_url(),
         _sync_path(),
     )
