@@ -43,10 +43,14 @@ class DrupalPaymentSyncNonRetryableError(DrupalPaymentSyncError):
     """Signals a non-retryable upstream failure."""
 
 
+def _get_sync_setting(name: str, default: Any) -> Any:
+    """Read sync setting with fallback to existing project configuration."""
+    return getattr(settings, name, default)
+
+
 def _sync_base_url() -> str:
     """Return Drupal payments sync base URL from existing project settings."""
-    return getattr(
-        settings,
+    return _get_sync_setting(
         "DRUPAL_PAYMENTS_SYNC_BASE_URL",
         settings.DRUPAL_SEARCH_API_BASE_URL,
     )
@@ -54,8 +58,7 @@ def _sync_base_url() -> str:
 
 def _sync_path() -> str:
     """Return Drupal payments sync relative path."""
-    return getattr(
-        settings,
+    return _get_sync_setting(
         "DRUPAL_PAYMENTS_SYNC_PATH",
         DEFAULT_DRUPAL_PAYMENTS_SYNC_PATH,
     )
@@ -64,8 +67,7 @@ def _sync_path() -> str:
 def _sync_timeout() -> int:
     """Return request timeout for Drupal payments sync."""
     return int(
-        getattr(
-            settings,
+        _get_sync_setting(
             "DRUPAL_PAYMENTS_SYNC_TIMEOUT",
             settings.DRUPAL_SEARCH_API_TIMEOUT,
         )
@@ -75,8 +77,7 @@ def _sync_timeout() -> int:
 def _sync_verify_ssl() -> bool:
     """Return SSL verification flag for Drupal payments sync."""
     return bool(
-        getattr(
-            settings,
+        _get_sync_setting(
             "DRUPAL_PAYMENTS_SYNC_VERIFY_SSL",
             settings.DRUPAL_SEARCH_API_VERIFY_SSL,
         )
@@ -466,6 +467,25 @@ def _save_event_outcome(
     event.save(update_fields=update_fields)
 
 
+def _build_event_log_extra(
+    event: DrupalPaymentSyncOutboxEvent,
+    *,
+    correlation_id: str,
+    status_code: Optional[int] = None,
+) -> Dict[str, Any]:
+    """Build common structured log payload for outbox event processing."""
+    extra = {
+        "event_id": event.id,
+        "source_event_id": str(event.source_event_id),
+        "idempotency_key": event.idempotency_key,
+        "correlation_id": correlation_id,
+        "attempts": event.attempts,
+    }
+    if status_code is not None:
+        extra["status_code"] = status_code
+    return extra
+
+
 def dispatch_drupal_payment_sync_events(batch_size: int = 100) -> int:
     """Dispatch pending/failed outbox events to Drupal with retries."""
     now = timezone.now()
@@ -504,39 +524,30 @@ def dispatch_drupal_payment_sync_events(batch_size: int = 100) -> int:
                 _mark_retryable_failure(event, exc)
                 logger.warning(
                     "drupal_payment_sync_retryable_failure",
-                    extra={
-                        "event_id": event.id,
-                        "source_event_id": str(event.source_event_id),
-                        "idempotency_key": event.idempotency_key,
-                        "correlation_id": correlation_id,
-                        "status_code": exc.status_code,
-                        "attempts": event.attempts,
-                    },
+                    extra=_build_event_log_extra(
+                        event,
+                        correlation_id=correlation_id,
+                        status_code=exc.status_code,
+                    ),
                 )
             except DrupalPaymentSyncNonRetryableError as exc:
                 _mark_non_retryable_failure(event, exc)
                 logger.error(
                     "drupal_payment_sync_non_retryable_failure",
-                    extra={
-                        "event_id": event.id,
-                        "source_event_id": str(event.source_event_id),
-                        "idempotency_key": event.idempotency_key,
-                        "correlation_id": correlation_id,
-                        "status_code": exc.status_code,
-                        "attempts": event.attempts,
-                    },
+                    extra=_build_event_log_extra(
+                        event,
+                        correlation_id=correlation_id,
+                        status_code=exc.status_code,
+                    ),
                 )
             else:
                 _mark_sent_success(event)
                 logger.info(
                     "drupal_payment_sync_success",
-                    extra={
-                        "event_id": event.id,
-                        "source_event_id": str(event.source_event_id),
-                        "idempotency_key": event.idempotency_key,
-                        "correlation_id": correlation_id,
-                        "attempts": event.attempts,
-                    },
+                    extra=_build_event_log_extra(
+                        event,
+                        correlation_id=correlation_id,
+                    ),
                 )
 
             processed += 1

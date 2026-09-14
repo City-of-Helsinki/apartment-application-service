@@ -439,6 +439,7 @@ def test_add_to_sap_repeat_does_not_duplicate_outbox(
 @pytest.mark.django_db
 def test_add_to_sap_triggers_background_dispatch(
     sales_ui_salesperson_api_client,
+    django_capture_on_commit_callbacks,
     monkeypatch,
 ):
     """Add-to-SAP should schedule best-effort background Drupal sync.
@@ -468,18 +469,21 @@ def test_add_to_sap_triggers_background_dispatch(
         fake_trigger,
     )
 
-    response = sales_ui_salesperson_api_client.post(
-        url + f"?types={installment.type.value}",
-        format="json",
-    )
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+        response = sales_ui_salesperson_api_client.post(
+            url + f"?types={installment.type.value}",
+            format="json",
+        )
 
     assert response.status_code == 200
+    assert len(callbacks) == 1
     assert captured["called"] == 1
 
 
 @pytest.mark.django_db
 def test_add_to_sap_ignores_background_dispatch_failures(
     sales_ui_salesperson_api_client,
+    django_capture_on_commit_callbacks,
     monkeypatch,
 ):
     """Best-effort trigger failures must not fail SAP-facing endpoint.
@@ -507,12 +511,14 @@ def test_add_to_sap_ignores_background_dispatch_failures(
         failing_trigger,
     )
 
-    response = sales_ui_salesperson_api_client.post(
-        url + f"?types={installment.type.value}",
-        format="json",
-    )
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+        response = sales_ui_salesperson_api_client.post(
+            url + f"?types={installment.type.value}",
+            format="json",
+        )
 
     assert response.status_code == 200
+    assert len(callbacks) == 1
 
 
 @pytest.mark.django_db

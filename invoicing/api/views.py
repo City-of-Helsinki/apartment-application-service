@@ -127,11 +127,11 @@ class ApartmentInstallmentAddToSapAPIView(APIView):
         reservation = get_object_or_404(
             ApartmentReservation, pk=kwargs["apartment_reservation_id"]
         )
-        installments = ApartmentInstallment.objects.filter(
-            apartment_reservation_id=reservation.id
-        ).select_related(
-            "apartment_reservation__application_apartment__application"
-        ).order_by("id")
+        installments = (
+            ApartmentInstallment.objects.filter(apartment_reservation_id=reservation.id)
+            .select_related("apartment_reservation__application_apartment__application")
+            .order_by("id")
+        )
 
         if type_params := request.query_params.get("types"):
             types = [e for e in InstallmentType if e.value in type_params.split(",")]
