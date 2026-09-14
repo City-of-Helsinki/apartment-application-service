@@ -1,5 +1,6 @@
-from django.db import transaction
+﻿from django.db import transaction
 from django.http import Http404, HttpResponse
+from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from rest_framework import generics
@@ -12,6 +13,10 @@ from apartment.elastic.queries import get_apartment
 from application_form.models import ApartmentReservation
 from audit_log import audit_logging
 from audit_log.enums import Operation
+from invoicing.drupal_payment_sync import (
+    create_drupal_payment_sync_outbox_event,
+    trigger_drupal_payment_sync_background_dispatch,
+)
 
 from ..api.serializers import (
     ApartmentInstallmentSerializer,
@@ -122,9 +127,11 @@ class ApartmentInstallmentAddToSapAPIView(APIView):
         reservation = get_object_or_404(
             ApartmentReservation, pk=kwargs["apartment_reservation_id"]
         )
-        installments = ApartmentInstallment.objects.filter(
-            apartment_reservation_id=reservation.id
-        ).order_by("id")
+        installments = (
+            ApartmentInstallment.objects.filter(apartment_reservation_id=reservation.id)
+            .select_related("apartment_reservation__application_apartment__application")
+            .order_by("id")
+        )
 
         if type_params := request.query_params.get("types"):
             types = [e for e in InstallmentType if e.value in type_params.split(",")]
@@ -133,27 +140,34 @@ class ApartmentInstallmentAddToSapAPIView(APIView):
         if not installments.exists():
             raise Http404
 
-        # Check that all apartments have a property number
-        for installment in installments:
-            apartment = get_apartment(
-                installment.apartment_reservation.apartment_uuid,
-                include_project_fields=True,
+        apartment = get_apartment(
+            reservation.apartment_uuid,
+            include_project_fields=True,
+        )
+        property_number = getattr(apartment, "project_property_number", None)
+        if not property_number:
+            raise ValidationError(
+                f"Apartment {apartment.title} does not have a property number."
             )
-            property_number = getattr(apartment, "project_property_number", None)
-            if not property_number:
-                raise ValidationError(
-                    f"Apartment {apartment.title} does not have a property number."
-                )
 
         with transaction.atomic():
+            sent_to_sap_at = timezone.now()
             for installment in installments:
                 try:
-                    installment.add_to_be_sent_to_sap()
+                    installment.add_to_be_sent_to_sap(timestamp=sent_to_sap_at)
                 except AlreadyAddedToBeSentToSapError:
                     raise ValidationError(
                         f"{installment.type.value} already added to be sent to SAP."
                     )
+                create_drupal_payment_sync_outbox_event(
+                    installment=installment,
+                    sent_to_sap_at=sent_to_sap_at,
+                )
                 audit_logging.log(self.request.user, Operation.UPDATE, installment)
+            transaction.on_commit(
+                trigger_drupal_payment_sync_background_dispatch,
+                robust=True,
+            )
 
         seri = ApartmentInstallmentSerializer(
             reservation.apartment_installments.order_by("id"), many=True
