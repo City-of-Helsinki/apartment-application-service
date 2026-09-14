@@ -15,7 +15,7 @@ from invoicing.drupal_payment_sync import (
     create_drupal_payment_sync_outbox_event,
     dispatch_drupal_payment_sync_events,
 )
-from invoicing.models import ApartmentInstallment, DrupalPaymentSyncOutboxEvent
+from invoicing.models import DrupalPaymentSyncOutboxEvent
 from invoicing.tests.factories import ApartmentInstallmentFactory
 
 
@@ -302,7 +302,10 @@ def test_dispatch_prefers_oauth_token_over_server_token(
 
 
 @pytest.mark.django_db
-def test_dispatch_5xx_retries_then_dead_letter(drupal_payment_sync_settings, monkeypatch):
+def test_dispatch_5xx_retries_then_dead_letter(
+    drupal_payment_sync_settings,
+    monkeypatch,
+):
     """Server errors should be retried with bounded attempts.
 
     - First failure goes to failed state with next retry timestamp.

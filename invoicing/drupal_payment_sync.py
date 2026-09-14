@@ -1,8 +1,8 @@
 import logging
 import time
-from threading import Thread
 from datetime import datetime, timedelta
 from decimal import Decimal
+from threading import Thread
 from typing import Any, Dict, Optional
 from urllib.parse import urljoin, urlparse
 from uuid import uuid4
@@ -171,9 +171,7 @@ def build_drupal_payment_idempotency_key(
     reference_number: str,
 ) -> str:
     """Build deterministic idempotency key for a Drupal payment sync row."""
-    return (
-        f"{application_id}:{reservation_id}:{installment_type}:{reference_number}"
-    )
+    return f"{application_id}:{reservation_id}:{installment_type}:{reference_number}"
 
 
 def _format_amount(amount: Decimal) -> str:
@@ -368,7 +366,10 @@ def _get_oauth_access_token() -> str:
     return token
 
 
-def _post_event_to_drupal(event: DrupalPaymentSyncOutboxEvent, correlation_id: str) -> None:
+def _post_event_to_drupal(
+    event: DrupalPaymentSyncOutboxEvent,
+    correlation_id: str,
+) -> None:
     """Send a single outbox payment event to Drupal endpoint."""
     url = _build_safe_url(
         _sync_base_url(),
@@ -430,17 +431,7 @@ def _mark_retryable_failure(
         delay_seconds = _get_retry_delay_seconds(next_attempt_count)
         event.next_retry_at = timezone.now() + timedelta(seconds=delay_seconds)
 
-    event.save(
-        update_fields=[
-            "attempts",
-            "status",
-            "last_error_code",
-            "last_error_message",
-            "next_retry_at",
-            "processed_at",
-            "updated_at",
-        ]
-    )
+    _save_event_outcome(event, include_next_retry=True)
 
 
 def _mark_non_retryable_failure(
@@ -453,16 +444,26 @@ def _mark_non_retryable_failure(
     event.last_error_code = str(exc.status_code or "validation_error")
     event.last_error_message = str(exc)
     event.processed_at = timezone.now()
-    event.save(
-        update_fields=[
-            "attempts",
-            "status",
-            "last_error_code",
-            "last_error_message",
-            "processed_at",
-            "updated_at",
-        ]
-    )
+    _save_event_outcome(event, include_next_retry=False)
+
+
+def _save_event_outcome(
+    event: DrupalPaymentSyncOutboxEvent,
+    *,
+    include_next_retry: bool,
+) -> None:
+    """Persist outbox state transitions with common update fields."""
+    update_fields = [
+        "attempts",
+        "status",
+        "last_error_code",
+        "last_error_message",
+        "processed_at",
+        "updated_at",
+    ]
+    if include_next_retry:
+        update_fields.append("next_retry_at")
+    event.save(update_fields=update_fields)
 
 
 def dispatch_drupal_payment_sync_events(batch_size: int = 100) -> int:
@@ -526,21 +527,7 @@ def dispatch_drupal_payment_sync_events(batch_size: int = 100) -> int:
                     },
                 )
             else:
-                event.status = DrupalPaymentSyncOutboxEvent.Status.SENT
-                event.attempts = event.attempts + 1
-                event.processed_at = timezone.now()
-                event.last_error_code = ""
-                event.last_error_message = ""
-                event.save(
-                    update_fields=[
-                        "status",
-                        "attempts",
-                        "processed_at",
-                        "last_error_code",
-                        "last_error_message",
-                        "updated_at",
-                    ]
-                )
+                _mark_sent_success(event)
                 logger.info(
                     "drupal_payment_sync_success",
                     extra={
@@ -568,6 +555,25 @@ def dispatch_drupal_payment_sync_events(batch_size: int = 100) -> int:
         },
     )
     return processed
+
+
+def _mark_sent_success(event: DrupalPaymentSyncOutboxEvent) -> None:
+    """Mark outbox event as successfully sent to Drupal."""
+    event.status = DrupalPaymentSyncOutboxEvent.Status.SENT
+    event.attempts = event.attempts + 1
+    event.processed_at = timezone.now()
+    event.last_error_code = ""
+    event.last_error_message = ""
+    event.save(
+        update_fields=[
+            "status",
+            "attempts",
+            "processed_at",
+            "last_error_code",
+            "last_error_message",
+            "updated_at",
+        ]
+    )
 
 
 def trigger_drupal_payment_sync_background_dispatch() -> None:
