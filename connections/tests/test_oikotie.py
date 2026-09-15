@@ -6,6 +6,7 @@ import pytest
 from django.conf import settings
 from django.core.management import call_command
 from django_etuovi.utils.testing import check_dataclass_typing
+from elasticsearch_dsl.utils import AttrList
 
 from apartment.elastic.documents import (
     APARTMENT_DOCUMENT_FLOAT_FIELDS,
@@ -77,6 +78,29 @@ class TestEnsureStr:
         assert ensure_str("https://example.com") == "https://example.com"
         assert ensure_str(b"https://example.com") == "https://example.com"
         assert ensure_str("  https://example.com  ") == "https://example.com"
+
+    def test_ensure_str_coerces_non_string_scalars(self):
+        """
+        - Integers are converted with str().
+        - Empty AttrList is treated as missing.
+        - AttrList with a None first item is treated as missing.
+        """
+        assert ensure_str(42) == "42"
+        assert ensure_str(AttrList([])) is None
+        assert ensure_str(AttrList([None])) is None
+
+    def test_ensure_str_unwraps_attr_list(self):
+        """
+        - Single AttrList item is converted like a scalar.
+        - Bytes inside AttrList are decoded.
+        - Without multi_join, only the first item is used.
+        - With multi_join, multiple items are comma-joined.
+        """
+        assert ensure_str(AttrList(["https://example.com"])) == "https://example.com"
+        assert ensure_str(AttrList([b"https://example.com"])) == "https://example.com"
+        assert ensure_str(AttrList(["first", "second"])) == "first"
+        joined = ensure_str(AttrList(["first", "second"]), multi_join=True)
+        assert joined == "first, second"
 
 
 class TestOikotieMapper:
