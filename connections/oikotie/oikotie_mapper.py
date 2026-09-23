@@ -67,25 +67,50 @@ _logger = logging.getLogger(__name__)
 OIKOTIE_MAX_PICTURES = 100
 
 
+def _as_text(value) -> Optional[str]:
+    """Convert a scalar value to str; None stays None."""
+    if value is None:
+        return None
+    if isinstance(value, bytes):
+        return value.decode()
+    if isinstance(value, str):
+        return value
+    return str(value)
+
+
+def _attr_list_to_text(value: AttrList, multi_join: bool) -> Optional[str]:
+    """Convert Elasticsearch AttrList to text for XML serialization."""
+    items = list(value)
+    if not items:
+        return None
+    if multi_join and len(items) > 1:
+        return ", ".join(str(x) for x in items if x is not None)
+    return _as_text(items[0])
+
+
+def _blank_to_none(text: Optional[str]) -> Optional[str]:
+    """Treat empty or whitespace-only strings as missing."""
+    if text is None:
+        return None
+    text = text.strip()
+    return text or None
+
+
 def ensure_str(
     value: Union[str, AttrList, None], multi_join: bool = False
 ) -> Optional[str]:
     """
     Convert Elasticsearch AttrList or other types to str for XML serialization.
+
     AttrList is not accepted by lxml when setting element text/attributes.
+    Empty or whitespace-only strings are treated as missing so optional
+    schema fields with URL patterns are omitted instead of emitted empty.
     """
-    if value is None:
-        return None
     if isinstance(value, AttrList):
-        items = list(value)
-        if not items:
-            return None
-        if multi_join and len(items) > 1:
-            return ", ".join(str(x) for x in items if x is not None)
-        return str(items[0]) if items[0] is not None else None
-    if isinstance(value, (str, bytes)):
-        return value.decode() if isinstance(value, bytes) else value
-    return str(value)
+        text = _attr_list_to_text(value, multi_join)
+    else:
+        text = _as_text(value)
+    return _blank_to_none(text)
 
 
 def ensure_date(value: Union[date, AttrList, None]) -> Optional[date]:
@@ -102,10 +127,9 @@ def ensure_date(value: Union[date, AttrList, None]) -> Optional[date]:
 
 
 def map_apartment_type(elastic_apartment: ElasticApartment) -> ApartmentType:
-    project_building_type = ensure_str(
-        getattr(elastic_apartment, "project_building_type", None)
-    )
-    if project_building_type == "":
+    raw_building_type = getattr(elastic_apartment, "project_building_type", None)
+    project_building_type = ensure_str(raw_building_type)
+    if project_building_type is None and isinstance(raw_building_type, str):
         project_building_type = "BLOCK_OF_FLATS"
     if project_building_type and project_building_type in APARTMENT_TYPE_MAPPING.keys():
         return APARTMENT_TYPE_MAPPING[project_building_type]
