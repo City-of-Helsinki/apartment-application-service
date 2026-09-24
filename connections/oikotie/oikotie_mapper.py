@@ -532,6 +532,10 @@ def map_oikotie_apartment(
     construction_materials = getattr(
         elastic_apartment, "project_construction_materials", None
     )
+    ownership_type = ensure_str(
+        getattr(elastic_apartment, "project_ownership_type", None)
+    )
+    is_haso_apartment = (ownership_type or "").lower() == OwnershipType.HASO.value
 
     apartment_field_dict = {
         "type": map_apartment_type(elastic_apartment),
@@ -619,7 +623,11 @@ def map_oikotie_apartment(
         "services": ensure_str(
             getattr(elastic_apartment, "services_description", None)
         ),
-        "unencumbered_sales_price": map_unencumbered_sales_price(elastic_apartment),
+        "unencumbered_sales_price": (
+            None
+            if is_haso_apartment
+            else map_unencumbered_sales_price(elastic_apartment)
+        ),
         "sales_price": map_sales_price(elastic_apartment),
         "estate_agent_contact_person": ensure_str(
             getattr(elastic_apartment, "project_estate_agent", None)
