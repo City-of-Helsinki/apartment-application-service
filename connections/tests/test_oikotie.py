@@ -489,6 +489,34 @@ class TestOikotieMapper:
         )
         check_dataclass_typing(oikotie_unencumbered_sales_price)
 
+    def test_map_oikotie_apartment_only_exports_unencumbered_sales_price_for_non_haso(
+        self,
+    ):
+        """
+        - HASO apartments omit unencumbered_sales_price from Oikotie export.
+        - Non-HASO apartments export debt_free_sales_price as unencumbered_sales_price.
+        """
+        debt_free_sales_price = 2000
+
+        haso_apartment = ApartmentMinimalFactory(
+            project_ownership_type=OwnershipType.HASO.value,
+            debt_free_sales_price=debt_free_sales_price,
+            release_payment=1000,
+        )
+        hitas_apartment = ApartmentMinimalFactory(
+            project_ownership_type=OwnershipType.HITAS.value,
+            debt_free_sales_price=debt_free_sales_price,
+            release_payment=0,
+        )
+
+        mapped_haso_apartment = map_oikotie_apartment(haso_apartment)
+        mapped_hitas_apartment = map_oikotie_apartment(hitas_apartment)
+
+        assert mapped_haso_apartment.unencumbered_sales_price is None
+        assert mapped_hitas_apartment.unencumbered_sales_price.value == Decimal(
+            debt_free_sales_price / 100
+        )
+
     def test_elastic_to_oikotie__water_fee__mapping_types(self):
         elastic_apartment = ApartmentDocumentFactory()
         oikotie_water_fee = map_water_fee(elastic_apartment)
