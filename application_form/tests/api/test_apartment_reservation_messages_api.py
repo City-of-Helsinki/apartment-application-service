@@ -7,12 +7,28 @@ from users.tests.factories import ProfileFactory
 
 
 class _FakeMessagingClient:
-    def __init__(self, thread_payload=None, post_payload=None, to_raise=None):
+    def __init__(
+        self,
+        thread_payload=None,
+        post_payload=None,
+        inbox_payload=None,
+        to_raise=None,
+        mark_read_to_raise=None,
+        unread_payload=None,
+        unread_to_raise=None,
+    ):
         self._thread_payload = thread_payload
         self._post_payload = post_payload
+        self._inbox_payload = inbox_payload
         self._to_raise = to_raise
+        self._mark_read_to_raise = mark_read_to_raise
+        self._unread_payload = unread_payload
+        self._unread_to_raise = unread_to_raise
         self.get_calls = []
         self.post_calls = []
+        self.unread_calls = []
+        self.inbox_calls = []
+        self.mark_read_calls = []
 
     def get_thread(self, application_id):
         self.get_calls.append(application_id)
@@ -25,6 +41,36 @@ class _FakeMessagingClient:
         if self._to_raise:
             raise self._to_raise
         return self._post_payload
+
+    def get_unread_counts(self, *, viewer_role, application_ids=None):
+        self.unread_calls.append((viewer_role, application_ids))
+        if self._unread_to_raise:
+            raise self._unread_to_raise
+        if self._to_raise:
+            raise self._to_raise
+        if self._unread_payload is not None:
+            return self._unread_payload
+        return self._thread_payload
+
+    def get_inbox_summary(self, *, viewer_role, application_ids=None):
+        self.inbox_calls.append((viewer_role, application_ids))
+        if self._to_raise:
+            raise self._to_raise
+        return self._inbox_payload
+
+    def post_mark_read(
+        self,
+        *,
+        viewer_role,
+        application_id=None,
+        application_ids=None,
+    ):
+        self.mark_read_calls.append((viewer_role, application_id, application_ids))
+        if self._mark_read_to_raise:
+            raise self._mark_read_to_raise
+        if self._to_raise:
+            raise self._to_raise
+        return {"status": "ok"}
 
 
 @pytest.mark.django_db
@@ -72,7 +118,8 @@ def test_reservation_messages_get_success_sorted(
                 {"id": 2, "body": "second", "created": 1710000100},
                 {"id": 1, "body": "first", "created": 1710000000},
             ],
-        }
+        },
+        unread_payload={"counts": {str(drupal_id): 0}, "total": 0},
     )
     monkeypatch.setattr(
         "application_form.api.sales.views.DrupalMessagingClient",
@@ -89,7 +136,102 @@ def test_reservation_messages_get_success_sorted(
     assert response.status_code == 200
     assert response.data["application_id"] == drupal_id
     assert [item["id"] for item in response.data["items"]] == [1, 2]
+    assert response.data["unread_count"] == 0
+    assert response.data["unread_total"] == 0
     assert fake_client.get_calls == [drupal_id]
+    assert fake_client.mark_read_calls == [("sales", drupal_id, None)]
+    assert fake_client.unread_calls == [("sales", [drupal_id])]
+
+
+@pytest.mark.django_db
+def test_reservation_messages_get_mark_read_forbidden_does_not_break_page(
+    sales_ui_salesperson_api_client, monkeypatch, caplog
+):
+    """Open chat should survive mark-read 403 and log upstream details."""
+
+    from application_form.services.drupal_messaging import DrupalMessagingClientError
+
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        application_apartment__application__drupal_application_id=779,
+    )
+    drupal_id = reservation.application_apartment.application.drupal_application_id
+
+    fake_client = _FakeMessagingClient(
+        thread_payload={
+            "application_id": drupal_id,
+            "count": 1,
+            "items": [{"id": 1, "body": "first", "created": 1710000000}],
+        },
+        mark_read_to_raise=DrupalMessagingClientError(
+            status_code=403,
+            code="forbidden",
+            message="Forbidden by policy",
+        ),
+    )
+    monkeypatch.setattr(
+        "application_form.api.sales.views.DrupalMessagingClient",
+        lambda: fake_client,
+    )
+
+    with caplog.at_level("WARNING"):
+        response = sales_ui_salesperson_api_client.get(
+            reverse(
+                "application_form:sales-apartment-reservation-messages",
+                kwargs={"pk": reservation.id},
+            )
+        )
+
+    assert response.status_code == 200
+    assert response.data["application_id"] == drupal_id
+    assert "mark-read forbidden" in caplog.text
+    assert "Forbidden by policy" in caplog.text
+
+
+@pytest.mark.django_db
+def test_reservation_messages_get_mark_read_server_error_does_not_break_page(
+    sales_ui_salesperson_api_client, monkeypatch, caplog
+):
+    """Open chat should survive mark-read 500 and keep thread available."""
+
+    from application_form.services.drupal_messaging import DrupalMessagingClientError
+
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        application_apartment__application__drupal_application_id=780,
+    )
+    drupal_id = reservation.application_apartment.application.drupal_application_id
+
+    fake_client = _FakeMessagingClient(
+        thread_payload={
+            "application_id": drupal_id,
+            "count": 1,
+            "items": [{"id": 1, "body": "first", "created": 1710000000}],
+        },
+        mark_read_to_raise=DrupalMessagingClientError(
+            status_code=500,
+            code="temporary_failure",
+            message="Upstream unavailable",
+        ),
+    )
+    monkeypatch.setattr(
+        "application_form.api.sales.views.DrupalMessagingClient",
+        lambda: fake_client,
+    )
+
+    with caplog.at_level("WARNING"):
+        response = sales_ui_salesperson_api_client.get(
+            reverse(
+                "application_form:sales-apartment-reservation-messages",
+                kwargs={"pk": reservation.id},
+            )
+        )
+
+    assert response.status_code == 200
+    assert response.data["application_id"] == drupal_id
+    assert "mark-read temporary failure" in caplog.text
 
 
 @pytest.mark.django_db
@@ -519,3 +661,380 @@ def test_reservation_messages_post_no_drupal_id_returns_503(
 
     assert response.status_code == 503
     assert "detail" in response.data
+
+
+@pytest.mark.django_db
+def test_reservation_messages_unread_counts_success(
+    sales_ui_salesperson_api_client, monkeypatch
+):
+    """Unread proxy returns Drupal payload using sales_shared mode.
+
+    - Sends viewer_role="sales".
+    - Does not send application_ids in the default request.
+    """
+
+    fake_client = _FakeMessagingClient(
+        thread_payload={"counts": {"131": 1, "132": 0}, "total": 1}
+    )
+    monkeypatch.setattr(
+        "application_form.api.sales.views.IsDrupalSalesperson.has_permission",
+        lambda *args, **kwargs: True,
+    )
+    monkeypatch.setattr(
+        "application_form.api.sales.views.DrupalMessagingClient",
+        lambda: fake_client,
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("application_form:sales-application-unread-counts")
+    )
+
+    assert response.status_code == 200
+    assert response.data == {"counts": {"131": 1, "132": 0}, "total": 1}
+    assert fake_client.unread_calls == [("sales", None)]
+    assert response["Cache-Control"] == "no-store, no-cache, private"
+
+
+@pytest.mark.django_db
+def test_reservation_messages_unread_counts_retries_on_invalid_request(
+    sales_ui_salesperson_api_client, monkeypatch
+):
+    """Unread proxy retries legacy contract when ids are required upstream.
+
+    - First request is sales_shared without application_ids.
+    - If upstream returns invalid_request, retries with application_ids.
+    """
+
+    from application_form.services.drupal_messaging import DrupalMessagingClientError
+
+    ApartmentReservationFactory(
+        application_apartment__application__drupal_application_id=131,
+    )
+    ApartmentReservationFactory(
+        application_apartment__application__drupal_application_id=132,
+    )
+
+    class _FallbackClient(_FakeMessagingClient):
+        def get_unread_counts(self, *, viewer_role, application_ids=None):
+            self.unread_calls.append((viewer_role, application_ids))
+            if application_ids is None:
+                raise DrupalMessagingClientError(
+                    status_code=400,
+                    code="invalid_request",
+                )
+            return {"counts": {"131": 1}, "total": 1}
+
+    fake_client = _FallbackClient()
+    monkeypatch.setattr(
+        "application_form.api.sales.views.IsDrupalSalesperson.has_permission",
+        lambda *args, **kwargs: True,
+    )
+    monkeypatch.setattr(
+        "application_form.api.sales.views.DrupalMessagingClient",
+        lambda: fake_client,
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("application_form:sales-application-unread-counts")
+    )
+
+    assert response.status_code == 200
+    assert response.data == {"counts": {"131": 1}, "total": 1}
+    assert fake_client.unread_calls[0] == ("sales", None)
+    assert fake_client.unread_calls[1][0] == "sales"
+    assert isinstance(fake_client.unread_calls[1][1], list)
+    assert fake_client.unread_calls[1][1]
+
+
+@pytest.mark.django_db
+def test_reservation_messages_unread_counts_fallback_on_forbidden(
+    sales_ui_salesperson_api_client, monkeypatch
+):
+    """Forbidden upstream unread response falls back to empty counters."""
+
+    from application_form.services.drupal_messaging import DrupalMessagingClientError
+
+    fake_client = _FakeMessagingClient(
+        to_raise=DrupalMessagingClientError(status_code=403, code="forbidden")
+    )
+    monkeypatch.setattr(
+        "application_form.api.sales.views.IsDrupalSalesperson.has_permission",
+        lambda *args, **kwargs: True,
+    )
+    monkeypatch.setattr(
+        "application_form.api.sales.views.DrupalMessagingClient",
+        lambda: fake_client,
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("application_form:sales-application-unread-counts")
+    )
+
+    assert response.status_code == 200
+    assert response.data == {"counts": {}, "total": 0}
+
+
+@pytest.mark.django_db
+def test_reservation_messages_inbox_summary_success(
+    sales_ui_salesperson_api_client, monkeypatch
+):
+    """Inbox summary returns Drupal payload enriched with deep-link IDs."""
+
+    fake_client = _FakeMessagingClient(
+        inbox_payload={
+            "items": [
+                {
+                    "application_id": 131,
+                    "unread_count": 3,
+                    "last_message_at": "2026-09-29T07:03:01+00:00",
+                    "last_message_preview": "Moi, olen paikalla!",
+                    "has_unread": True,
+                }
+            ],
+            "total_unread": 3,
+        }
+    )
+    monkeypatch.setattr(
+        "application_form.api.sales.views.IsDrupalSalesperson.has_permission",
+        lambda *args, **kwargs: True,
+    )
+    monkeypatch.setattr(
+        "application_form.api.sales.views.DrupalMessagingClient",
+        lambda: fake_client,
+    )
+    monkeypatch.setattr(
+        (
+            "application_form.api.sales.views."
+            "_get_sales_inbox_summary_context_by_drupal_application_id"
+        ),
+        lambda _application_ids: {
+            131: {
+                "customer_id": 77,
+                "project_uuid": "7972c85d-c78e-4250-9e33-0cc14abeff1a",
+                "reservation_id": 999,
+                "project_id": 321,
+                "project_name": "Test Project",
+                "applicant_name": "Jane Doe",
+            }
+        },
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("application_form:sales-application-inbox-summary")
+    )
+
+    assert response.status_code == 200
+    assert response.data["total_unread"] == 3
+    assert response.data["items"][0]["application_id"] == 131
+    assert response.data["items"][0]["customer_id"] == 77
+    assert (
+        str(response.data["items"][0]["project_uuid"])
+        == "7972c85d-c78e-4250-9e33-0cc14abeff1a"
+    )
+    assert response.data["items"][0]["reservation_id"] == 999
+    assert response.data["items"][0]["project_id"] == 321
+    assert response.data["items"][0]["applicant_name"] == "Jane Doe"
+    assert response.data["items"][0]["project_name"] == "Test Project"
+    assert fake_client.inbox_calls == [("sales", None)]
+    assert response["Cache-Control"] == "no-store, no-cache, private"
+
+
+@pytest.mark.django_db
+def test_reservation_messages_inbox_summary_retries_with_application_ids(
+    sales_ui_salesperson_api_client, monkeypatch
+):
+    """Inbox summary retries legacy contract when ids are required upstream."""
+
+    from application_form.services.drupal_messaging import DrupalMessagingClientError
+
+    ApartmentReservationFactory(
+        application_apartment__application__drupal_application_id=131,
+    )
+
+    class _FallbackClient(_FakeMessagingClient):
+        def get_inbox_summary(self, *, viewer_role, application_ids=None):
+            self.inbox_calls.append((viewer_role, application_ids))
+            if application_ids is None:
+                raise DrupalMessagingClientError(
+                    status_code=400,
+                    code="invalid_request",
+                )
+            return {
+                "items": [
+                    {
+                        "application_id": 131,
+                        "unread_count": 1,
+                        "last_message_at": "2026-09-29T07:03:01+00:00",
+                        "last_message_preview": "Hei",
+                        "has_unread": True,
+                    }
+                ],
+                "total_unread": 1,
+            }
+
+    fake_client = _FallbackClient()
+    monkeypatch.setattr(
+        "application_form.api.sales.views.IsDrupalSalesperson.has_permission",
+        lambda *args, **kwargs: True,
+    )
+    monkeypatch.setattr(
+        "application_form.api.sales.views.DrupalMessagingClient",
+        lambda: fake_client,
+    )
+    monkeypatch.setattr(
+        (
+            "application_form.api.sales.views."
+            "_get_sales_inbox_summary_context_by_drupal_application_id"
+        ),
+        lambda _application_ids: {
+            131: {
+                "customer_id": 11,
+                "project_uuid": "8a93072b-7697-4bd1-99f8-9691a44cc9d2",
+                "reservation_id": 123,
+                "project_id": None,
+                "project_name": "",
+                "applicant_name": "",
+            }
+        },
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("application_form:sales-application-inbox-summary")
+    )
+
+    assert response.status_code == 200
+    assert response.data["total_unread"] == 1
+    assert response.data["items"][0]["customer_id"] == 11
+    assert (
+        str(response.data["items"][0]["project_uuid"])
+        == "8a93072b-7697-4bd1-99f8-9691a44cc9d2"
+    )
+    assert response.data["items"][0]["reservation_id"] == 123
+    assert fake_client.inbox_calls[0] == ("sales", None)
+    assert fake_client.inbox_calls[1][0] == "sales"
+    assert isinstance(fake_client.inbox_calls[1][1], list)
+
+
+@pytest.mark.django_db
+def test_reservation_messages_inbox_summary_fallback_on_forbidden(
+    sales_ui_salesperson_api_client, monkeypatch
+):
+    """Forbidden inbox summary upstream response falls back to empty payload."""
+
+    from application_form.services.drupal_messaging import DrupalMessagingClientError
+
+    fake_client = _FakeMessagingClient(
+        to_raise=DrupalMessagingClientError(status_code=403, code="forbidden")
+    )
+    monkeypatch.setattr(
+        "application_form.api.sales.views.IsDrupalSalesperson.has_permission",
+        lambda *args, **kwargs: True,
+    )
+    monkeypatch.setattr(
+        "application_form.api.sales.views.DrupalMessagingClient",
+        lambda: fake_client,
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("application_form:sales-application-inbox-summary")
+    )
+
+    assert response.status_code == 200
+    assert response.data == {"items": [], "total_unread": 0}
+
+
+@pytest.mark.django_db
+def test_reservation_messages_inbox_summary_skips_items_without_deeplink_context(
+    sales_ui_salesperson_api_client, monkeypatch
+):
+    """Items missing local deep-link IDs are skipped without hard failure."""
+
+    fake_client = _FakeMessagingClient(
+        inbox_payload={
+            "items": [
+                {
+                    "application_id": 131,
+                    "unread_count": 2,
+                    "last_message_at": "2026-09-29T07:03:01+00:00",
+                    "last_message_preview": "Hei",
+                    "has_unread": True,
+                }
+            ],
+            "total_unread": 2,
+        }
+    )
+    monkeypatch.setattr(
+        "application_form.api.sales.views.IsDrupalSalesperson.has_permission",
+        lambda *args, **kwargs: True,
+    )
+    monkeypatch.setattr(
+        "application_form.api.sales.views.DrupalMessagingClient",
+        lambda: fake_client,
+    )
+    monkeypatch.setattr(
+        (
+            "application_form.api.sales.views."
+            "_get_sales_inbox_summary_context_by_drupal_application_id"
+        ),
+        lambda _application_ids: {},
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("application_form:sales-application-inbox-summary")
+    )
+
+    assert response.status_code == 200
+    assert response.data == {"items": [], "total_unread": 0}
+
+
+@pytest.mark.django_db
+def test_reservation_messages_inbox_summary_excludes_read_items(
+    sales_ui_salesperson_api_client, monkeypatch
+):
+    """Inbox summary should contain only unread items for sales badge/list."""
+
+    fake_client = _FakeMessagingClient(
+        inbox_payload={
+            "items": [
+                {
+                    "application_id": 131,
+                    "unread_count": 0,
+                    "last_message_at": "2026-09-29T07:03:01+00:00",
+                    "last_message_preview": "Hei",
+                    "has_unread": False,
+                }
+            ],
+            "total_unread": 0,
+        }
+    )
+    monkeypatch.setattr(
+        "application_form.api.sales.views.IsDrupalSalesperson.has_permission",
+        lambda *args, **kwargs: True,
+    )
+    monkeypatch.setattr(
+        "application_form.api.sales.views.DrupalMessagingClient",
+        lambda: fake_client,
+    )
+    monkeypatch.setattr(
+        (
+            "application_form.api.sales.views."
+            "_get_sales_inbox_summary_context_by_drupal_application_id"
+        ),
+        lambda _application_ids: {
+            131: {
+                "customer_id": 18,
+                "project_uuid": "8a93072b-7697-4bd1-99f8-9691a44cc9d2",
+                "reservation_id": 242,
+                "project_id": 2962,
+                "project_name": "2025 Haso Hakemus",
+                "applicant_name": "First Customer",
+            }
+        },
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse("application_form:sales-application-inbox-summary")
+    )
+
+    assert response.status_code == 200
+    assert response.data == {"items": [], "total_unread": 0}
