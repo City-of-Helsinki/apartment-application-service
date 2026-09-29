@@ -25,7 +25,11 @@ from rest_framework.decorators import (
 from rest_framework.exceptions import NotFound, ValidationError
 from rest_framework.response import Response
 
-from apartment.elastic.queries import get_apartment, get_project
+from apartment.elastic.queries import (
+    get_apartment,
+    get_apartments_for_uuids,
+    get_project,
+)
 from apartment.models import ProjectExtraData
 from apartment.services import get_offer_message_subject_and_body
 from apartment.utils import get_apartment_state_of_sale_from_event
@@ -36,8 +40,10 @@ from application_form.api.sales.serializers import (
     ProjectExtraDataSerializer,
     ProjectUUIDSerializer,
     ReservationMessageCreateSerializer,
+    ReservationMessageInboxSummarySerializer,
     ReservationMessageSerializer,
     ReservationMessageThreadSerializer,
+    ReservationMessageUnreadCountsSerializer,
     RootApartmentReservationSerializer,
     SalesApplicationSerializer,
 )
@@ -174,6 +180,359 @@ def apartment_states(request):
 class SalesApplicationViewSet(ApplicationViewSet):
     serializer_class = SalesApplicationSerializer
     permission_classes = [permissions.IsAuthenticated, IsDrupalSalesperson]
+
+
+def _build_no_cache_response(data, status_code=status.HTTP_200_OK):
+    """Return an API response with disabled caching for unread counters."""
+    response = Response(data, status=status_code)
+    response["Cache-Control"] = "no-store, no-cache, private"
+    return response
+
+
+def _empty_unread_counts() -> dict:
+    """Return the fallback unread payload for sales UI."""
+    return {"counts": {}, "total": 0}
+
+
+def _empty_inbox_summary() -> dict:
+    """Return the fallback inbox summary payload for sales UI."""
+    return {"items": [], "total_unread": 0}
+
+
+def _build_unread_counts_error_response(exc: DrupalMessagingClientError) -> Response:
+    """Map unread integration errors into stable sales API responses."""
+    if exc.status_code == 404:
+        _logger.info("Unread counts not found in Drupal. Returning empty payload.")
+        return _build_no_cache_response(_empty_unread_counts())
+    if (
+        exc.status_code == 403
+        or exc.status_code >= 500
+        or exc.code in {"temporary_failure", "forbidden"}
+    ):
+        _logger.warning(
+            "Unread counts fallback due to Drupal error: status=%s code=%s",
+            exc.status_code,
+            exc.code,
+        )
+        return _build_no_cache_response(_empty_unread_counts())
+    return _build_no_cache_response(
+        {"detail": "Messaging service temporarily unavailable."},
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+    )
+
+
+def _build_inbox_summary_error_response(exc: DrupalMessagingClientError) -> Response:
+    """Map inbox summary integration errors into stable sales API responses."""
+    if exc.status_code == 404:
+        _logger.info("Inbox summary not found in Drupal. Returning empty payload.")
+        return _build_no_cache_response(_empty_inbox_summary())
+    if (
+        exc.status_code == 403
+        or exc.status_code >= 500
+        or exc.code in {"temporary_failure", "forbidden"}
+    ):
+        _logger.warning(
+            "Inbox summary fallback due to Drupal error: status=%s code=%s",
+            exc.status_code,
+            exc.code,
+        )
+        return _build_no_cache_response(_empty_inbox_summary())
+    return _build_no_cache_response(
+        {"detail": "Messaging service temporarily unavailable."},
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+    )
+
+
+def _get_sales_unread_application_ids() -> list[int]:
+    """Return active Drupal application ids for legacy unread contract fallback."""
+    return list(
+        ApartmentReservation.objects.active()
+        .filter(
+            application_apartment__application__drupal_application_id__isnull=False,
+        )
+        .values_list(
+            "application_apartment__application__drupal_application_id",
+            flat=True,
+        )
+        .distinct()
+        .order_by("application_apartment__application__drupal_application_id")
+    )
+
+
+def _get_sales_reservations_for_drupal_application_ids(
+    drupal_application_ids: list[int],
+):
+    """Return active reservations linked to the given Drupal application ids."""
+    if not drupal_application_ids:
+        return ApartmentReservation.objects.none()
+
+    return (
+        ApartmentReservation.objects.active()
+        .filter(
+            application_apartment__application__drupal_application_id__in=(
+                drupal_application_ids
+            ),
+        )
+        .select_related("application_apartment__application")
+        .order_by("application_apartment__application__drupal_application_id", "id")
+    )
+
+
+def _fetch_apartments_by_uuid_for_summary(
+    apartment_uuid_by_application_id: dict[int, str],
+) -> dict[str, dict]:
+    """Fetch apartment documents with fallback to per-apartment requests."""
+    if not apartment_uuid_by_application_id:
+        return {}
+
+    try:
+        return get_apartments_for_uuids(
+            apartment_uuid_by_application_id.values(),
+            include_project_fields=True,
+        )
+    except ObjectDoesNotExist:
+        apartments_by_uuid = {}
+        for apartment_uuid in set(apartment_uuid_by_application_id.values()):
+            try:
+                apartments_by_uuid[apartment_uuid] = get_apartment(
+                    apartment_uuid,
+                    include_project_fields=True,
+                )
+            except ObjectDoesNotExist:
+                _logger.info(
+                    "Inbox context enrichment skipped for apartment uuid=%s",
+                    apartment_uuid,
+                )
+        return apartments_by_uuid
+
+
+def _get_sales_inbox_summary_context_by_drupal_application_id(
+    drupal_application_ids: list[int],
+) -> dict[int, dict]:
+    """Build per-application inbox context required for stable deep-links."""
+    reservations = _get_sales_reservations_for_drupal_application_ids(
+        drupal_application_ids
+    )
+
+    first_reservation_by_application_id: dict[int, ApartmentReservation] = {}
+    apartment_uuid_by_application_id: dict[int, str] = {}
+    applicant_names: dict[int, str] = {}
+    for reservation in reservations:
+        application = reservation.application_apartment.application
+        drupal_application_id = application.drupal_application_id
+        if drupal_application_id is None:
+            continue
+
+        candidate_name = application.sender_names or ""
+        if drupal_application_id not in applicant_names:
+            applicant_names[drupal_application_id] = candidate_name
+        elif not applicant_names[drupal_application_id] and candidate_name:
+            applicant_names[drupal_application_id] = candidate_name
+
+        if drupal_application_id in first_reservation_by_application_id:
+            continue
+
+        first_reservation_by_application_id[drupal_application_id] = reservation
+        apartment_uuid_by_application_id[drupal_application_id] = str(
+            reservation.apartment_uuid
+        )
+
+    if not first_reservation_by_application_id:
+        return {}
+
+    apartments_by_uuid = _fetch_apartments_by_uuid_for_summary(
+        apartment_uuid_by_application_id
+    )
+
+    context_by_application_id: dict[int, dict] = {}
+    for application_id, reservation in first_reservation_by_application_id.items():
+        apartment_uuid = apartment_uuid_by_application_id.get(application_id)
+        apartment = apartments_by_uuid.get(apartment_uuid)
+        context_by_application_id[application_id] = {
+            "customer_id": reservation.customer_id,
+            "project_uuid": str(apartment.project_uuid) if apartment else None,
+            "reservation_id": reservation.id,
+            "project_id": apartment.project_id if apartment else None,
+            "project_name": (
+                (apartment.project_housing_company or "") if apartment else ""
+            ),
+            "applicant_name": applicant_names.get(application_id, ""),
+        }
+
+    return context_by_application_id
+
+
+def _extract_inbox_summary_application_ids(raw_items: list) -> list[int]:
+    """Extract valid numeric application ids from inbox summary payload items."""
+    application_ids: list[int] = []
+    for item in raw_items:
+        if not isinstance(item, dict):
+            continue
+        try:
+            application_id = int(item.get("application_id"))
+        except (TypeError, ValueError):
+            continue
+        application_ids.append(application_id)
+    return application_ids
+
+
+def _is_unread_inbox_item(item: dict) -> bool:
+    """Return whether an inbox summary item should be included as unread."""
+    unread_count_value = item.get("unread_count", 0)
+    try:
+        unread_count = int(unread_count_value)
+    except (TypeError, ValueError):
+        unread_count = 0
+
+    has_unread = bool(item.get("has_unread"))
+    return unread_count > 0 or has_unread
+
+
+def _has_required_deep_link_context(item: dict) -> bool:
+    """Return whether required deep-link identifiers are present."""
+    return bool(
+        item.get("customer_id")
+        and item.get("project_uuid")
+        and item.get("reservation_id")
+    )
+
+
+def _enrich_inbox_summary_payload(payload: dict) -> dict:
+    """Enrich inbox summary items with local deep-link identifiers."""
+    raw_items = payload.get("items") if isinstance(payload, dict) else None
+    if not isinstance(raw_items, list):
+        return payload
+
+    application_ids = _extract_inbox_summary_application_ids(raw_items)
+
+    summary_context = _get_sales_inbox_summary_context_by_drupal_application_id(
+        application_ids
+    )
+    enriched_items = []
+    for item in raw_items:
+        if not isinstance(item, dict):
+            continue
+        enriched_item = dict(item)
+        try:
+            application_id = int(enriched_item.get("application_id"))
+        except (TypeError, ValueError):
+            application_id = None
+        context = summary_context.get(application_id, {}) if application_id else {}
+        enriched_item["customer_id"] = context.get("customer_id")
+        enriched_item["project_uuid"] = context.get("project_uuid")
+        enriched_item["reservation_id"] = context.get("reservation_id")
+        enriched_item["project_id"] = context.get("project_id")
+        enriched_item["project_name"] = context.get("project_name", "")
+        enriched_item["applicant_name"] = context.get("applicant_name", "")
+
+        if not _is_unread_inbox_item(enriched_item):
+            continue
+
+        if not _has_required_deep_link_context(enriched_item):
+            _logger.warning(
+                "Inbox summary item skipped due to missing deep-link context. "
+                "application_id=%s",
+                application_id,
+            )
+            continue
+
+        enriched_items.append(enriched_item)
+
+    enriched_payload = dict(payload)
+    enriched_payload["items"] = enriched_items
+    enriched_payload["total_unread"] = sum(
+        int(item.get("unread_count", 0)) for item in enriched_items
+    )
+    return enriched_payload
+
+
+@extend_schema(
+    operation_id="sales_application_unread_counts",
+    responses={(200, "application/json"): ReservationMessageUnreadCountsSerializer},
+)
+@api_view(http_method_names=["GET"])
+@require_http_methods(["GET"])  # For SonarCloud
+@permission_classes([IsDrupalSalesperson])
+def application_unread_counts(request):
+    """Return unread message counts for sales users."""
+    client = DrupalMessagingClient()
+
+    try:
+        payload = client.get_unread_counts(viewer_role="sales")
+    except DrupalMessagingClientError as exc:
+        if exc.code == "invalid_request" or exc.status_code == 400:
+            _logger.info(
+                "Unread counts retrying with application_ids due to legacy "
+                "Drupal contract. status=%s code=%s",
+                exc.status_code,
+                exc.code,
+            )
+            application_ids = _get_sales_unread_application_ids()
+            try:
+                payload = client.get_unread_counts(
+                    viewer_role="sales",
+                    application_ids=application_ids,
+                )
+            except DrupalMessagingClientError as retry_exc:
+                return _build_unread_counts_error_response(retry_exc)
+        else:
+            return _build_unread_counts_error_response(exc)
+
+    serializer = ReservationMessageUnreadCountsSerializer(data=payload)
+    if not serializer.is_valid():
+        _logger.warning(
+            "Unread counts payload validation failed. Returning empty payload. "
+            "errors=%s",
+            serializer.errors,
+        )
+        return _build_no_cache_response(_empty_unread_counts())
+
+    return _build_no_cache_response(serializer.validated_data)
+
+
+@extend_schema(
+    operation_id="sales_application_inbox_summary",
+    responses={(200, "application/json"): ReservationMessageInboxSummarySerializer},
+)
+@api_view(http_method_names=["GET"])
+@require_http_methods(["GET"])  # For SonarCloud
+@permission_classes([IsDrupalSalesperson])
+def application_inbox_summary(request):
+    """Return inbox summary for sales users in shared unread mode."""
+    client = DrupalMessagingClient()
+
+    try:
+        payload = client.get_inbox_summary(viewer_role="sales")
+    except DrupalMessagingClientError as exc:
+        if exc.code == "invalid_request" or exc.status_code == 400:
+            _logger.info(
+                "Inbox summary retrying with application_ids due to legacy "
+                "Drupal contract. status=%s code=%s",
+                exc.status_code,
+                exc.code,
+            )
+            application_ids = _get_sales_unread_application_ids()
+            try:
+                payload = client.get_inbox_summary(
+                    viewer_role="sales",
+                    application_ids=application_ids,
+                )
+            except DrupalMessagingClientError as retry_exc:
+                return _build_inbox_summary_error_response(retry_exc)
+        else:
+            return _build_inbox_summary_error_response(exc)
+
+    payload = _enrich_inbox_summary_payload(payload)
+    serializer = ReservationMessageInboxSummarySerializer(data=payload)
+    if not serializer.is_valid():
+        _logger.warning(
+            "Inbox summary payload validation failed. Returning empty payload. "
+            "errors=%s",
+            serializer.errors,
+        )
+        return _build_no_cache_response(_empty_inbox_summary())
+
+    return _build_no_cache_response(serializer.validated_data)
 
 
 def _recalculate_queue_position_for_haso_on_submitted_late_change(
@@ -411,6 +770,12 @@ class ApartmentReservationViewSet(
     def _get_messages_thread_response(self, request, reservation, application_id):
         """Fetch Drupal thread for GET and normalize response payload."""
         client = DrupalMessagingClient()
+        unread_count, unread_total = self._mark_read_and_fetch_unread_badge(
+            client,
+            reservation_id=reservation.id,
+            application_id=application_id,
+        )
+
         try:
             thread_payload = client.get_thread(application_id)
         except DrupalMessagingClientError as exc:
@@ -442,6 +807,10 @@ class ApartmentReservationViewSet(
             "count": thread_payload.get("count", len(sorted_items)),
             "items": sorted_items,
         }
+        if unread_count is not None:
+            response_payload["unread_count"] = unread_count
+        if unread_total is not None:
+            response_payload["unread_total"] = unread_total
 
         _logger.info(
             "Fetched message thread from Drupal for reservation_id=%s "
@@ -454,6 +823,125 @@ class ApartmentReservationViewSet(
         return Response(
             ReservationMessageThreadSerializer(response_payload).data,
             status=status.HTTP_200_OK,
+        )
+
+    def _mark_read_and_fetch_unread_badge(
+        self,
+        client,
+        *,
+        reservation_id: int,
+        application_id: int,
+    ):
+        """Mark thread read and fetch updated unread badge counters."""
+        try:
+            client.post_mark_read(
+                viewer_role="sales",
+                application_id=application_id,
+            )
+        except DrupalMessagingClientError as exc:
+            self._log_mark_read_error(
+                exc,
+                reservation_id=reservation_id,
+                application_id=application_id,
+            )
+            return None, None
+
+        try:
+            unread_payload = client.get_unread_counts(
+                viewer_role="sales",
+                application_ids=[application_id],
+            )
+        except DrupalMessagingClientError as exc:
+            self._log_unread_refetch_error(
+                exc,
+                reservation_id=reservation_id,
+                application_id=application_id,
+            )
+            return None, None
+
+        counts_payload = unread_payload.get("counts", {})
+        unread_count = int(counts_payload.get(str(application_id), 0))
+        unread_total = int(unread_payload.get("total", unread_count))
+        return unread_count, unread_total
+
+    def _log_mark_read_error(
+        self,
+        exc: DrupalMessagingClientError,
+        *,
+        reservation_id: int,
+        application_id: int,
+    ) -> None:
+        """Log mark-read integration errors without breaking message thread."""
+        if exc.status_code in {401, 403} or exc.code == "forbidden":
+            _logger.warning(
+                "messages GET mark-read forbidden for reservation_id=%s "
+                "application_id=%s status=%s code=%s message=%s",
+                reservation_id,
+                application_id,
+                exc.status_code,
+                exc.code,
+                exc.message,
+            )
+            return
+
+        if exc.code == "temporary_failure" or exc.status_code >= 500:
+            _logger.warning(
+                "messages GET mark-read temporary failure for reservation_id=%s "
+                "application_id=%s status=%s code=%s",
+                reservation_id,
+                application_id,
+                exc.status_code,
+                exc.code,
+            )
+            return
+
+        _logger.warning(
+            "messages GET mark-read failed for reservation_id=%s "
+            "application_id=%s status=%s code=%s",
+            reservation_id,
+            application_id,
+            exc.status_code,
+            exc.code,
+        )
+
+    def _log_unread_refetch_error(
+        self,
+        exc: DrupalMessagingClientError,
+        *,
+        reservation_id: int,
+        application_id: int,
+    ) -> None:
+        """Log unread refetch errors without breaking message thread."""
+        if exc.status_code in {401, 403} or exc.code == "forbidden":
+            _logger.warning(
+                "messages GET unread refetch forbidden for reservation_id=%s "
+                "application_id=%s status=%s code=%s message=%s",
+                reservation_id,
+                application_id,
+                exc.status_code,
+                exc.code,
+                exc.message,
+            )
+            return
+
+        if exc.code == "temporary_failure" or exc.status_code >= 500:
+            _logger.warning(
+                "messages GET unread refetch temporary failure for "
+                "reservation_id=%s application_id=%s status=%s code=%s",
+                reservation_id,
+                application_id,
+                exc.status_code,
+                exc.code,
+            )
+            return
+
+        _logger.warning(
+            "messages GET unread refetch failed for reservation_id=%s "
+            "application_id=%s status=%s code=%s",
+            reservation_id,
+            application_id,
+            exc.status_code,
+            exc.code,
         )
 
     @extend_schema(

@@ -48,7 +48,16 @@ def test_get_thread_uses_cached_oauth_token(settings, monkeypatch):
             payload={"access_token": "cached-token", "expires_in": 3600},
         )
 
-    def fake_request(method, url, headers=None, timeout=None, json=None, verify=None):
+    def fake_request(
+        method,
+        url,
+        headers=None,
+        timeout=None,
+        json=None,
+        data=None,
+        params=None,
+        verify=None,
+    ):
         counters["api_calls"] += 1
         assert method == "GET"
         assert headers["Authorization"] == "Bearer cached-token"
@@ -94,6 +103,8 @@ def test_post_sales_reply_sends_expected_payload(settings, monkeypatch):
         json=None,
         headers=None,
         timeout=None,
+        data=None,
+        params=None,
         verify=None,
     ):
         assert method == "POST"
@@ -147,6 +158,8 @@ def test_post_sales_reply_includes_co_applicant_email_when_given(settings, monke
         json=None,
         headers=None,
         timeout=None,
+        data=None,
+        params=None,
         verify=None,
     ):
         captured["payload"] = json
@@ -194,7 +207,16 @@ def test_post_sales_reply_omits_blank_co_applicant_email(settings, monkeypatch):
         ),
     )
 
-    def fake_request(method, url, json=None, headers=None, timeout=None, verify=None):
+    def fake_request(
+        method,
+        url,
+        json=None,
+        headers=None,
+        timeout=None,
+        data=None,
+        params=None,
+        verify=None,
+    ):
         captured["payload"] = json
         return _FakeResponse(
             status_code=201,
@@ -311,7 +333,16 @@ def test_request_retries_on_server_errors(settings, monkeypatch):
             payload={"access_token": "token-retry", "expires_in": 3600},
         )
 
-    def fake_request(method, url, headers=None, timeout=None, json=None, verify=None):
+    def fake_request(
+        method,
+        url,
+        headers=None,
+        timeout=None,
+        json=None,
+        data=None,
+        params=None,
+        verify=None,
+    ):
         request_calls["count"] += 1
         if request_calls["count"] < 3:
             return _FakeResponse(status_code=500, payload={"message": "error"})
@@ -394,3 +425,343 @@ def test_post_sales_reply_raises_after_retryable_network_errors(settings, monkey
         client.post_sales_reply(77, "hello")
 
     assert exc_info.value.code == "temporary_failure"
+
+
+@pytest.mark.django_db
+def test_get_unread_counts_sales_shared_without_application_ids(settings, monkeypatch):
+    """Sales unread query defaults to shared mode without ids payload."""
+
+    _configure_drupal_search_settings(settings)
+
+    captured = {}
+
+    monkeypatch.setattr(
+        requests,
+        "post",
+        lambda *args, **kwargs: _FakeResponse(
+            status_code=200,
+            payload={"access_token": "token-unread", "expires_in": 3600},
+        ),
+    )
+
+    def fake_request(
+        method,
+        url,
+        headers=None,
+        timeout=None,
+        json=None,
+        data=None,
+        params=None,
+        verify=None,
+    ):
+        captured["params"] = params
+        return _FakeResponse(
+            status_code=200,
+            payload={"counts": {"131": 1}, "total": 1},
+        )
+
+    monkeypatch.setattr(requests, "request", fake_request)
+
+    client = DrupalMessagingClient()
+    payload = client.get_unread_counts(viewer_role="sales")
+
+    assert payload == {"counts": {"131": 1}, "total": 1}
+    assert captured["params"] == {
+        "viewer_role": "sales",
+        "sales_shared": "1",
+    }
+
+
+@pytest.mark.django_db
+def test_get_unread_counts_sends_sales_shared_and_application_ids(
+    settings, monkeypatch
+):
+    """Sales unread query includes shared-sales and application filter params."""
+
+    _configure_drupal_search_settings(settings)
+
+    captured = {}
+
+    monkeypatch.setattr(
+        requests,
+        "post",
+        lambda *args, **kwargs: _FakeResponse(
+            status_code=200,
+            payload={"access_token": "token-unread", "expires_in": 3600},
+        ),
+    )
+
+    def fake_request(
+        method,
+        url,
+        headers=None,
+        timeout=None,
+        json=None,
+        data=None,
+        params=None,
+        verify=None,
+    ):
+        captured["method"] = method
+        captured["url"] = url
+        captured["params"] = params
+        return _FakeResponse(
+            status_code=200,
+            payload={"counts": {"131": 1}, "total": 1},
+        )
+
+    monkeypatch.setattr(requests, "request", fake_request)
+
+    client = DrupalMessagingClient()
+    payload = client.get_unread_counts(
+        viewer_role="sales",
+        application_ids=[131, 132],
+    )
+
+    assert payload == {"counts": {"131": 1}, "total": 1}
+    assert captured["method"] == "GET"
+    assert captured["url"] == "https://drupal.example/user/application/unread-counts"
+    assert captured["params"] == {
+        "viewer_role": "sales",
+        "sales_shared": "1",
+        "application_ids": "131,132",
+    }
+
+
+@pytest.mark.django_db
+def test_get_unread_counts_customer_role_does_not_send_sales_shared(
+    settings, monkeypatch
+):
+    """Customer unread query must not include sales_shared parameter."""
+
+    _configure_drupal_search_settings(settings)
+
+    captured = {}
+
+    monkeypatch.setattr(
+        requests,
+        "post",
+        lambda *args, **kwargs: _FakeResponse(
+            status_code=200,
+            payload={"access_token": "token-unread", "expires_in": 3600},
+        ),
+    )
+
+    def fake_request(
+        method,
+        url,
+        headers=None,
+        timeout=None,
+        json=None,
+        data=None,
+        params=None,
+        verify=None,
+    ):
+        captured["params"] = params
+        return _FakeResponse(
+            status_code=200,
+            payload={"counts": {}, "total": 0},
+        )
+
+    monkeypatch.setattr(requests, "request", fake_request)
+
+    client = DrupalMessagingClient()
+    payload = client.get_unread_counts(viewer_role="customer")
+
+    assert payload == {"counts": {}, "total": 0}
+    assert captured["params"] == {"viewer_role": "customer"}
+
+
+@pytest.mark.django_db
+def test_get_inbox_summary_sales_shared_without_application_ids(settings, monkeypatch):
+    """Sales inbox summary defaults to shared mode without ids payload."""
+
+    _configure_drupal_search_settings(settings)
+
+    captured = {}
+
+    monkeypatch.setattr(
+        requests,
+        "post",
+        lambda *args, **kwargs: _FakeResponse(
+            status_code=200,
+            payload={"access_token": "token-inbox", "expires_in": 3600},
+        ),
+    )
+
+    def fake_request(
+        method,
+        url,
+        headers=None,
+        timeout=None,
+        json=None,
+        data=None,
+        params=None,
+        verify=None,
+    ):
+        captured["params"] = params
+        return _FakeResponse(
+            status_code=200,
+            payload={"items": [], "total_unread": 0},
+        )
+
+    monkeypatch.setattr(requests, "request", fake_request)
+
+    client = DrupalMessagingClient()
+    payload = client.get_inbox_summary(viewer_role="sales")
+
+    assert payload == {"items": [], "total_unread": 0}
+    assert captured["params"] == {
+        "viewer_role": "sales",
+        "sales_shared": "1",
+    }
+
+
+@pytest.mark.django_db
+def test_get_inbox_summary_sends_sales_shared_and_application_ids(
+    settings, monkeypatch
+):
+    """Sales inbox summary supports legacy application_ids filter."""
+
+    _configure_drupal_search_settings(settings)
+
+    captured = {}
+
+    monkeypatch.setattr(
+        requests,
+        "post",
+        lambda *args, **kwargs: _FakeResponse(
+            status_code=200,
+            payload={"access_token": "token-inbox", "expires_in": 3600},
+        ),
+    )
+
+    def fake_request(
+        method,
+        url,
+        headers=None,
+        timeout=None,
+        json=None,
+        data=None,
+        params=None,
+        verify=None,
+    ):
+        captured["method"] = method
+        captured["url"] = url
+        captured["params"] = params
+        return _FakeResponse(
+            status_code=200,
+            payload={"items": [], "total_unread": 0},
+        )
+
+    monkeypatch.setattr(requests, "request", fake_request)
+
+    client = DrupalMessagingClient()
+    payload = client.get_inbox_summary(
+        viewer_role="sales",
+        application_ids=[110, 131],
+    )
+
+    assert payload == {"items": [], "total_unread": 0}
+    assert captured["method"] == "GET"
+    assert captured["url"] == "https://drupal.example/user/application/inbox-summary"
+    assert captured["params"] == {
+        "viewer_role": "sales",
+        "sales_shared": "1",
+        "application_ids": "110,131",
+    }
+
+
+@pytest.mark.django_db
+def test_post_mark_read_sends_sales_shared_and_application_id(settings, monkeypatch):
+    """Sales mark-read uses shared mode with form body application_id."""
+
+    _configure_drupal_search_settings(settings)
+
+    captured = {}
+
+    monkeypatch.setattr(
+        requests,
+        "post",
+        lambda *args, **kwargs: _FakeResponse(
+            status_code=200,
+            payload={"access_token": "token-read", "expires_in": 3600},
+        ),
+    )
+
+    def fake_request(
+        method,
+        url,
+        headers=None,
+        timeout=None,
+        json=None,
+        data=None,
+        params=None,
+        verify=None,
+    ):
+        captured["method"] = method
+        captured["url"] = url
+        captured["headers"] = headers
+        captured["json"] = json
+        captured["data"] = data
+        captured["params"] = params
+        return _FakeResponse(status_code=200, payload={"status": "ok"})
+
+    monkeypatch.setattr(requests, "request", fake_request)
+
+    client = DrupalMessagingClient()
+    payload = client.post_mark_read(
+        viewer_role="sales",
+        application_id=131,
+    )
+
+    assert payload == {"status": "ok"}
+    assert captured["method"] == "POST"
+    assert captured["url"] == "https://drupal.example/user/application/mark-read"
+    assert captured["params"] == {
+        "viewer_role": "sales",
+        "sales_shared": "1",
+    }
+    assert captured["json"] is None
+    assert captured["data"] == {"application_id": "131"}
+    assert captured["headers"]["Content-Type"] == "application/x-www-form-urlencoded"
+
+
+@pytest.mark.django_db
+def test_post_mark_read_sends_application_ids_list(settings, monkeypatch):
+    """Sales mark-read supports batch application_ids form field."""
+
+    _configure_drupal_search_settings(settings)
+
+    captured = {}
+
+    monkeypatch.setattr(
+        requests,
+        "post",
+        lambda *args, **kwargs: _FakeResponse(
+            status_code=200,
+            payload={"access_token": "token-read", "expires_in": 3600},
+        ),
+    )
+
+    def fake_request(
+        method,
+        url,
+        headers=None,
+        timeout=None,
+        json=None,
+        data=None,
+        params=None,
+        verify=None,
+    ):
+        captured["data"] = data
+        return _FakeResponse(status_code=200, payload={"status": "ok"})
+
+    monkeypatch.setattr(requests, "request", fake_request)
+
+    client = DrupalMessagingClient()
+    client.post_mark_read(
+        viewer_role="sales",
+        application_ids=[131, 132, 133],
+    )
+
+    assert captured["data"] == {"application_ids": "131,132,133"}

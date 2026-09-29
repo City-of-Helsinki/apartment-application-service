@@ -491,7 +491,36 @@ class ReservationMessageThreadSerializer(serializers.Serializer):
     application_id = serializers.IntegerField()
     count = serializers.IntegerField()
     items = ReservationMessageSerializer(many=True)
+    unread_count = serializers.IntegerField(required=False, min_value=0)
+    unread_total = serializers.IntegerField(required=False, min_value=0)
 
 
 class ReservationMessageCreateSerializer(serializers.Serializer):
     body = serializers.CharField(allow_blank=False, trim_whitespace=True)
+
+
+class ReservationMessageUnreadCountsSerializer(serializers.Serializer):
+    counts = serializers.DictField(
+        child=serializers.IntegerField(min_value=0),
+        required=True,
+    )
+    total = serializers.IntegerField(min_value=0, required=True)
+
+
+class ReservationMessageInboxSummaryItemSerializer(serializers.Serializer):
+    application_id = serializers.IntegerField(min_value=1)
+    customer_id = serializers.IntegerField(min_value=1)
+    project_uuid = serializers.UUIDField()
+    reservation_id = serializers.IntegerField(min_value=1)
+    project_id = serializers.IntegerField(required=False, allow_null=True)
+    unread_count = serializers.IntegerField(min_value=0)
+    last_message_at = serializers.DateTimeField(required=False, allow_null=True)
+    last_message_preview = serializers.CharField(allow_blank=True)
+    has_unread = serializers.BooleanField()
+    applicant_name = serializers.CharField(required=False, allow_blank=True)
+    project_name = serializers.CharField(required=False, allow_blank=True)
+
+
+class ReservationMessageInboxSummarySerializer(serializers.Serializer):
+    items = ReservationMessageInboxSummaryItemSerializer(many=True)
+    total_unread = serializers.IntegerField(min_value=0)
