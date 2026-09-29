@@ -2,10 +2,10 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from application_form.api.sales.views import (
-    application_inbox_summary,
-    application_unread_counts,
     apartment_states,
     ApartmentReservationViewSet,
+    application_inbox_summary,
+    application_unread_counts,
     execute_lottery_for_project,
     mark_offer_reminder_sent,
     OfferViewSet,
