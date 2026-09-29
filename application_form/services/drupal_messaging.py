@@ -66,11 +66,14 @@ class DrupalMessagingClient:
         return ""
 
     @staticmethod
-    def _build_headers(token: str) -> Dict[str, str]:
+    def _build_headers(
+        token: str,
+        content_type: str = "application/json",
+    ) -> Dict[str, str]:
         """Build standard headers for Drupal messaging requests."""
         return {
             "Accept": "application/json",
-            "Content-Type": "application/json",
+            "Content-Type": content_type,
             "Authorization": f"Bearer {token}",
         }
 
@@ -179,6 +182,8 @@ class DrupalMessagingClient:
         method: str,
         path: str,
         payload: Optional[Dict[str, Any]] = None,
+        form_payload: Optional[Dict[str, Any]] = None,
+        query_params: Optional[Dict[str, Any]] = None,
         expected_statuses: Tuple[int, ...] = (200,),
     ) -> Dict[str, Any]:
         """Perform a request against Drupal messaging API with bounded retries."""
@@ -188,13 +193,20 @@ class DrupalMessagingClient:
         for attempt in range(retries + 1):
             try:
                 token = self._get_access_token()
-                headers = self._build_headers(token)
+                content_type = (
+                    "application/x-www-form-urlencoded"
+                    if form_payload is not None
+                    else "application/json"
+                )
+                headers = self._build_headers(token, content_type=content_type)
                 response = requests.request(
                     method,
                     url,
                     headers=headers,
                     timeout=settings.DRUPAL_SEARCH_API_TIMEOUT,
                     json=payload,
+                    data=form_payload,
+                    params=query_params,
                     verify=settings.DRUPAL_SEARCH_API_VERIFY_SSL,
                 )
             except requests.RequestException as exc:
@@ -223,6 +235,85 @@ class DrupalMessagingClient:
         return self._request(
             method="GET",
             path=f"applications/{application_id}/messages",
+            expected_statuses=(200,),
+        )
+
+    def get_unread_counts(
+        self,
+        *,
+        viewer_role: str,
+        application_ids: Optional[list[int]] = None,
+    ) -> Dict[str, Any]:
+        """Fetch unread message counters for a specific viewer role."""
+        query_params: Dict[str, Any] = {"viewer_role": viewer_role}
+        if viewer_role == "sales":
+            query_params["sales_shared"] = "1"
+        if application_ids:
+            query_params["application_ids"] = ",".join(
+                str(application_id) for application_id in application_ids
+            )
+
+        return self._request(
+            method="GET",
+            path="user/application/unread-counts",
+            query_params=query_params,
+            expected_statuses=(200,),
+        )
+
+    def get_inbox_summary(
+        self,
+        *,
+        viewer_role: str,
+        application_ids: Optional[list[int]] = None,
+    ) -> Dict[str, Any]:
+        """Fetch sales inbox summary for shared unread messages."""
+        query_params: Dict[str, Any] = {"viewer_role": viewer_role}
+        if viewer_role == "sales":
+            query_params["sales_shared"] = "1"
+        if application_ids:
+            query_params["application_ids"] = ",".join(
+                str(application_id) for application_id in application_ids
+            )
+
+        return self._request(
+            method="GET",
+            path="user/application/inbox-summary",
+            query_params=query_params,
+            expected_statuses=(200,),
+        )
+
+    def post_mark_read(
+        self,
+        *,
+        viewer_role: str,
+        application_id: Optional[int] = None,
+        application_ids: Optional[list[int]] = None,
+    ) -> Dict[str, Any]:
+        """Mark application messages read for sales shared inbox mode."""
+        if application_id is None and not application_ids:
+            raise DrupalMessagingClientError(
+                status_code=400,
+                code="invalid_request",
+                message="application_id or application_ids is required.",
+            )
+
+        query_params: Dict[str, Any] = {"viewer_role": viewer_role}
+        if viewer_role == "sales":
+            query_params["sales_shared"] = "1"
+
+        body: Dict[str, Any] = {}
+        if application_id is not None:
+            body["application_id"] = str(application_id)
+        elif application_ids:
+            body["application_ids"] = ",".join(
+                str(application_id_item) for application_id_item in application_ids
+            )
+
+        return self._request(
+            method="POST",
+            path="user/application/mark-read",
+            form_payload=body,
+            query_params=query_params,
             expected_statuses=(200,),
         )
 

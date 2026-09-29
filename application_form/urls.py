@@ -2,6 +2,8 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from application_form.api.sales.views import (
+    application_inbox_summary,
+    application_unread_counts,
     apartment_states,
     ApartmentReservationViewSet,
     execute_lottery_for_project,
@@ -87,6 +89,16 @@ urlpatterns = [
         r"sales/apartment_states/",
         apartment_states,
         name="apartment_states",
+    ),
+    path(
+        r"sales/messages/unread-counts/",
+        application_unread_counts,
+        name="sales-application-unread-counts",
+    ),
+    path(
+        r"sales/messages/inbox-summary/",
+        application_inbox_summary,
+        name="sales-application-inbox-summary",
     ),
     path(
         r"sales/offers/pending_reminders/",
