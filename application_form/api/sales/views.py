@@ -1,10 +1,6 @@
-<<<<<<< HEAD
-from datetime import timedelta
-=======
 import logging
 from datetime import datetime, timedelta
 from datetime import timezone as datetime_timezone
->>>>>>> 49e5283 (Merge pull request #608 from City-of-Helsinki/ASU-1881-message-communication-customer-sales)
 from typing import Optional
 
 from dateutil import parser
@@ -1351,3 +1347,4 @@ class ProjectExtraDataViewSet(
 ):
     queryset = ProjectExtraData.objects.all()
     serializer_class = ProjectExtraDataSerializer
+
