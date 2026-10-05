@@ -77,6 +77,18 @@ def map_price(elastic_apartment: ApartmentDocument, field_name: str) -> Decimal:
     return Decimal(0)
 
 
+def map_water_fee_text(elastic_apartment: ApartmentDocument) -> Optional[str]:
+    """
+    Return water fee in euros for Etuovi CHARGESWATER text.
+
+    ElasticSearch stores water_fee as cents, matching other price fields.
+    """
+    cents = getattr(elastic_apartment, "water_fee", None)
+    if cents is not None and cents > 0:
+        return str(convert_price_from_cents_to_eur(cents))
+    return None
+
+
 def get_showing_datetime_with_index(
     elastic_apartment: ApartmentDocument, index: int
 ) -> Optional[datetime]:
@@ -283,7 +295,7 @@ def map_apartment_to_text_properties(
     """
     return [
         (TextKey.BALCONYDESC, getattr(elastic_apartment, "balcony_description", None)),
-        (TextKey.CHARGESWATER, getattr(elastic_apartment, "water_fee", None)),
+        (TextKey.CHARGESWATER, map_water_fee_text(elastic_apartment)),
         (TextKey.CONSTRUCTOR, getattr(elastic_apartment, "project_constructor", None)),
         (
             TextKey.FLATSTRUCTURE,
