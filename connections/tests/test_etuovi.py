@@ -50,6 +50,21 @@ class TestEtuoviMapper:
         assert mapped_etuovi_apartment.street == "Street road 123 A 5"
         assert mapped_etuovi_apartment.roomnumber == "A5"
 
+    def test_map_apartment_to_item_converts_water_fee_from_cents_to_eur(self):
+        """
+        - Exports CHARGESWATER text in euros, not cents.
+        - Omits CHARGESWATER when water fee is zero.
+        """
+        apartment = ApartmentMinimalFactory(water_fee=2000)
+        item = map_apartment_to_item(apartment)
+        texts = {text.text_key: text.text_value for text in item.text}
+        assert texts[TextKey.CHARGESWATER] == "20.00"
+
+        zero_fee_apartment = ApartmentMinimalFactory(water_fee=0)
+        zero_fee_item = map_apartment_to_item(zero_fee_apartment)
+        zero_fee_texts = {text.text_key: text.text_value for text in zero_fee_item.text}
+        assert TextKey.CHARGESWATER not in zero_fee_texts
+
     def test_etuovi_map_correct_price_info(self):
         """
         Get `ApartmentDocument.right_of_occupancy_payment` for HASO apartments and
