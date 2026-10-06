@@ -34,6 +34,7 @@ class ApplicationFactory(factory.django.DjangoModelFactory):
         model = Application
 
     external_uuid = factory.Faker("uuid4")
+    drupal_application_id = fuzzy.FuzzyInteger(1, 99999)
     applicants_count = fuzzy.FuzzyInteger(1, 2)
     type = fuzzy.FuzzyChoice(list(ApplicationType))
     right_of_residence = fuzzy.FuzzyInteger(1, 100000)

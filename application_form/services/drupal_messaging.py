@@ -1,0 +1,354 @@
+import logging
+import time
+from dataclasses import dataclass
+from typing import Any, Dict, Optional, Tuple
+from urllib.parse import urljoin, urlparse
+
+import requests
+from django.conf import settings
+from django.core.cache import cache
+
+_logger = logging.getLogger(__name__)
+
+
+@dataclass
+class DrupalMessagingClientError(Exception):
+    status_code: int
+    code: str
+    message: str = ""
+
+
+class DrupalMessagingClient:
+    """Client for Drupal messaging endpoints used by the sales API."""
+
+    _TOKEN_CACHE_KEY = "drupal_messaging:oauth_access_token:v1"
+    _JSON_CONTENT_TYPE = "application/json"
+    _FORM_CONTENT_TYPE = "application/x-www-form-urlencoded"
+
+    def __init__(self):
+        self._access_token: Optional[str] = None
+        self._token_expires_at: float = 0.0
+
+    @staticmethod
+    def _build_safe_url(base_url: str, path: str) -> str:
+        """Build a URL safely from configured base URL and relative path."""
+        if not isinstance(path, str) or not path.strip():
+            raise ValueError("Path must be a non-empty string.")
+
+        candidate = path.strip()
+        if "://" in candidate or candidate.startswith("//"):
+            raise ValueError("Absolute URLs are not allowed.")
+
+        segments = [segment for segment in candidate.split("/") if segment != ""]
+        if any(segment in {".", ".."} for segment in segments):
+            raise ValueError("Path traversal segments are not allowed.")
+
+        base = base_url.rstrip("/") + "/"
+        full = urljoin(base, "/".join(segments))
+
+        base_parsed = urlparse(base)
+        full_parsed = urlparse(full)
+        if (base_parsed.scheme, base_parsed.netloc) != (
+            full_parsed.scheme,
+            full_parsed.netloc,
+        ):
+            raise ValueError("Resolved URL escaped configured base URL.")
+
+        return full
+
+    @staticmethod
+    def _extract_error_message(response: requests.Response) -> str:
+        """Extract human-readable message from an upstream response payload."""
+        try:
+            payload = response.json()
+        except ValueError:
+            return ""
+
+        if isinstance(payload, dict):
+            return str(payload.get("message") or payload.get("detail") or "")
+        return ""
+
+    @staticmethod
+    def _build_headers(
+        token: str,
+        content_type: str = _JSON_CONTENT_TYPE,
+    ) -> Dict[str, str]:
+        """Build standard headers for Drupal messaging requests."""
+        return {
+            "Accept": DrupalMessagingClient._JSON_CONTENT_TYPE,
+            "Content-Type": content_type,
+            "Authorization": f"Bearer {token}",
+        }
+
+    @staticmethod
+    def _raise_temporary_failure() -> None:
+        """Raise a normalized temporary upstream failure error."""
+        raise DrupalMessagingClientError(
+            status_code=503,
+            code="temporary_failure",
+            message="Drupal messaging API temporary failure.",
+        )
+
+    def _raise_non_retryable_error(self, response: requests.Response) -> None:
+        """Map non-retryable upstream responses into integration errors."""
+        status_code = response.status_code
+        message = self._extract_error_message(response)
+
+        if status_code == 404:
+            raise DrupalMessagingClientError(
+                status_code=404,
+                code="not_found",
+                message=message,
+            )
+
+        if status_code in {401, 403}:
+            raise DrupalMessagingClientError(
+                status_code=status_code,
+                code="forbidden",
+                message=message,
+            )
+
+        if status_code == 400:
+            raise DrupalMessagingClientError(
+                status_code=400,
+                code="invalid_request",
+                message=message,
+            )
+
+        raise DrupalMessagingClientError(
+            status_code=status_code,
+            code="upstream_error",
+            message=message,
+        )
+
+    def _get_access_token(self) -> str:
+        """Get OAuth access token from cache or Drupal token endpoint."""
+        now = time.time()
+        if self._access_token and now < self._token_expires_at:
+            return self._access_token
+
+        cached_token = cache.get(self._TOKEN_CACHE_KEY)
+        if cached_token:
+            self._access_token = cached_token
+            # Cache timeout is authoritative, keep in-memory token for this process.
+            self._token_expires_at = now + 60
+            return cached_token
+
+        headers = {"Content-Type": self._FORM_CONTENT_TYPE}
+        payload = {
+            "grant_type": "client_credentials",
+            "client_id": settings.DRUPAL_SEARCH_API_CLIENT_ID,
+            "client_secret": settings.DRUPAL_SEARCH_API_CLIENT_SECRET,
+        }
+
+        try:
+            response = requests.post(
+                settings.DRUPAL_SEARCH_API_TOKEN_URL,
+                data=payload,
+                headers=headers,
+                timeout=settings.DRUPAL_SEARCH_API_TIMEOUT,
+                verify=settings.DRUPAL_SEARCH_API_VERIFY_SSL,
+            )
+        except requests.RequestException as exc:
+            raise DrupalMessagingClientError(
+                status_code=503,
+                code="temporary_failure",
+                message="Unable to fetch Drupal OAuth token.",
+            ) from exc
+
+        if response.status_code >= 400:
+            raise DrupalMessagingClientError(
+                status_code=response.status_code,
+                code="oauth_failed",
+                message=self._extract_error_message(response)
+                or "Drupal OAuth request failed.",
+            )
+
+        token_payload = response.json()
+        access_token = token_payload.get("access_token")
+        if not access_token:
+            raise DrupalMessagingClientError(
+                status_code=502,
+                code="oauth_invalid_response",
+                message="OAuth response missing access_token.",
+            )
+
+        expires_in = int(token_payload.get("expires_in", 3600))
+        cache_timeout = max(expires_in - 30, 1)
+        self._access_token = access_token
+        self._token_expires_at = now + cache_timeout
+        cache.set(self._TOKEN_CACHE_KEY, access_token, timeout=cache_timeout)
+        return access_token
+
+    def _request(
+        self,
+        method: str,
+        path: str,
+        payload: Optional[Dict[str, Any]] = None,
+        form_payload: Optional[Dict[str, Any]] = None,
+        query_params: Optional[Dict[str, Any]] = None,
+        expected_statuses: Tuple[int, ...] = (200,),
+    ) -> Dict[str, Any]:
+        """Perform a request against Drupal messaging API with bounded retries."""
+        url = self._build_safe_url(settings.DRUPAL_SEARCH_API_BASE_URL, path)
+        retries = max(int(getattr(settings, "DRUPAL_SEARCH_API_RETRY_COUNT", 2)), 0)
+
+        for attempt in range(retries + 1):
+            try:
+                token = self._get_access_token()
+                content_type = (
+                    self._FORM_CONTENT_TYPE
+                    if form_payload is not None
+                    else self._JSON_CONTENT_TYPE
+                )
+                headers = self._build_headers(token, content_type=content_type)
+                response = requests.request(
+                    method,
+                    url,
+                    headers=headers,
+                    timeout=settings.DRUPAL_SEARCH_API_TIMEOUT,
+                    json=payload,
+                    data=form_payload,
+                    params=query_params,
+                    verify=settings.DRUPAL_SEARCH_API_VERIFY_SSL,
+                )
+            except requests.RequestException as exc:
+                if attempt < retries:
+                    continue
+                raise DrupalMessagingClientError(
+                    status_code=503,
+                    code="temporary_failure",
+                    message="Drupal request failed due to network error.",
+                ) from exc
+
+            if response.status_code in expected_statuses:
+                return response.json()
+
+            if response.status_code >= 500:
+                if attempt < retries:
+                    continue
+                self._raise_temporary_failure()
+
+            self._raise_non_retryable_error(response)
+
+        self._raise_temporary_failure()
+
+    def get_thread(self, application_id: int) -> Dict[str, Any]:
+        """Fetch message thread for a specific application."""
+        return self._request(
+            method="GET",
+            path=f"applications/{application_id}/messages",
+            expected_statuses=(200,),
+        )
+
+    def get_unread_counts(
+        self,
+        *,
+        viewer_role: str,
+        application_ids: Optional[list[int]] = None,
+    ) -> Dict[str, Any]:
+        """Fetch unread message counters for a specific viewer role."""
+        query_params: Dict[str, Any] = {"viewer_role": viewer_role}
+        if viewer_role == "sales":
+            query_params["sales_shared"] = "1"
+        if application_ids:
+            query_params["application_ids"] = ",".join(
+                str(application_id) for application_id in application_ids
+            )
+
+        return self._request(
+            method="GET",
+            path="user/application/unread-counts",
+            query_params=query_params,
+            expected_statuses=(200,),
+        )
+
+    def get_inbox_summary(
+        self,
+        *,
+        viewer_role: str,
+        application_ids: Optional[list[int]] = None,
+    ) -> Dict[str, Any]:
+        """Fetch sales inbox summary for shared unread messages."""
+        query_params: Dict[str, Any] = {"viewer_role": viewer_role}
+        if viewer_role == "sales":
+            query_params["sales_shared"] = "1"
+        if application_ids:
+            query_params["application_ids"] = ",".join(
+                str(application_id) for application_id in application_ids
+            )
+
+        return self._request(
+            method="GET",
+            path="user/application/inbox-summary",
+            query_params=query_params,
+            expected_statuses=(200,),
+        )
+
+    def post_mark_read(
+        self,
+        *,
+        viewer_role: str,
+        application_id: Optional[int] = None,
+        application_ids: Optional[list[int]] = None,
+    ) -> Dict[str, Any]:
+        """Mark application messages read for sales shared inbox mode."""
+        if application_id is None and not application_ids:
+            raise DrupalMessagingClientError(
+                status_code=400,
+                code="invalid_request",
+                message="application_id or application_ids is required.",
+            )
+
+        query_params: Dict[str, Any] = {"viewer_role": viewer_role}
+        if viewer_role == "sales":
+            query_params["sales_shared"] = "1"
+
+        body: Dict[str, Any] = {}
+        if application_id is not None:
+            body["application_id"] = str(application_id)
+        elif application_ids:
+            body["application_ids"] = ",".join(
+                str(application_id_item) for application_id_item in application_ids
+            )
+
+        return self._request(
+            method="POST",
+            path="user/application/mark-read",
+            form_payload=body,
+            query_params=query_params,
+            expected_statuses=(200,),
+        )
+
+    def post_sales_reply(
+        self,
+        application_id: int,
+        body: str,
+        co_applicant_email: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Create a salesperson message for a specific application."""
+        if not isinstance(body, str) or not body.strip():
+            raise DrupalMessagingClientError(
+                status_code=400,
+                code="empty_body",
+                message="Message body cannot be empty.",
+            )
+
+        payload = {"body": body, "sender_role": "sales"}
+        if isinstance(co_applicant_email, str) and co_applicant_email.strip():
+            payload["co_applicant_email"] = co_applicant_email.strip()
+
+        _logger.debug(
+            "Posting sales message to Drupal: application_id=%s sender_role=%s "
+            "co_applicant_email_included=%s",
+            application_id,
+            payload["sender_role"],
+            "co_applicant_email" in payload,
+        )
+
+        return self._request(
+            method="POST",
+            path=f"applications/{application_id}/messages",
+            payload=payload,
+            expected_statuses=(200, 201),
+        )

@@ -4,6 +4,8 @@ from rest_framework.routers import DefaultRouter
 from application_form.api.sales.views import (
     apartment_states,
     ApartmentReservationViewSet,
+    application_inbox_summary,
+    application_unread_counts,
     execute_lottery_for_project,
     OfferViewSet,
     SalesApplicationViewSet,
@@ -79,6 +81,16 @@ urlpatterns = [
         r"sales/apartment_states/",
         apartment_states,
         name="apartment_states",
+    ),
+    path(
+        r"sales/messages/unread-counts/",
+        application_unread_counts,
+        name="sales-application-unread-counts",
+    ),
+    path(
+        r"sales/messages/inbox-summary/",
+        application_inbox_summary,
+        name="sales-application-inbox-summary",
     ),
     path(
         r"sales/applicant/latest/<int:customer_id>/",

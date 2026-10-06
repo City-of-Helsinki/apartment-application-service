@@ -10,6 +10,7 @@ from apartment.elastic.queries import get_apartment
 from apartment_application_service.pdf import create_pdf, PDFCurrencyField, PDFData
 from apartment_application_service.utils import SafeAttributeObject
 from application_form.models import ApartmentReservation
+from customer.profile_resolver import resolve_customer_profiles_for_reservation
 from invoicing.enums import InstallmentType
 from users.models import User
 
@@ -148,21 +149,12 @@ def get_haso_contract_pdf_data(
     sales_price_paid_place: Optional[str] = None,
     sales_price_paid_time: Optional[str] = None,
 ) -> HasoContractPDFData:
-    """
-    Return HASO contract PDF data for a reservation.
-
-    Parameters:
-    - reservation: Apartment reservation used as data source
-    - salesperson: Optional salesperson used for signing info
-    - sales_price_paid_place: Optional signing place (defaults to "Helsinki")
-    - sales_price_paid_time: Optional signing date (defaults to today's date)
-
-    Returns:
-    - HasoContractPDFData
-    """
-    customer = SafeAttributeObject(reservation.customer)
-    primary_profile = SafeAttributeObject(customer.primary_profile)
-    secondary_profile = SafeAttributeObject(customer.secondary_profile)
+    (
+        primary_profile_data,
+        secondary_profile_data,
+    ) = resolve_customer_profiles_for_reservation(reservation)
+    primary_profile = SafeAttributeObject(primary_profile_data)
+    secondary_profile = SafeAttributeObject(secondary_profile_data)
     apartment = get_apartment(reservation.apartment_uuid, include_project_fields=True)
 
     first_payment = SafeAttributeObject(

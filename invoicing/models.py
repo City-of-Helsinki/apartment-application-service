@@ -189,10 +189,10 @@ class ApartmentInstallment(InstallmentBase):
         else:
             super().save(*args, **kwargs)
 
-    def add_to_be_sent_to_sap(self, force=False):
+    def add_to_be_sent_to_sap(self, force=False, timestamp=None):
         if self.added_to_be_sent_to_sap_at and not force:
             raise AlreadyAddedToBeSentToSapError()
-        self.added_to_be_sent_to_sap_at = timezone.now()
+        self.added_to_be_sent_to_sap_at = timestamp or timezone.now()
         self.save(update_fields=("added_to_be_sent_to_sap_at",))
 
 
@@ -307,4 +307,80 @@ class Payment(TimestampedModel):
     class Meta:
         verbose_name = _("payment")
         verbose_name_plural = _("payments")
+        ordering = ("id",)
+
+
+class DrupalPaymentSyncOutboxEvent(TimestampedModel):
+    class Status(models.TextChoices):
+        PENDING = "pending", _("pending")
+        FAILED = "failed", _("failed")
+        SENT = "sent", _("sent")
+        DEAD_LETTER = "dead_letter", _("dead letter")
+
+    apartment_installment = models.ForeignKey(
+        ApartmentInstallment,
+        verbose_name=_("apartment installment"),
+        related_name="drupal_payment_sync_events",
+        on_delete=models.PROTECT,
+    )
+    application_id = models.IntegerField(verbose_name=_("application id"))
+    reservation_id = models.IntegerField(verbose_name=_("reservation id"))
+    project_uuid = models.UUIDField(verbose_name=_("project UUID"))
+    installment_type = models.CharField(
+        verbose_name=_("installment type"),
+        max_length=64,
+    )
+    amount = models.DecimalField(
+        verbose_name=_("amount"),
+        max_digits=16,
+        decimal_places=2,
+    )
+    due_date = models.DateField(verbose_name=_("due date"), blank=True, null=True)
+    account_number = models.CharField(
+        verbose_name=_("account number"),
+        max_length=255,
+    )
+    reference_number = models.CharField(
+        verbose_name=_("reference number"),
+        max_length=64,
+    )
+    sent_to_sap_at = models.DateTimeField(verbose_name=_("sent to SAP at"))
+    source_event_id = models.UUIDField(
+        verbose_name=_("source event id"),
+        unique=True,
+        default=uuid4,
+        editable=False,
+    )
+    idempotency_key = models.CharField(
+        verbose_name=_("idempotency key"),
+        max_length=255,
+        unique=True,
+    )
+    payload = models.JSONField(verbose_name=_("payload"))
+    status = models.CharField(
+        verbose_name=_("status"),
+        max_length=32,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    attempts = models.PositiveIntegerField(verbose_name=_("attempts"), default=0)
+    next_retry_at = models.DateTimeField(verbose_name=_("next retry at"), default=now)
+    processed_at = models.DateTimeField(
+        verbose_name=_("processed at"),
+        blank=True,
+        null=True,
+    )
+    last_error_code = models.CharField(
+        verbose_name=_("last error code"),
+        max_length=64,
+        blank=True,
+    )
+    last_error_message = models.TextField(
+        verbose_name=_("last error message"),
+        blank=True,
+    )
+
+    class Meta:
+        verbose_name = _("drupal payment sync outbox event")
+        verbose_name_plural = _("drupal payment sync outbox events")
         ordering = ("id",)
