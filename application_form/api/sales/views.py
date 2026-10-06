@@ -1347,4 +1347,3 @@ class ProjectExtraDataViewSet(
 ):
     queryset = ProjectExtraData.objects.all()
     serializer_class = ProjectExtraDataSerializer
-
