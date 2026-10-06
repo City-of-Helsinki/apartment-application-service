@@ -27,13 +27,8 @@ env:
   APARTMENT_DATA_TRANSFER_PATH: test_files
   # poppler-utils package contains the pdftotext-program that is used in some tests
   # newer versions of the program parse PDF's differently causing the tests to fail
-<<<<<<< HEAD
-  POPPLER_UTILS_VERSION: '22.02.0-2ubuntu0.13'
-  GETTEXT_VERSION: '0.21-4ubuntu4'
-=======
   POPPLER_UTILS_VERSION: "22.02.0-2ubuntu0.13"
   GETTEXT_VERSION: "0.21-4ubuntu4"
->>>>>>> 49e5283 (Merge pull request #608 from City-of-Helsinki/ASU-1881-message-communication-customer-sales)
   PUBLIC_PGP_KEY: |
     -----BEGIN PGP PUBLIC KEY BLOCK-----
 
@@ -107,7 +102,6 @@ jobs:
           cache: "pip"
           cache-dependency-path: requirements-dev.txt
 
-<<<<<<< HEAD
       # git+https deps (django-oikotie) need a working CA trust store
       - name: Ensure CA certificates
         run: |
@@ -115,8 +109,6 @@ jobs:
           sudo apt-get install -y ca-certificates git
           sudo update-ca-certificates
 
-=======
->>>>>>> 49e5283 (Merge pull request #608 from City-of-Helsinki/ASU-1881-message-communication-customer-sales)
       - name: Install dependencies
         run: pip install -U pip==24.2
 
