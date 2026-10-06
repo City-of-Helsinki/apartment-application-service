@@ -22,6 +22,8 @@ class DrupalMessagingClient:
     """Client for Drupal messaging endpoints used by the sales API."""
 
     _TOKEN_CACHE_KEY = "drupal_messaging:oauth_access_token:v1"
+    _JSON_CONTENT_TYPE = "application/json"
+    _FORM_CONTENT_TYPE = "application/x-www-form-urlencoded"
 
     def __init__(self):
         self._access_token: Optional[str] = None
@@ -54,7 +56,8 @@ class DrupalMessagingClient:
 
         return full
 
-    def _extract_error_message(self, response: requests.Response) -> str:
+    @staticmethod
+    def _extract_error_message(response: requests.Response) -> str:
         """Extract human-readable message from an upstream response payload."""
         try:
             payload = response.json()
@@ -68,11 +71,11 @@ class DrupalMessagingClient:
     @staticmethod
     def _build_headers(
         token: str,
-        content_type: str = "application/json",
+        content_type: str = _JSON_CONTENT_TYPE,
     ) -> Dict[str, str]:
         """Build standard headers for Drupal messaging requests."""
         return {
-            "Accept": "application/json",
+            "Accept": DrupalMessagingClient._JSON_CONTENT_TYPE,
             "Content-Type": content_type,
             "Authorization": f"Bearer {token}",
         }
@@ -131,7 +134,7 @@ class DrupalMessagingClient:
             self._token_expires_at = now + 60
             return cached_token
 
-        headers = {"Content-Type": "application/x-www-form-urlencoded"}
+        headers = {"Content-Type": self._FORM_CONTENT_TYPE}
         payload = {
             "grant_type": "client_credentials",
             "client_id": settings.DRUPAL_SEARCH_API_CLIENT_ID,
@@ -194,9 +197,9 @@ class DrupalMessagingClient:
             try:
                 token = self._get_access_token()
                 content_type = (
-                    "application/x-www-form-urlencoded"
+                    self._FORM_CONTENT_TYPE
                     if form_payload is not None
-                    else "application/json"
+                    else self._JSON_CONTENT_TYPE
                 )
                 headers = self._build_headers(token, content_type=content_type)
                 response = requests.request(

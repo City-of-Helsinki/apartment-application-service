@@ -63,29 +63,31 @@ def _pick_profile_value(
     treat_as_string: bool,
 ) -> Any:
     """Pick value using profile -> linked applicant -> latest applicant priority."""
+    resolved = default
+
     if treat_as_string:
-        profile_normalized = _normalize_string(profile_value)
-        if profile_normalized:
-            return profile_normalized
-
-        linked_normalized = _normalize_string(linked_applicant_value)
-        if linked_normalized:
-            return linked_normalized
-
+        string_candidates = [profile_value, linked_applicant_value]
         if allow_latest_fallback:
-            latest_normalized = _normalize_string(latest_applicant_value)
-            if latest_normalized:
-                return latest_normalized
+            string_candidates.append(latest_applicant_value)
 
-        return default
+        for candidate in string_candidates:
+            normalized = _normalize_string(candidate)
+            if normalized:
+                resolved = normalized
+                break
 
-    if profile_value is not None:
-        return profile_value
-    if linked_applicant_value is not None:
-        return linked_applicant_value
-    if allow_latest_fallback and latest_applicant_value is not None:
-        return latest_applicant_value
-    return default
+        return resolved
+
+    non_string_candidates = [profile_value, linked_applicant_value]
+    if allow_latest_fallback:
+        non_string_candidates.append(latest_applicant_value)
+
+    for candidate in non_string_candidates:
+        if candidate is not None:
+            resolved = candidate
+            break
+
+    return resolved
 
 
 def _get_applicants_by_role(

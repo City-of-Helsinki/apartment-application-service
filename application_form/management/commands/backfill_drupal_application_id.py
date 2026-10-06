@@ -49,7 +49,7 @@ class Command(BaseCommand):
                 fieldnames = reader.fieldnames or []
                 if "uuid" not in fieldnames or "nid" not in fieldnames:
                     raise CommandError(
-                        f"CSV must have columns 'uuid' and 'nid'," f" got: {fieldnames}"
+                        f"CSV must have columns 'uuid' and 'nid', got: {fieldnames}"
                     )
                 return list(reader)
         except FileNotFoundError:

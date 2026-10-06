@@ -470,7 +470,7 @@ def dispatch_drupal_payment_sync_events(batch_size: int = 100) -> int:
                 )
             except DrupalPaymentSyncNonRetryableError as exc:
                 _mark_non_retryable_failure(event, exc)
-                logger.error(
+                logger.exception(
                     "drupal_payment_sync_non_retryable_failure",
                     extra=_build_event_log_extra(
                         event,
