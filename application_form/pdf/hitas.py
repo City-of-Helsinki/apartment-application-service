@@ -398,9 +398,10 @@ def get_hitas_contract_pdf_data(
     sales_price_paid_time: str,
     salesperson: User,
 ) -> Union[HitasContractPDFData, HitasCompleteApartmentContractPDFData]:
-    primary_profile_data, secondary_profile_data = (
-        resolve_customer_profiles_for_reservation(reservation)
-    )
+    (
+        primary_profile_data,
+        secondary_profile_data,
+    ) = resolve_customer_profiles_for_reservation(reservation)
     primary_profile = SafeAttributeObject(primary_profile_data)
     secondary_profile = SafeAttributeObject(secondary_profile_data)
 

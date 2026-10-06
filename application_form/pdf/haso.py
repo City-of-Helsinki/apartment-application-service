@@ -149,9 +149,10 @@ def get_haso_contract_pdf_data(
     sales_price_paid_place: Optional[str] = None,
     sales_price_paid_time: Optional[str] = None,
 ) -> HasoContractPDFData:
-    primary_profile_data, secondary_profile_data = (
-        resolve_customer_profiles_for_reservation(reservation)
-    )
+    (
+        primary_profile_data,
+        secondary_profile_data,
+    ) = resolve_customer_profiles_for_reservation(reservation)
     primary_profile = SafeAttributeObject(primary_profile_data)
     secondary_profile = SafeAttributeObject(secondary_profile_data)
     apartment = get_apartment(reservation.apartment_uuid, include_project_fields=True)

@@ -24,7 +24,6 @@ User = get_user_model()
 
 
 class ApartmentReservationQuerySet(models.QuerySet):
-
     def reserved(self):
         return self.active().exclude(state=ApartmentReservationState.SUBMITTED)
 
