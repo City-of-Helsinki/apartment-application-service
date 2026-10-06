@@ -82,6 +82,8 @@ from application_form.services.reservation import (
 from audit_log.viewsets import AuditLoggingModelViewSet
 from users.permissions import IsDjangoSalesperson, IsDrupalSalesperson
 
+_logger = logging.getLogger(__name__)
+
 
 @api_view(http_method_names=["POST"])
 @permission_classes([IsDjangoSalesperson])
