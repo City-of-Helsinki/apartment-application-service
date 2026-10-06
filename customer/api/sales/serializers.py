@@ -151,9 +151,9 @@ class CustomerSerializer(serializers.ModelSerializer):
         profile_data["city"] = resolved_profile.city
         profile_data["postal_code"] = resolved_profile.postal_code
         profile_data["contact_language"] = resolved_profile.contact_language
-        profile_data[
-            "national_identification_number"
-        ] = resolved_profile.national_identification_number
+        profile_data["national_identification_number"] = (
+            resolved_profile.national_identification_number
+        )
         profile_data["date_of_birth"] = (
             resolved_profile.date_of_birth.isoformat()
             if resolved_profile.date_of_birth
