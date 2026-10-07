@@ -174,6 +174,24 @@ class TestOikotieMapper:
         assert location.count == 8
         assert location.high is True
 
+    def test_map_floor_location_uses_floor_number_when_positive(self):
+        """
+        - Keeps the apartment floor as FloorLocation.number when floor is positive.
+        """
+        apartment = ApartmentMinimalFactory(floor=3, floor_max=8)
+        location = map_floor_location(apartment, project_floor_max=8)
+        assert location.number == 3
+
+    def test_map_floor_location_maps_non_positive_floor_to_one(self):
+        """
+        - Maps floor 0 to FloorLocation.number 1.
+        - Maps negative floor to FloorLocation.number 1.
+        """
+        for invalid_floor in (0, -2):
+            apartment = ApartmentMinimalFactory(floor=invalid_floor, floor_max=8)
+            location = map_floor_location(apartment, project_floor_max=8)
+            assert location.number == 1
+
     def test_map_oikotie_apartment_exports_construction_materials_as_single_value(
         self,
     ):
