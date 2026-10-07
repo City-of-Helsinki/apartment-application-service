@@ -256,6 +256,14 @@ def map_floor_location(
         project_floor_max,
         staircase_floor_max=staircase_floor_max,
     )
+
+    # clamp floor to 1 - resolved_floor_max, oikotie only allows 1-999
+    if floor is not None:
+        if floor <= 0:
+            floor = 1
+        if floor > resolved_floor_max:
+            floor = resolved_floor_max
+
     if floor and resolved_floor_max:
         high = floor == resolved_floor_max
         low = floor == 1
