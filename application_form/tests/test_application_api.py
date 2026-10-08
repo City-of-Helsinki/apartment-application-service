@@ -24,6 +24,7 @@ from application_form.enums import (
     ApartmentReservationState,
     ApplicationArrivalMethod,
     ApplicationType,
+    OfferState,
 )
 from application_form.models import ApartmentReservation, Application
 from application_form.services.application import cancel_reservation
@@ -35,6 +36,7 @@ from application_form.tests.factories import (
     ApplicationApartmentFactory,
     ApplicationFactory,
     LotteryEventFactory,
+    OfferFactory,
 )
 from connections.enums import ApartmentStateOfSale
 from customer.models import Customer
@@ -1628,3 +1630,114 @@ def test_application_to_project_with_expired_offer_is_allowed(
     )
 
     assert response.status_code == 201
+
+
+@pytest.mark.django_db
+def test_late_haso_application_does_not_jump_reservation_with_expired_offer(
+    api_client, elasticsearch
+):
+    """
+    A late HASO application must not take queue position 1 from a reservation
+    whose offer valid-until date is already in the past.
+
+    - HASO apartment has project_can_apply_afterwards=True
+    - Existing late reservation at position 1 is still SUBMITTED, with a
+      pending offer whose valid-until date is in the past
+    - Another customer posts a late HASO application (right of residence 230,
+      no children, no HITAS ownership, not a housing changer)
+    - The reservation with the expired offer stays at queue position 1
+    - The new SUBMITTED reservation is inserted at queue position 2
+    """
+    application_start_time = (datetime.now() - timedelta(days=20)).replace(
+        tzinfo=timezone.get_default_timezone()
+    )
+    application_end_time = application_start_time + timedelta(days=10)
+    apartments = generate_apartments(
+        elasticsearch,
+        1,
+        {
+            "apartment_state_of_sale": ApartmentStateOfSale.FOR_SALE.value,
+            "_language": "fi",
+            "project_application_start_time": application_start_time,
+            "project_application_end_time": application_end_time,
+            "project_ownership_type": OwnershipType.HASO.value,
+            "project_can_apply_afterwards": True,
+        },
+    )
+    apartment = apartments[0]
+    LotteryEventFactory.create(apartment_uuid=apartment.uuid)
+
+    offered_customer = CustomerFactory()
+    offered_reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        customer=offered_customer,
+        queue_position=1,
+        list_position=1,
+        submitted_late=True,
+        right_of_residence=500,
+        right_of_residence_is_old_batch=False,
+        state=ApartmentReservationState.SUBMITTED,
+        application_apartment=ApplicationApartmentFactory(
+            apartment_uuid=apartment.uuid,
+            application=ApplicationFactory(
+                customer=offered_customer,
+                type=ApplicationType.HASO,
+                applicants_count=1,
+                submitted_late=True,
+                right_of_residence=500,
+                right_of_residence_is_old_batch=False,
+            ),
+        ),
+    )
+    offer = OfferFactory(
+        apartment_reservation=offered_reservation,
+        state=OfferState.PENDING,
+        valid_until=timezone.localdate() - timedelta(days=1),
+    )
+    offered_reservation.refresh_from_db()
+
+    assert offer.is_expired is True
+    assert offered_reservation.state == ApartmentReservationState.SUBMITTED
+
+    new_profile = ProfileFactory()
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(new_profile)}")
+    data = create_application_data(
+        new_profile,
+        application_type=ApplicationType.HASO,
+        num_applicants=1,
+        apartments=[apartment],
+    )
+    data["right_of_residence"] = 230
+    data["has_children"] = False
+    data["has_hitas_ownership"] = False
+    data["is_right_of_occupancy_housing_changer"] = False
+
+    response = api_client.post(
+        reverse("application_form:application-list"), data, format="json"
+    )
+
+    assert response.status_code == 201, response.data
+
+    offered_reservation.refresh_from_db()
+    new_application = Application.objects.get(external_uuid=data["application_uuid"])
+    new_reservation = ApartmentReservation.objects.get(
+        apartment_uuid=apartment.uuid,
+        application_apartment__application=new_application,
+    )
+
+    assert new_application.submitted_late is True
+    assert new_application.right_of_residence == 230
+    assert new_application.has_children is False
+    assert new_application.has_hitas_ownership is False
+    assert new_application.is_right_of_occupancy_housing_changer is False
+    assert new_application.applicants_count == 1
+    assert new_reservation.state == ApartmentReservationState.SUBMITTED
+    assert new_reservation.submitted_late is True
+    assert new_reservation.right_of_residence == 230
+    assert new_reservation.has_children is False
+    assert new_reservation.has_hitas_ownership is False
+    assert new_reservation.is_right_of_occupancy_housing_changer is False
+    assert new_reservation.handler == ""
+    assert new_reservation.is_age_over_55 is None
+    assert offered_reservation.queue_position == 1
+    assert new_reservation.queue_position == 2

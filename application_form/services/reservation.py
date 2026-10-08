@@ -190,7 +190,7 @@ def calculate_new_positions(
     if ownership_type.lower() == "haso":
         active_reservations = existing_reservations.exclude(
             state=ApartmentReservationState.CANCELED
-        )
+        ).select_related("offer")
         late_reservations = active_reservations.filter(submitted_late=True).order_by(
             "queue_position"
         )

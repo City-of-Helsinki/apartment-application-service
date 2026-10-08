@@ -10,12 +10,13 @@ from application_form.services.haso_ranking import (
 )
 
 
-def _reservation(queue_position, ordering_number, state=None):
+def _reservation(queue_position, ordering_number, state=None, offer=None):
     """Build a minimal stand-in for ApartmentReservation."""
     return SimpleNamespace(
         queue_position=queue_position,
         right_of_residence_ordering_number=ordering_number,
         state=state or ApartmentReservationState.SUBMITTED,
+        offer=offer,
     )
 
 
@@ -59,6 +60,54 @@ def test_is_protected_from_queue_jump_leaves_pre_offer_states_jumpable(state):
     """
     assert is_protected_from_queue_jump(state) is False
     assert is_protected_from_queue_jump(state.value) is False
+
+
+def test_is_protected_from_queue_jump_when_offer_is_expired():
+    """
+    An expired offer protects a reservation even if its state is still jumpable.
+
+    - SUBMITTED without an offer is not protected
+    - SUBMITTED with an expired offer is protected
+    - A still-valid pending offer does not protect a jumpable state
+    """
+    submitted = _reservation(1, 500, ApartmentReservationState.SUBMITTED)
+    expired = _reservation(
+        1,
+        500,
+        ApartmentReservationState.SUBMITTED,
+        SimpleNamespace(is_expired=True),
+    )
+    valid_offer = _reservation(
+        1,
+        500,
+        ApartmentReservationState.SUBMITTED,
+        SimpleNamespace(is_expired=False),
+    )
+
+    assert is_protected_from_queue_jump(submitted) is False
+    assert is_protected_from_queue_jump(expired) is True
+    assert is_protected_from_queue_jump(valid_offer) is False
+
+
+def test_protected_queue_floor_includes_expired_offer_on_jumpable_state():
+    """
+    An expired offer at the queue head raises the floor even when the
+    reservation is still SUBMITTED.
+
+    - Queue head is SUBMITTED with an expired offer
+    - Floor is that head's position
+    """
+    reservations = [
+        _reservation(
+            1,
+            500,
+            ApartmentReservationState.SUBMITTED,
+            SimpleNamespace(is_expired=True),
+        ),
+        _reservation(2, 800),
+    ]
+
+    assert protected_queue_floor(reservations) == 1
 
 
 def test_protected_queue_floor_returns_last_protected_position():
@@ -115,6 +164,27 @@ def test_find_haso_insert_target_skips_protected_queue_head():
     - Newcomer is placed at the position behind it
     """
     head = _reservation(1, 500, ApartmentReservationState.OFFER_EXPIRED)
+    second = _reservation(2, 800)
+
+    target = find_haso_insert_target([head, second], 100)
+
+    assert target is second
+
+
+def test_find_haso_insert_target_skips_expired_offer_on_submitted_queue_head():
+    """
+    A SUBMITTED queue head with an expired offer keeps its position.
+
+    - Queue head is SUBMITTED and has an expired offer
+    - Newcomer has a better ordering number
+    - Newcomer is placed at the position behind the head
+    """
+    head = _reservation(
+        1,
+        500,
+        ApartmentReservationState.SUBMITTED,
+        SimpleNamespace(is_expired=True),
+    )
     second = _reservation(2, 800)
 
     target = find_haso_insert_target([head, second], 100)
