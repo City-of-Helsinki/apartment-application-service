@@ -1719,9 +1719,7 @@ def test_late_haso_application_does_not_jump_reservation_with_expired_offer(
     assert response.status_code == 201, response.data
 
     offered_reservation.refresh_from_db()
-    new_application = Application.objects.get(
-        external_uuid=data["application_uuid"]
-    )
+    new_application = Application.objects.get(external_uuid=data["application_uuid"])
     new_reservation = ApartmentReservation.objects.get(
         apartment_uuid=apartment.uuid,
         application_apartment__application=new_application,
