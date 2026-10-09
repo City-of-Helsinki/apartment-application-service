@@ -573,12 +573,17 @@ def map_apartment_to_item(
     debtfreeprice_key = (
         "right_of_occupancy_payment" if is_haso else "debt_free_sales_price"
     )
+    chargesmaintbasemonth_key = (
+        "right_of_occupancy_fee" if is_haso else "maintenance_fee"
+    )
 
     item_dict = {
         "buildyear": getattr(elastic_apartment, "project_construction_year", None),
         "charges_parkingspace": map_price(elastic_apartment, "parking_fee"),
         "chargesfinancebasemonth": map_price(elastic_apartment, "financing_fee"),
-        "chargesmaintbasemonth": map_price(elastic_apartment, "maintenance_fee"),
+        "chargesmaintbasemonth": map_price(
+            elastic_apartment, chargesmaintbasemonth_key
+        ),
         "chargeswater_period": getattr(
             elastic_apartment, "water_fee_explanation", None
         ),
