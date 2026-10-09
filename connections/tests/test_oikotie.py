@@ -757,6 +757,35 @@ class TestOikotieMapper:
 
         pass
 
+    def test_oikotie_map_charge_fee_from_right_of_occupancy_fee_for_haso(self):
+        """
+        - HASO apartments map right_of_occupancy_fee to ChargeFee.
+        - HITAS apartments do not export ChargeFee from right_of_occupancy_fee.
+        - Values are converted from cents to euros.
+        """
+        right_of_occupancy_fee = 45000
+        maintenance_fee = 20000
+
+        expected_right_of_occupancy_fee = Decimal(right_of_occupancy_fee) / 100
+
+        haso_apartment = ApartmentMinimalFactory(
+            project_ownership_type=OwnershipType.HASO.value,
+            right_of_occupancy_fee=right_of_occupancy_fee,
+            maintenance_fee=maintenance_fee,
+        )
+        hitas_apartment = ApartmentMinimalFactory(
+            project_ownership_type=OwnershipType.HITAS.value,
+            right_of_occupancy_fee=right_of_occupancy_fee,
+            maintenance_fee=maintenance_fee,
+        )
+
+        mapped_haso_apartment = map_oikotie_apartment(haso_apartment)
+        mapped_hitas_apartment = map_oikotie_apartment(hitas_apartment)
+
+        assert mapped_haso_apartment.charge_fee is not None
+        assert mapped_haso_apartment.charge_fee.value == expected_right_of_occupancy_fee
+        assert mapped_hitas_apartment.charge_fee is None
+
     def test_oikotie_map_correct_unencumbered_price_info(self):
         """
         Get `ApartmentDocument.release_payment` for HASO apartments and
