@@ -9,6 +9,7 @@ from django_oikotie.xml_models.apartment import (
     Apartment,
     Balcony,
     CarParkingCharge,
+    ChargeFee,
     City,
     Estate,
     FinancingFee,
@@ -367,6 +368,25 @@ def map_maintenance_fee(
     return None
 
 
+def map_charge_fee(elastic_apartment: ElasticApartment) -> Optional[ChargeFee]:
+    """
+    Map right_of_occupancy_fee to ChargeFee for HASO apartments only.
+    """
+    ownership_type = ensure_str(
+        getattr(elastic_apartment, "project_ownership_type", None)
+    )
+    if (ownership_type or "").lower() != OwnershipType.HASO.value:
+        return None
+
+    cents = _to_int(getattr(elastic_apartment, "right_of_occupancy_fee", None))
+    if cents is not None:
+        return ChargeFee(
+            value=convert_price_from_cents_to_eur(cents),
+            unit=Unit.EUR_KK.value,
+        )
+    return None
+
+
 def map_water_fee(elastic_apartment: ElasticApartment) -> Optional[WaterFee]:
     cents = _to_int(getattr(elastic_apartment, "water_fee", None))
     if cents is not None and cents > 0:
@@ -611,6 +631,7 @@ def map_oikotie_apartment(
         "site_area": map_site_area(elastic_apartment),
         "financing_fee": map_financing_fee(elastic_apartment),
         "maintenance_fee": map_maintenance_fee(elastic_apartment),
+        "charge_fee": map_charge_fee(elastic_apartment),
         "water_fee": map_water_fee(elastic_apartment),
         "water_fee_explanation": ensure_str(
             getattr(elastic_apartment, "water_fee_explanation", None)
