@@ -96,6 +96,37 @@ class TestEtuoviMapper:
         assert hitas_item.debtfreeprice == expected_debt_free_sales_price
         assert hitas_item.price == expected_sales_price
 
+    def test_etuovi_map_chargesmaintbasemonth_from_right_of_occupancy_fee_for_haso(
+        self,
+    ):
+        """
+        - HASO apartments map right_of_occupancy_fee to chargesmaintbasemonth.
+        - HITAS apartments keep mapping maintenance_fee to chargesmaintbasemonth.
+        - Values are converted from cents to euros.
+        """
+        right_of_occupancy_fee = 45000
+        maintenance_fee = 20000
+
+        expected_right_of_occupancy_fee = Decimal(right_of_occupancy_fee) / 100
+        expected_maintenance_fee = Decimal(maintenance_fee) / 100
+
+        haso_apartment = ApartmentDocumentFactory(
+            project_ownership_type=OwnershipType.HASO.value,
+            right_of_occupancy_fee=right_of_occupancy_fee,
+            maintenance_fee=maintenance_fee,
+        )
+        hitas_apartment = ApartmentDocumentFactory(
+            project_ownership_type=OwnershipType.HITAS.value,
+            right_of_occupancy_fee=right_of_occupancy_fee,
+            maintenance_fee=maintenance_fee,
+        )
+
+        haso_item = map_apartment_to_item(haso_apartment)
+        hitas_item = map_apartment_to_item(hitas_apartment)
+
+        assert haso_item.chargesmaintbasemonth == expected_right_of_occupancy_fee
+        assert hitas_item.chargesmaintbasemonth == expected_maintenance_fee
+
     def test_elastic_to_etuovi_missing_apartment_project_holding_type(self):
         try:
             elastic_apartment = ApartmentMinimalFactory(project_holding_type=None)
