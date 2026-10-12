@@ -208,7 +208,7 @@ def _calculate_queue_position(
     active_reservations = (
         ApartmentReservation.objects.active()
         .filter(apartment_uuid=apartment_uuid)
-        .only("queue_position", "state")
+        .select_related("offer")
     )
     same_late_group = (
         ApartmentReservation.objects.active()
@@ -216,7 +216,7 @@ def _calculate_queue_position(
             apartment_uuid=apartment_uuid,
             application_apartment__application__submitted_late=submitted_late,
         )
-        .select_related("application_apartment__application")
+        .select_related("application_apartment__application", "offer")
         .order_by("queue_position")
     )
 

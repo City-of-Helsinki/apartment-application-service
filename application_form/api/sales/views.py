@@ -558,8 +558,10 @@ def _recalculate_queue_position_for_haso_on_submitted_late_change(
     if ordering_number is None:
         return None
 
-    active_qs = ApartmentReservation.objects.active().filter(
-        apartment_uuid=reservation.apartment_uuid
+    active_qs = (
+        ApartmentReservation.objects.active()
+        .filter(apartment_uuid=reservation.apartment_uuid)
+        .select_related("offer")
     )
     if reservation.pk:
         active_qs = active_qs.exclude(pk=reservation.pk)

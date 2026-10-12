@@ -10,7 +10,9 @@ LIST_POSITION_BUMP_OFFSET: Final[int] = 10_000
 # HASO queue insertion must not place a new application ahead of a reservation
 # that has already been offered, even when the new applicant has a better
 # (lower) right of residence number. An expired offer stays protected because
-# the offer round has already been played out for that queue position.
+# the offer round has already been played out for that queue position. This
+# includes date-expired pending offers whose reservation state is still
+# jumpable (for example SUBMITTED) and has not been moved to OFFER_EXPIRED.
 #
 # The states before an offer is made (RESERVED, RESERVATION_AGREEMENT, REVIEW)
 # stay jumpable on purpose: they only reflect the current lottery result, which
