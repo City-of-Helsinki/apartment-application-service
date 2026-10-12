@@ -137,7 +137,7 @@ pillow==10.3.0
     # via pikepdf
 psycopg2==2.9.9
     # via -r requirements.in
-pyasn1==0.5.0
+pyasn1==0.6.4
     # via
     #   python-jose
     #   rsa
