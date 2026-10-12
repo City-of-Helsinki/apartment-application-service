@@ -914,38 +914,30 @@ def test_export_terminated_sales_excludes_apartment_resold_after_termination():
     resold_apartment = apartments[0]
     terminated_apartment = apartments[1]
 
-    with freeze_time("2025-01-10"):
-        sell_apartments(apartments[0].project_uuid, len(apartments))
-
-    with freeze_time("2025-01-16"):
-        reservations = ApartmentReservation.objects.filter(
-            apartment_uuid__in=[resold_apartment.uuid, terminated_apartment.uuid]
-        ).active()
-        for reservation in reservations:
-            cancel_reservation(
-                apartment_reservation=reservation,
-                cancellation_reason=ApartmentReservationCancellationReason.TERMINATED,
-            )
-
-    with freeze_time("2025-01-21"):
-        sell_apartments(apartments[0].project_uuid, len(apartments))
-
-    with freeze_time("2025-01-28"):
-        reservation = (
-            ApartmentReservation.objects.filter(
-                apartment_uuid=terminated_apartment.uuid
-            )
-            .active()
-            .first()
+    reservations_by_uuid = {
+        str(apartment.uuid): ApartmentReservationFactory(
+            apartment_uuid=apartment.uuid,
+            state=ApartmentReservationState.SOLD,
         )
-        cancel_reservation(
-            apartment_reservation=reservation,
-            cancellation_reason=ApartmentReservationCancellationReason.TERMINATED,
-        )
+        for apartment in apartments
+    }
+
+    reservations_by_uuid[str(resold_apartment.uuid)].set_state(
+        ApartmentReservationState.CANCELED,
+        cancellation_reason=ApartmentReservationCancellationReason.TERMINATED,
+    )
+    reservations_by_uuid[str(resold_apartment.uuid)].set_state(
+        ApartmentReservationState.SOLD,
+    )
+
+    reservations_by_uuid[str(terminated_apartment.uuid)].set_state(
+        ApartmentReservationState.CANCELED,
+        cancellation_reason=ApartmentReservationCancellationReason.TERMINATED,
+    )
 
     state_events = get_state_events_for_export(
-        start=datetime(2025, 1, 1),
-        end=datetime(2025, 12, 31),
+        start=timezone.now() - timedelta(days=1),
+        end=timezone.now() + timedelta(days=1),
     )
     export_service = XlsxSalesReportExportService(
         state_events,
@@ -953,9 +945,10 @@ def test_export_terminated_sales_excludes_apartment_resold_after_termination():
     )
 
     terminated_sales = export_service._get_apartments_with_terminated_sales(apartments)
+    terminated_sales_uuids = {str(apartment.uuid) for apartment in terminated_sales}
 
-    assert terminated_apartment in terminated_sales
-    assert resold_apartment not in terminated_sales
+    assert str(terminated_apartment.uuid) in terminated_sales_uuids
+    assert str(resold_apartment.uuid) not in terminated_sales_uuids
 
 
 @pytest.mark.django_db
