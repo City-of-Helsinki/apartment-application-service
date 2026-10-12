@@ -881,6 +881,84 @@ def test_export_terminated_sales_rows():
 
 
 @pytest.mark.django_db
+def test_export_terminated_sales_excludes_apartment_resold_after_termination():
+    """
+    Validate terminated sales filtering uses latest relevant event.
+
+            - Positive: apartment terminated last is included in terminated rows.
+            - Negative: apartment sold again after termination is excluded.
+    """
+    apartments = [
+        ApartmentDocumentFactory(
+            apartment_number="A1",
+            project_ownership_type="Hitas",
+            sales_price=10000000,
+            debt_free_sales_price=15000000,
+            right_of_occupancy_payment=0,
+            project_application_end_time=datetime(2025, 1, 1),
+        )
+    ]
+    for idx in range(2, 4):
+        apartments.append(
+            ApartmentDocumentFactory(
+                apartment_number=f"A{idx}",
+                project_ownership_type="Hitas",
+                project_uuid=apartments[0].project_uuid,
+                sales_price=10000000,
+                debt_free_sales_price=15000000,
+                right_of_occupancy_payment=0,
+                project_application_end_time=datetime(2025, 1, 1),
+            )
+        )
+
+    resold_apartment = apartments[0]
+    terminated_apartment = apartments[1]
+
+    with freeze_time("2025-01-10"):
+        sell_apartments(apartments[0].project_uuid, len(apartments))
+
+    with freeze_time("2025-01-16"):
+        reservations = ApartmentReservation.objects.filter(
+            apartment_uuid__in=[resold_apartment.uuid, terminated_apartment.uuid]
+        ).active()
+        for reservation in reservations:
+            cancel_reservation(
+                apartment_reservation=reservation,
+                cancellation_reason=ApartmentReservationCancellationReason.TERMINATED,
+            )
+
+    with freeze_time("2025-01-21"):
+        sell_apartments(apartments[0].project_uuid, len(apartments))
+
+    with freeze_time("2025-01-28"):
+        reservation = (
+            ApartmentReservation.objects.filter(
+                apartment_uuid=terminated_apartment.uuid
+            )
+            .active()
+            .first()
+        )
+        cancel_reservation(
+            apartment_reservation=reservation,
+            cancellation_reason=ApartmentReservationCancellationReason.TERMINATED,
+        )
+
+    state_events = get_state_events_for_export(
+        start=datetime(2025, 1, 1),
+        end=datetime(2025, 12, 31),
+    )
+    export_service = XlsxSalesReportExportService(
+        state_events,
+        [apartments[0].project_uuid],
+    )
+
+    terminated_sales = export_service._get_apartments_with_terminated_sales(apartments)
+
+    assert terminated_apartment in terminated_sales
+    assert resold_apartment not in terminated_sales
+
+
+@pytest.mark.django_db
 def test_export_dont_show_project_totals_if_no_sales_or_terminations():
     apartments = [
         ApartmentDocumentFactory(

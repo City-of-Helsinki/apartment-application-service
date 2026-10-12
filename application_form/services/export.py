@@ -1039,11 +1039,27 @@ class XlsxSalesReportExportService(XlsxExportService):
     def _get_apartments_with_terminated_sales(
         self, apartments: List[ApartmentDocument]
     ) -> List[ApartmentDocument]:
+        terminated_apartments = []
+        for apartment in apartments:
+            latest_event = self._get_latest_apartment_event(
+                apartment,
+                state__in=[
+                    ApartmentReservationState.SOLD,
+                    ApartmentReservationState.CANCELED,
+                ],
+            )
 
-        return self._get_canceled_apartments_with_cancellation_reason(
-            apartments=apartments,
-            cancellation_reason=ApartmentReservationCancellationReason.TERMINATED,
-        )
+            if not latest_event:
+                continue
+
+            if (
+                latest_event.state == ApartmentReservationState.CANCELED
+                and latest_event.cancellation_reason
+                == ApartmentReservationCancellationReason.TERMINATED
+            ):
+                terminated_apartments.append(apartment)
+
+        return terminated_apartments
 
     def _get_canceled_apartments_with_cancellation_reason(
         self,
