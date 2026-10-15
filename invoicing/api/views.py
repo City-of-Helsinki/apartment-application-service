@@ -32,7 +32,6 @@ from ..models import (
 )
 from ..pdf import create_invoice_pdf_from_installments
 
-
 logger = logging.getLogger(__name__)
 
 
