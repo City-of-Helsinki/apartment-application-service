@@ -1,0 +1,15 @@
+[
+  {
+    "model": "users.user",
+    "pk": 900001,
+    "fields": {
+      "uuid": "8a5d3c1e-2f4b-4c6d-9e8f-0a1b2c3d4e5f",
+      "username": "u-rjotyhrpjngg3hupbinsypkol4",
+      "password": "!",
+      "first_name": "E2E",
+      "last_name": "Salesperson",
+      "is_active": true,
+      "groups": [["django_salesperson"]]
+    }
+  }
+]

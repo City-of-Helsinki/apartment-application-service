@@ -1,5 +1,24 @@
 import { defineConfig, devices } from '@playwright/test';
 
+/**
+ * Return the origin (scheme://host:port) of a URL.
+ *
+ * @param url - Absolute URL.
+ * @returns The URL's origin.
+ */
+function originOf(url: string): string {
+  return new URL(url).origin;
+}
+
+// The sales UI's OIDC client (oidc-client-ts) needs crypto.subtle for PKCE,
+// which browsers expose only in secure contexts. In the compose network the
+// UI and the mock OIDC provider are plain http on non-localhost hostnames,
+// so Chromium is told to treat exactly those origins as secure.
+const insecureOriginsTreatedAsSecure = [
+  originOf(process.env.E2E_SALES_UI_URL ?? 'http://localhost:13000'),
+  originOf(process.env.E2E_OIDC_URL ?? 'http://localhost:18083'),
+].join(',');
+
 export default defineConfig({
   testDir: '.',
   fullyParallel: true,
@@ -15,12 +34,17 @@ export default defineConfig({
     baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:18080',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    video: 'on',
   },
   projects: [
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        launchOptions: {
+          args: [`--unsafely-treat-insecure-origin-as-secure=${insecureOriginsTreatedAsSecure}`],
+        },
+      },
     },
   ],
 });

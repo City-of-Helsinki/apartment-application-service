@@ -83,6 +83,7 @@ The E2E stack runs `apartment-application-service` (Django) and `drupal-asuntotu
 
 - Docker with Compose v2
 - Both repos cloned as siblings: `drupal-asuntotuotanto/` and `apartment-application-service/` in the same parent directory
+- `att-sales-ui/` cloned as a sibling as well, for the sales UI tests. Set `SALES_UI_PATH` in `.env.e2e` to use a clone elsewhere.
 
 ### First-time setup
 
@@ -121,6 +122,72 @@ Services exposed on the host (bound to `127.0.0.1` only):
 | Django API | http://localhost:18081/api_docs/ |
 | Drupal MariaDB | localhost:13306 |
 | Django Postgres | localhost:15434 |
+| Mock OIDC provider | http://localhost:18083/e2e/.well-known/openid-configuration |
+| Sales UI (CRA dev server) | http://localhost:13000 |
+
+### Authenticating against the Django sales API
+
+The `mock-oidc` service ([navikt/mock-oauth2-server](https://github.com/navikt/mock-oauth2-server)) issues signed JWTs that Django accepts as Bearer tokens (`OIDC_ISSUER=http://mock-oidc:8080/e2e`, `OIDC_AUDIENCE=apartment-application-service`). Tokens are obtained with the `client_credentials` grant from `/e2e/token` (any client id/secret); the `scope` parameter selects the claims defined in `mock-oidc-config.json`:
+
+| Scope | Result |
+|---|---|
+| `e2e-salesperson` | salesperson user, accepted (200) |
+| `e2e-customer` | authenticated user without the salesperson role (403) |
+| `e2e-wrong-audience` | rejected (401) |
+
+The fixture `e2e/fixtures/django/salesperson.json` creates the user whose UUID is the `e2e-salesperson` token's `sub` and adds it to the `django_salesperson` group (see [Fixtures](#fixtures)).
+
+The mock sets each token's `iss` from the Host header used to reach it, so only tokens fetched as `mock-oidc:8080` are trusted. From the host, add the header:
+
+```bash
+curl -s -H "Host: mock-oidc:8080" -d grant_type=client_credentials \
+  -d client_id=e2e -d client_secret=e2e -d scope=e2e-salesperson \
+  http://localhost:18083/e2e/token
+```
+
+`mock-oidc` is an nginx proxy in front of the actual mock server (`mock-oidc-server`). It passes requests through unchanged except for one case, described in `mock-oidc-proxy.conf`: a token request with a `Bearer` Authorization header (the sales UI's API token request) has that header replaced with dummy client credentials, because the mock does not accept the request otherwise.
+
+### Sales UI login
+
+The `sales-ui` service runs att-sales-ui against the mock provider. Logging in uses the authorization code flow with PKCE: the UI redirects to the mock's login page, where the username entered becomes the user token's `sub`. The UI then requests an API token for `apartment-application-service` (grant type `E2E_API_GRANT_TYPE`, default `client_credentials`), which the mock issues from the `audience` mapping in `mock-oidc-config.json`.
+
+That API token always has the seeded salesperson as its `sub`, whatever username was used to log in. Any logged-in UI user therefore acts as the seeded salesperson against the Django API, so the UI tests cannot cover per-user API permissions.
+
+The UI loads at http://localhost:13000 from the host, but logging in works only from inside the compose network (the test-runner container), since the UI redirects to and calls `mock-oidc` and `django-app` by their in-network hostnames. Chromium is started with `--unsafely-treat-insecure-origin-as-secure` for the UI and mock origins (see `tests-e2e/playwright.config.ts`) because PKCE needs `crypto.subtle`, which is available only in secure contexts.
+
+### Fixtures
+
+Test data is committed as plain JSON under `e2e/fixtures/`, independent of what the dumps contain. The files are edited by hand, including after a migration changes a fixture model.
+
+```
+e2e/fixtures/drupal/baseline.json      Drupal projects and apartments
+e2e/fixtures/drupal/load_baseline.php  its loader
+e2e/fixtures/django/*.json             Django rows, in `manage.py loaddata` format
+e2e/load_django_fixtures.py            resets and loads the Django fixtures
+```
+
+**Drupal** (`baseline.json`) lists projects, each with its apartments:
+
+- `key`: stable identifier for test code, unique.
+- `uuid`: the Drupal node UUID, which is also Django's `project_uuid` / `apartment_uuid`. Use lowercase UUIDs starting with `e2e0` (e.g. `e2e00003-0000-4000-8000-000000000301`) so they never clash with real content.
+- `ownership_type`: a term name of the Drupal `ownership_type` vocabulary (`HASO`, `Hitas`, `Puolihitas`).
+- Projects: `housing_company` (prefixed `E2E `), `street_address`, optional `postal_code` and `city`. Apartments: `apartment_number`, optional `apartment_structure`, `living_area`, `floor`.
+
+On every drupal-app start, `drupal-e2e-deploy.sh` runs `load_baseline.php` after the config import. The loader finds each node by UUID and creates or updates it in place, so restarts never duplicate content. Nodes are published, projects get state of sale "for sale", and their `field_apartments` lists exactly the baseline apartments in file order. The loader then reindexes the nodes in search_api. It prints `[e2e-baseline] Loaded ...` to the drupal-app logs. Invalid JSON or a failed save stops drupal-app before nginx starts. To change the content, edit the file and restart drupal-app (and django-app, which caches its Drupal token). Removing an entry does not delete the node. `tests/baseline/baseline-content.spec.ts` checks that Django's sales API serves the content.
+
+**Django** (`e2e/fixtures/django/*.json`) uses Django's fixture format (`model`, `pk`, `fields`):
+
+- `salesperson.json`: the user the mock OIDC `e2e-salesperson` token maps to, in the `django_salesperson` group.
+- `haso_queue.json`: for `tests/sales-ui/haso-reservation-queue.spec.ts`, on `haso-a1` (on time) and `haso-a2` (late). Each apartment has a lottery event, an existing customer (right of residence 500, non-late reservation at queue position 1) and a new customer (right of residence 100, no reservation).
+
+`load_django_fixtures.py` deletes every reservation and lottery event on the baseline apartments, then runs `loaddata` on all the files, upserting rows by pk. It runs when django-app starts, and `run-e2e.sh` runs it again before every test run, so tests start from the same data even on a kept stack. Rows that tests create elsewhere are not reset.
+
+When writing Django fixtures:
+
+- Use integer pks of 900001 and up (and `e2e0` UUID pks) so they never overwrite rows from `DJANGO_DUMP_PATH`.
+- Set every non-null field explicitly. A raw load skips `auto_now` / `auto_now_add` (`created_at`, `updated_at`, `timestamp`) and custom `save()` methods. For example, add the `apartmentreservationstatechangeevent` that `ApartmentReservation.save()` would create.
+- Mirror the values the specs need in `tests-e2e/tests/fixtures.ts`.
+- To apply changes without a full run: `docker compose -p att-e2e exec -e PYTHONPATH=/app django-app python /e2e/load_django_fixtures.py`.
 
 ### Teardown
 
@@ -132,8 +199,8 @@ The `-v` flag removes the DB volumes so the next run starts with a clean databas
 
 ### What happens on startup
 
-- **Drupal**: the SQL dump is imported into MariaDB on first start (empty volume only). `drush updatedb` and `drush cim` run on every start.
-- **Django**: migrations run, then if `DJANGO_DUMP_PATH` is set the fixture is flushed into the DB (duplicates in the dump are deduplicated automatically by `django_dedup_fixture.py`).
+- **Drupal**: the SQL dump is imported into MariaDB on first start (empty volume only). `drush updatedb` and `drush cim` run on every start, followed by provisioning of the OAuth consumer Django uses to fetch project data from Drupal (`ASU_REST_OAUTH_CLIENT_ID` / `ASU_REST_OAUTH_CLIENT_SECRET`) and loading the baseline content (see above).
+- **Django**: migrations run, then if `DJANGO_DUMP_PATH` is set the fixture is flushed into the DB (duplicates in the dump are deduplicated automatically by `django_dedup_fixture.py`). The e2e fixtures are then loaded by `e2e/load_django_fixtures.py` (see above).
 
 ### Adding tests
 

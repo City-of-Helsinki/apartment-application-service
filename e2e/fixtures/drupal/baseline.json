@@ -1,0 +1,75 @@
+{
+  "description": "Baseline Drupal content for the e2e stack. A drush loader creates one project node per entry and one apartment node per nested apartment, using the given UUIDs as node UUIDs (project uuid == Django project_uuid, apartment uuid == Django apartment_uuid). Keys are stable identifiers for test code. ownership_type is the Drupal ownership_type taxonomy term name. Loaded by e2e/fixtures/drupal/load_baseline.php; checked by tests-e2e/tests/baseline/baseline-content.spec.ts.",
+  "projects": [
+    {
+      "key": "haso",
+      "uuid": "e2e00001-0000-4000-8000-000000000001",
+      "ownership_type": "HASO",
+      "housing_company": "E2E Asumisoikeus Oy",
+      "street_address": "E2E-testikatu 1",
+      "postal_code": "00100",
+      "city": "Helsinki",
+      "apartments": [
+        {
+          "key": "haso-a1",
+          "uuid": "e2e00001-0000-4000-8000-000000000101",
+          "apartment_number": "A1",
+          "apartment_structure": "2h+k",
+          "living_area": 45.5,
+          "floor": 1
+        },
+        {
+          "key": "haso-a2",
+          "uuid": "e2e00001-0000-4000-8000-000000000102",
+          "apartment_number": "A2",
+          "apartment_structure": "3h+k",
+          "living_area": 62.0,
+          "floor": 1
+        },
+        {
+          "key": "haso-a3",
+          "uuid": "e2e00001-0000-4000-8000-000000000103",
+          "apartment_number": "A3",
+          "apartment_structure": "1h+kk",
+          "living_area": 32.5,
+          "floor": 2
+        },
+        {
+          "key": "haso-a4",
+          "uuid": "e2e00001-0000-4000-8000-000000000104",
+          "apartment_number": "A4",
+          "apartment_structure": "4h+k+s",
+          "living_area": 85.0,
+          "floor": 2
+        }
+      ]
+    },
+    {
+      "key": "hitas",
+      "uuid": "e2e00002-0000-4000-8000-000000000002",
+      "ownership_type": "Hitas",
+      "housing_company": "E2E Hitas Oy",
+      "street_address": "E2E-testikatu 2",
+      "postal_code": "00100",
+      "city": "Helsinki",
+      "apartments": [
+        {
+          "key": "hitas-b1",
+          "uuid": "e2e00002-0000-4000-8000-000000000201",
+          "apartment_number": "B1",
+          "apartment_structure": "2h+k",
+          "living_area": 48.0,
+          "floor": 1
+        },
+        {
+          "key": "hitas-b2",
+          "uuid": "e2e00002-0000-4000-8000-000000000202",
+          "apartment_number": "B2",
+          "apartment_structure": "3h+k",
+          "living_area": 70.5,
+          "floor": 3
+        }
+      ]
+    }
+  ]
+}
