@@ -272,6 +272,175 @@ def test_haso_application_without_reservation_order():
     ]
 
 
+@mark.django_db
+def test_haso_reservation_with_submitted_late_false_orders_by_right_of_residence():
+    """
+    HASO reservations created with submitted_late=False must still be ranked
+    by right of residence number.
+
+    Sales UI defaults submitted_late to false when adding an applicant. Lower
+    right_of_residence must get a lower (better) queue_position.
+
+    - Three reservations created out of RoR order with submitted_late=False
+    - No explicit queue_position is provided
+    - Final queue order is ascending by right_of_residence
+    """
+    apartment = ApartmentDocumentFactory(project_ownership_type="HASO")
+    add_to_store([apartment])
+
+    reservation_500 = create_late_reservation(
+        {
+            "apartment_uuid": apartment.uuid,
+            "customer": CustomerFactory(
+                right_of_residence=500,
+                right_of_residence_is_old_batch=False,
+            ),
+            "submitted_late": False,
+        }
+    )
+    reservation_100 = create_late_reservation(
+        {
+            "apartment_uuid": apartment.uuid,
+            "customer": CustomerFactory(
+                right_of_residence=100,
+                right_of_residence_is_old_batch=False,
+            ),
+            "submitted_late": False,
+        }
+    )
+    reservation_300 = create_late_reservation(
+        {
+            "apartment_uuid": apartment.uuid,
+            "customer": CustomerFactory(
+                right_of_residence=300,
+                right_of_residence_is_old_batch=False,
+            ),
+            "submitted_late": False,
+        }
+    )
+
+    reservation_500.refresh_from_db()
+    reservation_100.refresh_from_db()
+    reservation_300.refresh_from_db()
+
+    assert reservation_100.queue_position == 1
+    assert reservation_300.queue_position == 2
+    assert reservation_500.queue_position == 3
+    assert [
+        reservation_100.submitted_late,
+        reservation_300.submitted_late,
+        reservation_500.submitted_late,
+    ] == [False, False, False]
+
+
+@mark.django_db
+def test_haso_reservation_inserts_among_existing_non_late_by_right_of_residence():
+    """
+    A new non-late HASO reservation must insert among existing non-late
+    reservations by right of residence, not only among late ones.
+
+    - Existing non-late reservations at RoR 200 and 800
+    - New non-late reservation with RoR 100 inserts at queue_position 1
+    - Existing reservations shift down
+    """
+    apartment = ApartmentDocumentFactory(project_ownership_type="HASO")
+    add_to_store([apartment])
+
+    existing_200 = create_late_reservation(
+        {
+            "apartment_uuid": apartment.uuid,
+            "customer": CustomerFactory(
+                right_of_residence=200,
+                right_of_residence_is_old_batch=False,
+            ),
+            "submitted_late": False,
+        }
+    )
+    existing_800 = create_late_reservation(
+        {
+            "apartment_uuid": apartment.uuid,
+            "customer": CustomerFactory(
+                right_of_residence=800,
+                right_of_residence_is_old_batch=False,
+            ),
+            "submitted_late": False,
+        }
+    )
+
+    new_100 = create_late_reservation(
+        {
+            "apartment_uuid": apartment.uuid,
+            "customer": CustomerFactory(
+                right_of_residence=100,
+                right_of_residence_is_old_batch=False,
+            ),
+            "submitted_late": False,
+        }
+    )
+
+    existing_200.refresh_from_db()
+    existing_800.refresh_from_db()
+
+    assert new_100.queue_position == 1
+    assert existing_200.queue_position == 2
+    assert existing_800.queue_position == 3
+
+
+@mark.django_db
+def test_haso_reservation_with_offer_inserts_behind_offer_by_right_of_residence():
+    """
+    A new HASO reservation must not pass an offered queue head, but still
+    ranks by right of residence behind it.
+
+    - Queue head has an offer and RoR 230 (stays at queue_position 1)
+    - Second reservation has RoR 500
+    - New reservation with RoR 400 takes queue_position 2
+    - Former second shifts to queue_position 3
+    """
+    apartment = ApartmentDocumentFactory(project_ownership_type="HASO")
+    add_to_store([apartment])
+
+    offered_230 = create_late_reservation(
+        {
+            "apartment_uuid": apartment.uuid,
+            "customer": CustomerFactory(
+                right_of_residence=230,
+                right_of_residence_is_old_batch=False,
+            ),
+            "submitted_late": False,
+        }
+    )
+    second_500 = create_late_reservation(
+        {
+            "apartment_uuid": apartment.uuid,
+            "customer": CustomerFactory(
+                right_of_residence=500,
+                right_of_residence_is_old_batch=False,
+            ),
+            "submitted_late": False,
+        }
+    )
+    offered_230.set_state(ApartmentReservationState.OFFERED)
+
+    new_400 = create_late_reservation(
+        {
+            "apartment_uuid": apartment.uuid,
+            "customer": CustomerFactory(
+                right_of_residence=400,
+                right_of_residence_is_old_batch=False,
+            ),
+            "submitted_late": False,
+        }
+    )
+
+    offered_230.refresh_from_db()
+    second_500.refresh_from_db()
+
+    assert offered_230.queue_position == 1
+    assert new_400.queue_position == 2
+    assert second_500.queue_position == 3
+
+
 @mark.parametrize(
     "protected_state",
     (
