@@ -1,4 +1,6 @@
-﻿from django.db import transaction
+﻿import logging
+
+from django.db import transaction
 from django.http import Http404, HttpResponse
 from django.utils import timezone
 from drf_spectacular.types import OpenApiTypes
@@ -29,6 +31,9 @@ from ..models import (
     ProjectInstallmentTemplate,
 )
 from ..pdf import create_invoice_pdf_from_installments
+
+
+logger = logging.getLogger(__name__)
 
 
 class InstallmentAPIViewBase(generics.ListCreateAPIView):
@@ -127,11 +132,11 @@ class ApartmentInstallmentAddToSapAPIView(APIView):
         reservation = get_object_or_404(
             ApartmentReservation, pk=kwargs["apartment_reservation_id"]
         )
-        installments = (
-            ApartmentInstallment.objects.filter(apartment_reservation_id=reservation.id)
-            .select_related("apartment_reservation__application_apartment__application")
-            .order_by("id")
-        )
+        installments = ApartmentInstallment.objects.filter(
+            apartment_reservation_id=reservation.id
+        ).select_related(
+            "apartment_reservation__application_apartment__application"
+        ).order_by("id")
 
         if type_params := request.query_params.get("types"):
             types = [e for e in InstallmentType if e.value in type_params.split(",")]
@@ -152,6 +157,7 @@ class ApartmentInstallmentAddToSapAPIView(APIView):
 
         with transaction.atomic():
             sent_to_sap_at = timezone.now()
+            sync_event_created = False
             for installment in installments:
                 try:
                     installment.add_to_be_sent_to_sap(timestamp=sent_to_sap_at)
@@ -159,15 +165,27 @@ class ApartmentInstallmentAddToSapAPIView(APIView):
                     raise ValidationError(
                         f"{installment.type.value} already added to be sent to SAP."
                     )
-                create_drupal_payment_sync_outbox_event(
-                    installment=installment,
-                    sent_to_sap_at=sent_to_sap_at,
-                )
+                try:
+                    create_drupal_payment_sync_outbox_event(
+                        installment=installment,
+                        sent_to_sap_at=sent_to_sap_at,
+                    )
+                    sync_event_created = True
+                except Exception:
+                    logger.exception(
+                        "drupal_payment_sync_outbox_creation_failed",
+                        extra={
+                            "apartment_reservation_id": reservation.id,
+                            "installment_id": installment.id,
+                            "installment_type": installment.type.value,
+                        },
+                    )
                 audit_logging.log(self.request.user, Operation.UPDATE, installment)
-            transaction.on_commit(
-                trigger_drupal_payment_sync_background_dispatch,
-                robust=True,
-            )
+            if sync_event_created:
+                transaction.on_commit(
+                    trigger_drupal_payment_sync_background_dispatch,
+                    robust=True,
+                )
 
         seri = ApartmentInstallmentSerializer(
             reservation.apartment_installments.order_by("id"), many=True
