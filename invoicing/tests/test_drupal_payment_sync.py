@@ -364,13 +364,13 @@ def test_dispatch_4xx_is_non_retryable(drupal_payment_sync_settings, monkeypatch
 
 
 @pytest.mark.django_db
-def test_add_to_sap_creates_outbox_atomically_on_failure(
+def test_add_to_sap_continues_when_outbox_creation_fails(
     sales_ui_salesperson_api_client,
 ):
-    """Outbox and add-to-sap flag are persisted atomically.
+    """Drupal sync errors must not block SAP add-to-send flow.
 
-    - If outbox creation fails, endpoint fails.
-    - added_to_be_sent_to_sap_at remains unchanged due to rollback.
+    - If outbox creation fails, endpoint still succeeds.
+    - added_to_be_sent_to_sap_at is still persisted for SAP pipeline.
     """
     apartment = ApartmentDocumentFactory()
     reservation = ApartmentReservationFactory(apartment_uuid=apartment.uuid)
@@ -389,14 +389,14 @@ def test_add_to_sap_creates_outbox_atomically_on_failure(
         "invoicing.api.views.create_drupal_payment_sync_outbox_event",
         side_effect=RuntimeError("boom"),
     ):
-        with pytest.raises(RuntimeError, match="boom"):
-            sales_ui_salesperson_api_client.post(
-                url + f"?types={installment.type.value}",
-                format="json",
-            )
+        response = sales_ui_salesperson_api_client.post(
+            url + f"?types={installment.type.value}",
+            format="json",
+        )
 
+    assert response.status_code == 200
     installment.refresh_from_db()
-    assert installment.added_to_be_sent_to_sap_at is None
+    assert installment.added_to_be_sent_to_sap_at is not None
     assert DrupalPaymentSyncOutboxEvent.objects.count() == 0
 
 
