@@ -441,6 +441,108 @@ def test_haso_reservation_with_offer_inserts_behind_offer_by_right_of_residence(
     assert second_500.queue_position == 3
 
 
+@mark.django_db
+def test_haso_late_reservation_inserts_into_manually_ordered_queue_by_ror():
+    """
+    A new late HASO reservation ranks by RoR inside a manually ordered late queue.
+
+    Pre-existing late reservations have queue positions set manually (not sorted
+    purely by RoR):
+
+    - pos 1: RoR 1234 with an accepted offer (must not be passed)
+    - pos 2: RoR 700
+    - pos 3: RoR 800
+    - pos 4: RoR 1500
+
+    A new late reservation with RoR 750 (between 700 and 800) must take
+    queue_position 3, not the end of the queue. Existing positions shift by one:
+
+    - pos 1: RoR 1234 (accepted offer)
+    - pos 2: RoR 700
+    - pos 3: new RoR 750
+    - pos 4: RoR 800
+    - pos 5: RoR 1500
+    """
+    apartment = ApartmentDocumentFactory(project_ownership_type="HASO")
+    add_to_store([apartment])
+
+    accepted_1234 = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        queue_position=1,
+        list_position=1,
+        submitted_late=True,
+        right_of_residence=1234,
+        right_of_residence_is_old_batch=False,
+        state=ApartmentReservationState.OFFER_ACCEPTED,
+        customer=CustomerFactory(
+            right_of_residence=1234,
+            right_of_residence_is_old_batch=False,
+        ),
+    )
+    ror_700 = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        queue_position=2,
+        list_position=2,
+        submitted_late=True,
+        right_of_residence=700,
+        right_of_residence_is_old_batch=False,
+        state=ApartmentReservationState.SUBMITTED,
+        customer=CustomerFactory(
+            right_of_residence=700,
+            right_of_residence_is_old_batch=False,
+        ),
+    )
+    ror_800 = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        queue_position=3,
+        list_position=3,
+        submitted_late=True,
+        right_of_residence=800,
+        right_of_residence_is_old_batch=False,
+        state=ApartmentReservationState.SUBMITTED,
+        customer=CustomerFactory(
+            right_of_residence=800,
+            right_of_residence_is_old_batch=False,
+        ),
+    )
+    ror_1500 = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        queue_position=4,
+        list_position=4,
+        submitted_late=True,
+        right_of_residence=1500,
+        right_of_residence_is_old_batch=False,
+        state=ApartmentReservationState.SUBMITTED,
+        customer=CustomerFactory(
+            right_of_residence=1500,
+            right_of_residence_is_old_batch=False,
+        ),
+    )
+
+    new_750 = create_late_reservation(
+        {
+            "apartment_uuid": apartment.uuid,
+            "customer": CustomerFactory(
+                right_of_residence=750,
+                right_of_residence_is_old_batch=False,
+            ),
+            "submitted_late": True,
+        }
+    )
+
+    accepted_1234.refresh_from_db()
+    ror_700.refresh_from_db()
+    ror_800.refresh_from_db()
+    ror_1500.refresh_from_db()
+
+    assert accepted_1234.queue_position == 1
+    assert ror_700.queue_position == 2
+    assert new_750.queue_position == 3
+    assert ror_800.queue_position == 4
+    assert ror_1500.queue_position == 5
+    assert new_750.queue_position != 5
+
+
 @mark.parametrize(
     "protected_state",
     (
