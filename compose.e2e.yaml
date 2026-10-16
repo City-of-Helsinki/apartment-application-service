@@ -147,10 +147,13 @@ services:
     volumes:
       - ./tests-e2e:/tests
     entrypoint: ["/bin/sh", "-c"]
-    command: ["npm ci && npx playwright test"]
+    # xvfb-run gives --headed a virtual display to run against inside this
+    # headless container; it's a no-op for normal headless runs.
+    command: ["npm ci && xvfb-run -a npx playwright test $$PLAYWRIGHT_ARGS"]
     environment:
       E2E_BASE_URL: "http://drupal-app:8080"
       E2E_DJANGO_URL: "http://django-app:8081"
+      PLAYWRIGHT_ARGS: ""
     depends_on:
       - drupal-app
       - django-app

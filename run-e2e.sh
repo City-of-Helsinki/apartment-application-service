@@ -3,10 +3,12 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 KEEP=0
+PLAYWRIGHT_ARGS=""
 
 for arg in "$@"; do
   case "$arg" in
     --keep|-k) KEEP=1 ;;
+    --headed) PLAYWRIGHT_ARGS="$PLAYWRIGHT_ARGS --headed" ;;
     *) echo "Unknown argument: $arg" >&2; exit 1 ;;
   esac
 done
@@ -55,7 +57,7 @@ echo "[e2e] Login URL: $LOGIN_URL"
 
 echo "[e2e] Running tests..."
 set +e
-$COMPOSE run --rm -e E2E_LOGIN_URL="$LOGIN_URL" test-runner
+$COMPOSE run --rm -e E2E_LOGIN_URL="$LOGIN_URL" -e PLAYWRIGHT_ARGS="$PLAYWRIGHT_ARGS" test-runner
 EXIT_CODE=$?
 set -e
 
