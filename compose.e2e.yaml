@@ -3,7 +3,7 @@ services:
     image: druidfi/mariadb:10.6-drupal
     volumes:
       - drupal_db_data:/var/lib/mysql
-      - ../drupal-asuntotuotanto/dump-2026-04-23.sql:/docker-entrypoint-initdb.d/dump.sql:ro
+      - ${DRUPAL_DUMP_PATH}:/docker-entrypoint-initdb.d/dump.sql:ro
     ports:
       - "13306:3306"
     networks:
@@ -90,6 +90,24 @@ services:
     build:
       context: .
       target: development
+    volumes:
+      - ${DJANGO_DUMP_PATH:-/dev/null}:/fixtures/django-dump.json:ro
+      - ./django-dedup-fixture.py:/e2e/django-dedup-fixture.py:ro
+    command:
+      - /bin/bash
+      - -c
+      - |
+        if [ -s /fixtures/django-dump.json ]; then
+          echo '[e2e] Flushing DB before fixture load...'
+          python ./manage.py flush --no-input
+          echo '[e2e] Clearing post-migrate contenttypes...'
+          python ./manage.py shell -c "from django.contrib.auth.models import Permission; from django.contrib.contenttypes.models import ContentType; Permission.objects.all().delete(); ContentType.objects.all().delete()"
+          echo '[e2e] Deduplicating fixture...'
+          python /e2e/django-dedup-fixture.py /fixtures/django-dump.json /tmp/fixture-deduped.json
+          echo '[e2e] Loading Django fixture...'
+          python ./manage.py loaddata /tmp/fixture-deduped.json
+        fi
+        python ./manage.py runserver 0.0.0.0:8081
     environment:
       DATABASE_URL: postgres://apartment-application:apartment-application@django-db/apartment-application
       DATABASE_HOST: django-db
@@ -106,7 +124,7 @@ services:
       CORS_ORIGIN_ALLOW_ALL: "1"
       DEBUG: "1"
       APPLY_MIGRATIONS: "1"
-      CREATE_SUPERUSER: "1"
+      CREATE_SUPERUSER: "0"
       CREATE_DATA_TRANSFER_PATH: "1"
       APARTMENT_DATA_TRANSFER_PATH: transfer_files
       APARTMENT_INDEX_NAME: asuntotuotanto_apartment

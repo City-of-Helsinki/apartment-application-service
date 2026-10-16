@@ -13,11 +13,11 @@ done
 
 # Load env vars so COMPOSE_PROJECT_NAME etc. are set for docker compose
 set -a
-# shellcheck source=env.e2e
-source "$SCRIPT_DIR/env.e2e"
+# shellcheck source=.env.e2e
+source "$SCRIPT_DIR/.env.e2e"
 set +a
 
-COMPOSE="docker compose -f $SCRIPT_DIR/compose.e2e.yaml --env-file $SCRIPT_DIR/env.e2e"
+COMPOSE="docker compose -f $SCRIPT_DIR/compose.e2e.yaml --env-file $SCRIPT_DIR/.env.e2e"
 
 $COMPOSE up --build --abort-on-container-exit --exit-code-from test-runner
 EXIT_CODE=$?

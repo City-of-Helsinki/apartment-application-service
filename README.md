@@ -75,6 +75,66 @@ If you have the `make` command available, you can use the following commands to 
   collectstatic)
 
 
+## E2E tests
+
+The E2E stack runs `apartment-application-service` (Django) and `drupal-asuntotuotanto` (Drupal) together in isolated Docker containers. It does not require Stonehenge or any other host services.
+
+### Prerequisites
+
+- Docker with Compose v2
+- Both repos cloned as siblings: `drupal-asuntotuotanto/` and `apartment-application-service/` in the same parent directory
+
+### First-time setup
+
+1. Copy the env template and fill in the dump paths:
+
+    ```bash
+    cp env.e2e.example .env.e2e
+    ```
+
+2. Edit `.env.e2e`:
+   - Set `DRUPAL_DUMP_PATH` to the SQL dump file from `drupal-asuntotuotanto` (relative to this directory, e.g. `../drupal-asuntotuotanto/dump-2026-04-23.sql`)
+   - Set `DJANGO_DUMP_PATH` to a Django JSON fixture (relative path, e.g. `../django-dump-XXXXXXXXXX.json`). Leave unset to start with an empty Django DB.
+
+### Running the stack
+
+```bash
+# Start all services and keep them running
+docker compose -f compose.e2e.yaml --env-file .env.e2e up --build
+
+# Or use the helper script (tears down on finish):
+./run-e2e.sh
+
+# Keep the stack running after tests finish (useful for debugging):
+./run-e2e.sh --keep
+```
+
+Services exposed on the host:
+
+| Service | URL |
+|---|---|
+| Drupal | http://localhost:18080 |
+| Django API | http://localhost:18081/api_docs/ |
+| Drupal MariaDB | localhost:13306 |
+| Django Postgres | localhost:15434 |
+
+### Teardown
+
+```bash
+docker compose -p att-e2e down -v
+```
+
+The `-v` flag removes the DB volumes so the next run starts with a clean database. Omit it to keep the data.
+
+### What happens on startup
+
+- **Drupal**: the SQL dump is imported into MariaDB on first start (empty volume only). `drush updatedb` and `drush cim` run on every start.
+- **Django**: migrations run, then if `DJANGO_DUMP_PATH` is set the fixture is flushed into the DB (duplicates in the dump are deduplicated automatically by `django-dedup-fixture.py`).
+
+### Adding tests
+
+Place Playwright test files in `tests-e2e/`. The `test-runner` service in `compose.e2e.yaml` mounts that directory and exits with the test process's exit code. Replace the placeholder `command` with your actual Playwright invocation.
+
 ## Tests
 
 Run the test suite with `make test` or `pytest`.
