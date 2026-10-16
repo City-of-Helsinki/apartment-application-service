@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const DJANGO_BASE = 'http://localhost:18081';
+const DJANGO_BASE = process.env.E2E_DJANGO_URL ?? 'http://localhost:18081';
 
 test.describe('1.4 Django backend health probes', () => {
   test('GET /healthz returns 200', async ({ request }) => {

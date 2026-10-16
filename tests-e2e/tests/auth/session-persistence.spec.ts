@@ -1,36 +1,30 @@
 import { test, expect } from '@playwright/test';
 
-const ADMIN_USER = process.env.E2E_ADMIN_USER ?? 'admin';
-const ADMIN_PASS = process.env.E2E_ADMIN_PASS ?? 'admin';
+// run-e2e.sh generates a fresh `drush uli --uid=1` one-time login link per run
+// and passes it here, since the login form's email-type field makes scripted
+// form-fill login brittle and the dump's admin password is unknown.
+const LOGIN_URL = process.env.E2E_LOGIN_URL;
 
 test.describe('6.3 Authenticated session persists across navigations', () => {
-  test('admin session persists to front page then logout clears session', async ({ page }) => {
-    // Log in
-    await page.goto('/fi/user/login');
-    await page.locator('input[name="name"], input[id="edit-name"]').fill(ADMIN_USER);
-    await page.locator('input[type="password"]').fill(ADMIN_PASS);
-    await page.locator('input[type="submit"], button[type="submit"]').click();
+  test('one-time login link authenticates, session persists, logout clears it', async ({ page }) => {
+    test.skip(!LOGIN_URL, 'E2E_LOGIN_URL not set — run via run-e2e.sh to generate a one-time drush uli link');
+
+    await page.goto(LOGIN_URL!);
     await page.waitForLoadState('domcontentloaded');
 
-    // Verify logged in (redirected from login page)
-    await expect(page).not.toHaveURL(/\/user\/login$/);
+    // Logged in — admin toolbar visible
+    await expect(page.locator('#toolbar-bar, .toolbar-bar').first()).toBeVisible();
 
-    // Navigate to front page — session should persist
+    // Session persists across navigation
     await page.goto('/fi');
-    const logoutLink = page.locator(
-      'a:has-text("Kirjaudu ulos"), a:has-text("Log out"), a[href*="/user/logout"]'
-    ).first();
-    await expect(logoutLink).toBeVisible();
+    await expect(page.locator('#toolbar-bar, .toolbar-bar').first()).toBeVisible();
 
     // Log out
+    const logoutLink = page.locator('a[href*="/user/logout"]').first();
     await logoutLink.click();
     await page.waitForLoadState('domcontentloaded');
 
-    // Login link reappears, no logout link
-    const loginLink = page.locator(
-      'a:has-text("Kirjaudu"), a[href*="/user/login"]'
-    ).first();
-    await expect(loginLink).toBeVisible();
-    await expect(logoutLink).not.toBeVisible();
+    await expect(page.locator('#toolbar-bar, .toolbar-bar').first()).not.toBeVisible();
+    await expect(page.locator('a:has-text("Kirjaudu")').first()).toBeVisible();
   });
 });

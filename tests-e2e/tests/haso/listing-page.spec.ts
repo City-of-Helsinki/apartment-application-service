@@ -15,7 +15,10 @@ test.describe('3.1 Haso listing page accessible from main navigation', () => {
 
     await expect(page).toHaveURL(/asumisoikeus|haso/i);
 
-    const heading = page.locator('h1, h2').first();
+    // The real <h1> ("Etsi HASO-asumisoikeusasuntoja") is rendered client-side by
+    // the React search widget; `h1, h2` would otherwise match a visually-hidden
+    // nav heading that appears earlier in the DOM.
+    const heading = page.locator('h1').first();
     await expect(heading).toContainText(/asumisoikeus|Haso/i);
   });
 });

@@ -41,7 +41,7 @@ services:
     environment:
       APP_ENV: "${APP_ENV:-dev}"
       WEBROOT: /app/public
-      DRUPAL_ROUTES: "http://localhost:18080"
+      DRUPAL_ROUTES: "http://localhost:18080,http://drupal-app:8080"
       DRUSH_OPTIONS_URI: "http://localhost:18080"
       SKIP_DEPLOY_SCRIPTS: "false"
       DRUPAL_HASH_SALT: "${DRUPAL_HASH_SALT:-e2e-test-salt-not-for-production}"
@@ -142,12 +142,15 @@ services:
       - e2e
 
   test-runner:
-    image: mcr.microsoft.com/playwright:v1.49.0-jammy
+    image: mcr.microsoft.com/playwright:v1.64.1-jammy
     working_dir: /tests
     volumes:
       - ./tests-e2e:/tests
     entrypoint: ["/bin/sh", "-c"]
-    command: ["echo 'No tests defined yet — replace this placeholder' && exit 0"]
+    command: ["npm ci && npx playwright test"]
+    environment:
+      E2E_BASE_URL: "http://drupal-app:8080"
+      E2E_DJANGO_URL: "http://django-app:8081"
     depends_on:
       - drupal-app
       - django-app

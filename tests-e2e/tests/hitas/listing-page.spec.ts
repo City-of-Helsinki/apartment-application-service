@@ -15,7 +15,10 @@ test.describe('4.1 Hitas listing page accessible from main navigation', () => {
 
     await expect(page).toHaveURL(/omistus|hitas/i);
 
-    const heading = page.locator('h1, h2').first();
+    // The real <h1> ("Etsi Hitas-omistusasuntoja") is rendered client-side by
+    // the React search widget; `h1, h2` would otherwise match a visually-hidden
+    // nav heading that appears earlier in the DOM.
+    const heading = page.locator('h1').first();
     await expect(heading).toContainText(/omistus|Hitas/i);
   });
 });

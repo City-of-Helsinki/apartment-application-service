@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { pathOf } from '../utils';
 
 test.describe('6.2 Helsinki profile SSO login entry point', () => {
   test('login button or link is visible to anonymous users', async ({ page }) => {
@@ -24,7 +25,7 @@ test.describe('6.2 Helsinki profile SSO login entry point', () => {
       return;
     }
 
-    const response = await page.goto(href.startsWith('http') ? href : `http://localhost:18080${href}`);
+    const response = await page.goto(pathOf(href));
     expect(response?.status()).toBeLessThan(500);
     await expect(page.locator('body')).not.toContainText('500 Internal Server Error');
   });

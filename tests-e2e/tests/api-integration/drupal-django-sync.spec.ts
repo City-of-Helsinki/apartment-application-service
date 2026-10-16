@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const DJANGO_BASE = 'http://localhost:18081';
+const DJANGO_BASE = process.env.E2E_DJANGO_URL ?? 'http://localhost:18081';
 
 test.describe('8.2 Drupal listing pages reflect Django apartment data', () => {
   test('Haso listing page loads successfully (Django data pipeline reachable)', async ({ page }) => {

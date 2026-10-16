@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-const DJANGO_BASE = 'http://localhost:18081';
+const DJANGO_BASE = process.env.E2E_DJANGO_URL ?? 'http://localhost:18081';
 
 test.describe('8.1 Django REST API is reachable and returns apartment data', () => {
   test('GET /v1/sales/projects/ returns 200 or 401 with valid JSON', async ({ request }) => {

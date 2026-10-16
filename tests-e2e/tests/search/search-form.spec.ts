@@ -1,42 +1,34 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('5.1 Search form is present on the site', () => {
-  test('search input is reachable from the front page', async ({ page }) => {
+// There is no site-wide search box; apartment search is a set of filter
+// dropdowns (district, room count, area, price) scoped to each listing page.
+test.describe('5.1 Apartment filter controls are present and usable', () => {
+  test.beforeEach(async ({ page }) => {
     await page.goto('/fi');
-
-    // Look for search input directly or via a search icon/button
-    let searchInput = page.locator('input[type="search"], input[role="searchbox"], [aria-label*="haku"], [placeholder*="Hae"]').first();
-    const directlyVisible = await searchInput.isVisible().catch(() => false);
-
-    if (!directlyVisible) {
-      // Try clicking a search icon/button to reveal the input
-      const searchToggle = page.locator('button[aria-label*="haku"], button[aria-label*="search"], [class*="search-toggle"]').first();
-      if (await searchToggle.isVisible().catch(() => false)) {
-        await searchToggle.click();
-        searchInput = page.locator('input[type="search"], input[role="searchbox"]').first();
-      }
-    }
-
-    await expect(searchInput).toBeVisible({ timeout: 5_000 });
+    const hasoLink = page.locator(
+      'a:has-text("asumisoikeus"), a:has-text("Haso"), a[href*="asumisoikeus"], a[href*="haso"]'
+    ).first();
+    await page.goto((await hasoLink.getAttribute('href'))!);
   });
 
-  test('submitting a neighbourhood search returns results page', async ({ page }) => {
-    await page.goto('/fi');
+  test('district, room count, and submit controls are visible', async ({ page }) => {
+    // exact: true matters — "Kaupunginosa" otherwise also matches the
+    // "Tyhjennä valinnat, Kaupunginosa" clear button.
+    await expect(page.getByRole('button', { name: 'Kaupunginosa', exact: true })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: 'Huoneiden lukumäärä', exact: true })).toBeVisible();
+    // Several "Hae" buttons exist (one per filter group plus the main submit).
+    await expect(page.getByRole('button', { name: 'Hae', exact: true }).first()).toBeVisible();
+  });
 
-    let searchInput = page.locator('input[type="search"], input[role="searchbox"], [aria-label*="haku"], [placeholder*="Hae"]').first();
-    if (!await searchInput.isVisible().catch(() => false)) {
-      const toggle = page.locator('button[aria-label*="haku"], button[aria-label*="search"]').first();
-      if (await toggle.isVisible().catch(() => false)) await toggle.click();
-    }
-
-    await searchInput.fill('Kallio');
-    await searchInput.press('Enter');
+  test('selecting a district filter and submitting does not error', async ({ page }) => {
+    await page.getByRole('button', { name: 'Kaupunginosa', exact: true }).click();
+    // .check() verifies the native checked state changed, but this widget's
+    // custom styling intercepts that; a plain click toggles it visually/in-state.
+    await page.getByLabel('Kallio', { exact: true }).click();
+    await page.getByRole('button', { name: 'Hae', exact: true }).first().click();
 
     await page.waitForLoadState('domcontentloaded');
-    const status = (await page.waitForResponse(r => r.url().includes(page.url())).catch(() => null))?.status() ?? 200;
-    expect(status).toBeLessThan(500);
-
-    // Results page or empty state message — no server error
     await expect(page.locator('body')).not.toContainText('500 Internal Server Error');
+    await expect(page.locator('nav, [role="navigation"]').first()).toBeVisible();
   });
 });

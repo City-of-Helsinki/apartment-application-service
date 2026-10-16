@@ -5,7 +5,7 @@ export default defineConfig({
   fullyParallel: false,
   reporter: 'html',
   use: {
-    baseURL: 'http://localhost:18080',
+    baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:18080',
     trace: 'on-first-retry',
   },
   projects: [
