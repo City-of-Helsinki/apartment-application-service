@@ -1,0 +1,145 @@
+services:
+  drupal-db:
+    image: druidfi/mariadb:10.6-drupal
+    volumes:
+      - drupal_db_data:/var/lib/mysql
+      - ../drupal-asuntotuotanto/dump-2026-04-23.sql:/docker-entrypoint-initdb.d/dump.sql:ro
+    ports:
+      - "13306:3306"
+    networks:
+      - e2e
+
+  drupal-elastic:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    environment:
+      - node.name=drupal-elastic
+      - discovery.type=single-node
+      - cluster.name=es-docker-cluster
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - "19200:9200"
+    networks:
+      - e2e
+
+  drupal-redis:
+    image: redis:6-alpine
+    networks:
+      - e2e
+
+  drupal-app:
+    hostname: drupal-app
+    image: "${DRUPAL_IMAGE:-ghcr.io/city-of-helsinki/drupal-web:8.3}"
+    volumes:
+      - ../drupal-asuntotuotanto:/app:delegated
+      - ./drupal-e2e-deploy.sh:/entrypoints/25-e2e-deploy.sh:ro
+    environment:
+      APP_ENV: "${APP_ENV:-dev}"
+      WEBROOT: /app/public
+      DRUPAL_ROUTES: "http://localhost:18080"
+      DRUSH_OPTIONS_URI: "http://localhost:18080"
+      SKIP_DEPLOY_SCRIPTS: "false"
+      DRUPAL_HASH_SALT: "${DRUPAL_HASH_SALT:-e2e-test-salt-not-for-production}"
+      SIMPLETEST_DB: "mysql://drupal:drupal@drupal-db:3306/drupal"
+      DTT_BASE_URL: "http://localhost:18080"
+      SIMPLETEST_BASE_URL: "http://localhost:18080"
+      REDIS_HOST: drupal-redis
+      ASU_REST_OAUTH_CLIENT_ID: "${ASU_REST_OAUTH_CLIENT_ID:-installed_rest_client}"
+      ASU_REST_OAUTH_CLIENT_SECRET: "${ASU_REST_OAUTH_CLIENT_SECRET:-example-token}"
+      ASU_DJANGO_BACKEND_URL: "django-app:8081"
+      ASU_ASUNTOTUOTANTO_URL: "http://localhost:18080"
+      DRUPAL_SERVER_AUTH_TOKEN: "${DRUPAL_SERVER_AUTH_TOKEN:-example-token}"
+      ASU_REST_API_CACHE_MAX_AGE: "0"
+    ports:
+      - "18080:8080"
+    depends_on:
+      - drupal-db
+      - drupal-elastic
+      - drupal-redis
+    networks:
+      - e2e
+
+  django-db:
+    image: postgres:12
+    environment:
+      POSTGRES_USER: apartment-application
+      POSTGRES_PASSWORD: apartment-application
+      POSTGRES_DB: apartment-application
+    ports:
+      - "15434:5432"
+    volumes:
+      - django_db_data:/var/lib/postgresql/data
+    networks:
+      - e2e
+
+  django-elastic:
+    image: elasticsearch:7.9.1
+    environment:
+      - discovery.type=single-node
+    ports:
+      - "19201:9200"
+    networks:
+      - e2e
+
+  django-app:
+    build:
+      context: .
+      target: development
+    environment:
+      DATABASE_URL: postgres://apartment-application:apartment-application@django-db/apartment-application
+      DATABASE_HOST: django-db
+      ELASTICSEARCH_HOST: django-elastic
+      ELASTICSEARCH_HOST_PORT: "9200"
+      ELASTICSEARCH_URL: "http://django-elastic:9200"
+      TEST_ELASTICSEARCH_URL: "http://django-elastic:9200"
+      DRUPAL_SEARCH_API_TOKEN_URL: "http://drupal-app:8080/oauth/token"
+      DRUPAL_SEARCH_API_BASE_URL: "http://drupal-app:8080/fi"
+      DRUPAL_SEARCH_API_VERIFY_SSL: "False"
+      DRUPAL_SEARCH_API_CLIENT_ID: "${ASU_REST_OAUTH_CLIENT_ID:-installed_rest_client}"
+      DRUPAL_SEARCH_API_CLIENT_SECRET: "${ASU_REST_OAUTH_CLIENT_SECRET:-example-token}"
+      ALLOWED_HOSTS: "*"
+      CORS_ORIGIN_ALLOW_ALL: "1"
+      DEBUG: "1"
+      APPLY_MIGRATIONS: "1"
+      CREATE_SUPERUSER: "1"
+      CREATE_DATA_TRANSFER_PATH: "1"
+      APARTMENT_DATA_TRANSFER_PATH: transfer_files
+      APARTMENT_INDEX_NAME: asuntotuotanto_apartment
+      TEST_APARTMENT_INDEX_NAME: asuntotuotanto_apartment_test
+      OIKOTIE_SCHEMA_DIR: /app/schemas/
+      OIKOTIE_APARTMENTS_BATCH_SCHEMA_URL: ""
+      OIKOTIE_APARTMENTS_UPDATE_SCHEMA_URL: ""
+      OIKOTIE_HOUSINGCOMPANIES_BATCH_SCHEMA_URL: ""
+    ports:
+      - "18081:8081"
+    depends_on:
+      - django-db
+      - django-elastic
+    networks:
+      - e2e
+
+  test-runner:
+    image: mcr.microsoft.com/playwright:v1.49.0-jammy
+    working_dir: /tests
+    volumes:
+      - ./tests-e2e:/tests
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["echo 'No tests defined yet — replace this placeholder' && exit 0"]
+    depends_on:
+      - drupal-app
+      - django-app
+    networks:
+      - e2e
+
+networks:
+  e2e:
+    driver: bridge
+
+volumes:
+  drupal_db_data:
+  django_db_data:
