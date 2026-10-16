@@ -133,6 +133,12 @@ services:
       OIKOTIE_APARTMENTS_BATCH_SCHEMA_URL: ""
       OIKOTIE_APARTMENTS_UPDATE_SCHEMA_URL: ""
       OIKOTIE_HOUSINGCOMPANIES_BATCH_SCHEMA_URL: ""
+      # Required for application_form's encrypted fields (django-pgcrypto-fields).
+      # Without these, migration 0022_add_encrypted_application_fields fails with
+      # "Corrupt ascii-armor" since it embeds this key literally into decrypt SQL.
+      # Generate a test-only key pair — see README.md "Generating PGP test keys".
+      PUBLIC_PGP_KEY: "${PUBLIC_PGP_KEY:?Set PUBLIC_PGP_KEY in .env.e2e — see README.md}"
+      PRIVATE_PGP_KEY: "${PRIVATE_PGP_KEY:?Set PRIVATE_PGP_KEY in .env.e2e — see README.md}"
     ports:
       - "18081:8081"
     depends_on:

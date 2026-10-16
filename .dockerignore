@@ -1,0 +1,58 @@
+# Without this, `COPY . /app/` in the Dockerfile includes everything below,
+# so editing e.g. a test spec invalidates that layer's cache and forces an
+# image rebuild + container recreate, re-running migrations/fixture loads
+# for no reason. Keep this scoped to things the Django image never needs.
+
+# VCS / editor / AI tool config
+.git
+.github
+.devcontainer
+.vscode
+.idea
+.claude
+
+# E2E stack — runs in its own containers, never baked into this image
+tests-e2e
+compose.e2e.yaml
+run-e2e.sh
+drupal-e2e-deploy.sh
+django-dedup-fixture.py
+env.e2e.example
+
+# Other orchestration files not used by this image
+docker-compose.yml
+docker-compose-dev.yml
+
+# Python / test caches and build artifacts
+__pycache__
+*.py[cod]
+*$py.class
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.coverage
+.coverage.*
+htmlcov
+build
+dist
+*.egg-info
+
+# NOTE: var/, transfer_files/, and static/ are intentionally NOT excluded
+# here even though they're gitignored — the app's startup commands (e.g.
+# create_data_transfer_folder) expect these directories to already exist
+# with the ownership the Dockerfile's `COPY --chown=1001:1001` gives them;
+# excluding them causes a PermissionError when the app tries to create them
+# itself as the non-root runtime user.
+db.sqlite3
+db.sqlite3-journal
+*.log
+
+# Docs / misc project metadata
+docs
+README.md
+LICENSE
+AGENTS.md
+Makefile
+
+.DS_Store
+.env*

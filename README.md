@@ -95,6 +95,8 @@ The E2E stack runs `apartment-application-service` (Django) and `drupal-asuntotu
 2. Edit `.env.e2e`:
    - Set `DRUPAL_DUMP_PATH` to the SQL dump file from `drupal-asuntotuotanto` (relative to this directory, e.g. `../drupal-asuntotuotanto/dump-2026-04-23.sql`)
    - Set `DJANGO_DUMP_PATH` to a Django JSON fixture (relative path, e.g. `../django-dump-XXXXXXXXXX.json`). Leave unset to start with an empty Django DB.
+   - Set `PUBLIC_PGP_KEY` / `PRIVATE_PGP_KEY` — see below.
+
 
 ### Running the stack
 
