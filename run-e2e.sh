@@ -32,24 +32,45 @@ fi
 # recreate stale dependencies with no readiness wait, racing the test run
 # against a half-booted Drupal. Running this explicitly first means any
 # recreate happens here, where we wait for it.
-echo "[e2e] Ensuring stack is up to date..."
-$COMPOSE up --build -d drupal-db drupal-elastic drupal-redis drupal-app django-db django-elastic django-app
+#
+# django-app is brought up separately (and last): it's the only service with
+# a `build:` step, and `docker compose up --build` builds every listed
+# service before starting ANY of them — so a transient failure building
+# django-app (e.g. a registry hiccup pulling its base image) would otherwise
+# prevent drupal-app etc. from starting at all, even though they don't need
+# a build and have nothing to do with the failure.
+echo "[e2e] Ensuring Drupal stack is up to date..."
+$COMPOSE up -d drupal-db drupal-elastic drupal-redis drupal-app django-db django-elastic
 
-echo "[e2e] Waiting for Drupal deploy script to finish..."
-for i in $(seq 1 60); do
-  if $COMPOSE logs drupal-app 2>&1 | grep -q "\[e2e\] Clearing caches"; then
-    break
-  fi
-  sleep 3
-done
+echo "[e2e] Ensuring Django stack is up to date..."
+$COMPOSE up --build -d django-app
 
-echo "[e2e] Waiting for Django (incl. fixture load) to finish..."
-for i in $(seq 1 60); do
-  if $COMPOSE logs django-app 2>&1 | grep -q "Starting development server"; then
-    break
-  fi
-  sleep 3
-done
+# Polls the service's own HTTP port rather than grepping logs for text: nginx
+# (Drupal) and `runserver` (Django) both start only after the deploy
+# script / fixture load finishes, so "responds to HTTP" is a direct,
+# unambiguous readiness signal — and it isn't at the mercy of log-buffering
+# delays between a command finishing and its output actually showing up in
+# `docker compose logs`.
+wait_for_http() {
+  local name="$1" url="$2" max_seconds="$3"
+  local waited=0
+  echo -n "[e2e] Waiting for $name to respond at $url "
+  while ! curl -sf -o /dev/null "$url" 2>/dev/null; do
+    if [ "$waited" -ge "$max_seconds" ]; then
+      echo " TIMED OUT after ${max_seconds}s"
+      echo "[e2e] $name did not become ready in time — recent logs:" >&2
+      $COMPOSE logs --tail=40 "$name" >&2 2>&1 || true
+      return 1
+    fi
+    echo -n "."
+    sleep 1
+    waited=$((waited + 1))
+  done
+  echo " ready after ${waited}s"
+}
+
+wait_for_http drupal-app "http://localhost:18080/fi" 120
+wait_for_http django-app "http://localhost:18081/healthz" 120
 
 echo "[e2e] Generating one-time admin login link..."
 LOGIN_URL=$($COMPOSE exec -T drupal-app drush uli --uid=1 --uri="http://drupal-app:8080" 2>/dev/null | tr -d '\r')
