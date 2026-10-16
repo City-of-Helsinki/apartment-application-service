@@ -1,5 +1,4 @@
-import { test, expect } from '@playwright/test';
-import { pathOf } from '../utils';
+import { test, expect, pathOf } from '../utils';
 
 test.describe('6.2 Helsinki profile SSO login entry point', () => {
   test('login button or link is visible to anonymous users', async ({ page }) => {

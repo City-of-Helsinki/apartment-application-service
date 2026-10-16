@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils';
 
 // The listing is a client-side React widget with CSS-module (hashed) class
 // names, so "cards" can't be targeted by class. Each project renders as an

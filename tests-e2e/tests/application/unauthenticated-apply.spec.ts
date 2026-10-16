@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils';
 
 test.describe('7.2 Unauthenticated user attempting to apply is prompted to log in', () => {
   test.skip('requires a project with an open application period in fixture data', async ({ page }) => {

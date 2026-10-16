@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils';
 
 test.describe('1.2 Static assets are served from the correct host', () => {
   // Drupal's file_public_base_url intentionally points at localhost:18080 so

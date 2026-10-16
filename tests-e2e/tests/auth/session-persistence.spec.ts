@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils';
 
 // run-e2e.sh generates a fresh `drush uli --uid=1` one-time login link per run
 // and passes it here, since the login form's email-type field makes scripted

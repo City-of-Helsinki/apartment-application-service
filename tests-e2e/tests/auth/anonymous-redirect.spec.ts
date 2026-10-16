@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils';
 
 test.describe('6.4 Restricted pages redirect anonymous users', () => {
   test('accessing /admin as anonymous user is blocked', async ({ page }) => {

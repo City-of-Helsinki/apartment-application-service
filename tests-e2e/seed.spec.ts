@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './tests/utils';
 
 test.describe('Test group', () => {
   test('seed', async ({ page }) => {

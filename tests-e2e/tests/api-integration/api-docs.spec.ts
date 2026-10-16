@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils';
 
 const DJANGO_BASE = process.env.E2E_DJANGO_URL ?? 'http://localhost:18081';
 

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils';
 
 test.describe('1.1 Front page loads in Finnish without errors', () => {
   test('renders with correct language and no server errors', async ({ page }) => {

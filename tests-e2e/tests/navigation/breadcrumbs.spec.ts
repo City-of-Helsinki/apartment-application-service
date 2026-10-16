@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils';
 
 test.describe('2.3 Breadcrumb navigation on inner pages', () => {
   test('breadcrumb is present on an inner page and home link works', async ({ page }) => {

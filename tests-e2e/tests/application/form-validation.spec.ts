@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils';
 
 test.describe('7.4 Application form validates required fields', () => {
   test.skip('requires Helsinki profile SSO test account — not available in E2E stack', async ({ page }) => {

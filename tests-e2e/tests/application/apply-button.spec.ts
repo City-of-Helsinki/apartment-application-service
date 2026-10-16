@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils';
 
 test.describe('7.1 Apply button visible on a project detail page', () => {
   test.skip('requires a project with an open application period in fixture data', async ({ page }) => {

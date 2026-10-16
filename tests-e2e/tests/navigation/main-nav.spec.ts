@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils';
 
 test.describe('2.1 Main navigation is present and links are reachable', () => {
   test('primary nav element is visible', async ({ page }) => {

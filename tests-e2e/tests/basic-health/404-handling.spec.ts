@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils';
 
 test.describe('1.3 404 page is rendered with site chrome', () => {
   test('non-existent page returns 404 with navigation intact', async ({ page }) => {

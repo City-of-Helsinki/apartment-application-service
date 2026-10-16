@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils';
 
 // There is no site-wide search box; apartment search is a set of filter
 // dropdowns (district, room count, area, price) scoped to each listing page.

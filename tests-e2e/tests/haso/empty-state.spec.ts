@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils';
 
 test.describe('3.4 Haso listing empty state', () => {
   test('applying impossible filter shows empty state message without error', async ({ page }) => {

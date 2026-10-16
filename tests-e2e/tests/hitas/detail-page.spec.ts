@@ -1,5 +1,4 @@
-import { test, expect } from '@playwright/test';
-import { pathOf } from '../utils';
+import { test, expect, pathOf } from '../utils';
 
 test.describe('4.3 Hitas apartment detail page', () => {
   test('clicking first project link opens its detail page', async ({ page }) => {

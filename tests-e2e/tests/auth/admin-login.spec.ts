@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils';
 
 test.describe('6.1 Drupal admin login page', () => {
   test('login page renders with username, password, and submit fields', async ({ page }) => {

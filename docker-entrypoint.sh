@@ -33,12 +33,16 @@ fi
 echo "Compile messages to make translations work"
 ./manage.py compilemessages
 
-echo "Fetch schemas"
-mkdir -p $OIKOTIE_SCHEMA_DIR
-(cd $OIKOTIE_SCHEMA_DIR \
-&& curl -O $OIKOTIE_APARTMENTS_BATCH_SCHEMA_URL \
-&& curl -O $OIKOTIE_APARTMENTS_UPDATE_SCHEMA_URL \
-&& curl -O $OIKOTIE_HOUSINGCOMPANIES_BATCH_SCHEMA_URL)
+if [[ -n "$OIKOTIE_SCHEMA_DIR" && -n "$OIKOTIE_APARTMENTS_BATCH_SCHEMA_URL" && -n "$OIKOTIE_APARTMENTS_UPDATE_SCHEMA_URL" && -n "$OIKOTIE_HOUSINGCOMPANIES_BATCH_SCHEMA_URL" ]]; then
+    echo "Fetch schemas"
+    mkdir -p $OIKOTIE_SCHEMA_DIR
+    (cd $OIKOTIE_SCHEMA_DIR \
+    && curl -O $OIKOTIE_APARTMENTS_BATCH_SCHEMA_URL \
+    && curl -O $OIKOTIE_APARTMENTS_UPDATE_SCHEMA_URL \
+    && curl -O $OIKOTIE_HOUSINGCOMPANIES_BATCH_SCHEMA_URL)
+else
+    echo "Skipping schema fetch (OIKOTIE_SCHEMA_DIR or schema URLs not set)"
+fi
 
 # Start server
 if [[ ! -z "$@" ]]; then

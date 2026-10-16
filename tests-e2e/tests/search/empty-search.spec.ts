@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils';
 
 test.describe('5.3 Filtering to an unlikely combination handles emptiness gracefully', () => {
   test('narrow room-count filter does not crash and shows some outcome', async ({ page }) => {

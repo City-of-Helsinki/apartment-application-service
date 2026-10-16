@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils';
 
 test.describe('3.1 Haso listing page accessible from main navigation', () => {
   test('nav contains Haso/asumisoikeus link that loads with 200', async ({ page }) => {

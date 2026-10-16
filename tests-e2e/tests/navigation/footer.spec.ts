@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils';
 
 test.describe('2.4 Footer is present with content and working links', () => {
   test('footer element is visible after scrolling', async ({ page }) => {

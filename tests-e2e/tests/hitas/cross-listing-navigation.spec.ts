@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../utils';
 
 test.describe('4.4 Cross-listing navigation between Haso and Hitas', () => {
   test('can navigate from Haso listing to Hitas listing without errors', async ({ page }) => {
