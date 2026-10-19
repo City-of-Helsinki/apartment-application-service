@@ -35,11 +35,12 @@ from application_form.models import (
     Offer,
 )
 from application_form.services.application import (
-    cancel_reservation,
+    cancel_reservations_replaced_by_late_application,
     create_application,
     get_sold_apartment_uuids,
     send_sales_notification_email,
 )
+from application_form.services.constants import COMMITTED_RESERVATION_STATES
 from application_form.validators import ProjectApplicantValidator, SSNSuffixValidator
 from customer.models import Customer
 
@@ -170,11 +171,7 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
         reservations_in_project = ApartmentReservation.objects.filter(
             application_apartment__application__customer__primary_profile__id=profile.id,  # noqa: E501
             apartment_uuid__in=project_apartment_uuids,
-            state__in=[
-                ApartmentReservationState.OFFERED,
-                ApartmentReservationState.OFFER_ACCEPTED,
-                ApartmentReservationState.SOLD,
-            ],
+            state__in=COMMITTED_RESERVATION_STATES,
         )
 
         if reservations_in_project.exists():
@@ -213,22 +210,9 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
         )
 
         if is_submitted_late and is_haso and project.project_can_apply_afterwards:
-            # find pre-existing reservation for profile, apartments, cancel it
-            project_reservations = ApartmentReservation.objects.filter(
-                apartment_uuid__in=project_apartment_uuids,
-                application_apartment__application__customer__primary_profile__id=profile.id,  # noqa: E501
+            cancel_reservations_replaced_by_late_application(
+                application, project_apartment_uuids, profile
             )
-            new_reservation = project_reservations.last()
-
-            project_reservations_to_cancel = project_reservations.exclude(
-                application_apartment__in=application.application_apartments.all()
-            )
-            for reservation in project_reservations_to_cancel:
-                cancel_reservation(
-                    reservation,
-                    comment=f"Peruttu ja korvattu jälkihakemuksella, varaus id: {new_reservation.pk}",  # noqa: E501
-                    cancellation_reason=ApartmentReservationCancellationReason.CANCELED,
-                )
 
             send_sales_notification_email(
                 application,

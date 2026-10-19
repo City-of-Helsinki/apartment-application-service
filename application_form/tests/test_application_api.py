@@ -1485,6 +1485,7 @@ def test_drupal_user_can_only_delete_own_application(
     (
         ApartmentReservationState.OFFERED,
         ApartmentReservationState.OFFER_ACCEPTED,
+        ApartmentReservationState.ACCEPTED_BY_MUNICIPALITY,
         ApartmentReservationState.SOLD,
     ),
 )
@@ -1492,8 +1493,8 @@ def test_application_to_already_reserved_project(
     api_client, elastic_single_project_with_apartments, reservation_state
 ):
     """
-    Users who have a reservation with the state 'offered', 'offer_accepted' or 'sold'
-    in a project shouldn't be allowed to create further applications to it.
+    Users who have a reservation that is committed to an apartment in a project
+    shouldn't be allowed to create further applications to it.
     """
     apartment: ApartmentDocument = elastic_single_project_with_apartments[0]
 
@@ -1517,3 +1518,37 @@ def test_application_to_already_reserved_project(
     )
 
     assert response.status_code == 400
+
+
+@pytest.mark.django_db
+def test_application_to_project_with_expired_offer_is_allowed(
+    api_client, elastic_single_project_with_apartments
+):
+    """
+    An expired offer must not block the customer from applying again.
+
+    - Customer's only reservation in the project is OFFER_EXPIRED
+    - Creating a new application to the project succeeds
+    """
+    apartment: ApartmentDocument = elastic_single_project_with_apartments[0]
+
+    profile: Profile = ProfileFactory()
+    customer = CustomerFactory(primary_profile=profile)
+    ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        customer=customer,
+        state=ApartmentReservationState.OFFER_EXPIRED,
+        application_apartment=ApplicationApartmentFactory(
+            apartment_uuid=apartment.uuid,
+            application=ApplicationFactory(customer=customer, applicants_count=1),
+        ),
+    )
+
+    data = create_application_data(profile, apartments=[apartment])
+    api_client.credentials(HTTP_AUTHORIZATION=f"Bearer {_create_token(profile)}")
+
+    response = api_client.post(
+        reverse("application_form:application-list"), data, format="json"
+    )
+
+    assert response.status_code == 201

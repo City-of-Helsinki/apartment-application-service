@@ -21,6 +21,10 @@ from application_form.models import (
     ApplicationApartment,
 )
 from application_form.services.constants import LIST_POSITION_BUMP_OFFSET
+from application_form.services.haso_ranking import (
+    find_haso_insert_target,
+    protected_queue_floor,
+)
 from application_form.utils import lock_table
 from customer.models import Customer
 
@@ -191,39 +195,42 @@ def _calculate_queue_position(
 
     Late applications form a pool of their own and should be kept in the order of their
     right of residence number within that pool.
+
+    Reservations that have already been offered (including expired offers) are never
+    passed, even when the new application has a better right of residence number.
+    Reservations created by a salesperson have no application to compare against, so
+    they only take part in the ranking through the protected queue floor.
     """
     right_of_residence_ordering_number = (
         application_apartment.application.right_of_residence_ordering_number
     )
     submitted_late = application_apartment.application.submitted_late
-    all_reservations = ApartmentReservation.objects.filter(
-        apartment_uuid=apartment_uuid
-    ).only(
-        "queue_position",
-        "state",
-        "application_apartment__application__right_of_residence",
-        "application_apartment__application__right_of_residence_is_old_batch",
+    active_reservations = (
+        ApartmentReservation.objects.active()
+        .filter(apartment_uuid=apartment_uuid)
+        .only("queue_position", "state")
     )
-    all_reservations = all_reservations.active()
-    reservations = all_reservations.filter(
-        application_apartment__application__submitted_late=submitted_late
-    ).order_by("queue_position")
+    same_late_group = (
+        ApartmentReservation.objects.active()
+        .filter(
+            apartment_uuid=apartment_uuid,
+            application_apartment__application__submitted_late=submitted_late,
+        )
+        .select_related("application_apartment__application")
+        .order_by("queue_position")
+    )
 
-    offered_or_sold_states = [
-        ApartmentReservationState.OFFER_ACCEPTED,
-        ApartmentReservationState.OFFERED,
-        ApartmentReservationState.SOLD,
-    ]
-    for apartment_reservation in reservations:
-        other_application = apartment_reservation.application_apartment.application
-
-        if (
-            right_of_residence_ordering_number
-            < other_application.right_of_residence_ordering_number
-            and apartment_reservation.state not in offered_or_sold_states
-        ):
-            return apartment_reservation.queue_position
-    return all_reservations.count() + 1
+    target = find_haso_insert_target(
+        same_late_group,
+        right_of_residence_ordering_number,
+        ordering_number_of=lambda reservation: (
+            reservation.application_apartment.application.right_of_residence_ordering_number  # noqa: E501
+        ),
+        protected_floor=protected_queue_floor(active_reservations),
+    )
+    if target is not None:
+        return target.queue_position
+    return active_reservations.count() + 1
 
 
 def _make_room_for_reservation(res, new_list_position, new_queue_position):
@@ -377,21 +384,16 @@ def _apply_submitted_late_change_for_haso_in_memory(
         ],
         key=lambda reservation: reservation.queue_position or 0,
     )
-    offered_or_sold_states = {
-        ApartmentReservationState.OFFER_ACCEPTED.value,
-        ApartmentReservationState.OFFERED.value,
-        ApartmentReservationState.SOLD.value,
-    }
-    new_position = len(active_others) + 1
-    for reservation in same_late_group:
-        reservation_ordering_number = reservation.right_of_residence_ordering_number
-        if (
-            reservation_ordering_number is not None
-            and ordering_number < reservation_ordering_number
-            and _state_value(reservation.state) not in offered_or_sold_states
-        ):
-            new_position = reservation.queue_position
-            break
+    insert_target = find_haso_insert_target(
+        same_late_group,
+        ordering_number,
+        protected_floor=protected_queue_floor(active_others),
+    )
+    new_position = (
+        insert_target.queue_position
+        if insert_target is not None
+        else len(active_others) + 1
+    )
 
     _adjust_positions_in_memory(others, "queue_position", new_position, 1)
     target.queue_position = new_position
@@ -488,23 +490,16 @@ def _apply_add_in_memory(
                 ],
                 key=lambda reservation: reservation.queue_position or 0,
             )
-            offered_or_sold_states = {
-                ApartmentReservationState.OFFER_ACCEPTED.value,
-                ApartmentReservationState.OFFERED.value,
-                ApartmentReservationState.SOLD.value,
-            }
-            new_queue_position = len(active_reservations) + 1
-            for reservation in same_late_group:
-                reservation_ordering_number = (
-                    reservation.right_of_residence_ordering_number
-                )
-                if (
-                    reservation_ordering_number is not None
-                    and ordering_number < reservation_ordering_number
-                    and _state_value(reservation.state) not in offered_or_sold_states
-                ):
-                    new_queue_position = reservation.queue_position
-                    break
+            insert_target = find_haso_insert_target(
+                same_late_group,
+                ordering_number,
+                protected_floor=protected_queue_floor(active_reservations),
+            )
+            new_queue_position = (
+                insert_target.queue_position
+                if insert_target is not None
+                else len(active_reservations) + 1
+            )
 
             _adjust_positions_in_memory(
                 reservations, "queue_position", new_queue_position, 1
