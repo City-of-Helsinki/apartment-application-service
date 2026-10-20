@@ -44,6 +44,8 @@ services:
     volumes:
       - ../drupal-asuntotuotanto:/app:delegated
       - ./drupal-e2e-deploy.sh:/entrypoints/25-e2e-deploy.sh:ro
+      # Baseline content and its loader, run by drupal-e2e-deploy.sh.
+      - ./e2e/fixtures:/e2e/fixtures:ro
     environment:
       APP_ENV: "${APP_ENV:-dev}"
       WEBROOT: /app/public
@@ -67,6 +69,7 @@ services:
       ASU_ASUNTOTUOTANTO_URL: "http://localhost:18080"
       DRUPAL_SERVER_AUTH_TOKEN: "${DRUPAL_SERVER_AUTH_TOKEN:-example-token}"
       ASU_REST_API_CACHE_MAX_AGE: "0"
+      E2E_BASELINE_FILE: /e2e/fixtures/baseline.json
     ports:
       - "127.0.0.1:18080:8080"
     depends_on:
@@ -256,6 +259,8 @@ services:
     working_dir: /tests
     volumes:
       - ./tests-e2e:/tests
+      # Read by tests/baseline to know which content to expect.
+      - ./e2e/fixtures:/e2e/fixtures:ro
     entrypoint: ["/bin/sh", "-c"]
     # xvfb-run gives --headed a virtual display to run against inside this
     # headless container; it's a no-op for normal headless runs.
@@ -266,6 +271,7 @@ services:
       E2E_OIDC_URL: "http://mock-oidc:8080"
       E2E_SALES_UI_URL: "http://sales-ui:3000"
       E2E_API_GRANT_TYPE: *e2e-api-grant-type
+      E2E_BASELINE_FILE: /e2e/fixtures/baseline.json
       PLAYWRIGHT_ARGS: ""
     depends_on:
       - drupal-app

@@ -13,6 +13,7 @@
 
 # E2E stack — runs in its own containers, never baked into this image
 tests-e2e
+e2e
 compose.e2e.yaml
 run-e2e.sh
 drupal-e2e-deploy.sh

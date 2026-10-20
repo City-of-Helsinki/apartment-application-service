@@ -155,6 +155,19 @@ That API token always has the seeded salesperson as its `sub`, whatever username
 
 The UI loads at http://localhost:13000 from the host, but logging in works only from inside the compose network (the test-runner container), since the UI redirects to and calls `mock-oidc` and `django-app` by their in-network hostnames. Chromium is started with `--unsafely-treat-insecure-origin-as-secure` for the UI and mock origins (see `tests-e2e/playwright.config.ts`) because PKCE needs `crypto.subtle`, which is available only in secure contexts.
 
+### Baseline content
+
+`e2e/fixtures/baseline.json` is committed Drupal content that the tests can rely on, independent of what the SQL dump contains. It lists projects, each with its apartments:
+
+- `key`: stable identifier for test code (`^[a-z0-9-]+$`, unique; apartment keys are unique across the file).
+- `uuid`: the Drupal node UUID, which is also Django's `project_uuid` / `apartment_uuid`. Use canonical lowercase UUIDs starting with `e2e0` (e.g. `e2e00003-0000-4000-8000-000000000301`) so they never clash with real content.
+- `ownership_type`: a term name of the Drupal `ownership_type` vocabulary (`HASO`, `Hitas`, `Puolihitas`).
+- Projects: `housing_company` (starts with `E2E `), `street_address`, optional `postal_code` and `city`. Apartments: `apartment_number` (unique within the project), optional `apartment_structure`, `living_area`, `floor`.
+
+On every drupal-app start, `drupal-e2e-deploy.sh` runs `drush php:script /e2e/fixtures/drupal/load_baseline.php` after the config import. The loader finds each node by UUID and creates or updates it in place, so restarts never duplicate content. Nodes are published, projects get state of sale "for sale" and their `field_apartments` lists exactly the baseline apartments in file order. The loader then reindexes the apartments in the search_api indexes (`apartment`, `apartment_listing`), or leaves them queued when the Elasticsearch server is unavailable. It prints a summary line (`[e2e-baseline] Loaded ...`) to the drupal-app logs. Invalid input or a failed save stops drupal-app before nginx starts.
+
+`utils/tests/test_e2e_baseline_fixture.py` validates the file and `tests-e2e/tests/baseline/baseline-content.spec.ts` checks that Django's sales API serves it. To add content, add entries to `baseline.json`, run the pytest file, then restart drupal-app (and django-app, which caches its Drupal token) to load it. Removing an entry from the file does not delete the node from Drupal.
+
 ### HASO reservation queue seed
 
 `tests/sales-ui/haso-reservation-queue.spec.ts` reproduces a HASO queue bug: after the lottery, a non-late reservation added without a queue position must be ranked by right of residence among the non-late reservations, not appended to the end of the queue. A second scenario checks that a late reservation still ranks after every non-late one.
@@ -179,7 +192,7 @@ The `-v` flag removes the DB volumes so the next run starts with a clean databas
 
 ### What happens on startup
 
-- **Drupal**: the SQL dump is imported into MariaDB on first start (empty volume only). `drush updatedb` and `drush cim` run on every start, followed by provisioning of the OAuth consumer Django uses to fetch project data from Drupal (`ASU_REST_OAUTH_CLIENT_ID` / `ASU_REST_OAUTH_CLIENT_SECRET`).
+- **Drupal**: the SQL dump is imported into MariaDB on first start (empty volume only). `drush updatedb` and `drush cim` run on every start, followed by provisioning of the OAuth consumer Django uses to fetch project data from Drupal (`ASU_REST_OAUTH_CLIENT_ID` / `ASU_REST_OAUTH_CLIENT_SECRET`) and loading the baseline content (see above).
 - **Django**: migrations run, then if `DJANGO_DUMP_PATH` is set the fixture is flushed into the DB (duplicates in the dump are deduplicated automatically by `django_dedup_fixture.py`). The E2E salesperson user is then seeded by `django_e2e_seed_salesperson.py`.
 
 ### Adding tests
