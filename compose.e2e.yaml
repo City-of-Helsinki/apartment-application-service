@@ -5,7 +5,7 @@ services:
       - drupal_db_data:/var/lib/mysql
       - ${DRUPAL_DUMP_PATH}:/docker-entrypoint-initdb.d/dump.sql:ro
     ports:
-      - "13306:3306"
+      - "127.0.0.1:13306:3306"
     networks:
       - e2e
 
@@ -23,7 +23,7 @@ services:
         soft: -1
         hard: -1
     ports:
-      - "19200:9200"
+      - "127.0.0.1:19200:9200"
     networks:
       - e2e
 
@@ -45,7 +45,6 @@ services:
       DRUSH_OPTIONS_URI: "http://localhost:18080"
       SKIP_DEPLOY_SCRIPTS: "false"
       DRUPAL_HASH_SALT: "${DRUPAL_HASH_SALT:-e2e-test-salt-not-for-production}"
-      SIMPLETEST_DB: "mysql://drupal:drupal@drupal-db:3306/drupal"
       DTT_BASE_URL: "http://localhost:18080"
       SIMPLETEST_BASE_URL: "http://localhost:18080"
       REDIS_HOST: drupal-redis
@@ -56,7 +55,7 @@ services:
       DRUPAL_SERVER_AUTH_TOKEN: "${DRUPAL_SERVER_AUTH_TOKEN:-example-token}"
       ASU_REST_API_CACHE_MAX_AGE: "0"
     ports:
-      - "18080:8080"
+      - "127.0.0.1:18080:8080"
     depends_on:
       - drupal-db
       - drupal-elastic
@@ -68,10 +67,10 @@ services:
     image: postgres:12
     environment:
       POSTGRES_USER: apartment-application
-      POSTGRES_PASSWORD: apartment-application
+      POSTGRES_PASSWORD: "${E2E_DJANGO_DB_PASSWORD:?Set E2E_DJANGO_DB_PASSWORD in .env.e2e — see README.md}"
       POSTGRES_DB: apartment-application
     ports:
-      - "15434:5432"
+      - "127.0.0.1:15434:5432"
     volumes:
       - django_db_data:/var/lib/postgresql/data
     networks:
@@ -82,7 +81,7 @@ services:
     environment:
       - discovery.type=single-node
     ports:
-      - "19201:9200"
+      - "127.0.0.1:19201:9200"
     networks:
       - e2e
 
@@ -109,7 +108,7 @@ services:
         fi
         python ./manage.py runserver 0.0.0.0:8081
     environment:
-      DATABASE_URL: postgres://apartment-application:apartment-application@django-db/apartment-application
+      DATABASE_URL: "postgres://apartment-application:${E2E_DJANGO_DB_PASSWORD:?Set E2E_DJANGO_DB_PASSWORD in .env.e2e — see README.md}@django-db/apartment-application"
       DATABASE_HOST: django-db
       ELASTICSEARCH_HOST: django-elastic
       ELASTICSEARCH_HOST_PORT: "9200"
@@ -139,7 +138,7 @@ services:
       PUBLIC_PGP_KEY: "${PUBLIC_PGP_KEY:?Set PUBLIC_PGP_KEY in .env.e2e — see README.md}"
       PRIVATE_PGP_KEY: "${PRIVATE_PGP_KEY:?Set PRIVATE_PGP_KEY in .env.e2e — see README.md}"
     ports:
-      - "18081:8081"
+      - "127.0.0.1:18081:8081"
     depends_on:
       - django-db
       - django-elastic

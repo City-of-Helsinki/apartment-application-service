@@ -74,7 +74,10 @@ wait_for_http django-app "http://localhost:18081/healthz" 120
 
 echo "[e2e] Generating one-time admin login link..."
 LOGIN_URL=$($COMPOSE exec -T drupal-app drush uli --uid=1 --uri="http://drupal-app:8080" 2>/dev/null | tr -d '\r')
-echo "[e2e] Login URL: $LOGIN_URL"
+# The link grants admin access, so it is passed to the test runner but not printed.
+if [ -z "$LOGIN_URL" ]; then
+  echo "[e2e] WARNING: failed to generate admin login link; auth tests will be skipped" >&2
+fi
 
 echo "[e2e] Running tests..."
 set +e

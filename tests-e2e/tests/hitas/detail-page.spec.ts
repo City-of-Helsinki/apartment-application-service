@@ -32,7 +32,10 @@ test.describe('4.3 Hitas apartment detail page', () => {
     const href = await detailLink.getAttribute('href');
     await page.goto(pathOf(href!));
 
-    await expect(page.getByText('Yksityiskohdat', { exact: true }).first()).toBeVisible();
+    // getByText would also match a hidden sticky-nav anchor link with the
+    // same text ("Yksityiskohdat") that sits earlier in the DOM — the
+    // section heading itself is the thing we actually want to assert on.
+    await expect(page.getByRole('heading', { name: 'Yksityiskohdat' })).toBeVisible();
     await expect(page.getByText(/Kaupunginosa|Pinta-ala|Huoneita/).first()).toBeVisible();
   });
 });

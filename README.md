@@ -96,6 +96,7 @@ The E2E stack runs `apartment-application-service` (Django) and `drupal-asuntotu
    - Set `DRUPAL_DUMP_PATH` to the SQL dump file from `drupal-asuntotuotanto` (relative to this directory, e.g. `../drupal-asuntotuotanto/dump-2026-04-23.sql`)
    - Set `DJANGO_DUMP_PATH` to a Django JSON fixture (relative path, e.g. `../django-dump-XXXXXXXXXX.json`). Leave unset to start with an empty Django DB.
    - Set `PUBLIC_PGP_KEY` / `PRIVATE_PGP_KEY` — see below.
+   - Set `E2E_DJANGO_DB_PASSWORD` to any URL-safe value. It only takes effect when the Postgres volume is first created, so run the teardown command below with `-v` after changing it.
 
 
 ### Running the stack
@@ -111,7 +112,7 @@ docker compose -f compose.e2e.yaml --env-file .env.e2e up --build
 ./run-e2e.sh --keep
 ```
 
-Services exposed on the host:
+Services exposed on the host (bound to `127.0.0.1` only):
 
 | Service | URL |
 |---|---|
