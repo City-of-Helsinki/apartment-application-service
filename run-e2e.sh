@@ -46,6 +46,11 @@ $COMPOSE up -d drupal-db drupal-elastic drupal-redis drupal-app django-db django
 echo "[e2e] Ensuring Django stack is up to date..."
 $COMPOSE up --build -d django-app
 
+# e2e-seeder runs the image django-app just built (no build step of its own),
+# so it can only be started after that build.
+echo "[e2e] Ensuring e2e seeder is up to date..."
+$COMPOSE up -d e2e-seeder
+
 # sales-ui also has a build step (from the att-sales-ui sibling repo), so it
 # gets its own `up --build` for the same reason as django-app above.
 echo "[e2e] Ensuring sales UI is up to date..."
@@ -83,25 +88,9 @@ wait_for_http mock-oidc "http://localhost:18083/e2e/.well-known/openid-configura
 # The CRA dev server answers only after its first webpack compile, which
 # can take minutes on a cold start.
 wait_for_http sales-ui "http://localhost:13000" 300
-
-# Seeds the HASO reservation queue scenarios (tests/sales-ui/
-# haso-reservation-queue.spec.ts). Apartments come from Drupal's search API,
-# so this runs only after both backends respond. The script prints JSON on
-# stdout (logs go to stderr); it is written to a temp file first so a failed
-# seed never leaves a truncated seed file behind for the spec to read.
-SEED_DIR="$SCRIPT_DIR/tests-e2e/.e2e-seed"
-SEED_FILE="$SEED_DIR/haso-queue.json"
-echo "[e2e] Seeding HASO reservation queue scenarios..."
-mkdir -p "$SEED_DIR"
-SEED_TMP="$(mktemp "$SEED_DIR/haso-queue.json.XXXXXX")"
-if ! $COMPOSE exec -T -e PYTHONPATH=/app django-app \
-    python /e2e/django_e2e_seed_haso_queue.py > "$SEED_TMP"; then
-  rm -f "$SEED_TMP"
-  echo "[e2e] ERROR: seeding HASO reservation queue scenarios failed (see output above)" >&2
-  exit 1
-fi
-mv "$SEED_TMP" "$SEED_FILE"
-echo "[e2e] HASO queue seed written to $SEED_FILE"
+# The seeder starts serving only after django-app has applied migrations;
+# the specs seed their scenarios through it on demand.
+wait_for_http e2e-seeder "http://localhost:18084/health" 120
 
 echo "[e2e] Generating one-time admin login link..."
 LOGIN_URL=$($COMPOSE exec -T drupal-app drush uli --uid=1 --uri="http://drupal-app:8080" 2>/dev/null | tr -d '\r')

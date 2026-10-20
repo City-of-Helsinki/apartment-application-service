@@ -1,5 +1,3 @@
-import * as fs from 'fs';
-import * as path from 'path';
 import type { Locator, Page } from '@playwright/test';
 import { test, expect } from '../utils';
 import {
@@ -17,9 +15,10 @@ import {
 // before that fix; the late scenario guards the late pool still ranking
 // after every non-late reservation.
 //
-// Each scenario runs on its own apartment seeded by
-// django_e2e_seed_haso_queue.py (run-e2e.sh runs it and writes its JSON
-// output to the seed file), so the tests are independent of each other:
+// Each variant runs on its own baseline apartment (on_time: haso-a1, late:
+// haso-a2), reset and seeded per test through the seeder sidecar's
+// haso_queue scenario with a test-specific namespace, so the tests are
+// independent of each other and of earlier runs:
 // - existing customer: right of residence 500, non-late, queue position 1
 // - new customer: right of residence 100, no reservation yet
 
@@ -31,10 +30,6 @@ const PREVIEW_TITLE_TEXT = 'Jonon esikatselu'; // ReservationAddModal.previewTit
 
 const CREATE_RESERVATION_API_PATH = '/v1/sales/apartment_reservations/';
 
-const SEED_FILE =
-  process.env.E2E_HASO_SEED_FILE ??
-  path.join(__dirname, '..', '..', '.e2e-seed', 'haso-queue.json');
-
 type ScenarioName = 'on_time' | 'late';
 
 interface SeededCustomer {
@@ -43,16 +38,17 @@ interface SeededCustomer {
   last_name: string;
 }
 
+// Manifest returned by the seeder's haso_queue scenario.
 interface ScenarioSeed {
-  scenario: ScenarioName;
+  scenario: 'haso_queue';
+  variant: ScenarioName;
+  namespace: string;
   project_uuid: string;
   apartment_uuid: string;
   apartment_number: string;
   existing_customer: SeededCustomer;
   new_customer: SeededCustomer;
 }
-
-type HasoQueueSeed = Record<ScenarioName, ScenarioSeed>;
 
 interface ScenarioExpectation {
   name: ScenarioName;
@@ -67,33 +63,6 @@ const SCENARIOS: ScenarioExpectation[] = [
   // The late pool ranks after every non-late reservation regardless of RoR.
   { name: 'late', submittedLate: true, newQueuePosition: 2 },
 ];
-
-/**
- * Read the HASO queue seed written by django_e2e_seed_haso_queue.py.
- *
- * @param scenario - Scenario whose seed data is returned.
- * @returns The seeded project, apartment and customers of the scenario.
- * @throws Error with instructions to run the seed when the file is missing
- *   or does not contain the scenario.
- */
-function loadScenarioSeed(scenario: ScenarioName): ScenarioSeed {
-  if (!fs.existsSync(SEED_FILE)) {
-    throw new Error(
-      `HASO queue seed file not found at ${SEED_FILE}. Run the seed first ` +
-        '(run-e2e.sh runs django_e2e_seed_haso_queue.py and writes its JSON ' +
-        'output there), or point E2E_HASO_SEED_FILE at the seed output.',
-    );
-  }
-  const seed = JSON.parse(fs.readFileSync(SEED_FILE, 'utf-8')) as Partial<HasoQueueSeed>;
-  const scenarioSeed = seed[scenario];
-  if (!scenarioSeed) {
-    throw new Error(
-      `HASO queue seed file ${SEED_FILE} has no "${scenario}" scenario. ` +
-        'Re-run django_e2e_seed_haso_queue.py (run-e2e.sh does it).',
-    );
-  }
-  return scenarioSeed;
-}
 
 /**
  * Escape a string for literal use inside a RegExp.
@@ -216,8 +185,12 @@ test.describe('Sales UI HASO reservation queue ordering', () => {
   for (const expectation of SCENARIOS) {
     test(`${expectation.name}: new customer with better RoR gets queue position ${expectation.newQueuePosition}`, async ({
       page,
+      seedScenario,
     }) => {
-      const seed = loadScenarioSeed(expectation.name);
+      const seed = await seedScenario<ScenarioSeed>('haso_queue', {
+        variant: expectation.name,
+      });
+      expect(seed.variant).toBe(expectation.name);
       const newCustomer = seed.new_customer;
       const existingCustomer = seed.existing_customer;
       const [firstInQueue, secondInQueue] =

@@ -4,6 +4,45 @@
 # Keycloak-style urn:ietf:params:oauth:grant-type:uma-ticket.
 x-e2e-api-grant-type: &e2e-api-grant-type "${E2E_API_GRANT_TYPE:-client_credentials}"
 
+# Environment shared by django-app and e2e-seeder, which run the same image
+# against the same database.
+x-django-env: &django-env
+  DATABASE_URL: "postgres://apartment-application:${E2E_DJANGO_DB_PASSWORD:?Set E2E_DJANGO_DB_PASSWORD in .env.e2e — see README.md}@django-db/apartment-application"
+  DATABASE_HOST: django-db
+  ELASTICSEARCH_HOST: django-elastic
+  ELASTICSEARCH_HOST_PORT: "9200"
+  ELASTICSEARCH_URL: "http://django-elastic:9200"
+  TEST_ELASTICSEARCH_URL: "http://django-elastic:9200"
+  DRUPAL_SEARCH_API_TOKEN_URL: "http://drupal-app:8080/oauth/token"
+  DRUPAL_SEARCH_API_BASE_URL: "http://drupal-app:8080/fi"
+  DRUPAL_SEARCH_API_VERIFY_SSL: "False"
+  DRUPAL_SEARCH_API_CLIENT_ID: "${ASU_REST_OAUTH_CLIENT_ID:-installed_rest_client}"
+  DRUPAL_SEARCH_API_CLIENT_SECRET: "${ASU_REST_OAUTH_CLIENT_SECRET:-example-token}"
+  ALLOWED_HOSTS: "*"
+  CORS_ORIGIN_ALLOW_ALL: "1"
+  DEBUG: "1"
+  APPLY_MIGRATIONS: "1"
+  CREATE_SUPERUSER: "0"
+  CREATE_DATA_TRANSFER_PATH: "1"
+  APARTMENT_DATA_TRANSFER_PATH: transfer_files
+  APARTMENT_INDEX_NAME: asuntotuotanto_apartment
+  TEST_APARTMENT_INDEX_NAME: asuntotuotanto_apartment_test
+  OIKOTIE_SCHEMA_DIR: /app/schemas/
+  OIKOTIE_APARTMENTS_BATCH_SCHEMA_URL: ""
+  OIKOTIE_APARTMENTS_UPDATE_SCHEMA_URL: ""
+  OIKOTIE_HOUSINGCOMPANIES_BATCH_SCHEMA_URL: ""
+  # Required for application_form's encrypted fields (django-pgcrypto-fields).
+  # Without these, migration 0022_add_encrypted_application_fields fails with
+  # "Corrupt ascii-armor" since it embeds this key literally into decrypt SQL.
+  PUBLIC_PGP_KEY: "${PUBLIC_PGP_KEY:?Set PUBLIC_PGP_KEY in .env.e2e — see README.md}"
+  PRIVATE_PGP_KEY: "${PRIVATE_PGP_KEY:?Set PRIVATE_PGP_KEY in .env.e2e — see README.md}"
+  # Trust Bearer JWTs from the mock-oidc service (see its comment below).
+  OIDC_ISSUER: "http://mock-oidc:8080/e2e"
+  OIDC_AUDIENCE: "apartment-application-service"
+  # Seeded into the django_salesperson group on startup. Must match the
+  # `sub` of the e2e-salesperson mapping in mock-oidc-config.json.
+  E2E_SALESPERSON_SUB: "${E2E_SALESPERSON_SUB:-8a5d3c1e-2f4b-4c6d-9e8f-0a1b2c3d4e5f}"
+
 services:
   drupal-db:
     image: druidfi/mariadb:10.6-drupal
@@ -136,6 +175,8 @@ services:
       - e2e
 
   django-app:
+    # Named so e2e-seeder can run the same image without building it again.
+    image: att-e2e-django:local
     build:
       context: .
       target: development
@@ -143,8 +184,6 @@ services:
       - ${DJANGO_DUMP_PATH:-/dev/null}:/fixtures/django-dump.json:ro
       - ./django_dedup_fixture.py:/e2e/django_dedup_fixture.py:ro
       - ./django_e2e_seed_salesperson.py:/e2e/django_e2e_seed_salesperson.py:ro
-      # Run by run-e2e.sh before the tests, not on startup.
-      - ./django_e2e_seed_haso_queue.py:/e2e/django_e2e_seed_haso_queue.py:ro
     command:
       - /bin/bash
       - -c
@@ -165,47 +204,55 @@ services:
         PYTHONPATH=/app python /e2e/django_e2e_seed_salesperson.py "$$E2E_SALESPERSON_SUB"
         python ./manage.py runserver 0.0.0.0:8081
     environment:
-      DATABASE_URL: "postgres://apartment-application:${E2E_DJANGO_DB_PASSWORD:?Set E2E_DJANGO_DB_PASSWORD in .env.e2e — see README.md}@django-db/apartment-application"
-      DATABASE_HOST: django-db
-      ELASTICSEARCH_HOST: django-elastic
-      ELASTICSEARCH_HOST_PORT: "9200"
-      ELASTICSEARCH_URL: "http://django-elastic:9200"
-      TEST_ELASTICSEARCH_URL: "http://django-elastic:9200"
-      DRUPAL_SEARCH_API_TOKEN_URL: "http://drupal-app:8080/oauth/token"
-      DRUPAL_SEARCH_API_BASE_URL: "http://drupal-app:8080/fi"
-      DRUPAL_SEARCH_API_VERIFY_SSL: "False"
-      DRUPAL_SEARCH_API_CLIENT_ID: "${ASU_REST_OAUTH_CLIENT_ID:-installed_rest_client}"
-      DRUPAL_SEARCH_API_CLIENT_SECRET: "${ASU_REST_OAUTH_CLIENT_SECRET:-example-token}"
-      ALLOWED_HOSTS: "*"
-      CORS_ORIGIN_ALLOW_ALL: "1"
-      DEBUG: "1"
-      APPLY_MIGRATIONS: "1"
-      CREATE_SUPERUSER: "0"
-      CREATE_DATA_TRANSFER_PATH: "1"
-      APARTMENT_DATA_TRANSFER_PATH: transfer_files
-      APARTMENT_INDEX_NAME: asuntotuotanto_apartment
-      TEST_APARTMENT_INDEX_NAME: asuntotuotanto_apartment_test
-      OIKOTIE_SCHEMA_DIR: /app/schemas/
-      OIKOTIE_APARTMENTS_BATCH_SCHEMA_URL: ""
-      OIKOTIE_APARTMENTS_UPDATE_SCHEMA_URL: ""
-      OIKOTIE_HOUSINGCOMPANIES_BATCH_SCHEMA_URL: ""
-      # Required for application_form's encrypted fields (django-pgcrypto-fields).
-      # Without these, migration 0022_add_encrypted_application_fields fails with
-      # "Corrupt ascii-armor" since it embeds this key literally into decrypt SQL.
-      PUBLIC_PGP_KEY: "${PUBLIC_PGP_KEY:?Set PUBLIC_PGP_KEY in .env.e2e — see README.md}"
-      PRIVATE_PGP_KEY: "${PRIVATE_PGP_KEY:?Set PRIVATE_PGP_KEY in .env.e2e — see README.md}"
-      # Trust Bearer JWTs from the mock-oidc service (see its comment above).
-      OIDC_ISSUER: "http://mock-oidc:8080/e2e"
-      OIDC_AUDIENCE: "apartment-application-service"
-      # Seeded into the django_salesperson group on startup. Must match the
-      # `sub` of the e2e-salesperson mapping in mock-oidc-config.json.
-      E2E_SALESPERSON_SUB: "${E2E_SALESPERSON_SUB:-8a5d3c1e-2f4b-4c6d-9e8f-0a1b2c3d4e5f}"
+      <<: *django-env
     ports:
       - "127.0.0.1:18081:8081"
     depends_on:
       - django-db
       - django-elastic
       - mock-oidc
+    networks:
+      - e2e
+
+  # Seeds named scenarios (e2e/scenarios) into Django's database on request
+  # from the tests: POST /scenarios/<name>, GET /health. See
+  # e2e/seeder/server.py. Reuses django-app's image and environment; e2e/ is
+  # mounted because .dockerignore keeps it out of the image. The default
+  # baseline path (e2e/fixtures/baseline.json next to the package) resolves
+  # inside that mount, so E2E_BASELINE_FILE is not needed.
+  e2e-seeder:
+    image: att-e2e-django:local
+    # Built by django-app's `build:`; never pulled from a registry.
+    pull_policy: never
+    working_dir: /app
+    volumes:
+      - ./e2e:/app/e2e:ro
+    # django-app applies the migrations; the seeder only waits for them.
+    # `migrate --check` exits non-zero while the database is unreachable or
+    # migrations are unapplied, so polling it keeps the seeder from serving
+    # requests against a half-migrated schema.
+    command:
+      - /bin/bash
+      - -c
+      - |
+        until python ./manage.py migrate --check > /dev/null 2>&1; do
+          echo '[e2e-seeder] Waiting for django-app to apply migrations...'
+          sleep 2
+        done
+        exec python -m e2e.seeder.server
+    environment:
+      <<: *django-env
+      PYTHONPATH: /app
+      E2E_SEEDER_PORT: "8090"
+      # The entrypoint would otherwise migrate concurrently with django-app
+      # and redo its one-time setup.
+      APPLY_MIGRATIONS: "0"
+      CREATE_DATA_TRANSFER_PATH: "0"
+    ports:
+      - "127.0.0.1:18084:8090"
+    depends_on:
+      - django-db
+      - django-app
     networks:
       - e2e
 
@@ -270,6 +317,7 @@ services:
       E2E_DJANGO_URL: "http://django-app:8081"
       E2E_OIDC_URL: "http://mock-oidc:8080"
       E2E_SALES_UI_URL: "http://sales-ui:3000"
+      E2E_SEEDER_URL: "http://e2e-seeder:8090"
       E2E_API_GRANT_TYPE: *e2e-api-grant-type
       E2E_BASELINE_FILE: /e2e/fixtures/baseline.json
       PLAYWRIGHT_ARGS: ""
@@ -278,6 +326,7 @@ services:
       - django-app
       - mock-oidc
       - sales-ui
+      - e2e-seeder
     networks:
       - e2e
 

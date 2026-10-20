@@ -1,5 +1,5 @@
 {
-  "description": "Baseline Drupal content for the e2e stack. A drush loader creates one project node per entry and one apartment node per nested apartment, using the given UUIDs as node UUIDs (project uuid == Django project_uuid, apartment uuid == Django apartment_uuid). Keys are stable identifiers for test code. ownership_type is the Drupal ownership_type taxonomy term name. Validated by utils/tests/test_e2e_baseline_fixture.py and tests-e2e/tests/baseline/baseline-content.spec.ts.",
+  "description": "Baseline Drupal content for the e2e stack. A drush loader creates one project node per entry and one apartment node per nested apartment, using the given UUIDs as node UUIDs (project uuid == Django project_uuid, apartment uuid == Django apartment_uuid). Keys are stable identifiers for test code. ownership_type is the Drupal ownership_type taxonomy term name. Validated by e2e/scenarios/baseline.py and tests-e2e/tests/baseline/baseline-content.spec.ts.",
   "projects": [
     {
       "key": "haso",

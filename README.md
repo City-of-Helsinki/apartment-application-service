@@ -124,6 +124,7 @@ Services exposed on the host (bound to `127.0.0.1` only):
 | Django Postgres | localhost:15434 |
 | Mock OIDC provider | http://localhost:18083/e2e/.well-known/openid-configuration |
 | Sales UI (CRA dev server) | http://localhost:13000 |
+| E2E seeder | http://localhost:18084/health |
 
 ### Authenticating against the Django sales API
 
@@ -166,21 +167,29 @@ The UI loads at http://localhost:13000 from the host, but logging in works only 
 
 On every drupal-app start, `drupal-e2e-deploy.sh` runs `drush php:script /e2e/fixtures/drupal/load_baseline.php` after the config import. The loader finds each node by UUID and creates or updates it in place, so restarts never duplicate content. Nodes are published, projects get state of sale "for sale" and their `field_apartments` lists exactly the baseline apartments in file order. The loader then reindexes the apartments in the search_api indexes (`apartment`, `apartment_listing`), or leaves them queued when the Elasticsearch server is unavailable. It prints a summary line (`[e2e-baseline] Loaded ...`) to the drupal-app logs. Invalid input or a failed save stops drupal-app before nginx starts.
 
-`utils/tests/test_e2e_baseline_fixture.py` validates the file and `tests-e2e/tests/baseline/baseline-content.spec.ts` checks that Django's sales API serves it. To add content, add entries to `baseline.json`, run the pytest file, then restart drupal-app (and django-app, which caches its Drupal token) to load it. Removing an entry from the file does not delete the node from Drupal.
+`e2e/scenarios/baseline.py` validates the file (tested by `e2e/scenarios/tests/test_baseline.py`) and `tests-e2e/tests/baseline/baseline-content.spec.ts` checks that Django's sales API serves it. To add content, add entries to `baseline.json`, run the pytest file, then restart drupal-app (and django-app, which caches its Drupal token) to load it. Removing an entry from the file does not delete the node from Drupal.
 
-### HASO reservation queue seed
+### Scenarios and the seeder
 
-`tests/sales-ui/haso-reservation-queue.spec.ts` reproduces a HASO queue bug: after the lottery, a non-late reservation added without a queue position must be ranked by right of residence among the non-late reservations, not appended to the end of the queue. A second scenario checks that a late reservation still ranks after every non-late one.
+Specs that need specific Django data seed it per test through the `e2e-seeder` service (`e2e/seeder/server.py`, http://localhost:18084 from the host, `http://e2e-seeder:8090` in the compose network). It runs django-app's image with `e2e/` mounted, waits until django-app has applied the migrations, and handles one request at a time:
 
-Before the tests, `run-e2e.sh` runs `django_e2e_seed_haso_queue.py` in `django-app`. For each scenario (`on_time`, `late`) it picks a HASO apartment from Drupal's search API that has no non-e2e reservations. On that apartment it creates a lottery event and an existing customer (right of residence 500, non-late, queue position 1). It also creates a new customer (right of residence 100) without a reservation. The seed is idempotent and touches only e2e customers (emails `@e2e.invalid`). It writes JSON describing the seeded data to `tests-e2e/.e2e-seed/haso-queue.json` (gitignored), which the spec reads. To re-seed manually with the stack running:
+- `GET /health` lists the registered scenarios.
+- `POST /scenarios/<name>` with a JSON object of params resets and seeds the scenario and returns a JSON manifest of what it created (400 for invalid params, 404 for an unknown scenario).
 
-```bash
-mkdir -p tests-e2e/.e2e-seed
-docker compose -f compose.e2e.yaml --env-file .env.e2e exec -T -e PYTHONPATH=/app \
-  django-app python /e2e/django_e2e_seed_haso_queue.py > tests-e2e/.e2e-seed/haso-queue.json
+Specs use the `seedScenario` fixture from `tests-e2e/tests/utils.ts`:
+
+```ts
+test('...', async ({ page, seedScenario }) => {
+  const seed = await seedScenario<Manifest>('haso_queue', { variant: 'on_time' });
+  // seed.apartment_uuid, seed.new_customer.last_name, ...
+});
 ```
 
-Each run of the spec adds reservations for the new customers, so re-seed before running it again.
+The fixture adds a `namespace` derived from the worker index and test id (`^[a-z0-9-]{1,40}$`) unless one is passed. Scenarios embed it in the names of the rows they create and reset only their own namespace's rows, so parallel tests do not see each other's customers. Scenarios that share an apartment do reset each other's reservations on it, so parallel specs should seed different apartments.
+
+To add a scenario, create a module in `e2e/scenarios/` with a function decorated with `@scenario("<name>")` (`e2e/scenarios/registry.py`) that takes the params dict and returns a JSON-serializable manifest, import the module in `e2e/scenarios/__init__.py`, and add tests next to `e2e/scenarios/tests/test_haso_queue.py`. Validate params before any database access and raise `ScenarioParamsError` for invalid ones. Resolve apartments and projects through the baseline (`load_baseline().apartment(key)`) and refuse, with `RuntimeError` before writing anything, to touch apartments whose uuid does not start with `e2e0`, so a scenario can never modify non-baseline content. Restart `e2e-seeder` to load changes.
+
+`haso_queue` (used by `tests/sales-ui/haso-reservation-queue.spec.ts`, which reproduces a HASO queue ordering bug) resets a HASO baseline apartment (`on_time`: `haso-a1`, `late`: `haso-a2`, or `apartment_key`), leaves one lottery event on it, and creates an existing customer (right of residence 500, non-late reservation at queue position 1) and a new customer (right of residence 100, no reservation).
 
 ### Teardown
 
@@ -194,6 +203,7 @@ The `-v` flag removes the DB volumes so the next run starts with a clean databas
 
 - **Drupal**: the SQL dump is imported into MariaDB on first start (empty volume only). `drush updatedb` and `drush cim` run on every start, followed by provisioning of the OAuth consumer Django uses to fetch project data from Drupal (`ASU_REST_OAUTH_CLIENT_ID` / `ASU_REST_OAUTH_CLIENT_SECRET`) and loading the baseline content (see above).
 - **Django**: migrations run, then if `DJANGO_DUMP_PATH` is set the fixture is flushed into the DB (duplicates in the dump are deduplicated automatically by `django_dedup_fixture.py`). The E2E salesperson user is then seeded by `django_e2e_seed_salesperson.py`.
+- **Seeder**: `e2e-seeder` polls `manage.py migrate --check` until django-app has applied the migrations, then starts serving.
 
 ### Adding tests
 

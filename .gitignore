@@ -158,5 +158,3 @@ schemas/*
 # MacOS specific .DS_STORE directory metadata
 .DS_STORE
 
-# E2E seed output written by run-e2e.sh
-tests-e2e/.e2e-seed/
