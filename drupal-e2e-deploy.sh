@@ -27,5 +27,14 @@ drush updatedb -y || true
 echo "[e2e] Running drush cim..."
 drush cim -y || true
 
+# Django's sales project/apartment endpoints fetch data from Drupal with an
+# OAuth client_credentials token. The consumer is a content entity, so it is
+# not in config, and asu_rest only provisions it from install/update hooks
+# that the dump has already run. Calling the (idempotent) provisioner here
+# creates it from ASU_REST_OAUTH_CLIENT_ID/SECRET, which compose also hands
+# to Django as DRUPAL_SEARCH_API_CLIENT_ID/SECRET.
+echo "[e2e] Provisioning OAuth consumer for Django..."
+drush php:eval "\Drupal::moduleHandler()->loadInclude('asu_rest', 'install'); asu_rest_provision_oauth_consumer();" || true
+
 echo "[e2e] Clearing caches..."
 drush cr || true

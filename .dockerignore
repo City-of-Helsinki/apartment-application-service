@@ -17,6 +17,8 @@ compose.e2e.yaml
 run-e2e.sh
 drupal-e2e-deploy.sh
 django_dedup_fixture.py
+django_e2e_seed_salesperson.py
+mock-oidc-config.json
 env.e2e.example
 
 # Other orchestration files not used by this image

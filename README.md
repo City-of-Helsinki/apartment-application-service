@@ -121,6 +121,27 @@ Services exposed on the host (bound to `127.0.0.1` only):
 | Django API | http://localhost:18081/api_docs/ |
 | Drupal MariaDB | localhost:13306 |
 | Django Postgres | localhost:15434 |
+| Mock OIDC provider | http://localhost:18083/e2e/.well-known/openid-configuration |
+
+### Authenticating against the Django sales API
+
+The `mock-oidc` service ([navikt/mock-oauth2-server](https://github.com/navikt/mock-oauth2-server)) issues signed JWTs that Django accepts as Bearer tokens (`OIDC_ISSUER=http://mock-oidc:8080/e2e`, `OIDC_AUDIENCE=apartment-application-service`). Tokens are obtained with the `client_credentials` grant from `/e2e/token` (any client id/secret); the `scope` parameter selects the claims defined in `mock-oidc-config.json`:
+
+| Scope | Result |
+|---|---|
+| `e2e-salesperson` | salesperson user, accepted (200) |
+| `e2e-customer` | authenticated user without the salesperson role (403) |
+| `e2e-wrong-audience` | rejected (401) |
+
+On startup `django_e2e_seed_salesperson.py` adds the user whose UUID is `E2E_SALESPERSON_SUB` (defaults to the `e2e-salesperson` token's `sub`) to the `django_salesperson` group.
+
+The mock sets each token's `iss` from the Host header used to reach it, so only tokens fetched as `mock-oidc:8080` are trusted. From the host, add the header:
+
+```bash
+curl -s -H "Host: mock-oidc:8080" -d grant_type=client_credentials \
+  -d client_id=e2e -d client_secret=e2e -d scope=e2e-salesperson \
+  http://localhost:18083/e2e/token
+```
 
 ### Teardown
 
@@ -132,8 +153,8 @@ The `-v` flag removes the DB volumes so the next run starts with a clean databas
 
 ### What happens on startup
 
-- **Drupal**: the SQL dump is imported into MariaDB on first start (empty volume only). `drush updatedb` and `drush cim` run on every start.
-- **Django**: migrations run, then if `DJANGO_DUMP_PATH` is set the fixture is flushed into the DB (duplicates in the dump are deduplicated automatically by `django_dedup_fixture.py`).
+- **Drupal**: the SQL dump is imported into MariaDB on first start (empty volume only). `drush updatedb` and `drush cim` run on every start, followed by provisioning of the OAuth consumer Django uses to fetch project data from Drupal (`ASU_REST_OAUTH_CLIENT_ID` / `ASU_REST_OAUTH_CLIENT_SECRET`).
+- **Django**: migrations run, then if `DJANGO_DUMP_PATH` is set the fixture is flushed into the DB (duplicates in the dump are deduplicated automatically by `django_dedup_fixture.py`). The E2E salesperson user is then seeded by `django_e2e_seed_salesperson.py`.
 
 ### Adding tests
 

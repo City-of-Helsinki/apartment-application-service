@@ -40,7 +40,8 @@ fi
 # prevent drupal-app etc. from starting at all, even though they don't need
 # a build and have nothing to do with the failure.
 echo "[e2e] Ensuring Drupal stack is up to date..."
-$COMPOSE up -d drupal-db drupal-elastic drupal-redis drupal-app django-db django-elastic
+$COMPOSE up -d drupal-db drupal-elastic drupal-redis drupal-app django-db django-elastic \
+  mock-oidc
 
 echo "[e2e] Ensuring Django stack is up to date..."
 $COMPOSE up --build -d django-app
@@ -71,6 +72,9 @@ wait_for_http() {
 
 wait_for_http drupal-app "http://localhost:18080/fi" 120
 wait_for_http django-app "http://localhost:18081/healthz" 120
+# The discovery document is served only once the mock has loaded its
+# config, so it doubles as the readiness probe for token issuance.
+wait_for_http mock-oidc "http://localhost:18083/e2e/.well-known/openid-configuration" 60
 
 echo "[e2e] Generating one-time admin login link..."
 LOGIN_URL=$($COMPOSE exec -T drupal-app drush uli --uid=1 --uri="http://drupal-app:8080" 2>/dev/null | tr -d '\r')

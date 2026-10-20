@@ -92,6 +92,24 @@ services:
     networks:
       - e2e
 
+  # Generic OIDC provider standing in for Tunnistamo/Keycloak so the sales
+  # API can be exercised with real signed Bearer JWTs. Tokens are minted per
+  # scope from mock-oidc-config.json. The mock derives each token's `iss`
+  # from the Host header it was reached with, so the fixed hostname makes the
+  # issuer http://mock-oidc:8080/e2e inside the e2e network, which is the
+  # value django-app trusts via OIDC_ISSUER.
+  mock-oidc:
+    image: ghcr.io/navikt/mock-oauth2-server:5.0.2
+    hostname: mock-oidc
+    volumes:
+      - ./mock-oidc-config.json:/config/mock-oidc-config.json:ro
+    environment:
+      JSON_CONFIG_PATH: /config/mock-oidc-config.json
+    ports:
+      - "127.0.0.1:18083:8080"
+    networks:
+      - e2e
+
   django-app:
     build:
       context: .
@@ -99,6 +117,7 @@ services:
     volumes:
       - ${DJANGO_DUMP_PATH:-/dev/null}:/fixtures/django-dump.json:ro
       - ./django_dedup_fixture.py:/e2e/django_dedup_fixture.py:ro
+      - ./django_e2e_seed_salesperson.py:/e2e/django_e2e_seed_salesperson.py:ro
     command:
       - /bin/bash
       - -c
@@ -113,6 +132,10 @@ services:
           echo '[e2e] Loading Django fixture...'
           python ./manage.py loaddata /tmp/fixture-deduped.json
         fi
+        echo '[e2e] Seeding salesperson for mock OIDC tokens...'
+        # The script lives outside the project dir, so /app is put on the
+        # path explicitly instead of the script mutating sys.path itself.
+        PYTHONPATH=/app python /e2e/django_e2e_seed_salesperson.py "$$E2E_SALESPERSON_SUB"
         python ./manage.py runserver 0.0.0.0:8081
     environment:
       DATABASE_URL: "postgres://apartment-application:${E2E_DJANGO_DB_PASSWORD:?Set E2E_DJANGO_DB_PASSWORD in .env.e2e — see README.md}@django-db/apartment-application"
@@ -144,11 +167,18 @@ services:
       # "Corrupt ascii-armor" since it embeds this key literally into decrypt SQL.
       PUBLIC_PGP_KEY: "${PUBLIC_PGP_KEY:?Set PUBLIC_PGP_KEY in .env.e2e — see README.md}"
       PRIVATE_PGP_KEY: "${PRIVATE_PGP_KEY:?Set PRIVATE_PGP_KEY in .env.e2e — see README.md}"
+      # Trust Bearer JWTs from the mock-oidc service (see its comment above).
+      OIDC_ISSUER: "http://mock-oidc:8080/e2e"
+      OIDC_AUDIENCE: "apartment-application-service"
+      # Seeded into the django_salesperson group on startup. Must match the
+      # `sub` of the e2e-salesperson mapping in mock-oidc-config.json.
+      E2E_SALESPERSON_SUB: "${E2E_SALESPERSON_SUB:-8a5d3c1e-2f4b-4c6d-9e8f-0a1b2c3d4e5f}"
     ports:
       - "127.0.0.1:18081:8081"
     depends_on:
       - django-db
       - django-elastic
+      - mock-oidc
     networks:
       - e2e
 
@@ -164,10 +194,12 @@ services:
     environment:
       E2E_BASE_URL: "http://drupal-app:8080"
       E2E_DJANGO_URL: "http://django-app:8081"
+      E2E_OIDC_URL: "http://mock-oidc:8080"
       PLAYWRIGHT_ARGS: ""
     depends_on:
       - drupal-app
       - django-app
+      - mock-oidc
     networks:
       - e2e
 
