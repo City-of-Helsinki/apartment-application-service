@@ -133,7 +133,7 @@ The `-v` flag removes the DB volumes so the next run starts with a clean databas
 ### What happens on startup
 
 - **Drupal**: the SQL dump is imported into MariaDB on first start (empty volume only). `drush updatedb` and `drush cim` run on every start.
-- **Django**: migrations run, then if `DJANGO_DUMP_PATH` is set the fixture is flushed into the DB (duplicates in the dump are deduplicated automatically by `django-dedup-fixture.py`).
+- **Django**: migrations run, then if `DJANGO_DUMP_PATH` is set the fixture is flushed into the DB (duplicates in the dump are deduplicated automatically by `django_dedup_fixture.py`).
 
 ### Adding tests
 

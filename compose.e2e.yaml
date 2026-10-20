@@ -98,7 +98,7 @@ services:
       target: development
     volumes:
       - ${DJANGO_DUMP_PATH:-/dev/null}:/fixtures/django-dump.json:ro
-      - ./django-dedup-fixture.py:/e2e/django-dedup-fixture.py:ro
+      - ./django_dedup_fixture.py:/e2e/django_dedup_fixture.py:ro
     command:
       - /bin/bash
       - -c
@@ -109,7 +109,7 @@ services:
           echo '[e2e] Clearing post-migrate contenttypes...'
           python ./manage.py shell -c "from django.contrib.auth.models import Permission; from django.contrib.contenttypes.models import ContentType; Permission.objects.all().delete(); ContentType.objects.all().delete()"
           echo '[e2e] Deduplicating fixture...'
-          python /e2e/django-dedup-fixture.py /fixtures/django-dump.json /tmp/fixture-deduped.json
+          python /e2e/django_dedup_fixture.py /fixtures/django-dump.json /tmp/fixture-deduped.json
           echo '[e2e] Loading Django fixture...'
           python ./manage.py loaddata /tmp/fixture-deduped.json
         fi
