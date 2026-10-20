@@ -41,10 +41,15 @@ fi
 # a build and have nothing to do with the failure.
 echo "[e2e] Ensuring Drupal stack is up to date..."
 $COMPOSE up -d drupal-db drupal-elastic drupal-redis drupal-app django-db django-elastic \
-  mock-oidc
+  mock-oidc-server mock-oidc
 
 echo "[e2e] Ensuring Django stack is up to date..."
 $COMPOSE up --build -d django-app
+
+# sales-ui also has a build step (from the att-sales-ui sibling repo), so it
+# gets its own `up --build` for the same reason as django-app above.
+echo "[e2e] Ensuring sales UI is up to date..."
+$COMPOSE up --build -d sales-ui
 
 # Polls the service's own HTTP port rather than grepping logs for text: nginx
 # (Drupal) and `runserver` (Django) both start only after the deploy
@@ -75,6 +80,9 @@ wait_for_http django-app "http://localhost:18081/healthz" 120
 # The discovery document is served only once the mock has loaded its
 # config, so it doubles as the readiness probe for token issuance.
 wait_for_http mock-oidc "http://localhost:18083/e2e/.well-known/openid-configuration" 60
+# The CRA dev server answers only after its first webpack compile, which
+# can take minutes on a cold start.
+wait_for_http sales-ui "http://localhost:13000" 300
 
 echo "[e2e] Generating one-time admin login link..."
 LOGIN_URL=$($COMPOSE exec -T drupal-app drush uli --uid=1 --uri="http://drupal-app:8080" 2>/dev/null | tr -d '\r')

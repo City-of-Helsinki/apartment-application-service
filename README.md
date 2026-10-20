@@ -83,6 +83,7 @@ The E2E stack runs `apartment-application-service` (Django) and `drupal-asuntotu
 
 - Docker with Compose v2
 - Both repos cloned as siblings: `drupal-asuntotuotanto/` and `apartment-application-service/` in the same parent directory
+- `att-sales-ui/` cloned as a sibling as well, for the sales UI tests. Set `SALES_UI_PATH` in `.env.e2e` to use a clone elsewhere.
 
 ### First-time setup
 
@@ -122,6 +123,7 @@ Services exposed on the host (bound to `127.0.0.1` only):
 | Drupal MariaDB | localhost:13306 |
 | Django Postgres | localhost:15434 |
 | Mock OIDC provider | http://localhost:18083/e2e/.well-known/openid-configuration |
+| Sales UI (CRA dev server) | http://localhost:13000 |
 
 ### Authenticating against the Django sales API
 
@@ -142,6 +144,16 @@ curl -s -H "Host: mock-oidc:8080" -d grant_type=client_credentials \
   -d client_id=e2e -d client_secret=e2e -d scope=e2e-salesperson \
   http://localhost:18083/e2e/token
 ```
+
+`mock-oidc` is an nginx proxy in front of the actual mock server (`mock-oidc-server`). It passes requests through unchanged except for one case, described in `mock-oidc-proxy.conf`: a token request with a `Bearer` Authorization header (the sales UI's API token request) has that header replaced with dummy client credentials, because the mock does not accept the request otherwise.
+
+### Sales UI login
+
+The `sales-ui` service runs att-sales-ui against the mock provider. Logging in uses the authorization code flow with PKCE: the UI redirects to the mock's login page, where the username entered becomes the user token's `sub`. The UI then requests an API token for `apartment-application-service` (grant type `E2E_API_GRANT_TYPE`, default `client_credentials`), which the mock issues from the `audience` mapping in `mock-oidc-config.json`.
+
+That API token always has the seeded salesperson as its `sub`, whatever username was used to log in. Any logged-in UI user therefore acts as the seeded salesperson against the Django API, so the UI tests cannot cover per-user API permissions.
+
+The UI loads at http://localhost:13000 from the host, but logging in works only from inside the compose network (the test-runner container), since the UI redirects to and calls `mock-oidc` and `django-app` by their in-network hostnames. Chromium is started with `--unsafely-treat-insecure-origin-as-secure` for the UI and mock origins (see `tests-e2e/playwright.config.ts`) because PKCE needs `crypto.subtle`, which is available only in secure contexts.
 
 ### Teardown
 
