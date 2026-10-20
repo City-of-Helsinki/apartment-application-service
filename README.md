@@ -155,6 +155,20 @@ That API token always has the seeded salesperson as its `sub`, whatever username
 
 The UI loads at http://localhost:13000 from the host, but logging in works only from inside the compose network (the test-runner container), since the UI redirects to and calls `mock-oidc` and `django-app` by their in-network hostnames. Chromium is started with `--unsafely-treat-insecure-origin-as-secure` for the UI and mock origins (see `tests-e2e/playwright.config.ts`) because PKCE needs `crypto.subtle`, which is available only in secure contexts.
 
+### HASO reservation queue seed
+
+`tests/sales-ui/haso-reservation-queue.spec.ts` reproduces a HASO queue bug: after the lottery, a non-late reservation added without a queue position must be ranked by right of residence among the non-late reservations, not appended to the end of the queue. A second scenario checks that a late reservation still ranks after every non-late one.
+
+Before the tests, `run-e2e.sh` runs `django_e2e_seed_haso_queue.py` in `django-app`. For each scenario (`on_time`, `late`) it picks a HASO apartment from Drupal's search API that has no non-e2e reservations. On that apartment it creates a lottery event and an existing customer (right of residence 500, non-late, queue position 1). It also creates a new customer (right of residence 100) without a reservation. The seed is idempotent and touches only e2e customers (emails `@e2e.invalid`). It writes JSON describing the seeded data to `tests-e2e/.e2e-seed/haso-queue.json` (gitignored), which the spec reads. To re-seed manually with the stack running:
+
+```bash
+mkdir -p tests-e2e/.e2e-seed
+docker compose -f compose.e2e.yaml --env-file .env.e2e exec -T -e PYTHONPATH=/app \
+  django-app python /e2e/django_e2e_seed_haso_queue.py > tests-e2e/.e2e-seed/haso-queue.json
+```
+
+Each run of the spec adds reservations for the new customers, so re-seed before running it again.
+
 ### Teardown
 
 ```bash

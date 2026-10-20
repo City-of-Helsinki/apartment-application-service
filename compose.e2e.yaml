@@ -140,6 +140,8 @@ services:
       - ${DJANGO_DUMP_PATH:-/dev/null}:/fixtures/django-dump.json:ro
       - ./django_dedup_fixture.py:/e2e/django_dedup_fixture.py:ro
       - ./django_e2e_seed_salesperson.py:/e2e/django_e2e_seed_salesperson.py:ro
+      # Run by run-e2e.sh before the tests, not on startup.
+      - ./django_e2e_seed_haso_queue.py:/e2e/django_e2e_seed_haso_queue.py:ro
     command:
       - /bin/bash
       - -c

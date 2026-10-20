@@ -18,6 +18,7 @@ run-e2e.sh
 drupal-e2e-deploy.sh
 django_dedup_fixture.py
 django_e2e_seed_salesperson.py
+django_e2e_seed_haso_queue.py
 mock-oidc-config.json
 env.e2e.example
 
