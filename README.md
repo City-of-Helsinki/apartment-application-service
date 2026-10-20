@@ -97,6 +97,7 @@ The E2E stack runs `apartment-application-service` (Django) and `drupal-asuntotu
    - Set `DJANGO_DUMP_PATH` to a Django JSON fixture (relative path, e.g. `../django-dump-XXXXXXXXXX.json`). Leave unset to start with an empty Django DB.
    - Set `PUBLIC_PGP_KEY` / `PRIVATE_PGP_KEY` — see below.
    - Set `E2E_DJANGO_DB_PASSWORD` to any URL-safe value. It only takes effect when the Postgres volume is first created, so run the teardown command below with `-v` after changing it.
+   - Keep `E2E_DRUPAL_DB_PASSWORD=drupal`; it must match the default user built into the `druidfi/mariadb` image.
 
 
 ### Running the stack

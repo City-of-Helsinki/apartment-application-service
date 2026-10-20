@@ -19,9 +19,10 @@ test.describe('6.3 Authenticated session persists across navigations', () => {
     await page.goto('/fi');
     await expect(page.locator('#toolbar-bar, .toolbar-bar').first()).toBeVisible();
 
-    // Log out
-    const logoutLink = page.locator('a[href*="/user/logout"]').first();
-    await logoutLink.click();
+    // Log out — the link lives in the collapsed desktop user-tools dropdown (a hidden
+    // mobile copy also exists earlier in the DOM), so open the dropdown first
+    await page.locator('#user-tools-toggle').click();
+    await page.locator('#user-tools-dropdown a[href*="/user/logout"]').click();
     await page.waitForLoadState('domcontentloaded');
 
     await expect(page.locator('#toolbar-bar, .toolbar-bar').first()).not.toBeVisible();
