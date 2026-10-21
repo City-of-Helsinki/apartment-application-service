@@ -7,6 +7,10 @@ from application_form.enums import ApartmentReservationState
 # larger than any realistic queue size for a single apartment.
 LIST_POSITION_BUMP_OFFSET: Final[int] = 10_000
 
+# Validity of automatically created offers, in days from the creation date.
+# Matches the default the Sales UI suggests for manually created offers.
+DEFAULT_OFFER_VALID_DAYS: Final[int] = 14
+
 # HASO queue insertion must not place a new application ahead of a reservation
 # that has already been offered, even when the new applicant has a better
 # (lower) right of residence number. An expired offer stays protected because

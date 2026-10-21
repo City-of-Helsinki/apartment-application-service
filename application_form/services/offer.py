@@ -1,3 +1,6 @@
+from datetime import timedelta
+from typing import List
+
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -11,8 +14,9 @@ from application_form.enums import (
     ApartmentReservationState,
     OfferState,
 )
-from application_form.models import ApartmentReservation, Offer
+from application_form.models import ApartmentReservation, Application, Offer
 from application_form.services.application import cancel_reservation
+from application_form.services.constants import DEFAULT_OFFER_VALID_DAYS
 
 User = get_user_model()
 
@@ -33,6 +37,41 @@ def create_offer(offer_data: dict, user: User = None) -> Offer:
     update_other_customer_reservations_states(apartment_reservation)
 
     return offer
+
+
+@transaction.atomic()
+def create_hitas_post_period_offers(
+    application: Application, user: User = None
+) -> List[Offer]:
+    """
+    Create offers for the reserved apartments of a HITAS post-period application.
+
+    Only reservations that are first in line (RESERVED) get an offer. The offer is
+    valid for DEFAULT_OFFER_VALID_DAYS and is delivered to the customer through the
+    same pending-offer flow as manually created offers.
+
+    Parameters:
+        application (Application): Late HITAS application.
+        user (User): Optional salesperson recorded as the offer handler.
+
+    Returns:
+        offers (List[Offer]): Created offers.
+    """
+    valid_until = timezone.localdate() + timedelta(days=DEFAULT_OFFER_VALID_DAYS)
+    offers = []
+    for application_apartment in application.application_apartments.select_related(
+        "apartment_reservation"
+    ):
+        reservation = application_apartment.apartment_reservation
+        if reservation.state != ApartmentReservationState.RESERVED:
+            continue
+        offers.append(
+            create_offer(
+                {"apartment_reservation": reservation, "valid_until": valid_until},
+                user=user,
+            )
+        )
+    return offers
 
 
 @transaction.atomic()

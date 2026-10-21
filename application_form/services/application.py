@@ -4,6 +4,7 @@ from datetime import date
 from typing import Iterable, List, Optional, Union
 
 import sentry_sdk
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.mail import EmailMessage
 from django.db import transaction
@@ -12,6 +13,7 @@ from django.template.loader import render_to_string
 
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import get_apartment
+from apartment.enums import OwnershipType
 from application_form.enums import (
     ApartmentQueueChangeEventType,
     ApartmentReservationCancellationReason,
@@ -24,6 +26,7 @@ from application_form.models import (
     Applicant,
     Application,
     ApplicationApartment,
+    Offer,
 )
 from application_form.services.queue import (
     add_application_to_queues,
@@ -615,31 +618,102 @@ def delete_application(application: Application):
     remove_queue_gaps(get_apartment(application_apartment.apartment_uuid))
 
 
+def _is_hitas_project(project: ApartmentDocument) -> bool:
+    """
+    Tell whether the project is a HITAS project.
+
+    Parameters:
+        project (ApartmentDocument): Elastic project document.
+
+    Returns:
+        bool: True for HITAS ownership type (case-insensitive).
+    """
+    ownership_type = project.project_ownership_type or ""
+    return ownership_type.lower() == OwnershipType.HITAS.value
+
+
+def get_sales_notification_recipients(project: ApartmentDocument) -> List[str]:
+    """
+    Resolve the recipients of a late-application sales notification.
+
+    The project estate agent is always notified. HITAS projects also notify the
+    general sales mailbox. Empty addresses and duplicates are dropped.
+
+    Parameters:
+        project (ApartmentDocument): Elastic project document.
+
+    Returns:
+        recipients (List[str]): Email addresses in notification order.
+    """
+    candidates = [project.project_estate_agent_email]
+    if _is_hitas_project(project):
+        candidates.append(settings.SALES_NOTIFICATION_EMAIL)
+    return list(dict.fromkeys(email for email in candidates if email))
+
+
 def send_sales_notification_email(
     application: Application,
     project: ApartmentDocument,
     application_apartment_uuids: List[Union[uuid.UUID, str]],
 ):
-    primary_profile = application.customer.primary_profile
+    """
+    Notify sales of a late application.
 
-    email_subject = f"Jälkihakemus {project.project_housing_company}"
+    HITAS late reservations use a template that includes the created offer.
+    Nothing is sent when no recipient can be resolved.
+
+    Parameters:
+        application (Application): The late application.
+        project (ApartmentDocument): Elastic project document.
+        application_apartment_uuids (List): Apartments in the application.
+    """
+    recipients = get_sales_notification_recipients(project)
+    if not recipients:
+        _logger.warning(
+            "Late application %s sales notification not sent: no recipients",
+            application.external_uuid,
+        )
+        return
+
+    primary_profile = application.customer.primary_profile
     apartments = [get_apartment(uuid) for uuid in application_apartment_uuids]
 
-    # render body with Django's template engine for cleaner code
-    email_body = render_to_string(
-        "email_late_application.html",
-        context={
+    if _is_hitas_project(project):
+        email_subject = f"Jälkihakemus ja tarjous {project.project_housing_company}"
+        offers_by_apartment_uuid = {
+            str(offer.apartment_reservation.apartment_uuid): offer
+            for offer in Offer.objects.filter(
+                apartment_reservation__application_apartment__application=application
+            ).select_related("apartment_reservation")
+        }
+        template_name = "email_hitas_late_reservation.html"
+        context = {
+            "project": project,
+            "primary_profile": primary_profile,
+            "reserved_apartments": [
+                {
+                    "apartment": apartment,
+                    "offer": offers_by_apartment_uuid.get(str(apartment.uuid)),
+                }
+                for apartment in apartments
+            ],
+        }
+    else:
+        email_subject = f"Jälkihakemus {project.project_housing_company}"
+        template_name = "email_late_application.html"
+        context = {
             "project": project,
             "applied_apartments": apartments,
             "primary_profile": primary_profile,
-        },
-    )
+        }
+
+    # render body with Django's template engine for cleaner code
+    email_body = render_to_string(template_name, context=context)
 
     msg = EmailMessage(
         subject=email_subject,
         body=email_body,
-        to=[project.project_estate_agent_email],
+        to=recipients,
     )
 
     msg.send()
-    pass

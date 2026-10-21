@@ -107,6 +107,7 @@ env = environ.Env(
     METADATA_HASO_PROCESS_NUMBER=(str, "10 07 04 01"),
     TALPA_EMAIL=(str, ""),
     TALPA_EMAIL_REPLY_TO=(str, "asuntomyynti@hel.fi"),
+    SALES_NOTIFICATION_EMAIL=(str, "asuntomyynti@hel.fi"),
     AUDIT_LOG_ES_INDEX=(str, "audit-asuntotuotanto-django-test-v1"),
     AUDIT_LOG_ELASTICSEARCH_HOST=(str, ""),
     AUDIT_LOG_ELASTICSEARCH_PORT=(str, ""),
@@ -465,6 +466,9 @@ METADATA_HASO_PROCESS_NUMBER = env.str("METADATA_HASO_PROCESS_NUMBER")
 
 TALPA_EMAIL = env.str("TALPA_EMAIL")
 TALPA_EMAIL_REPLY_TO = env.str("TALPA_EMAIL_REPLY_TO")
+
+# General sales mailbox notified of HITAS late reservations
+SALES_NOTIFICATION_EMAIL = env.str("SALES_NOTIFICATION_EMAIL")
 
 # Audit logging
 CLEAR_AUDIT_LOG_ENTRIES = env.bool("CLEAR_AUDIT_LOG_ENTRIES")

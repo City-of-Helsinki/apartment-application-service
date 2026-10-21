@@ -46,7 +46,10 @@ from application_form.services.application import (
     send_sales_notification_email,
 )
 from application_form.services.constants import COMMITTED_RESERVATION_STATES
-from application_form.services.offer import update_offer
+from application_form.services.offer import (
+    create_hitas_post_period_offers,
+    update_offer,
+)
 from application_form.utils import lock_table
 from application_form.validators import ProjectApplicantValidator, SSNSuffixValidator
 from connections.enums import ApartmentStateOfSale
@@ -331,6 +334,11 @@ class ApplicationSerializerBase(serializers.ModelSerializer):
                 user=self.context.get("salesperson"),
                 submitted_late=is_submitted_late,
             )
+
+            if is_submitted_late and is_hitas:
+                create_hitas_post_period_offers(
+                    application, user=self.context.get("salesperson")
+                )
 
             if is_submitted_late and is_haso:
                 cancel_reservations_replaced_by_late_application(
