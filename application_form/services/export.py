@@ -1070,7 +1070,10 @@ class XlsxSalesReportExportService(XlsxExportService):
 
         return {
             apartment_uuid
-            for apartment_uuid, (state, cancellation_reason) in latest_event_by_uuid.items()
+            for apartment_uuid, (
+                state,
+                cancellation_reason,
+            ) in latest_event_by_uuid.items()
             if (
                 state == ApartmentReservationState.CANCELED
                 and cancellation_reason
