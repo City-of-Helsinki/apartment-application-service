@@ -1031,6 +1031,48 @@ def test_export_canceled_sales_should_not_count():
 
 
 @pytest.mark.django_db
+def test_export_terminated_sales_filter_avoids_n_plus_one(django_assert_num_queries):
+    """
+    Validate terminated filtering remains query-efficient.
+
+            - Positive: returns terminated apartments correctly.
+            - Negative: does not execute per-apartment DB queries.
+    """
+    apartments = []
+    apartment = ApartmentDocumentFactory(project_ownership_type="Hitas")
+    apartments.append(apartment)
+    for _ in range(4):
+        apartment = ApartmentDocumentFactory(
+            project_ownership_type="Hitas", project_uuid=apartment.project_uuid
+        )
+        apartments.append(apartment)
+
+    sell_apartments(apartments[0].project_uuid, len(apartments))
+
+    terminated_reservation = (
+        ApartmentReservation.objects.filter(apartment_uuid=apartments[0].uuid)
+        .active()
+        .first()
+    )
+    cancel_reservation(
+        apartment_reservation=terminated_reservation,
+        cancellation_reason=ApartmentReservationCancellationReason.TERMINATED,
+    )
+
+    state_events = get_state_events_for_export()
+    export_service = XlsxSalesReportExportService(
+        state_events, [apartments[0].project_uuid]
+    )
+
+    with django_assert_num_queries(0):
+        terminated_apartments = export_service._get_apartments_with_terminated_sales(
+            apartments
+        )
+
+    assert str(apartments[0].uuid) in {str(ap.uuid) for ap in terminated_apartments}
+
+
+@pytest.mark.django_db
 def test_export_sale_empty_ownership_type_should_not_crash():
     """Some projects might have empty project_ownership_type"""
     apartment = ApartmentDocumentFactory(project_ownership_type="Hitas")
