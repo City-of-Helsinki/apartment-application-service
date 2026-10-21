@@ -1,0 +1,8 @@
+Kohteelle {{ project.project_housing_company }} on tehty jälkihakemus. Asunto on varattu hakijalle ja hakijalle on luotu tarjous.
+
+Hakijan tiedot:
+{{ primary_profile.first_name }} {{ primary_profile.last_name }}
+{{ primary_profile.email }}
+
+Varatut asunnot:{% for item in reserved_apartments %}
+{{ forloop.counter }}. {{ item.apartment.apartment_address }}{% if item.offer %}, tarjous voimassa {{ item.offer.valid_until|date:"j.n.Y" }} asti{% endif %}{% endfor %}
