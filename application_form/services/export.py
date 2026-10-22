@@ -681,6 +681,7 @@ class XlsxSalesReportExportService(XlsxExportService):
             .values_list("auuid", flat=True)
         )
         self.sold_apartment_uuids = [str(u) for u in sold_uuids_qs]
+        self.terminated_apartment_uuids = self._get_latest_terminated_apartment_uuids()
 
         self.projects = self._get_projects()
         _logger.info(
@@ -1039,27 +1040,46 @@ class XlsxSalesReportExportService(XlsxExportService):
     def _get_apartments_with_terminated_sales(
         self, apartments: List[ApartmentDocument]
     ) -> List[ApartmentDocument]:
-        terminated_apartments = []
-        for apartment in apartments:
-            latest_event = self._get_latest_apartment_event(
-                apartment,
+        return [
+            apartment
+            for apartment in apartments
+            if str(apartment.uuid) in self.terminated_apartment_uuids
+        ]
+
+    def _get_latest_terminated_apartment_uuids(self) -> set[str]:
+        """Return apartment UUIDs whose latest relevant event is terminated."""
+        latest_event_by_uuid = {}
+        latest_events = (
+            self.state_events.filter(
                 state__in=[
                     ApartmentReservationState.SOLD,
                     ApartmentReservationState.CANCELED,
-                ],
+                ]
+            )
+            .annotate(
+                auuid=Cast("reservation__apartment_uuid", output_field=CharField())
+            )
+            .values("auuid", "state", "cancellation_reason")
+            .order_by("id")
+        )
+        for event in latest_events:
+            latest_event_by_uuid[event["auuid"]] = (
+                event["state"],
+                event["cancellation_reason"],
             )
 
-            if not latest_event:
-                continue
-
+        return {
+            apartment_uuid
+            for apartment_uuid, (
+                state,
+                cancellation_reason,
+            ) in latest_event_by_uuid.items()
             if (
-                latest_event.state == ApartmentReservationState.CANCELED
-                and latest_event.cancellation_reason
+                state == ApartmentReservationState.CANCELED
+                and cancellation_reason
                 == ApartmentReservationCancellationReason.TERMINATED
-            ):
-                terminated_apartments.append(apartment)
-
-        return terminated_apartments
+            )
+        }
 
     def _get_canceled_apartments_with_cancellation_reason(
         self,
