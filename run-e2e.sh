@@ -46,11 +46,6 @@ $COMPOSE up -d drupal-db drupal-elastic drupal-redis drupal-app django-db django
 echo "[e2e] Ensuring Django stack is up to date..."
 $COMPOSE up --build -d django-app
 
-# e2e-seeder runs the image django-app just built (no build step of its own),
-# so it can only be started after that build.
-echo "[e2e] Ensuring e2e seeder is up to date..."
-$COMPOSE up -d e2e-seeder
-
 # sales-ui also has a build step (from the att-sales-ui sibling repo), so it
 # gets its own `up --build` for the same reason as django-app above.
 echo "[e2e] Ensuring sales UI is up to date..."
@@ -88,9 +83,12 @@ wait_for_http mock-oidc "http://localhost:18083/e2e/.well-known/openid-configura
 # The CRA dev server answers only after its first webpack compile, which
 # can take minutes on a cold start.
 wait_for_http sales-ui "http://localhost:13000" 300
-# The seeder starts serving only after django-app has applied migrations;
-# the specs seed their scenarios through it on demand.
-wait_for_http e2e-seeder "http://localhost:18084/health" 120
+
+# django-app loads the fixtures on startup, but a kept stack still holds the
+# rows earlier runs created (e.g. reservations added through the sales UI).
+# Reloading here gives every run the same starting data.
+echo "[e2e] Resetting Django fixtures..."
+$COMPOSE exec -T -e PYTHONPATH=/app django-app python /e2e/load_django_fixtures.py
 
 echo "[e2e] Generating one-time admin login link..."
 LOGIN_URL=$($COMPOSE exec -T drupal-app drush uli --uid=1 --uri="http://drupal-app:8080" 2>/dev/null | tr -d '\r')

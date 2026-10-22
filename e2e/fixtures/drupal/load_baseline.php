@@ -11,8 +11,10 @@
  * baseline node is then reindexed in the search_api indexes that contain it.
  * The baseline file path is read from E2E_BASELINE_FILE.
  *
- * Exits non-zero on invalid input or a failed save (all saves are rolled
- * back). Indexing errors only warn: search_api cron indexes tracked items.
+ * The file is trusted as-is: a missing optional field empties the Drupal
+ * field, and a missing uuid fails the save. Exits non-zero on invalid JSON or
+ * a failed save (all saves are rolled back). Indexing errors only warn:
+ * search_api cron indexes tracked items.
  */
 
 use Drupal\Core\Entity\ContentEntityInterface;
@@ -22,13 +24,12 @@ use Drupal\search_api\Entity\Index;
 use Drupal\search_api\Utility\Utility;
 use Drupal\taxonomy\Entity\Term;
 
-const E2E_BASELINE_DEFAULT_FILE = '/e2e/fixtures/baseline.json';
+const E2E_BASELINE_DEFAULT_FILE = '/e2e/fixtures/drupal/baseline.json';
 const E2E_BASELINE_LANGCODE = 'fi';
 const E2E_BASELINE_OWNER_UID = 1;
 // Not in baseline.json; asu_rest project listings exclude projects without a
 // state of sale (and "upcoming" ones), so a sellable state is set.
 const E2E_BASELINE_PROJECT_STATE_OF_SALE = 'for_sale';
-const E2E_BASELINE_UUID_PATTERN = '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/';
 
 /**
  * Print an error to stderr and terminate with exit code 1.
@@ -64,106 +65,6 @@ function e2e_baseline_read(string $path): array {
     e2e_baseline_fail("Baseline root must be an object: {$path}");
   }
   return $data;
-}
-
-/**
- * Return a required non-empty string value from an entry.
- *
- * @param array $entry
- *   Project or apartment entry.
- * @param string $key
- *   Key to read.
- * @param string $context
- *   Entry description used in error messages.
- *
- * @return string
- *   The string value.
- */
-function e2e_baseline_require_string(array $entry, string $key, string $context): string {
-  $value = $entry[$key] ?? NULL;
-  if (!is_string($value) || trim($value) === '') {
-    e2e_baseline_fail("{$context}: \"{$key}\" must be a non-empty string");
-  }
-  return $value;
-}
-
-/**
- * Return an optional string value from an entry.
- *
- * @param array $entry
- *   Project or apartment entry.
- * @param string $key
- *   Key to read.
- * @param string $context
- *   Entry description used in error messages.
- *
- * @return string|null
- *   The string value, or NULL when absent.
- */
-function e2e_baseline_optional_string(array $entry, string $key, string $context): ?string {
-  if (!array_key_exists($key, $entry)) {
-    return NULL;
-  }
-  if (!is_string($entry[$key])) {
-    e2e_baseline_fail("{$context}: \"{$key}\" must be a string");
-  }
-  return $entry[$key];
-}
-
-/**
- * Validate the baseline structure and collect UUIDs.
- *
- * @param array $data
- *   Decoded baseline content.
- */
-function e2e_baseline_validate(array $data): void {
-  if (empty($data['projects']) || !is_array($data['projects']) || !array_is_list($data['projects'])) {
-    e2e_baseline_fail('"projects" must be a non-empty list');
-  }
-  $seen = [];
-  foreach ($data['projects'] as $index => $project) {
-    $context = "projects[{$index}]";
-    if (!is_array($project)) {
-      e2e_baseline_fail("{$context} must be an object");
-    }
-    foreach (['key', 'uuid', 'ownership_type', 'housing_company', 'street_address'] as $key) {
-      e2e_baseline_require_string($project, $key, $context);
-    }
-    foreach (['postal_code', 'city'] as $key) {
-      e2e_baseline_optional_string($project, $key, $context);
-    }
-    $entries = [[$project, $context]];
-    if (empty($project['apartments']) || !is_array($project['apartments']) || !array_is_list($project['apartments'])) {
-      e2e_baseline_fail("{$context}: \"apartments\" must be a non-empty list");
-    }
-    foreach ($project['apartments'] as $apartmentIndex => $apartment) {
-      $apartmentContext = "{$context}.apartments[{$apartmentIndex}]";
-      if (!is_array($apartment)) {
-        e2e_baseline_fail("{$apartmentContext} must be an object");
-      }
-      foreach (['key', 'uuid', 'apartment_number'] as $key) {
-        e2e_baseline_require_string($apartment, $key, $apartmentContext);
-      }
-      e2e_baseline_optional_string($apartment, 'apartment_structure', $apartmentContext);
-      if (array_key_exists('living_area', $apartment)
-        && (!is_int($apartment['living_area']) && !is_float($apartment['living_area']))) {
-        e2e_baseline_fail("{$apartmentContext}: \"living_area\" must be a number");
-      }
-      if (array_key_exists('floor', $apartment) && !is_int($apartment['floor'])) {
-        e2e_baseline_fail("{$apartmentContext}: \"floor\" must be an integer");
-      }
-      $entries[] = [$apartment, $apartmentContext];
-    }
-    foreach ($entries as [$entry, $entryContext]) {
-      if (!preg_match(E2E_BASELINE_UUID_PATTERN, $entry['uuid'])) {
-        e2e_baseline_fail("{$entryContext}: \"uuid\" must be a lowercase canonical UUID");
-      }
-      if (isset($seen[$entry['uuid']])) {
-        e2e_baseline_fail("{$entryContext}: duplicate uuid {$entry['uuid']}");
-      }
-      $seen[$entry['uuid']] = TRUE;
-    }
-  }
 }
 
 /**
@@ -424,7 +325,6 @@ function e2e_baseline_reindex(array $nodes): array {
 function e2e_baseline_main(): void {
   $path = getenv('E2E_BASELINE_FILE') ?: E2E_BASELINE_DEFAULT_FILE;
   $data = e2e_baseline_read($path);
-  e2e_baseline_validate($data);
 
   $counts = ['created' => 0, 'updated' => 0, 'unchanged' => 0];
   $nodes = [];

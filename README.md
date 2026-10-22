@@ -124,7 +124,6 @@ Services exposed on the host (bound to `127.0.0.1` only):
 | Django Postgres | localhost:15434 |
 | Mock OIDC provider | http://localhost:18083/e2e/.well-known/openid-configuration |
 | Sales UI (CRA dev server) | http://localhost:13000 |
-| E2E seeder | http://localhost:18084/health |
 
 ### Authenticating against the Django sales API
 
@@ -136,7 +135,7 @@ The `mock-oidc` service ([navikt/mock-oauth2-server](https://github.com/navikt/m
 | `e2e-customer` | authenticated user without the salesperson role (403) |
 | `e2e-wrong-audience` | rejected (401) |
 
-On startup `django_e2e_seed_salesperson.py` adds the user whose UUID is `E2E_SALESPERSON_SUB` (defaults to the `e2e-salesperson` token's `sub`) to the `django_salesperson` group.
+The fixture `e2e/fixtures/django/salesperson.json` creates the user whose UUID is the `e2e-salesperson` token's `sub` and adds it to the `django_salesperson` group (see [Fixtures](#fixtures)).
 
 The mock sets each token's `iss` from the Host header used to reach it, so only tokens fetched as `mock-oidc:8080` are trusted. From the host, add the header:
 
@@ -156,40 +155,39 @@ That API token always has the seeded salesperson as its `sub`, whatever username
 
 The UI loads at http://localhost:13000 from the host, but logging in works only from inside the compose network (the test-runner container), since the UI redirects to and calls `mock-oidc` and `django-app` by their in-network hostnames. Chromium is started with `--unsafely-treat-insecure-origin-as-secure` for the UI and mock origins (see `tests-e2e/playwright.config.ts`) because PKCE needs `crypto.subtle`, which is available only in secure contexts.
 
-### Baseline content
+### Fixtures
 
-`e2e/fixtures/baseline.json` is committed Drupal content that the tests can rely on, independent of what the SQL dump contains. It lists projects, each with its apartments:
+Test data is committed as plain JSON under `e2e/fixtures/`, independent of what the dumps contain. The files are edited by hand, including after a migration changes a fixture model.
 
-- `key`: stable identifier for test code (`^[a-z0-9-]+$`, unique; apartment keys are unique across the file).
-- `uuid`: the Drupal node UUID, which is also Django's `project_uuid` / `apartment_uuid`. Use canonical lowercase UUIDs starting with `e2e0` (e.g. `e2e00003-0000-4000-8000-000000000301`) so they never clash with real content.
-- `ownership_type`: a term name of the Drupal `ownership_type` vocabulary (`HASO`, `Hitas`, `Puolihitas`).
-- Projects: `housing_company` (starts with `E2E `), `street_address`, optional `postal_code` and `city`. Apartments: `apartment_number` (unique within the project), optional `apartment_structure`, `living_area`, `floor`.
-
-On every drupal-app start, `drupal-e2e-deploy.sh` runs `drush php:script /e2e/fixtures/drupal/load_baseline.php` after the config import. The loader finds each node by UUID and creates or updates it in place, so restarts never duplicate content. Nodes are published, projects get state of sale "for sale" and their `field_apartments` lists exactly the baseline apartments in file order. The loader then reindexes the apartments in the search_api indexes (`apartment`, `apartment_listing`), or leaves them queued when the Elasticsearch server is unavailable. It prints a summary line (`[e2e-baseline] Loaded ...`) to the drupal-app logs. Invalid input or a failed save stops drupal-app before nginx starts.
-
-`e2e/scenarios/baseline.py` validates the file (tested by `e2e/scenarios/tests/test_baseline.py`) and `tests-e2e/tests/baseline/baseline-content.spec.ts` checks that Django's sales API serves it. To add content, add entries to `baseline.json`, run the pytest file, then restart drupal-app (and django-app, which caches its Drupal token) to load it. Removing an entry from the file does not delete the node from Drupal.
-
-### Scenarios and the seeder
-
-Specs that need specific Django data seed it per test through the `e2e-seeder` service (`e2e/seeder/server.py`, http://localhost:18084 from the host, `http://e2e-seeder:8090` in the compose network). It runs django-app's image with `e2e/` mounted, waits until django-app has applied the migrations, and handles one request at a time:
-
-- `GET /health` lists the registered scenarios.
-- `POST /scenarios/<name>` with a JSON object of params resets and seeds the scenario and returns a JSON manifest of what it created (400 for invalid params, 404 for an unknown scenario).
-
-Specs use the `seedScenario` fixture from `tests-e2e/tests/utils.ts`:
-
-```ts
-test('...', async ({ page, seedScenario }) => {
-  const seed = await seedScenario<Manifest>('haso_queue', { variant: 'on_time' });
-  // seed.apartment_uuid, seed.new_customer.last_name, ...
-});
+```
+e2e/fixtures/drupal/baseline.json      Drupal projects and apartments
+e2e/fixtures/drupal/load_baseline.php  its loader
+e2e/fixtures/django/*.json             Django rows, in `manage.py loaddata` format
+e2e/load_django_fixtures.py            resets and loads the Django fixtures
 ```
 
-The fixture adds a `namespace` derived from the worker index and test id (`^[a-z0-9-]{1,40}$`) unless one is passed. Scenarios embed it in the names of the rows they create and reset only their own namespace's rows, so parallel tests do not see each other's customers. Scenarios that share an apartment do reset each other's reservations on it, so parallel specs should seed different apartments.
+**Drupal** (`baseline.json`) lists projects, each with its apartments:
 
-To add a scenario, create a module in `e2e/scenarios/` with a function decorated with `@scenario("<name>")` (`e2e/scenarios/registry.py`) that takes the params dict and returns a JSON-serializable manifest, import the module in `e2e/scenarios/__init__.py`, and add tests next to `e2e/scenarios/tests/test_haso_queue.py`. Validate params before any database access and raise `ScenarioParamsError` for invalid ones. Resolve apartments and projects through the baseline (`load_baseline().apartment(key)`) and refuse, with `RuntimeError` before writing anything, to touch apartments whose uuid does not start with `e2e0`, so a scenario can never modify non-baseline content. Restart `e2e-seeder` to load changes.
+- `key`: stable identifier for test code, unique.
+- `uuid`: the Drupal node UUID, which is also Django's `project_uuid` / `apartment_uuid`. Use lowercase UUIDs starting with `e2e0` (e.g. `e2e00003-0000-4000-8000-000000000301`) so they never clash with real content.
+- `ownership_type`: a term name of the Drupal `ownership_type` vocabulary (`HASO`, `Hitas`, `Puolihitas`).
+- Projects: `housing_company` (prefixed `E2E `), `street_address`, optional `postal_code` and `city`. Apartments: `apartment_number`, optional `apartment_structure`, `living_area`, `floor`.
 
-`haso_queue` (used by `tests/sales-ui/haso-reservation-queue.spec.ts`, which reproduces a HASO queue ordering bug) resets a HASO baseline apartment (`on_time`: `haso-a1`, `late`: `haso-a2`, or `apartment_key`), leaves one lottery event on it, and creates an existing customer (right of residence 500, non-late reservation at queue position 1) and a new customer (right of residence 100, no reservation).
+On every drupal-app start, `drupal-e2e-deploy.sh` runs `load_baseline.php` after the config import. The loader finds each node by UUID and creates or updates it in place, so restarts never duplicate content. Nodes are published, projects get state of sale "for sale", and their `field_apartments` lists exactly the baseline apartments in file order. The loader then reindexes the nodes in search_api. It prints `[e2e-baseline] Loaded ...` to the drupal-app logs. Invalid JSON or a failed save stops drupal-app before nginx starts. To change the content, edit the file and restart drupal-app (and django-app, which caches its Drupal token). Removing an entry does not delete the node. `tests/baseline/baseline-content.spec.ts` checks that Django's sales API serves the content.
+
+**Django** (`e2e/fixtures/django/*.json`) uses Django's fixture format (`model`, `pk`, `fields`):
+
+- `salesperson.json`: the user the mock OIDC `e2e-salesperson` token maps to, in the `django_salesperson` group.
+- `haso_queue.json`: for `tests/sales-ui/haso-reservation-queue.spec.ts`, on `haso-a1` (on time) and `haso-a2` (late). Each apartment has a lottery event, an existing customer (right of residence 500, non-late reservation at queue position 1) and a new customer (right of residence 100, no reservation).
+
+`load_django_fixtures.py` deletes every reservation and lottery event on the baseline apartments, then runs `loaddata` on all the files, upserting rows by pk. It runs when django-app starts, and `run-e2e.sh` runs it again before every test run, so tests start from the same data even on a kept stack. Rows that tests create elsewhere are not reset.
+
+When writing Django fixtures:
+
+- Use integer pks of 900001 and up (and `e2e0` UUID pks) so they never overwrite rows from `DJANGO_DUMP_PATH`.
+- Set every non-null field explicitly. A raw load skips `auto_now` / `auto_now_add` (`created_at`, `updated_at`, `timestamp`) and custom `save()` methods. For example, add the `apartmentreservationstatechangeevent` that `ApartmentReservation.save()` would create.
+- Mirror the values the specs need in `tests-e2e/tests/fixtures.ts`.
+- To apply changes without a full run: `docker compose -p att-e2e exec -e PYTHONPATH=/app django-app python /e2e/load_django_fixtures.py`.
 
 ### Teardown
 
@@ -202,8 +200,7 @@ The `-v` flag removes the DB volumes so the next run starts with a clean databas
 ### What happens on startup
 
 - **Drupal**: the SQL dump is imported into MariaDB on first start (empty volume only). `drush updatedb` and `drush cim` run on every start, followed by provisioning of the OAuth consumer Django uses to fetch project data from Drupal (`ASU_REST_OAUTH_CLIENT_ID` / `ASU_REST_OAUTH_CLIENT_SECRET`) and loading the baseline content (see above).
-- **Django**: migrations run, then if `DJANGO_DUMP_PATH` is set the fixture is flushed into the DB (duplicates in the dump are deduplicated automatically by `django_dedup_fixture.py`). The E2E salesperson user is then seeded by `django_e2e_seed_salesperson.py`.
-- **Seeder**: `e2e-seeder` polls `manage.py migrate --check` until django-app has applied the migrations, then starts serving.
+- **Django**: migrations run, then if `DJANGO_DUMP_PATH` is set the fixture is flushed into the DB (duplicates in the dump are deduplicated automatically by `django_dedup_fixture.py`). The e2e fixtures are then loaded by `e2e/load_django_fixtures.py` (see above).
 
 ### Adding tests
 

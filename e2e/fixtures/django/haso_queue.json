@@ -1,0 +1,181 @@
+[
+  {
+    "model": "application_form.lotteryevent",
+    "pk": 900001,
+    "fields": {
+      "apartment_uuid": "e2e00001-0000-4000-8000-000000000101",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "handler": "E2E seed"
+    }
+  },
+  {
+    "model": "users.profile",
+    "pk": "e2e00010-0000-4000-8000-000000000001",
+    "fields": {
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z",
+      "first_name": "Existing",
+      "last_name": "E2eHasoOntimeExisting",
+      "email": "haso-queue.on_time.existing@e2e.invalid",
+      "phone_number": "+358 40 000 0000",
+      "street_address": "E2E-katu 1",
+      "date_of_birth": "1980-01-01",
+      "city": "Helsinki",
+      "postal_code": "00100",
+      "contact_language": "fi"
+    }
+  },
+  {
+    "model": "users.profile",
+    "pk": "e2e00010-0000-4000-8000-000000000002",
+    "fields": {
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z",
+      "first_name": "Newcomer",
+      "last_name": "E2eHasoOntimeNewcomer",
+      "email": "haso-queue.on_time.new@e2e.invalid",
+      "phone_number": "+358 40 000 0000",
+      "street_address": "E2E-katu 1",
+      "date_of_birth": "1980-01-01",
+      "city": "Helsinki",
+      "postal_code": "00100",
+      "contact_language": "fi"
+    }
+  },
+  {
+    "model": "customer.customer",
+    "pk": 900001,
+    "fields": {
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z",
+      "primary_profile": "e2e00010-0000-4000-8000-000000000001",
+      "right_of_residence": 500,
+      "right_of_residence_is_old_batch": false
+    }
+  },
+  {
+    "model": "customer.customer",
+    "pk": 900002,
+    "fields": {
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z",
+      "primary_profile": "e2e00010-0000-4000-8000-000000000002",
+      "right_of_residence": 100,
+      "right_of_residence_is_old_batch": false
+    }
+  },
+  {
+    "model": "application_form.apartmentreservation",
+    "pk": 900001,
+    "fields": {
+      "apartment_uuid": "e2e00001-0000-4000-8000-000000000101",
+      "customer": 900001,
+      "queue_position": 1,
+      "list_position": 1,
+      "state": "submitted",
+      "right_of_residence": 500,
+      "right_of_residence_is_old_batch": false,
+      "submitted_late": false,
+      "handler": "E2E seed"
+    }
+  },
+  {
+    "model": "application_form.apartmentreservationstatechangeevent",
+    "pk": 900001,
+    "fields": {
+      "reservation": 900001,
+      "state": "submitted",
+      "timestamp": "2026-01-01T00:00:00Z"
+    }
+  },
+
+  {
+    "model": "application_form.lotteryevent",
+    "pk": 900002,
+    "fields": {
+      "apartment_uuid": "e2e00001-0000-4000-8000-000000000102",
+      "timestamp": "2026-01-01T00:00:00Z",
+      "handler": "E2E seed"
+    }
+  },
+  {
+    "model": "users.profile",
+    "pk": "e2e00010-0000-4000-8000-000000000003",
+    "fields": {
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z",
+      "first_name": "Existing",
+      "last_name": "E2eHasoLateExisting",
+      "email": "haso-queue.late.existing@e2e.invalid",
+      "phone_number": "+358 40 000 0000",
+      "street_address": "E2E-katu 1",
+      "date_of_birth": "1980-01-01",
+      "city": "Helsinki",
+      "postal_code": "00100",
+      "contact_language": "fi"
+    }
+  },
+  {
+    "model": "users.profile",
+    "pk": "e2e00010-0000-4000-8000-000000000004",
+    "fields": {
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z",
+      "first_name": "Newcomer",
+      "last_name": "E2eHasoLateNewcomer",
+      "email": "haso-queue.late.new@e2e.invalid",
+      "phone_number": "+358 40 000 0000",
+      "street_address": "E2E-katu 1",
+      "date_of_birth": "1980-01-01",
+      "city": "Helsinki",
+      "postal_code": "00100",
+      "contact_language": "fi"
+    }
+  },
+  {
+    "model": "customer.customer",
+    "pk": 900003,
+    "fields": {
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z",
+      "primary_profile": "e2e00010-0000-4000-8000-000000000003",
+      "right_of_residence": 500,
+      "right_of_residence_is_old_batch": false
+    }
+  },
+  {
+    "model": "customer.customer",
+    "pk": 900004,
+    "fields": {
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z",
+      "primary_profile": "e2e00010-0000-4000-8000-000000000004",
+      "right_of_residence": 100,
+      "right_of_residence_is_old_batch": false
+    }
+  },
+  {
+    "model": "application_form.apartmentreservation",
+    "pk": 900002,
+    "fields": {
+      "apartment_uuid": "e2e00001-0000-4000-8000-000000000102",
+      "customer": 900003,
+      "queue_position": 1,
+      "list_position": 1,
+      "state": "submitted",
+      "right_of_residence": 500,
+      "right_of_residence_is_old_batch": false,
+      "submitted_late": false,
+      "handler": "E2E seed"
+    }
+  },
+  {
+    "model": "application_form.apartmentreservationstatechangeevent",
+    "pk": 900002,
+    "fields": {
+      "reservation": 900002,
+      "state": "submitted",
+      "timestamp": "2026-01-01T00:00:00Z"
+    }
+  }
+]

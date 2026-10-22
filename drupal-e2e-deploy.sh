@@ -36,7 +36,7 @@ drush cim -y || true
 echo "[e2e] Provisioning OAuth consumer for Django..."
 drush php:eval "\Drupal::moduleHandler()->loadInclude('asu_rest', 'install'); asu_rest_provision_oauth_consumer();" || true
 
-# Committed baseline content (e2e/fixtures/baseline.json): fixed-UUID
+# Committed baseline content (e2e/fixtures/drupal/baseline.json): fixed-UUID
 # projects and apartments that the tests rely on. The loader is idempotent
 # and also reindexes the nodes in search_api. Unlike the steps above, a
 # failure stops the container: this script is sourced by the image

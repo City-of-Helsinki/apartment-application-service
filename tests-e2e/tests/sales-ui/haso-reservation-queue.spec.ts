@@ -1,5 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import { test, expect } from '../utils';
+import { HASO_QUEUE, type FixtureCustomer } from '../fixtures';
 import {
   FIRST_LOAD_TIMEOUT_MS,
   LOGIN_FLOW_TIMEOUT_MS,
@@ -16,9 +17,8 @@ import {
 // after every non-late reservation.
 //
 // Each variant runs on its own baseline apartment (on_time: haso-a1, late:
-// haso-a2), reset and seeded per test through the seeder sidecar's
-// haso_queue scenario with a test-specific namespace, so the tests are
-// independent of each other and of earlier runs:
+// haso-a2) with data from e2e/fixtures/django/haso_queue.json (see
+// ../fixtures.ts), which run-e2e.sh reloads before every run:
 // - existing customer: right of residence 500, non-late, queue position 1
 // - new customer: right of residence 100, no reservation yet
 
@@ -30,25 +30,7 @@ const PREVIEW_TITLE_TEXT = 'Jonon esikatselu'; // ReservationAddModal.previewTit
 
 const CREATE_RESERVATION_API_PATH = '/v1/sales/apartment_reservations/';
 
-type ScenarioName = 'on_time' | 'late';
-
-interface SeededCustomer {
-  id: number;
-  first_name: string;
-  last_name: string;
-}
-
-// Manifest returned by the seeder's haso_queue scenario.
-interface ScenarioSeed {
-  scenario: 'haso_queue';
-  variant: ScenarioName;
-  namespace: string;
-  project_uuid: string;
-  apartment_uuid: string;
-  apartment_number: string;
-  existing_customer: SeededCustomer;
-  new_customer: SeededCustomer;
-}
+type ScenarioName = keyof typeof HASO_QUEUE;
 
 interface ScenarioExpectation {
   name: ScenarioName;
@@ -138,7 +120,7 @@ function reservationAddDialog(page: Page, apartmentUuid: string): Locator {
  * @param dialog - Reservation add dialog.
  * @param customer - Seeded customer to pick.
  */
-async function selectCustomer(dialog: Locator, customer: SeededCustomer): Promise<void> {
+async function selectCustomer(dialog: Locator, customer: FixtureCustomer): Promise<void> {
   await dialog.locator('#searchCustomer').fill(customer.last_name);
   const option = dialog.getByRole('option', {
     name: new RegExp(`${escapeRegExp(customer.last_name)}.*ID: ${customer.id}$`),
@@ -170,7 +152,7 @@ function previewRows(dialog: Locator): Locator {
  * @param customer - Expected customer.
  * @returns RegExp matching "<position>. <last_name> <first_name>".
  */
-function previewRowPattern(position: number, customer: SeededCustomer): RegExp {
+function previewRowPattern(position: number, customer: FixtureCustomer): RegExp {
   return new RegExp(
     `^\\s*${position}\\.\\s+${escapeRegExp(customer.last_name)}\\s+` +
       `${escapeRegExp(customer.first_name)}\\s*$`,
@@ -185,12 +167,8 @@ test.describe('Sales UI HASO reservation queue ordering', () => {
   for (const expectation of SCENARIOS) {
     test(`${expectation.name}: new customer with better RoR gets queue position ${expectation.newQueuePosition}`, async ({
       page,
-      seedScenario,
     }) => {
-      const seed = await seedScenario<ScenarioSeed>('haso_queue', {
-        variant: expectation.name,
-      });
-      expect(seed.variant).toBe(expectation.name);
+      const seed = HASO_QUEUE[expectation.name];
       const newCustomer = seed.new_customer;
       const existingCustomer = seed.existing_customer;
       const [firstInQueue, secondInQueue] =

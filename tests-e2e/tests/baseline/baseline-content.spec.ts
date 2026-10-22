@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import type { APIRequestContext } from '@playwright/test';
 import { test, expect } from '../utils';
 
-// Verifies that the committed baseline content (e2e/fixtures/baseline.json),
+// Verifies that the committed baseline content (e2e/fixtures/drupal/baseline.json),
 // loaded into Drupal by the drush loader, is served by Django's sales API with
 // the fixed node UUIDs. The loader runs on every drupal-app start, so this
 // also guards idempotency: a non-idempotent loader would create duplicate
@@ -13,7 +13,7 @@ import { test, expect } from '../utils';
 
 const DJANGO_BASE = process.env.E2E_DJANGO_URL ?? 'http://localhost:18081';
 const OIDC_BASE = process.env.E2E_OIDC_URL ?? 'http://localhost:18083';
-const BASELINE_FILE = process.env.E2E_BASELINE_FILE ?? '/e2e/fixtures/baseline.json';
+const BASELINE_FILE = process.env.E2E_BASELINE_FILE ?? '/e2e/fixtures/drupal/baseline.json';
 
 const TRUSTED_ISSUER = 'e2e';
 const SALESPERSON_SCOPE = 'e2e-salesperson';
@@ -46,7 +46,7 @@ interface Baseline {
 function loadBaseline(path: string): Baseline {
   if (!fs.existsSync(path)) {
     throw new Error(
-      `Baseline fixture not found at ${path}. Mount e2e/fixtures into the ` +
+      `Baseline fixture not found at ${path}. Mount e2e/fixtures/drupal into the ` +
         'test-runner or set E2E_BASELINE_FILE to the baseline.json path.',
     );
   }
