@@ -3,17 +3,57 @@ from typing import Any, Callable, Iterable, Optional
 from application_form.services.constants import PROTECTED_QUEUE_STATE_VALUES
 
 
-def is_protected_from_queue_jump(state: Any) -> bool:
+def _reservation_state(reservation_or_state: Any) -> Any:
+    """
+    Resolve a reservation state from a reservation or a raw state value.
+
+    Parameters:
+        reservation_or_state: Reservation-like object with a ``state`` attribute,
+            or a raw reservation state enum/value.
+
+    Returns:
+        Any: Reservation state enum member or database value.
+    """
+    if hasattr(reservation_or_state, "state"):
+        return reservation_or_state.state
+    return reservation_or_state
+
+
+def _has_expired_offer(reservation_or_state: Any) -> bool:
+    """
+    Tell whether a reservation has a date-expired offer.
+
+    Parameters:
+        reservation_or_state: Reservation-like object, or a raw state value.
+
+    Returns:
+        bool: True when an attached offer reports ``is_expired``.
+    """
+    if not hasattr(reservation_or_state, "offer"):
+        return False
+    offer = reservation_or_state.offer
+    return bool(getattr(offer, "is_expired", False))
+
+
+def is_protected_from_queue_jump(reservation_or_state: Any) -> bool:
     """
     Tell whether a reservation may not be passed in a HASO queue.
 
+    Accepts either a reservation (or stand-in with ``state`` / ``offer``) or a
+    raw reservation state enum/value. A date-expired offer protects the
+    reservation even when its state is still jumpable (for example SUBMITTED).
+
     Parameters:
-        state: Reservation state, either an enum member or its database value.
+        reservation_or_state: Reservation-like object, or a reservation state
+            enum member / database value.
 
     Returns:
         bool: True when a new application must not be placed ahead of the
             reservation.
     """
+    if _has_expired_offer(reservation_or_state):
+        return True
+    state = _reservation_state(reservation_or_state)
     return getattr(state, "value", state) in PROTECTED_QUEUE_STATE_VALUES
 
 
@@ -33,7 +73,7 @@ def protected_queue_floor(reservations: Iterable) -> int:
             reservation.queue_position
             for reservation in reservations
             if reservation.queue_position is not None
-            and is_protected_from_queue_jump(reservation.state)
+            and is_protected_from_queue_jump(reservation)
         ),
         default=0,
     )
@@ -84,7 +124,7 @@ def find_haso_insert_target(
         if queue_position is None:
             continue
         if (
-            is_protected_from_queue_jump(reservation.state)
+            is_protected_from_queue_jump(reservation)
             or queue_position <= protected_floor
         ):
             target = None
