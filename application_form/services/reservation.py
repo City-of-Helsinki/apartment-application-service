@@ -100,6 +100,11 @@ def create_late_reservation(
         if right_of_residence_ordering_number is None and ownership_type == "haso":
             raise ValidationError("User has no right of residence number set")
 
+        # Match create_reservation: omitted submitted_late means late (True).
+        effective_submitted_late = (
+            True if requested_submitted_late is None else requested_submitted_late
+        )
+
         if requested_queue_position is not None:
             active_reservations = existing_reservations.exclude(
                 state=ApartmentReservationState.CANCELED
@@ -122,6 +127,7 @@ def create_late_reservation(
                 ownership_type,
                 right_of_residence_ordering_number,
                 existing_reservations,
+                submitted_late=effective_submitted_late,
             )
         reservation = create_reservation(
             reservation_data,
@@ -166,12 +172,14 @@ def calculate_new_positions(
     ownership_type: str,
     right_of_residence_ordering_number: int,
     existing_reservations: QuerySet,
+    submitted_late: bool = True,
 ) -> tuple:
     """
-    Resolve the list and queue positions of a new late reservation.
+    Resolve the list and queue positions of a new reservation.
 
-    HASO reservations are ranked by right of residence number within the late
-    pool, but never ahead of a reservation that has already been offered.
+    HASO reservations are ranked by right of residence number within the same
+    submitted_late pool, but never ahead of a reservation that has already
+    been offered.
 
     Parameters:
         max_list_position (int): Largest list position in use, or None.
@@ -180,6 +188,8 @@ def calculate_new_positions(
         right_of_residence_ordering_number (int): Ordering number of the new
             reservation's customer.
         existing_reservations (QuerySet): All reservations of the apartment.
+        submitted_late (bool): Whether the new reservation is late. Defaults
+            to True to match create_reservation when the flag is omitted.
 
     Returns:
         tuple: New list position and queue position.
@@ -191,11 +201,11 @@ def calculate_new_positions(
         active_reservations = existing_reservations.exclude(
             state=ApartmentReservationState.CANCELED
         )
-        late_reservations = active_reservations.filter(submitted_late=True).order_by(
-            "queue_position"
-        )
+        same_late_group = active_reservations.filter(
+            submitted_late=submitted_late
+        ).order_by("queue_position")
         target = find_haso_insert_target(
-            late_reservations,
+            same_late_group,
             right_of_residence_ordering_number,
             protected_floor=protected_queue_floor(active_reservations),
         )

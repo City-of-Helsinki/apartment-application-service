@@ -7,6 +7,8 @@ __pycache__/
 
 *node_modules*
 
+CLAUDE.md
+
 # C extensions
 *.so
 
@@ -155,3 +157,4 @@ schemas/*
 
 # MacOS specific .DS_STORE directory metadata
 .DS_STORE
+

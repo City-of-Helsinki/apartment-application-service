@@ -1182,6 +1182,54 @@ def test_create_reservation_with_submitted_late_false(
 
 
 @pytest.mark.django_db
+def test_create_haso_reservation_orders_by_right_of_residence_when_not_late(
+    elasticsearch,
+    sales_ui_salesperson_api_client,
+):
+    """
+    Creating a non-late HASO reservation without queue_position must rank by
+    right_of_residence.
+
+    - Existing non-late HASO reservation has RoR 500
+    - New customer has better (lower) RoR 100 and submitted_late=False
+    - No queue_position is sent
+    - New reservation takes queue_position 1; existing shifts to 2
+    """
+    apartment = ApartmentDocumentFactory(project_ownership_type="HASO")
+    LotteryEvent.objects.create(apartment_uuid=apartment.uuid)
+    existing = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        queue_position=1,
+        list_position=1,
+        submitted_late=False,
+        right_of_residence=500,
+        right_of_residence_is_old_batch=False,
+        state=ApartmentReservationState.SUBMITTED,
+    )
+    new_customer = CustomerFactory(
+        right_of_residence=100,
+        right_of_residence_is_old_batch=False,
+    )
+
+    response = sales_ui_salesperson_api_client.post(
+        reverse("application_form:sales-apartment-reservation-list"),
+        data={
+            "apartment_uuid": apartment.uuid,
+            "customer_id": new_customer.id,
+            "submitted_late": False,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert response.data["queue_position"] == 1
+    assert response.data["submitted_late"] is False
+
+    existing.refresh_from_db()
+    assert existing.queue_position == 2
+
+
+@pytest.mark.django_db
 def test_get_offer_message_unauthorized(elasticsearch, user_api_client):
     apartment = ApartmentDocumentFactory()
 
