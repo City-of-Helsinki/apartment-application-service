@@ -914,6 +914,54 @@ def test_export_applicants_mailing_list_csv_per_project(
 
 
 @pytest.mark.django_db
+def test_export_applicants_mailing_list_csv_per_project_short_list_type(
+    sales_ui_salesperson_api_client, elasticsearch
+):
+    """Test export applicants mailing list CSV with short list type."""
+    project = generate_apartments(
+        elasticsearch, 1, {"project_street_address": "Test street 23, test road 40"}
+    )[0]
+    project_uuid = project.project_uuid
+
+    data = {
+        "project_uuid": project_uuid,
+        "export_type": ApartmentReservationState.RESERVED.value,
+    }
+    response = sales_ui_salesperson_api_client.get(
+        reverse("apartment:project-detail-export-applicant-mailing-list", kwargs=data),
+        data={"list_type": "short"},
+        format="json",
+    )
+    assert response.status_code == 200
+    assert response.headers["X-Mailing-List-Type"] == "short"
+    csv_rows = _read_csv_response_rows(response)
+    assert csv_rows[0] == [
+        "Asunnon numero",
+        "Ensisijainen hakija etunimi",
+        "Ensisijainen hakija sukunimi",
+        "Ensisijainen hakija sähköposti",
+        "Ensisijainen hakija puhelin",
+        "Ensisijainen hakija osoite",
+        "Ensisijainen hakija postinumero",
+        "Ensisijainen hakija postitoimipaikka",
+        "Kanssahakija etunimi",
+        "Kanssahakija sukunimi",
+        "Kanssahakija sähköposti",
+        "Kanssahakija puhelin",
+        "Kanssahakija osoite",
+        "Kanssahakija postinumero",
+        "Kanssahakija postitoimipaikka",
+    ]
+
+    invalid_response = sales_ui_salesperson_api_client.get(
+        reverse("apartment:project-detail-export-applicant-mailing-list", kwargs=data),
+        data={"list_type": "invalid"},
+        format="json",
+    )
+    assert invalid_response.status_code == 400
+
+
+@pytest.mark.django_db
 def test_export_lottery_result_csv_per_project_unauthorized(
     user_api_client, elastic_project_with_5_apartments
 ):

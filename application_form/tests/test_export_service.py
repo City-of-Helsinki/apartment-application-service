@@ -567,6 +567,142 @@ def test_export_applicants_mailing_list_sold(reservations):
 
 
 @pytest.mark.django_db
+def test_export_applicants_mailing_list_short_columns(reservations):
+    """Assert that short mailing list includes only name and contact columns."""
+
+    reservation_queryset = ApartmentReservation.objects.filter(
+        apartment_uuid__in=[res.apartment_uuid for res in reservations]
+    )
+
+    applicant_mailing_list_export_service = ApplicantMailingListExportService(
+        reservation_queryset,
+        export_type=ApartmentReservationState.RESERVED.value,
+        list_type=ApplicantMailingListExportService.list_type_short,
+    )
+
+    csv_lines = applicant_mailing_list_export_service.get_rows()
+
+    assert csv_lines[0] == [
+        "Asunnon numero",
+        "Ensisijainen hakija etunimi",
+        "Ensisijainen hakija sukunimi",
+        "Ensisijainen hakija sähköposti",
+        "Ensisijainen hakija puhelin",
+        "Ensisijainen hakija osoite",
+        "Ensisijainen hakija postinumero",
+        "Ensisijainen hakija postitoimipaikka",
+        "Kanssahakija etunimi",
+        "Kanssahakija sukunimi",
+        "Kanssahakija sähköposti",
+        "Kanssahakija puhelin",
+        "Kanssahakija osoite",
+        "Kanssahakija postinumero",
+        "Kanssahakija postitoimipaikka",
+    ]
+    assert len(csv_lines[1]) == len(csv_lines[0])
+
+
+@pytest.mark.django_db
+def test_export_applicants_mailing_list_short_includes_phone_numbers(reservations):
+    """Assert that short mailing list contains primary and secondary phones.
+
+    - Exports primary applicant phone number.
+    - Exports secondary applicant phone number.
+    - Leaves secondary phone empty when secondary applicant is missing.
+    """
+
+    reservation_queryset = ApartmentReservation.objects.filter(
+        apartment_uuid__in=[res.apartment_uuid for res in reservations]
+    )
+    reservation = reservation_queryset.first()
+    reservation.customer.primary_profile.phone_number = "0401234567"
+    reservation.customer.primary_profile.save(update_fields=["phone_number"])
+
+    if reservation.customer.secondary_profile:
+        reservation.customer.secondary_profile.phone_number = "0507654321"
+        reservation.customer.secondary_profile.save(update_fields=["phone_number"])
+
+    applicant_mailing_list_export_service = ApplicantMailingListExportService(
+        reservation_queryset,
+        export_type=ApartmentReservationState.RESERVED.value,
+        list_type=ApplicantMailingListExportService.list_type_short,
+    )
+    csv_lines = applicant_mailing_list_export_service.get_rows()
+
+    phone_header_idx = csv_lines[0].index("Ensisijainen hakija puhelin")
+    secondary_phone_header_idx = csv_lines[0].index("Kanssahakija puhelin")
+    apartment_number_idx = csv_lines[0].index("Asunnon numero")
+
+    apartment = get_apartment(reservation.apartment_uuid)
+    reservation_row = next(
+        row for row in csv_lines[1:] if row[apartment_number_idx] == apartment.apartment_number
+    )
+
+    assert reservation_row[phone_header_idx] == "0401234567"
+    expected_secondary_phone = (
+        "0507654321" if reservation.customer.secondary_profile else ""
+    )
+    assert reservation_row[secondary_phone_header_idx] == expected_secondary_phone
+
+
+@pytest.mark.django_db
+def test_export_applicants_mailing_list_short_excludes_canceled_sales(reservations):
+    """Assert that short sold mailing list excludes canceled reservations."""
+
+    reservation_queryset = ApartmentReservation.objects.filter(
+        apartment_uuid__in=[res.apartment_uuid for res in reservations]
+    )
+    reservation_queryset.update(state=ApartmentReservationState.SUBMITTED)
+
+    sold_reservation = reservation_queryset.first()
+    sold_reservation.state = ApartmentReservationState.SOLD
+    sold_reservation.save()
+
+    canceled_reservation = reservation_queryset.last()
+    canceled_reservation.state = ApartmentReservationState.CANCELED
+    canceled_reservation.save()
+    ApartmentReservationStateChangeEventFactory(
+        reservation=canceled_reservation,
+        state=ApartmentReservationState.CANCELED,
+        cancellation_reason=ApartmentReservationCancellationReason.TERMINATED,
+    )
+
+    full_export_service = ApplicantMailingListExportService(
+        reservation_queryset,
+        export_type=ApartmentReservationState.SOLD.value,
+        list_type=ApplicantMailingListExportService.list_type_full,
+    )
+    short_export_service = ApplicantMailingListExportService(
+        reservation_queryset,
+        export_type=ApartmentReservationState.SOLD.value,
+        list_type=ApplicantMailingListExportService.list_type_short,
+    )
+
+    full_filtered = full_export_service.filter_reservations()
+    short_filtered = short_export_service.filter_reservations()
+
+    assert len(full_filtered) == 2
+    assert len(short_filtered) == 1
+    assert short_filtered.first().id == sold_reservation.id
+
+
+@pytest.mark.django_db
+def test_export_applicants_mailing_list_invalid_list_type(reservations):
+    """Assert that invalid mailing list type raises ValueError."""
+
+    reservation_queryset = ApartmentReservation.objects.filter(
+        apartment_uuid__in=[res.apartment_uuid for res in reservations]
+    )
+
+    with pytest.raises(ValueError, match="Invalid list type"):
+        ApplicantMailingListExportService(
+            reservation_queryset,
+            export_type=ApartmentReservationState.RESERVED.value,
+            list_type="invalid",
+        )
+
+
+@pytest.mark.django_db
 def test_export_applicants(applicant_export_service):
     csv_lines = applicant_export_service.get_rows()
     assert len(applicant_export_service.get_reservations()) == 5
