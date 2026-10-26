@@ -635,7 +635,9 @@ def test_export_applicants_mailing_list_short_includes_phone_numbers(reservation
 
     apartment = get_apartment(reservation.apartment_uuid)
     reservation_row = next(
-        row for row in csv_lines[1:] if row[apartment_number_idx] == apartment.apartment_number
+        row
+        for row in csv_lines[1:]
+        if row[apartment_number_idx] == apartment.apartment_number
     )
 
     assert reservation_row[phone_header_idx] == "0401234567"
