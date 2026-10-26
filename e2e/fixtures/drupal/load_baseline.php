@@ -12,35 +12,26 @@
  * The baseline file path is read from E2E_BASELINE_FILE.
  *
  * The file is trusted as-is: a missing optional field empties the Drupal
- * field, and a missing uuid fails the save. Exits non-zero on invalid JSON or
- * a failed save (all saves are rolled back). Indexing errors only warn:
- * search_api cron indexes tracked items.
+ * field, and a missing uuid fails the save. Invalid JSON or a failed save
+ * throws, which makes drush exit non-zero (all saves are rolled back).
+ * Indexing errors only warn: search_api cron indexes tracked items.
  */
 
 use Drupal\Core\Entity\ContentEntityInterface;
 use Drupal\node\Entity\Node;
 use Drupal\node\NodeInterface;
 use Drupal\search_api\Entity\Index;
+use Drupal\search_api\IndexInterface;
 use Drupal\search_api\Utility\Utility;
 use Drupal\taxonomy\Entity\Term;
 
 const E2E_BASELINE_DEFAULT_FILE = '/e2e/fixtures/drupal/baseline.json';
+const E2E_BASELINE_DATASOURCE = 'entity:node';
 const E2E_BASELINE_LANGCODE = 'fi';
 const E2E_BASELINE_OWNER_UID = 1;
 // Not in baseline.json; asu_rest project listings exclude projects without a
 // state of sale (and "upcoming" ones), so a sellable state is set.
 const E2E_BASELINE_PROJECT_STATE_OF_SALE = 'for_sale';
-
-/**
- * Print an error to stderr and terminate with exit code 1.
- *
- * @param string $message
- *   Error description.
- */
-function e2e_baseline_fail(string $message): never {
-  fwrite(STDERR, "[e2e-baseline] ERROR: {$message}\n");
-  exit(1);
-}
 
 /**
  * Read and decode the baseline file.
@@ -50,19 +41,22 @@ function e2e_baseline_fail(string $message): never {
  *
  * @return array
  *   Decoded baseline content.
+ *
+ * @throws \RuntimeException
+ *   When the file is unreadable, not valid JSON or not a JSON object.
  */
 function e2e_baseline_read(string $path): array {
   if (!is_file($path) || !is_readable($path)) {
-    e2e_baseline_fail("Baseline file not readable: {$path}");
+    throw new \RuntimeException("Baseline file not readable: {$path}");
   }
   try {
     $data = json_decode(file_get_contents($path), TRUE, 512, JSON_THROW_ON_ERROR);
   }
   catch (\JsonException $e) {
-    e2e_baseline_fail("Invalid JSON in {$path}: {$e->getMessage()}");
+    throw new \RuntimeException("Invalid JSON in {$path}: {$e->getMessage()}", 0, $e);
   }
   if (!is_array($data)) {
-    e2e_baseline_fail("Baseline root must be an object: {$path}");
+    throw new \RuntimeException("Baseline root must be an object: {$path}");
   }
   return $data;
 }
@@ -268,6 +262,60 @@ function e2e_baseline_upsert_project(array $project, array &$counts): array {
 }
 
 /**
+ * Return the raw search_api item IDs of the nodes an index contains.
+ *
+ * Only bundles the index contains are included; loading other items would
+ * make search_api log them as missing and queue server-side deletions.
+ *
+ * @param \Drupal\search_api\IndexInterface $index
+ *   Search index with a node datasource.
+ * @param \Drupal\node\NodeInterface[] $nodes
+ *   Candidate nodes.
+ *
+ * @return string[]
+ *   Raw item IDs ("<nid>:<langcode>"), one per node translation.
+ */
+function e2e_baseline_raw_item_ids(IndexInterface $index, array $nodes): array {
+  $bundles = $index->getDatasource(E2E_BASELINE_DATASOURCE)->getBundles();
+  $rawIds = [];
+  foreach ($nodes as $node) {
+    if (!isset($bundles[$node->bundle()])) {
+      continue;
+    }
+    foreach (array_keys($node->getTranslationLanguages()) as $langcode) {
+      $rawIds[] = "{$node->id()}:{$langcode}";
+    }
+  }
+  return $rawIds;
+}
+
+/**
+ * Index the given items now, or leave them queued for search_api cron.
+ *
+ * @param \Drupal\search_api\IndexInterface $index
+ *   Search index the items are tracked in.
+ * @param string[] $rawIds
+ *   Raw item IDs of the node datasource.
+ *
+ * @return string
+ *   Summary, e.g. "apartment=6" or "apartment=queued (server unavailable)".
+ */
+function e2e_baseline_index_items(IndexInterface $index, array $rawIds): string {
+  if (!$index->isServerEnabled() || !$index->getServerInstance()->isAvailable()) {
+    return "{$index->id()}=queued (server unavailable)";
+  }
+  try {
+    $itemIds = array_map(static fn ($rawId) => Utility::createCombinedId(E2E_BASELINE_DATASOURCE, $rawId), $rawIds);
+    $indexed = $index->indexSpecificItems($index->loadItemsMultiple($itemIds));
+    return "{$index->id()}=" . count($indexed);
+  }
+  catch (\Exception $e) {
+    fwrite(STDERR, "[e2e-baseline] WARNING: indexing {$index->id()} failed, left to cron: {$e->getMessage()}\n");
+    return "{$index->id()}=queued (indexing failed)";
+  }
+}
+
+/**
  * Reindex the given nodes in every enabled index that contains them.
  *
  * Items are marked as updated in the tracker first (also unchanged ones), so
@@ -281,40 +329,17 @@ function e2e_baseline_upsert_project(array $project, array &$counts): array {
  *   Per-index summaries, e.g. "apartment=6".
  */
 function e2e_baseline_reindex(array $nodes): array {
-  $datasourceId = 'entity:node';
   $summaries = [];
   foreach (Index::loadMultiple() as $index) {
-    if (!$index->status() || $index->isReadOnly() || !$index->isValidDatasource($datasourceId)) {
+    if (!$index->status() || $index->isReadOnly() || !$index->isValidDatasource(E2E_BASELINE_DATASOURCE)) {
       continue;
     }
-    // Only bundles the index contains; loading other items would make
-    // search_api log them as missing and queue server-side deletions.
-    $bundles = $index->getDatasource($datasourceId)->getBundles();
-    $rawIds = [];
-    foreach ($nodes as $node) {
-      if (isset($bundles[$node->bundle()])) {
-        foreach (array_keys($node->getTranslationLanguages()) as $langcode) {
-          $rawIds[] = "{$node->id()}:{$langcode}";
-        }
-      }
-    }
+    $rawIds = e2e_baseline_raw_item_ids($index, $nodes);
     if (!$rawIds) {
       continue;
     }
-    $index->trackItemsUpdated($datasourceId, $rawIds);
-    if (!$index->isServerEnabled() || !$index->getServerInstance()->isAvailable()) {
-      $summaries[] = "{$index->id()}=queued (server unavailable)";
-      continue;
-    }
-    try {
-      $itemIds = array_map(static fn ($rawId) => Utility::createCombinedId($datasourceId, $rawId), $rawIds);
-      $indexed = $index->indexSpecificItems($index->loadItemsMultiple($itemIds));
-      $summaries[] = "{$index->id()}=" . count($indexed);
-    }
-    catch (\Exception $e) {
-      fwrite(STDERR, "[e2e-baseline] WARNING: indexing {$index->id()} failed, left to cron: {$e->getMessage()}\n");
-      $summaries[] = "{$index->id()}=queued (indexing failed)";
-    }
+    $index->trackItemsUpdated(E2E_BASELINE_DATASOURCE, $rawIds);
+    $summaries[] = e2e_baseline_index_items($index, $rawIds);
   }
   return $summaries;
 }
@@ -336,7 +361,7 @@ function e2e_baseline_main(): void {
   }
   catch (\Throwable $e) {
     $transaction->rollBack();
-    e2e_baseline_fail("Saving baseline content failed: {$e->getMessage()}");
+    throw new \RuntimeException("Saving baseline content failed: {$e->getMessage()}", 0, $e);
   }
   // Commit before indexing so a failed index run cannot undo the content.
   $transaction->commitOrRelease();
