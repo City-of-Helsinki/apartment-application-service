@@ -1,11 +1,17 @@
 import json
+from io import StringIO
+from types import SimpleNamespace
 from uuid import UUID
 
 import pytest
+from django.core.management import call_command
+from django.core.management.base import CommandError
 
-from users.masking import unmask_string
+from sanitizers.person import LOCALDEV_PASSWORD
+from users.masking import mask_string, mask_uuid, unmask_string
 from users.services.drupal_credentials import (
     build_masked_credentials,
+    build_restore_credentials_sql,
     credentials_to_json,
     find_profile_for_drupal_user,
     ProfileNotFoundError,
@@ -104,3 +110,81 @@ def test_sync_drupal_user_credentials_returns_json_serializable_data(profile):
     assert UUID(payload["profile_pk"]) == profile.pk
     assert payload["profile_id"]
     assert payload["password"]
+
+
+@pytest.mark.django_db
+def test_build_restore_credentials_sql_maps_profiles(profile, other_profile):
+    """
+    - Each profile with a user is mapped from its UUID to its masked profile id.
+    - Profiles without a user are skipped.
+    - The backend password is set to the masked localdev password.
+    - Statements are wrapped in one transaction.
+    - Map columns are ASCII so the join does not hit a MariaDB collation clash.
+    """
+    other_profile.user = None
+    other_profile.save(update_fields=["user"])
+
+    statements = list(build_restore_credentials_sql([profile, other_profile]))
+    sql = "\n".join(statements)
+
+    assert statements[0] == "START TRANSACTION;"
+    assert statements[-1] == "COMMIT;"
+    assert statements[1].count("CHARACTER SET ascii") == 2
+    assert f"('{profile.pk}', '{mask_uuid(profile.pk)}')" in sql
+    assert str(other_profile.pk) not in sql
+    assert f"'{mask_string(LOCALDEV_PASSWORD)}'" in sql
+    assert unmask_string(mask_string(LOCALDEV_PASSWORD)) == LOCALDEV_PASSWORD
+
+
+def test_build_restore_credentials_sql_batches_inserts():
+    """
+    - Map rows are split into INSERT statements of at most batch_size rows.
+    """
+    profiles = [SimpleNamespace(pk=UUID(int=i + 1), user_id=i + 1) for i in range(5)]
+
+    inserts = [
+        statement
+        for statement in build_restore_credentials_sql(profiles, batch_size=2)
+        if statement.startswith("INSERT")
+    ]
+
+    assert len(inserts) == 3
+    assert inserts[-1].count("('") == 1
+
+
+def test_build_restore_credentials_sql_without_profiles_has_no_insert():
+    """
+    - No profiles produces no INSERT, but the UPDATEs still run.
+    """
+    statements = list(build_restore_credentials_sql([]))
+
+    assert not any(statement.startswith("INSERT") for statement in statements)
+    assert any(
+        statement.startswith("UPDATE user__field_backend_password")
+        for statement in statements
+    )
+
+
+@pytest.mark.django_db
+def test_drupal_restore_credentials_sql_command_requires_confirmation():
+    """
+    - The command refuses to run without the confirmation flag.
+    """
+    with pytest.raises(CommandError):
+        call_command("drupal_restore_credentials_sql")
+
+
+@pytest.mark.django_db
+def test_drupal_restore_credentials_sql_command_prints_sql(profile):
+    """
+    - With the confirmation flag, SQL for existing profiles is printed.
+    """
+    out = StringIO()
+
+    call_command(
+        "drupal_restore_credentials_sql",
+        "--i-know-this-is-a-restored-dump",
+        stdout=out,
+    )
+
+    assert f"('{profile.pk}', '{mask_uuid(profile.pk)}')" in out.getvalue()

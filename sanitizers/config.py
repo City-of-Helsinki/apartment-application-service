@@ -36,6 +36,8 @@ NAMED_EXCLUSIONS = frozenset(
         ("application_form_application", "right_of_residence"),
         ("application_form_apartmentreservation", "right_of_residence"),
         ("customer_customer", "right_of_residence"),
+        # Links Django applications to Drupal asu_application entities.
+        ("application_form_application", "drupal_application_id"),
     }
 )
 
@@ -123,6 +125,9 @@ EXCLUDE_TABLES = [
     "public.social_auth_nonce",
     "public.social_auth_association",
     "public.helusers_oidcbackchannellogoutevent",
+    # Retry queue for Drupal payment sync: payload duplicates account and
+    # reference numbers, and pending events must not be replayed elsewhere.
+    "public.invoicing_drupalpaymentsyncoutboxevent",
 ]
 
 

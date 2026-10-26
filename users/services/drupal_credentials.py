@@ -2,14 +2,19 @@
 
 import json
 import logging
+from typing import Iterable, Iterator
 from uuid import UUID
 
 from django.contrib.auth import get_user_model
 
+from sanitizers.person import LOCALDEV_PASSWORD
 from users.masking import mask_string, mask_uuid
 from users.models import Profile
 
 _logger = logging.getLogger(__name__)
+
+RESTORE_MAP_TABLE = "asu_restore_backend_profile_map"
+RESTORE_INSERT_BATCH_SIZE = 1000
 
 
 class ProfileNotFoundError(Exception):
@@ -118,6 +123,64 @@ def sync_drupal_user_credentials(
     """
     profile = find_profile_for_drupal_user(drupal_uuid, email)
     return build_masked_credentials(profile, dry_run=dry_run)
+
+
+def build_restore_credentials_sql(
+    profiles: Iterable[Profile], batch_size: int = RESTORE_INSERT_BATCH_SIZE
+) -> Iterator[str]:
+    """
+    Yield MariaDB statements that re-link a restored Drupal dump to this backend.
+
+    Drupal stores field_backend_profile / field_backend_password masked with
+    the source environment's HASHIDS_SALT. After restoring sanitized dumps into
+    another environment, recompute both with this environment's salt. Django
+    passwords in a sanitized dump are all LOCALDEV_PASSWORD, so no reset is
+    needed. Profiles are matched to Drupal users by Profile.id == users.uuid.
+
+    Parameters:
+        profiles: Profiles to link; profiles without a user are skipped.
+        batch_size: Rows per INSERT statement.
+
+    Yields:
+        SQL statements, one per item, wrapped in a single transaction.
+    """
+    yield "START TRANSACTION;"
+    # ASCII columns: a server-default collation would clash with Drupal's
+    # utf8mb4 collation on the users.uuid join (MariaDB error 1267).
+    yield (
+        f"CREATE TEMPORARY TABLE {RESTORE_MAP_TABLE} "
+        "(uuid VARCHAR(128) CHARACTER SET ascii PRIMARY KEY, "
+        "masked_profile_id VARCHAR(255) CHARACTER SET ascii NOT NULL);"
+    )
+
+    # Values are UUIDs and Hashids output (alphanumeric), so no quoting issues.
+    rows = (
+        f"('{profile.pk}', '{mask_uuid(profile.pk)}')"
+        for profile in profiles
+        if profile.user_id is not None
+    )
+    batch = []
+    for row in rows:
+        batch.append(row)
+        if len(batch) == batch_size:
+            yield f"INSERT INTO {RESTORE_MAP_TABLE} VALUES {', '.join(batch)};"
+            batch = []
+    if batch:
+        yield f"INSERT INTO {RESTORE_MAP_TABLE} VALUES {', '.join(batch)};"
+
+    yield (
+        "UPDATE user__field_backend_profile f "
+        "JOIN users u ON u.uid = f.entity_id "
+        f"JOIN {RESTORE_MAP_TABLE} m ON m.uuid = u.uuid "
+        "SET f.field_backend_profile_value = m.masked_profile_id;"
+    )
+    yield (
+        "UPDATE user__field_backend_password "
+        f"SET field_backend_password_value = '{mask_string(LOCALDEV_PASSWORD)}' "
+        "WHERE field_backend_password_value <> '';"
+    )
+    yield f"DROP TEMPORARY TABLE {RESTORE_MAP_TABLE};"
+    yield "COMMIT;"
 
 
 def credentials_to_json(credentials: dict) -> str:

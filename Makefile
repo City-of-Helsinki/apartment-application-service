@@ -37,16 +37,22 @@ SANITIZED_DUMP_DIR ?= .
 
 create-sanitized-dump:
 	@mkdir -p "$(SANITIZED_DUMP_DIR)"
-	@# Delete the 5th-oldest dump and older (keep the four newest).
-	@old=$$(ls -1t "$(SANITIZED_DUMP_DIR)"/sanitized_*.sql 2>/dev/null | tail -n +5); \
+	@# Write to a .tmp file first so a failed dump never replaces or prunes good ones.
+	@outfile="$(SANITIZED_DUMP_DIR)/sanitized_$$(date +%Y%m%d%H%M%S).sql"; \
+	if ! ./manage.py create_sanitized_dump > "$$outfile.tmp" || [ ! -s "$$outfile.tmp" ]; then \
+		rm -f -- "$$outfile.tmp"; \
+		echo "Sanitized dump failed; existing dumps left untouched." >&2; \
+		exit 1; \
+	fi; \
+	mv -- "$$outfile.tmp" "$$outfile"; \
+	echo "Created $$outfile"
+	@# Keep the four newest dumps.
+	@old=$$(ls -1 "$(SANITIZED_DUMP_DIR)"/sanitized_*.sql 2>/dev/null | sort -r | tail -n +5); \
 	if [ -n "$$old" ]; then \
 		echo "Removing old dumps:"; \
 		echo "$$old"; \
 		echo "$$old" | xargs rm -f --; \
 	fi
-	@outfile="$(SANITIZED_DUMP_DIR)/sanitized_$$(date +%Y%m%d%H%M%S).sql"; \
-	./manage.py create_sanitized_dump > "$$outfile"; \
-	echo "Created $$outfile"
 
 test:
 	pytest

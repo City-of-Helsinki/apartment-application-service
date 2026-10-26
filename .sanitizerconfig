@@ -18,6 +18,7 @@ config:
     - --exclude-table-data=public.social_auth_nonce
     - --exclude-table-data=public.social_auth_association
     - --exclude-table-data=public.helusers_oidcbackchannellogoutevent
+    - --exclude-table-data=public.invoicing_drupalpaymentsyncoutboxevent
 strategy:
   apartment_projectextradata:
     created_at: null
@@ -79,7 +80,7 @@ strategy:
     applicants_count: types.integer
     created_at: null
     customer_id: null
-    drupal_application_id: types.integer
+    drupal_application_id: null
     external_uuid: null
     handler_information: person.handler_information
     has_children: null
@@ -246,6 +247,29 @@ strategy:
     type: null
     updated_at: types.datetime
     value: types.decimal
+  invoicing_drupalpaymentsyncoutboxevent:
+    account_number: types.char
+    amount: types.decimal
+    apartment_installment_id: null
+    application_id: types.integer
+    attempts: types.integer
+    created_at: null
+    due_date: types.date
+    id: null
+    idempotency_key: types.char
+    installment_type: types.char
+    last_error_code: types.char
+    last_error_message: types.text
+    next_retry_at: types.datetime
+    payload: null
+    processed_at: types.datetime
+    project_uuid: null
+    reference_number: types.char
+    reservation_id: types.integer
+    sent_to_sap_at: types.datetime
+    source_event_id: null
+    status: null
+    updated_at: null
   invoicing_payment:
     amount: types.decimal
     apartment_installment_id: null

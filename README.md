@@ -221,8 +221,9 @@ make create-sanitized-dump
 ```
 
 This writes `sanitized_YYYYMMDDHHMMSS.sql` under `SANITIZED_DUMP_DIR` (default:
-current directory). Before creating, it deletes the fifth-oldest dump and any
-older ones (keeps the four newest). Override the directory with
+current directory). The dump is written to a `.tmp` file first and renamed only
+when it succeeds; after that, older dumps are deleted so the four newest remain.
+A failed dump leaves existing dumps untouched. Override the directory with
 `make create-sanitized-dump SANITIZED_DUMP_DIR=/tmp`.
 
 Alternatively:
@@ -250,6 +251,41 @@ psql "$DATABASE_URL" -f sanitized_YYYYMMDDHHMM.sql
    `PUBLIC_PGP_KEY` / `PRIVATE_PGP_KEY` for the dump public key you used).
 4. All user passwords in the dump are set to `localdev`.
 5. Run `python manage.py migrate` if the dump is older than your current code.
+
+### Restore together with Drupal
+
+Drupal users are linked to Django profiles by `Profile.id` == Drupal
+`users.uuid`, which both dumps keep. Drupal also stores masked copies of the
+profile id and backend password (`field_backend_profile`,
+`field_backend_password`), encoded with the source environment's
+`HASHIDS_SALT`, so they must be recomputed in the target environment:
+
+1. Restore this dump (above) and the Drupal dump (`drush asu:sql:sanitized-dump`
+   in drupal-asuntotuotanto).
+2. Generate the fix with this environment's settings and apply it to Drupal's
+   database:
+
+```bash
+./manage.py drupal_restore_credentials_sql --i-know-this-is-a-restored-dump > fix.sql
+drush sql:query --file=fix.sql   # in the Drupal container
+```
+
+3. Run `drush cr`. Drupal users can now reach their backend profiles.
+
+Never apply `fix.sql` to production: it sets every Drupal user's backend
+password to `localdev`.
+
+### What is intentionally kept
+
+- `users_profile.id`: the shared key with Drupal `users.uuid`. It is a random
+  UUID4 and can only be traced to a person with access to production data.
+- `users_user.uuid`: the OIDC subject from the City's login service. Kept
+  because it is useful for debugging; it can be matched to a Helsinki-profiili
+  identity by anyone with access to that service.
+- `Application.drupal_application_id`: links applications to Drupal
+  `asu_application` entities.
+- `right_of_residence` (applications, reservations, customers) and
+  `ApartmentReservation.queue_position`: they drive HASO queue ordering.
 
 When models gain new fields, regenerate `.sanitizerconfig` with
 `python scripts/generate_sanitizerconfig.py` via `manage.py shell` and keep

@@ -160,4 +160,5 @@ schemas/*
 
 # Anonymized database dumps (never commit)
 sanitized_*.sql
+sanitized_*.sql.tmp
 *.sanitized.sql

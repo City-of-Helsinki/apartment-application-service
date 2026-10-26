@@ -243,23 +243,26 @@ def test_exclude_table_data_tables_are_configured():
         "public.resilient_logger_resilientlogentry",
         "public.asko_import_askoimportlogentry",
         "public.social_auth_usersocialauth",
+        "public.invoicing_drupalpaymentsyncoutboxevent",
     ]
     for table in required:
         assert any(table in param for param in excluded), table
 
 
-@pytest.mark.django_db
+# transaction=True commits the rows so the separate pg_dump process sees them.
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.skipif(not shutil.which("pg_dump"), reason="pg_dump not installed")
 def test_sanitized_dump_does_not_contain_original_pii():
     """
     - Creates a profile with distinctive PII
     - Runs database-sanitizer against the test database
     - Asserts original name/email/HETU are absent from dump SQL
+    - Asserts the profile id and user UUID are kept
     """
     distinctive_first = "ZxqwvUniqueFirst"
     distinctive_email = "zxqwv.unique@helsinki-test.example"
     distinctive_hetu = "010190-999X"
-    ProfileFactory(
+    profile = ProfileFactory(
         first_name=distinctive_first,
         email=distinctive_email,
         national_identification_number=distinctive_hetu,
@@ -280,6 +283,9 @@ def test_sanitized_dump_does_not_contain_original_pii():
     assert distinctive_first not in dump
     assert distinctive_email not in dump
     assert distinctive_hetu not in dump
+    # Shared key with Drupal users.uuid must survive the dump.
+    assert str(profile.pk) in dump
+    assert str(profile.user.uuid) in dump
     assert "COPY" in dump
 
 
@@ -366,6 +372,19 @@ def test_pii_overrides_win_over_type_defaults():
     assert strategy["customer_customer"]["additional_information"] == (
         "person.additional_information"
     )
+
+
+@pytest.mark.django_db
+def test_identifiers_are_kept():
+    """
+    - users_user.uuid stays as is: useful for debugging
+    - users_profile.id stays as is: it is the shared key with Drupal users.uuid
+    - Application.drupal_application_id stays as is: it links to Drupal
+    """
+    strategy = _strategy()
+    assert strategy["users_user"]["uuid"] is None
+    assert strategy["users_profile"]["id"] is None
+    assert strategy["application_form_application"]["drupal_application_id"] is None
 
 
 @pytest.mark.django_db
