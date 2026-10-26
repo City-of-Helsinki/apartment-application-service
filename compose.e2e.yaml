@@ -92,15 +92,6 @@ services:
     networks:
       - e2e
 
-  django-elastic:
-    image: elasticsearch:7.9.1
-    environment:
-      - discovery.type=single-node
-    ports:
-      - "127.0.0.1:19201:9200"
-    networks:
-      - e2e
-
   # Generic OIDC provider standing in for Tunnistamo/Keycloak so the sales
   # API can be exercised with real signed Bearer JWTs. Tokens are minted per
   # scope from mock-oidc-config.json. The mock derives each token's `iss`
@@ -166,10 +157,6 @@ services:
     environment:
       DATABASE_URL: "postgres://apartment-application:${E2E_DJANGO_DB_PASSWORD:?Set E2E_DJANGO_DB_PASSWORD in .env.e2e — see README.md}@django-db/apartment-application"
       DATABASE_HOST: django-db
-      ELASTICSEARCH_HOST: django-elastic
-      ELASTICSEARCH_HOST_PORT: "9200"
-      ELASTICSEARCH_URL: "http://django-elastic:9200"
-      TEST_ELASTICSEARCH_URL: "http://django-elastic:9200"
       DRUPAL_SEARCH_API_TOKEN_URL: "http://drupal-app:8080/oauth/token"
       DRUPAL_SEARCH_API_BASE_URL: "http://drupal-app:8080/fi"
       DRUPAL_SEARCH_API_VERIFY_SSL: "False"
@@ -200,7 +187,6 @@ services:
       - "127.0.0.1:18081:8081"
     depends_on:
       - django-db
-      - django-elastic
       - mock-oidc
     networks:
       - e2e
@@ -253,6 +239,10 @@ services:
   test-runner:
     image: mcr.microsoft.com/playwright:v1.64.1-jammy
     working_dir: /tests
+    # Chromium keeps renderer memory in /dev/shm. Docker's 64MB default runs
+    # out with parallel workers and kills pages ("Page crashed",
+    # "Target crashed", net::ERR_ABORTED).
+    shm_size: "1gb"
     volumes:
       - ./tests-e2e:/tests
       # Read by tests/baseline to know which content to expect.

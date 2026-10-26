@@ -40,7 +40,7 @@ fi
 # prevent drupal-app etc. from starting at all, even though they don't need
 # a build and have nothing to do with the failure.
 echo "[e2e] Ensuring Drupal stack is up to date..."
-$COMPOSE up -d drupal-db drupal-elastic drupal-redis drupal-app django-db django-elastic \
+$COMPOSE up -d drupal-db drupal-elastic drupal-redis drupal-app django-db \
   mock-oidc-server mock-oidc
 
 echo "[e2e] Ensuring Django stack is up to date..."
