@@ -324,6 +324,11 @@ class UnsoldApartmentsExportService(CSVExportService):
 
 
 class ApplicantMailingListExportService(CSVExportService):
+    list_type_full = "full"
+    list_type_short = "short"
+
+    allowed_list_types = [list_type_full, list_type_short]
+
     COLUMNS = [
         ("Asunnon numero", "apartment_number"),
         ("Sijainti jonossa", "queue_position"),
@@ -356,6 +361,24 @@ class ApplicantMailingListExportService(CSVExportService):
         ("Asuinpinta-ala", "living_area"),
     ]
 
+    COLUMNS_SHORT = [
+        ("Asunnon numero", "apartment_number"),
+        ("Ensisijainen hakija etunimi", "primary_profile.first_name"),
+        ("Ensisijainen hakija sukunimi", "primary_profile.last_name"),
+        ("Ensisijainen hakija sähköposti", "primary_profile.email"),
+        ("Ensisijainen hakija puhelin", "primary_profile.phone_number"),
+        ("Ensisijainen hakija osoite", "primary_profile.street_address"),
+        ("Ensisijainen hakija postinumero", "primary_profile.postal_code"),
+        ("Ensisijainen hakija postitoimipaikka", "primary_profile.city"),
+        ("Kanssahakija etunimi", "secondary_profile.first_name"),
+        ("Kanssahakija sukunimi", "secondary_profile.last_name"),
+        ("Kanssahakija sähköposti", "secondary_profile.email"),
+        ("Kanssahakija puhelin", "secondary_profile.phone_number"),
+        ("Kanssahakija osoite", "secondary_profile.street_address"),
+        ("Kanssahakija postinumero", "secondary_profile.postal_code"),
+        ("Kanssahakija postitoimipaikka", "secondary_profile.city"),
+    ]
+
     COLUMNS_ROO_PAYMENTS = [
         ("AO-maksu 1", InstallmentType.RIGHT_OF_OCCUPANCY_PAYMENT.value),
         ("Maksettu", "Maksettu"),
@@ -375,9 +398,30 @@ class ApplicantMailingListExportService(CSVExportService):
         export_first_in_queue,  # export reservers who are first in queue
     ]
 
-    def __init__(self, reservations: QuerySet, export_type: str):
+    def __init__(
+        self,
+        reservations: QuerySet,
+        export_type: str,
+        list_type: str = list_type_full,
+    ):
+        """Initialize mailing list export service.
+
+        Args:
+            reservations (QuerySet): Reservations to export.
+            export_type (str): Reservation filter type.
+            list_type (str): Either full or short output.
+        """
         self.reservations: QuerySet = reservations
         self.export_type = export_type
+        self.list_type = list_type
+
+        if self.list_type not in self.allowed_list_types:
+            raise ValueError(f"Invalid list type '{self.list_type}'")
+
+        if self.list_type == self.list_type_short:
+            self.add_roo_columns = False
+            self.COLUMNS = list(self.COLUMNS_SHORT)
+            return
 
         self.add_roo_columns = (
             self.any_reservation_has_roo_installments()
@@ -465,15 +509,18 @@ class ApplicantMailingListExportService(CSVExportService):
                 )
 
         elif self.export_type == ApartmentReservationState.SOLD.value:
-            reservations = qs.filter(
-                Q(state=ApartmentReservationState.SOLD)
-                | Q(
-                    state=ApartmentReservationState.CANCELED,
-                    state_change_events__cancellation_reason=(
-                        ApartmentReservationCancellationReason.TERMINATED
-                    ),
-                )
-            ).distinct()
+            if self.list_type == self.list_type_short:
+                reservations = qs.filter(state=ApartmentReservationState.SOLD)
+            else:
+                reservations = qs.filter(
+                    Q(state=ApartmentReservationState.SOLD)
+                    | Q(
+                        state=ApartmentReservationState.CANCELED,
+                        state_change_events__cancellation_reason=(
+                            ApartmentReservationCancellationReason.TERMINATED
+                        ),
+                    )
+                ).distinct()
 
         else:
             reservations = qs.exclude(state=ApartmentReservationState.CANCELED)
