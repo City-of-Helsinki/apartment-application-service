@@ -275,6 +275,9 @@ drush sql:query --file=fix.sql   # in the Drupal container
 Never apply `fix.sql` to production: it sets every Drupal user's backend
 password to `localdev`.
 
+To check the whole cycle end to end against the local dev stacks, follow
+[docs/sanitized-dump-restore-check.md](docs/sanitized-dump-restore-check.md).
+
 ### What is intentionally kept
 
 - `users_profile.id`: the shared key with Drupal `users.uuid`. It is a random
@@ -286,6 +289,10 @@ password to `localdev`.
   `asu_application` entities.
 - `right_of_residence` (applications, reservations, customers) and
   `ApartmentReservation.queue_position`: they drive HASO queue ordering.
+
+`ApplicationApartment.priority_number` (the applicant's apartment preference)
+is replaced with unique counter values, so preference order in a dump is not
+realistic.
 
 When models gain new fields, regenerate `.sanitizerconfig` with
 `python scripts/generate_sanitizerconfig.py` via `manage.py shell` and keep
