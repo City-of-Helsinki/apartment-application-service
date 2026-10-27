@@ -277,6 +277,8 @@ password to `localdev`.
 
 To check the whole cycle end to end against the local dev stacks, follow
 [docs/sanitized-dump-restore-check.md](docs/sanitized-dump-restore-check.md).
+What the platform needs for scheduled dumps in production is in
+[docs/sanitized-dump-platform.md](docs/sanitized-dump-platform.md).
 
 ### What is intentionally kept
 
