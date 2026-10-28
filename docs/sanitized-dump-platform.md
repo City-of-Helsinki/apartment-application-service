@@ -77,7 +77,9 @@ environment's `HASHIDS_SALT`; without it no customer can reach the backend.
 **Never run step 3 against production**: it sets every Drupal user's backend
 password to `localdev`.
 
-All restored users' passwords are `localdev`. Customer SAML logins will not map
+All restored users' passwords are `localdev`. For the Drupal dump this can be
+changed by setting `ASU_SANITIZED_DUMP_PASSWORD_HASH` (a Drupal password hash)
+in the Drupal dump job, e.g. from a secret. Customer SAML logins will not map
 to restored Drupal users: their SAML hashes are replaced and `authmap` data is
 left out.
 
