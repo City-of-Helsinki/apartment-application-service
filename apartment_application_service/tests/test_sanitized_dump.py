@@ -153,12 +153,25 @@ def test_unique_reference_numbers():
 def test_password_sanitizer_returns_usable_hash():
     """
     - sanitize_password returns a Django-compatible hash
-    - Hash verifies against the documented localdev password
+    - Hash verifies against the SANITIZED_DUMP_PASSWORD setting
     """
     from django.contrib.auth.hashers import check_password
 
     hashed = person.sanitize_password("anything")
-    assert check_password(person.LOCALDEV_PASSWORD, hashed)
+    assert check_password(settings.SANITIZED_DUMP_PASSWORD, hashed)
+
+
+def test_password_sanitizer_requires_dump_password(settings):
+    """
+    - Without SANITIZED_DUMP_PASSWORD the sanitizer refuses to guess a password
+    - Empty values still pass through without needing the setting
+    """
+    from django.core.exceptions import ImproperlyConfigured
+
+    settings.SANITIZED_DUMP_PASSWORD = ""
+    with pytest.raises(ImproperlyConfigured):
+        person.sanitize_password("anything")
+    assert person.sanitize_password("") == ""
 
 
 def test_hetu_sanitizer_returns_valid_format():

@@ -1,3 +1,4 @@
+from django.core.exceptions import ImproperlyConfigured
 from django.core.management.base import BaseCommand, CommandError
 
 from users.models import Profile
@@ -12,7 +13,8 @@ class Command(BaseCommand):
         "backend by recomputing masked field_backend_profile and "
         "field_backend_password values with this environment's HASHIDS_SALT. "
         "Only for environments restored from sanitized dumps: applying the SQL "
-        'sets every Drupal user\'s backend password to "localdev".'
+        "sets every Drupal user's backend password to SANITIZED_DUMP_PASSWORD, "
+        "which must match the value used when the dump was made."
     )
 
     def add_arguments(self, parser):
@@ -31,5 +33,8 @@ class Command(BaseCommand):
             )
 
         profiles = Profile.objects.filter(user__isnull=False).only("id", "user")
-        for statement in build_restore_credentials_sql(profiles.iterator()):
-            self.stdout.write(statement)
+        try:
+            for statement in build_restore_credentials_sql(profiles.iterator()):
+                self.stdout.write(statement)
+        except ImproperlyConfigured as exc:
+            raise CommandError(str(exc)) from exc

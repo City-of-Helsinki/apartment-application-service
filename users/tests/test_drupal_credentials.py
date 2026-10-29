@@ -4,10 +4,11 @@ from types import SimpleNamespace
 from uuid import UUID
 
 import pytest
+from django.conf import settings as django_settings
+from django.core.exceptions import ImproperlyConfigured
 from django.core.management import call_command
 from django.core.management.base import CommandError
 
-from sanitizers.person import LOCALDEV_PASSWORD
 from users.masking import mask_string, mask_uuid, unmask_string
 from users.services.drupal_credentials import (
     build_masked_credentials,
@@ -117,7 +118,7 @@ def test_build_restore_credentials_sql_maps_profiles(profile, other_profile):
     """
     - Each profile with a user is mapped from its UUID to its masked profile id.
     - Profiles without a user are skipped.
-    - The backend password is set to the masked localdev password.
+    - The backend password is set to the masked SANITIZED_DUMP_PASSWORD.
     - Statements are wrapped in one transaction.
     - Map columns are ASCII so the join does not hit a MariaDB collation clash.
     """
@@ -132,8 +133,21 @@ def test_build_restore_credentials_sql_maps_profiles(profile, other_profile):
     assert statements[1].count("CHARACTER SET ascii") == 2
     assert f"('{profile.pk}', '{mask_uuid(profile.pk)}')" in sql
     assert str(other_profile.pk) not in sql
-    assert f"'{mask_string(LOCALDEV_PASSWORD)}'" in sql
-    assert unmask_string(mask_string(LOCALDEV_PASSWORD)) == LOCALDEV_PASSWORD
+    password = django_settings.SANITIZED_DUMP_PASSWORD
+    assert f"'{mask_string(password)}'" in sql
+    assert unmask_string(mask_string(password)) == password
+
+
+def test_build_restore_credentials_sql_requires_dump_password(settings):
+    """
+    - Without SANITIZED_DUMP_PASSWORD the generator raises before yielding SQL,
+      so no partial fix.sql is written.
+    """
+    settings.SANITIZED_DUMP_PASSWORD = ""
+    statements = build_restore_credentials_sql([])
+
+    with pytest.raises(ImproperlyConfigured):
+        next(statements)
 
 
 def test_build_restore_credentials_sql_batches_inserts():
@@ -188,3 +202,21 @@ def test_drupal_restore_credentials_sql_command_prints_sql(profile):
     )
 
     assert f"('{profile.pk}', '{mask_uuid(profile.pk)}')" in out.getvalue()
+
+
+@pytest.mark.django_db
+def test_drupal_restore_credentials_sql_command_requires_dump_password(settings):
+    """
+    - Without SANITIZED_DUMP_PASSWORD the command fails with a clear error
+      and prints no SQL.
+    """
+    settings.SANITIZED_DUMP_PASSWORD = ""
+    out = StringIO()
+
+    with pytest.raises(CommandError, match="SANITIZED_DUMP_PASSWORD"):
+        call_command(
+            "drupal_restore_credentials_sql",
+            "--i-know-this-is-a-restored-dump",
+            stdout=out,
+        )
+    assert out.getvalue() == ""

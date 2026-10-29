@@ -32,13 +32,15 @@ checked out next to it:
 A=$(pwd)
 D=$(cd ../drupal-asuntotuotanto && pwd)
 S=$(mktemp -d)/restore-cycle && mkdir -p "$S"   # working dir for dumps
+PW=localdev   # SANITIZED_DUMP_PASSWORD: same value for dumping and restoring
 ```
 
 ## 1. Dump the source databases
 
 ```bash
 # Django: sanitized pg_dump to stdout
-docker exec apartment-application-backend ./manage.py create_sanitized_dump > "$S/django.sql"
+docker exec -e SANITIZED_DUMP_PASSWORD="$PW" apartment-application-backend \
+  ./manage.py create_sanitized_dump > "$S/django.sql"
 
 # Drupal: writes sanitized_<timestamp>.sql inside the container, copy it out
 docker exec asuntotuotanto-app drush asu:sql:sanitized-dump --directory=/tmp/asu-restore
@@ -91,6 +93,7 @@ docker run -d --name asu-restore-django --network asu-restore \
   --env-file "$A/.env" \
   -e DATABASE_URL=postgres://restore:restore@asu-restore-pg/restore \
   -e DATABASE_HOST= -e HASHIDS_SALT=restore-check-salt -e ALLOWED_HOSTS='*' \
+  -e SANITIZED_DUMP_PASSWORD="$PW" \
   -v "$A:/app" -w /app --entrypoint python \
   apartment-application-service-django manage.py runserver 0.0.0.0:8081
 ```
@@ -195,7 +198,9 @@ docker exec asu-restore-drupal drush cr
 
 `fix.sql` is one transaction: a temporary UUID → masked id table, two
 `UPDATE`s and `COMMIT`. **Never apply it to production.** It sets every
-Drupal user's backend password to `localdev`.
+Drupal user's backend password to `SANITIZED_DUMP_PASSWORD`. If the target
+backend's `SANITIZED_DUMP_PASSWORD` differs from the one used when dumping, the
+check in step 7 fails with `401 No active account`.
 
 ## 7. Check again (after the fix)
 

@@ -7,7 +7,7 @@ from uuid import UUID
 
 from django.contrib.auth import get_user_model
 
-from sanitizers.person import LOCALDEV_PASSWORD
+from sanitizers.person import dump_password
 from users.masking import mask_string, mask_uuid
 from users.models import Profile
 
@@ -134,8 +134,9 @@ def build_restore_credentials_sql(
     Drupal stores field_backend_profile / field_backend_password masked with
     the source environment's HASHIDS_SALT. After restoring sanitized dumps into
     another environment, recompute both with this environment's salt. Django
-    passwords in a sanitized dump are all LOCALDEV_PASSWORD, so no reset is
-    needed. Profiles are matched to Drupal users by Profile.id == users.uuid.
+    passwords in a sanitized dump are all SANITIZED_DUMP_PASSWORD, so no reset
+    is needed; it must have the same value here as when the dump was made.
+    Profiles are matched to Drupal users by Profile.id == users.uuid.
 
     Parameters:
         profiles: Profiles to link; profiles without a user are skipped.
@@ -143,7 +144,12 @@ def build_restore_credentials_sql(
 
     Yields:
         SQL statements, one per item, wrapped in a single transaction.
+
+    Raises:
+        ImproperlyConfigured: When SANITIZED_DUMP_PASSWORD is not set, before
+            any statement is yielded.
     """
+    masked_password = mask_string(dump_password())
     yield "START TRANSACTION;"
     # ASCII columns: a server-default collation would clash with Drupal's
     # utf8mb4 collation on the users.uuid join (MariaDB error 1267).
@@ -176,7 +182,7 @@ def build_restore_credentials_sql(
     )
     yield (
         "UPDATE user__field_backend_password "
-        f"SET field_backend_password_value = '{mask_string(LOCALDEV_PASSWORD)}' "
+        f"SET field_backend_password_value = '{masked_password}' "
         "WHERE field_backend_password_value <> '';"
     )
     yield f"DROP TEMPORARY TABLE {RESTORE_MAP_TABLE};"

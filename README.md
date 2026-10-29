@@ -216,6 +216,11 @@ rewrites PII in the dump stream. Production rows are not updated.
 
 ### Create a dump (production)
 
+Set `SANITIZED_DUMP_PASSWORD` first: every user in the dump gets this password.
+The dump refuses to run without it. Use the same value when re-linking a
+restored Drupal dump (below). For local use, `SANITIZED_DUMP_PASSWORD=localdev`
+in `.env` is fine.
+
 ```bash
 make create-sanitized-dump
 ```
@@ -249,7 +254,8 @@ psql "$DATABASE_URL" -f sanitized_YYYYMMDDHHMM.sql
 
 3. Use the example PGP keys from `.env.example` (or set matching
    `PUBLIC_PGP_KEY` / `PRIVATE_PGP_KEY` for the dump public key you used).
-4. All user passwords in the dump are set to `localdev`.
+4. All user passwords in the dump are the `SANITIZED_DUMP_PASSWORD` used when
+   dumping.
 5. Run `python manage.py migrate` if the dump is older than your current code.
 
 ### Restore together with Drupal
@@ -263,7 +269,8 @@ profile id and backend password (`field_backend_profile`,
 1. Restore this dump (above) and the Drupal dump (`drush asu:sql:sanitized-dump`
    in drupal-asuntotuotanto).
 2. Generate the fix with this environment's settings and apply it to Drupal's
-   database:
+   database. `SANITIZED_DUMP_PASSWORD` must have the same value as when the
+   dump was made:
 
 ```bash
 ./manage.py drupal_restore_credentials_sql --i-know-this-is-a-restored-dump > fix.sql
@@ -273,7 +280,7 @@ drush sql:query --file=fix.sql   # in the Drupal container
 3. Run `drush cr`. Drupal users can now reach their backend profiles.
 
 Never apply `fix.sql` to production: it sets every Drupal user's backend
-password to `localdev`.
+password to `SANITIZED_DUMP_PASSWORD`.
 
 To check the whole cycle end to end against the local dev stacks, follow
 [docs/sanitized-dump-restore-check.md](docs/sanitized-dump-restore-check.md).

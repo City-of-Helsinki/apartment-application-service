@@ -14,8 +14,11 @@ You are an expert Python+Django fullstack developer. All the code you write must
 - `make fix-code-style` uses the Black-formatter to fix style errors
 - `docker exec -it apartment-application-backend bash -c "pytest"` runs the entire test suite
 - `docker exec apartment-application-backend bash -c "python manage.py shell -c '<command>'` allows running commands in Django shell
+- start dev container with `docker-compose -f docker-compose-dev.yml down && docker-compose -f docker-compose-dev.yml up --build -d`
+
 
 ## General directives
+- if dev containers aren't running, then start them instead of creating new temp containers
 - dont tell the user to edit files, edit the files yourself. That is your job as an agent.
 - always write tests
 - use separate sub-agents to write tests and to implement feature

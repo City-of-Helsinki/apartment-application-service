@@ -16,7 +16,7 @@ between the two dumps won't match after restore.
 | | Django (apartment-application-service) | Drupal (drupal-asuntotuotanto) |
 |---|---|---|
 | Image | the deployed production image | the deployed production image |
-| Env / secrets | same as the app pod (DB credentials etc.) | same as the app pod |
+| Env / secrets | same as the app pod (DB credentials etc.), plus **`SANITIZED_DUMP_PASSWORD`** (required, from a secret) | same as the app pod, optionally `ASU_SANITIZED_DUMP_PASSWORD_HASH` |
 | Command | `make create-sanitized-dump SANITIZED_DUMP_DIR=/dumps/django` | `drush asu:sql:sanitized-dump --directory=/dumps/drupal` |
 | Output | `sanitized_YYYYMMDDHHMMSS.sql`, the 4 newest kept | same |
 | DB access needed | read only (`pg_dump`) | read only (single transaction) |
@@ -66,7 +66,8 @@ After copying the newest pair into the test environment:
 1. Import the Django dump into the test Postgres (`psql -f`; use a `psql` at
    least as new as the `pg_dump` that wrote it) and the Drupal dump into the
    test MariaDB.
-2. In the test backend pod:
+2. In the test backend pod, with `SANITIZED_DUMP_PASSWORD` set to the **same
+   value as the production dump job**:
    `./manage.py drupal_restore_credentials_sql --i-know-this-is-a-restored-dump > fix.sql`
 3. In the test Drupal pod: `drush sql:query --file=fix.sql`, then `drush cr`.
 4. If the deployed code is newer than the dump: `./manage.py migrate` and
@@ -75,11 +76,11 @@ After copying the newest pair into the test environment:
 Step 2–3 re-links Drupal users to their backend profiles for the test
 environment's `HASHIDS_SALT`; without it no customer can reach the backend.
 **Never run step 3 against production**: it sets every Drupal user's backend
-password to `localdev`.
+password to `SANITIZED_DUMP_PASSWORD`.
 
-All restored users' passwords are `localdev`. For the Drupal dump this can be
-changed by setting `ASU_SANITIZED_DUMP_PASSWORD_HASH` (a Drupal password hash)
-in the Drupal dump job, e.g. from a secret. Customer SAML logins will not map
+Restored Django users' passwords are `SANITIZED_DUMP_PASSWORD`. Restored Drupal
+users' passwords are `localdev` unless `ASU_SANITIZED_DUMP_PASSWORD_HASH` (a
+Drupal password hash) is set in the Drupal dump job, e.g. from a secret. Customer SAML logins will not map
 to restored Drupal users: their SAML hashes are replaced and `authmap` data is
 left out.
 

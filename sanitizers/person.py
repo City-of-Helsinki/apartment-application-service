@@ -11,16 +11,34 @@ import itertools
 import random
 from datetime import date
 
+from django.conf import settings
 from django.contrib.auth.hashers import make_password
+from django.core.exceptions import ImproperlyConfigured
 from faker import Faker
-
-LOCALDEV_PASSWORD = "localdev"
 
 _faker = Faker("fi_FI")
 _email_counter = itertools.count(1)
 _username_counter = itertools.count(1)
 _reference_counter = itertools.count(1)
-_password_hash: str | None = None
+_password_hashes: dict[str, str] = {}
+
+
+def dump_password() -> str:
+    """
+    Return the password set for every user in anonymized dumps.
+
+    Comes from the SANITIZED_DUMP_PASSWORD setting (env variable). The same
+    value is needed when dumping and when re-linking a restored Drupal dump.
+
+    Raises:
+        ImproperlyConfigured: When SANITIZED_DUMP_PASSWORD is not set.
+    """
+    password = settings.SANITIZED_DUMP_PASSWORD
+    if not password:
+        raise ImproperlyConfigured(
+            "Set SANITIZED_DUMP_PASSWORD to the password restored users should get."
+        )
+    return password
 
 
 def _passthrough_empty(value: str | None) -> str | None | bool:
@@ -135,16 +153,17 @@ def sanitize_key_value(value: str | None) -> str | None:
 
 def sanitize_password(value: str | None) -> str | None:
     """
-    Replace a password hash with a hash of the documented localdev password.
+    Replace a password hash with a hash of the SANITIZED_DUMP_PASSWORD.
 
-    All restored users can log in with password ``localdev``.
+    All restored users can log in with that password. The hash is computed
+    once per password, since hashing is slow.
     """
-    global _password_hash
     if _passthrough_empty(value):
         return value
-    if _password_hash is None:
-        _password_hash = make_password(LOCALDEV_PASSWORD)
-    return _password_hash
+    password = dump_password()
+    if password not in _password_hashes:
+        _password_hashes[password] = make_password(password)
+    return _password_hashes[password]
 
 
 def fake_national_identification_number(birthday: date) -> str:

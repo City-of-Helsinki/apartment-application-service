@@ -87,6 +87,7 @@ env = environ.Env(
     PUBLIC_PGP_KEY=(str, ""),
     PRIVATE_PGP_KEY=(str, ""),
     DUMP_PUBLIC_PGP_KEY=(str, ""),
+    SANITIZED_DUMP_PASSWORD=(str, ""),
     SAP_SFTP_USERNAME=(str, ""),
     SAP_SFTP_PASSWORD=(str, ""),
     SAP_SFTP_HOST=(str, ""),
@@ -469,6 +470,9 @@ DUMP_PUBLIC_PGP_KEY = env.str(
     default=DEFAULT_DUMP_PUBLIC_PGP_KEY,
     multiline=True,
 )
+# Password of every user in anonymized dumps. Must be the same when dumping
+# and when running drupal_restore_credentials_sql on the restored copy.
+SANITIZED_DUMP_PASSWORD = env.str("SANITIZED_DUMP_PASSWORD")
 
 # Metadata constants =
 METADATA_HANDLER_INFORMATION = env.str("METADATA_HANDLER_INFORMATION")
