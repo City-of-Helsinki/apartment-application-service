@@ -1,15 +1,21 @@
 """Sync masked API credentials between Django profiles and Drupal users."""
 
+import itertools
 import json
 import logging
+from typing import Iterable, Iterator
 from uuid import UUID
 
 from django.contrib.auth import get_user_model
 
+from sanitizers.person import dump_password
 from users.masking import mask_string, mask_uuid
 from users.models import Profile
 
 _logger = logging.getLogger(__name__)
+
+RESTORE_MAP_TABLE = "asu_restore_backend_profile_map"
+RESTORE_INSERT_BATCH_SIZE = 1000
 
 
 class ProfileNotFoundError(Exception):
@@ -118,6 +124,82 @@ def sync_drupal_user_credentials(
     """
     profile = find_profile_for_drupal_user(drupal_uuid, email)
     return build_masked_credentials(profile, dry_run=dry_run)
+
+
+def _batched(items: Iterable[str], size: int) -> Iterator[list[str]]:
+    """Yield lists of at most ``size`` items (itertools.batched needs 3.12)."""
+    batch = []
+    for item in items:
+        batch.append(item)
+        if len(batch) == size:
+            yield batch
+            batch = []
+    if batch:
+        yield batch
+
+
+def _map_insert_statements(
+    profiles: Iterable[Profile], batch_size: int
+) -> Iterator[str]:
+    """Return INSERTs filling the UUID → masked profile id map table."""
+    # Values are UUIDs and Hashids output (alphanumeric), so no quoting issues.
+    rows = (
+        f"('{profile.pk}', '{mask_uuid(profile.pk)}')"
+        for profile in profiles
+        if profile.user_id is not None
+    )
+    return (
+        f"INSERT INTO {RESTORE_MAP_TABLE} VALUES {', '.join(batch)};"
+        for batch in _batched(rows, batch_size)
+    )
+
+
+def build_restore_credentials_sql(
+    profiles: Iterable[Profile], batch_size: int = RESTORE_INSERT_BATCH_SIZE
+) -> Iterator[str]:
+    """
+    Return MariaDB statements that re-link a restored Drupal dump to this backend.
+
+    Drupal stores field_backend_profile / field_backend_password masked with
+    the source environment's HASHIDS_SALT. After restoring sanitized dumps into
+    another environment, recompute both with this environment's salt. Django
+    passwords in a sanitized dump are all SANITIZED_DUMP_PASSWORD, so no reset
+    is needed; it must have the same value here as when the dump was made.
+    Profiles are matched to Drupal users by Profile.id == users.uuid.
+
+    Parameters:
+        profiles: Profiles to link; profiles without a user are skipped.
+        batch_size: Rows per INSERT statement.
+
+    Returns:
+        SQL statements, one per item, wrapped in a single transaction.
+        INSERTs are generated lazily from ``profiles``.
+
+    Raises:
+        ImproperlyConfigured: When SANITIZED_DUMP_PASSWORD is not set, before
+            any statement is produced.
+    """
+    masked_password = mask_string(dump_password())
+    header = [
+        "START TRANSACTION;",
+        # ASCII columns: a server-default collation would clash with Drupal's
+        # utf8mb4 collation on the users.uuid join (MariaDB error 1267).
+        f"CREATE TEMPORARY TABLE {RESTORE_MAP_TABLE} "
+        "(uuid VARCHAR(128) CHARACTER SET ascii PRIMARY KEY, "
+        "masked_profile_id VARCHAR(255) CHARACTER SET ascii NOT NULL);",
+    ]
+    footer = [
+        "UPDATE user__field_backend_profile f "
+        "JOIN users u ON u.uid = f.entity_id "
+        f"JOIN {RESTORE_MAP_TABLE} m ON m.uuid = u.uuid "
+        "SET f.field_backend_profile_value = m.masked_profile_id;",
+        "UPDATE user__field_backend_password "
+        f"SET field_backend_password_value = '{masked_password}' "
+        "WHERE field_backend_password_value <> '';",
+        f"DROP TEMPORARY TABLE {RESTORE_MAP_TABLE};",
+        "COMMIT;",
+    ]
+    return itertools.chain(header, _map_insert_statements(profiles, batch_size), footer)
 
 
 def credentials_to_json(credentials: dict) -> str:

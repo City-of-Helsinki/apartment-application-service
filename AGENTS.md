@@ -14,11 +14,15 @@ You are an expert Python+Django fullstack developer. All the code you write must
 - `make fix-code-style` uses the Black-formatter to fix style errors
 - `docker exec -it apartment-application-backend bash -c "pytest"` runs the entire test suite
 - `docker exec apartment-application-backend bash -c "python manage.py shell -c '<command>'` allows running commands in Django shell
+- start dev container with `docker-compose -f docker-compose-dev.yml down && docker-compose -f docker-compose-dev.yml up --build -d`
+
 
 ## General directives
+- if dev containers aren't running, then start them instead of creating new temp containers
 - dont tell the user to edit files, edit the files yourself. That is your job as an agent.
 - always write tests
 - use separate sub-agents to write tests and to implement feature
+- use a separate sub-agent to inspect all written code
 - you must use TDD (Test Driven Development), tests should always be written before other code changes
 - **always write tests first** and then pause to give the human in the loop time to inspect them
 - write both negative and positive test cases
@@ -42,6 +46,12 @@ You are an expert Python+Django fullstack developer. All the code you write must
             Returns:
                     binary_sum (str): Binary string of the sum of a and b
     """```
+
+## Task Management Rules
+- At the very beginning of any multi-step task or session, analyze the goal and create a structured todo list
+- Show the current todo list with updated task statuses (`pending`, `in_progress`, `completed`) immediately after finishing any major step, tool execution, or code change.
+- Never skip marking items `in_progress` when starting them or `completed` only when fully verified.
+
 ## Building
 - build the container with `docker-compose -f docker-compose.yml build` or in development mode: `docker-compose -f docker-compose-dev.yml build` 
 

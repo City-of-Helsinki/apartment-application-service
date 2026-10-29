@@ -65,9 +65,11 @@ The project is now running at [localhost:8081](http://localhost:8081)
 
 If you have the `make` command available, you can use the following commands to run certain common tasks:
 
-* `make check` - Run all checks (linting, Django checks, tests)
+* `make check` - Run all checks (linting, Django checks, sanitizer config, tests)
 * `make lint` - Run linters (flake8, black, isort)
 * `make test` - Run tests
+* `make check-sanitizerconfig` - Verify `.sanitizerconfig` covers all Django models
+* `make create-sanitized-dump` - Create an anonymized SQL dump (rotates old dumps)
 * `make fix` - Run code formmitng fixes (isort, black)
 * `make requirements` - Update all requirements `*.txt` files from their
   corresponding `*.in` files
@@ -205,6 +207,113 @@ The `-v` flag removes the DB volumes so the next run starts with a clean databas
 ### Adding tests
 
 Place Playwright test files in `tests-e2e/`. The `test-runner` service in `compose.e2e.yaml` mounts that directory and exits with the test process's exit code. Replace the placeholder `command` with your actual Playwright invocation.
+
+## Anonymized database dump
+
+Production personal data must never be copied into local or shared environments
+as-is. Use Django's sanitized dump command, which runs a read-only `pg_dump` and
+rewrites PII in the dump stream. Production rows are not updated.
+
+### Create a dump (production)
+
+Set `SANITIZED_DUMP_PASSWORD` first: every user in the dump gets this password.
+The dump refuses to run without it. Use the same value when re-linking a
+restored Drupal dump (below). For local use, `SANITIZED_DUMP_PASSWORD=localdev`
+in `.env` is fine.
+
+```bash
+make create-sanitized-dump
+```
+
+This writes `sanitized_YYYYMMDDHHMMSS.sql` under `SANITIZED_DUMP_DIR` (default:
+current directory). The dump is written to a `.tmp` file first and renamed only
+when it succeeds; after that, older dumps are deleted so the four newest remain.
+A failed dump leaves existing dumps untouched. Override the directory with
+`make create-sanitized-dump SANITIZED_DUMP_DIR=/tmp`.
+
+Alternatively:
+
+```bash
+./manage.py create_sanitized_dump > /tmp/sanitized_$(date +%Y%m%d%H%M).sql
+```
+
+On OpenShift, run the command in an application pod and copy the file out
+afterwards. Do not commit dump files.
+Encrypted fields are replaced with fakes re-encrypted using `DUMP_PUBLIC_PGP_KEY`
+(defaults to the public test key from `.env.example`). Session, social-auth,
+audit, and log table data are omitted from the dump.
+
+### Restore locally
+
+1. Start from an empty local database (same Postgres major version as production).
+2. Import the SQL dump, for example:
+
+```bash
+psql "$DATABASE_URL" -f sanitized_YYYYMMDDHHMM.sql
+```
+
+3. Use the example PGP keys from `.env.example` (or set matching
+   `PUBLIC_PGP_KEY` / `PRIVATE_PGP_KEY` for the dump public key you used).
+4. All user passwords in the dump are the `SANITIZED_DUMP_PASSWORD` used when
+   dumping.
+5. Run `python manage.py migrate` if the dump is older than your current code.
+
+### Restore together with Drupal
+
+Drupal users are linked to Django profiles by `Profile.id` == Drupal
+`users.uuid`, which both dumps keep. Drupal also stores masked copies of the
+profile id and backend password (`field_backend_profile`,
+`field_backend_password`), encoded with the source environment's
+`HASHIDS_SALT`, so they must be recomputed in the target environment:
+
+1. Restore this dump (above) and the Drupal dump (`drush asu:sql:sanitized-dump`
+   in drupal-asuntotuotanto).
+2. Generate the fix with this environment's settings and apply it to Drupal's
+   database. `SANITIZED_DUMP_PASSWORD` must have the same value as when the
+   dump was made:
+
+```bash
+./manage.py drupal_restore_credentials_sql --i-know-this-is-a-restored-dump > fix.sql
+drush sql:query --file=fix.sql   # in the Drupal container
+```
+
+3. Run `drush cr`. Drupal users can now reach their backend profiles.
+
+Never apply `fix.sql` to production: it sets every Drupal user's backend
+password to `SANITIZED_DUMP_PASSWORD`.
+
+To check the whole cycle end to end against the local dev stacks, follow
+[docs/sanitized-dump-restore-check.md](docs/sanitized-dump-restore-check.md).
+What the platform needs for scheduled dumps in production is in
+[docs/sanitized-dump-platform.md](docs/sanitized-dump-platform.md).
+
+### What is intentionally kept
+
+- `users_profile.id`: the shared key with Drupal `users.uuid`. It is a random
+  UUID4 and can only be traced to a person with access to production data.
+- `users_user.uuid`: the OIDC subject from the City's login service. Kept
+  because it is useful for debugging; it can be matched to a Helsinki-profiili
+  identity by anyone with access to that service.
+- `Application.drupal_application_id`: links applications to Drupal
+  `asu_application` entities.
+- `right_of_residence` (applications, reservations, customers) and
+  `ApartmentReservation.queue_position`: they drive HASO queue ordering.
+
+`ApplicationApartment.priority_number` (the applicant's apartment preference)
+is replaced with unique counter values, so preference order in a dump is not
+realistic.
+
+When models gain new fields, regenerate `.sanitizerconfig` with
+`python scripts/generate_sanitizerconfig.py` via `manage.py shell` and keep
+`make check-sanitizerconfig` green. User-input field types (`CharField`,
+`TextField`, `DateField`, `DateTimeField`, integer/decimal/float variants) on
+first-party apps are assigned type-based sanitizers automatically. Named PII
+mappings in `sanitizers/config.py` still override those defaults. Structural
+fields (primary/foreign keys, enums, choice fields, `auto_now` timestamps) and
+the exclusions `ApartmentReservation.queue_position` and `right_of_residence`
+stay unsanitized.
+
+
 
 ## Tests
 
