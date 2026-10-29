@@ -8,7 +8,6 @@ Functions are discovered by database-sanitizer as ``person.<name>`` →
 from __future__ import annotations
 
 import itertools
-import random
 from datetime import date
 
 from django.conf import settings
@@ -178,7 +177,7 @@ def fake_national_identification_number(birthday: date) -> str:
     """
     birth_string = birthday.strftime("%d%m%y")
     century_sign = "+-A"[birthday.year // 100 - 18]
-    individual_number = f"{random.randint(3, 899):03d}"
+    individual_number = f"{_faker.random_int(3, 899):03d}"
     index = int(birth_string + individual_number) % 31
     control_character = "0123456789ABCDEFHJKLMNPRSTUVWXY"[index]
     return birth_string + century_sign + individual_number + control_character

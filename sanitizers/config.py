@@ -8,7 +8,7 @@ PII mappings.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Iterator
 
 from django.apps import apps
 from django.contrib.auth import get_user_model
@@ -41,40 +41,53 @@ NAMED_EXCLUSIONS = frozenset(
     }
 )
 
+# Sanitizer ids used by several PII columns.
+FIRST_NAME = "person.first_name"
+LAST_NAME = "person.last_name"
+EMAIL = "person.email"
+PHONE_NUMBER = "person.phone_number"
+STREET_ADDRESS = "person.street_address"
+CITY = "person.city"
+POSTAL_CODE = "person.postal_code"
+COMMENT = "person.comment"
+ACCOUNT_NUMBER = "person.account_number"
+PGP_DATE = "pgp.pgp_date"
+PGP_HANDLER = "pgp.pgp_handler"
+
 PII = {
     "users_user": {
         "password": "person.password",
         "username": "person.username",
-        "first_name": "person.first_name",
-        "last_name": "person.last_name",
-        "email": "person.email",
+        "first_name": FIRST_NAME,
+        "last_name": LAST_NAME,
+        "email": EMAIL,
     },
     "users_profile": {
-        "first_name": "person.first_name",
-        "middle_name": "person.first_name",
-        "last_name": "person.last_name",
-        "calling_name": "person.first_name",
-        "email": "person.email",
-        "phone_number": "person.phone_number",
-        "phone_number_nightly": "person.phone_number",
-        "street_address": "person.street_address",
-        "city": "person.city",
-        "postal_code": "person.postal_code",
-        "date_of_birth": "pgp.pgp_date",
+        "first_name": FIRST_NAME,
+        "middle_name": FIRST_NAME,
+        "last_name": LAST_NAME,
+        "calling_name": FIRST_NAME,
+        "email": EMAIL,
+        "phone_number": PHONE_NUMBER,
+        "phone_number_nightly": PHONE_NUMBER,
+        "street_address": STREET_ADDRESS,
+        "city": CITY,
+        "postal_code": POSTAL_CODE,
+        "date_of_birth": PGP_DATE,
         "national_identification_number": "pgp.pgp_hetu",
     },
     "users_userkeyvalue": {
         "value": "person.key_value",
     },
     "application_form_applicant": {
-        "first_name": "person.first_name",
-        "last_name": "person.last_name",
-        "email": "person.email",
-        "phone_number": "person.phone_number",
-        "street_address": "person.street_address",
-        "city": "person.city",
-        "postal_code": "person.postal_code",
-        "date_of_birth": "pgp.pgp_date",
+        "first_name": FIRST_NAME,
+        "last_name": LAST_NAME,
+        "email": EMAIL,
+        "phone_number": PHONE_NUMBER,
+        "street_address": STREET_ADDRESS,
+        "city": CITY,
+        "postal_code": POSTAL_CODE,
+        "date_of_birth": PGP_DATE,
         "ssn_suffix": "pgp.pgp_ssn_suffix",
     },
     "application_form_application": {
@@ -82,34 +95,34 @@ PII = {
         "handler_information": "person.handler_information",
     },
     "application_form_apartmentreservation": {
-        "handler": "pgp.pgp_handler",
+        "handler": PGP_HANDLER,
     },
     "application_form_offer": {
-        "comment": "person.comment",
-        "handler": "pgp.pgp_handler",
+        "comment": COMMENT,
+        "handler": PGP_HANDLER,
     },
     "application_form_lotteryevent": {
-        "handler": "pgp.pgp_handler",
+        "handler": PGP_HANDLER,
     },
     "application_form_apartmentreservationstatechangeevent": {
-        "comment": "person.comment",
+        "comment": COMMENT,
     },
     "application_form_apartmentqueuechangeevent": {
-        "comment": "person.comment",
+        "comment": COMMENT,
     },
     "customer_customer": {
         "additional_information": "person.additional_information",
     },
     "customer_customercomment": {
-        "content": "person.comment",
+        "content": COMMENT,
     },
     "invoicing_apartmentinstallment": {
-        "account_number": "person.account_number",
+        "account_number": ACCOUNT_NUMBER,
         "reference_number": "person.reference_number",
-        "handler": "person.first_name",
+        "handler": FIRST_NAME,
     },
     "invoicing_projectinstallmenttemplate": {
-        "account_number": "person.account_number",
+        "account_number": ACCOUNT_NUMBER,
     },
 }
 
@@ -131,6 +144,38 @@ EXCLUDE_TABLES = [
 ]
 
 
+# Field types that are structural (keys, relations, enums) and never sanitized.
+STRUCTURAL_FIELD_TYPES = (
+    models.AutoField,
+    models.BigAutoField,
+    models.ForeignKey,
+    models.OneToOneField,
+    EnumField,
+)
+
+# Type-based sanitizers, checked in order. DateTimeField must come before
+# DateField, which it subclasses.
+TYPE_SANITIZERS = (
+    (models.TextField, "types.text"),
+    (models.DateTimeField, "types.datetime"),
+    (models.DateField, "types.date"),
+    (models.DecimalField, "types.decimal"),
+    (models.FloatField, "types.float"),
+    (
+        (
+            models.IntegerField,
+            models.SmallIntegerField,
+            models.BigIntegerField,
+            models.PositiveIntegerField,
+            models.PositiveSmallIntegerField,
+            models.PositiveBigIntegerField,
+        ),
+        "types.integer",
+    ),
+    (models.CharField, "types.char"),
+)
+
+
 def _is_structural_skip(field: models.Field) -> bool:
     """
     Return True when the field must stay unsanitized for dump integrity.
@@ -141,25 +186,16 @@ def _is_structural_skip(field: models.Field) -> bool:
     Returns:
         skip (bool): True when the field is structural (PK/FK/enum/auto time).
     """
-    if field.primary_key:
-        return True
-    if isinstance(field, (models.AutoField, models.BigAutoField)):
-        return True
-    if isinstance(field, (models.ForeignKey, models.OneToOneField)):
-        return True
-    if isinstance(field, EnumField):
-        return True
-    if getattr(field, "choices", None):
-        return True
-    if isinstance(field, models.DateTimeField) and (
+    # DateTimeField subclasses DateField, so this covers both.
+    is_auto_timestamp = isinstance(field, models.DateField) and (
         getattr(field, "auto_now", False) or getattr(field, "auto_now_add", False)
-    ):
-        return True
-    if isinstance(field, models.DateField) and (
-        getattr(field, "auto_now", False) or getattr(field, "auto_now_add", False)
-    ):
-        return True
-    return False
+    )
+    return bool(
+        field.primary_key
+        or isinstance(field, STRUCTURAL_FIELD_TYPES)
+        or getattr(field, "choices", None)
+        or is_auto_timestamp
+    )
 
 
 def _type_sanitizer_for_field(field: models.Field) -> str | None:
@@ -173,35 +209,41 @@ def _type_sanitizer_for_field(field: models.Field) -> str | None:
         sanitizer_id (str | None): Strategy value, or None when not applicable.
     """
     if isinstance(field, PGPPublicKeyFieldMixin):
-        if isinstance(field, DatePGPPublicKeyField):
-            return "pgp.pgp_date"
-        return "pgp.pgp_text"
-
-    if isinstance(field, models.TextField):
-        return "types.text"
-    if isinstance(field, models.DateTimeField):
-        return "types.datetime"
-    if isinstance(field, models.DateField):
-        return "types.date"
-    if isinstance(field, models.DecimalField):
-        return "types.decimal"
-    if isinstance(field, models.FloatField):
-        return "types.float"
-    if isinstance(
-        field,
+        return PGP_DATE if isinstance(field, DatePGPPublicKeyField) else "pgp.pgp_text"
+    return next(
         (
-            models.IntegerField,
-            models.SmallIntegerField,
-            models.BigIntegerField,
-            models.PositiveIntegerField,
-            models.PositiveSmallIntegerField,
-            models.PositiveBigIntegerField,
+            sanitizer
+            for field_types, sanitizer in TYPE_SANITIZERS
+            if isinstance(field, field_types)
         ),
-    ):
-        return "types.integer"
-    if isinstance(field, models.CharField):
-        return "types.char"
-    return None
+        None,
+    )
+
+
+def _first_party_models() -> Iterator[type[models.Model]]:
+    """Yield concrete (non-proxy) models of first-party apps."""
+    return (
+        model
+        for model in apps.get_models()
+        if model._meta.app_label in FIRST_PARTY_APPS and not model._meta.proxy
+    )
+
+
+def _heuristic_sanitizer(table: str, field: models.Field) -> str | None:
+    """
+    Return the type-based sanitizer for a column, or None to leave it as is.
+
+    Parameters:
+        table (str): Database table of the field's model.
+        field (models.Field): Django model field.
+
+    Returns:
+        sanitizer_id (str | None): Strategy value, or None for named
+        exclusions, structural fields and unsupported types.
+    """
+    if (table, field.column) in NAMED_EXCLUSIONS or _is_structural_skip(field):
+        return None
+    return _type_sanitizer_for_field(field)
 
 
 def _apply_type_heuristics(strategy: dict[str, dict[str, Any]]) -> None:
@@ -211,24 +253,15 @@ def _apply_type_heuristics(strategy: dict[str, dict[str, Any]]) -> None:
     Parameters:
         strategy (dict): Mutable table → column → sanitizer strategy map.
     """
-    for model in apps.get_models():
-        if model._meta.app_label not in FIRST_PARTY_APPS:
-            continue
-        if model._meta.proxy:
-            continue
+    for model in _first_party_models():
         table = model._meta.db_table
         table_strategy = strategy.setdefault(table, {})
         for field in model._meta.local_fields:
-            column = field.column
-            if column not in table_strategy:
+            if field.column not in table_strategy:
                 continue
-            if (table, column) in NAMED_EXCLUSIONS:
-                continue
-            if _is_structural_skip(field):
-                continue
-            sanitizer = _type_sanitizer_for_field(field)
+            sanitizer = _heuristic_sanitizer(table, field)
             if sanitizer is not None:
-                table_strategy[column] = sanitizer
+                table_strategy[field.column] = sanitizer
 
 
 def _apply_pii_overlay(strategy: dict[str, dict[str, Any]]) -> None:

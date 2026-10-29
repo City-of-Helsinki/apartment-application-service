@@ -140,14 +140,13 @@ def test_build_restore_credentials_sql_maps_profiles(profile, other_profile):
 
 def test_build_restore_credentials_sql_requires_dump_password(settings):
     """
-    - Without SANITIZED_DUMP_PASSWORD the generator raises before yielding SQL,
+    - Without SANITIZED_DUMP_PASSWORD it raises before producing any SQL,
       so no partial fix.sql is written.
     """
     settings.SANITIZED_DUMP_PASSWORD = ""
-    statements = build_restore_credentials_sql([])
 
     with pytest.raises(ImproperlyConfigured):
-        next(statements)
+        build_restore_credentials_sql([])
 
 
 def test_build_restore_credentials_sql_batches_inserts():
