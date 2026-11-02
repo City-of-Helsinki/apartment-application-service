@@ -475,6 +475,13 @@ class OfferDetailsSerializer(serializers.Serializer):
 
 
 class ReservationMessageSerializer(serializers.Serializer):
+    class AttachmentSerializer(serializers.Serializer):
+        id = serializers.IntegerField()
+        display_name = serializers.CharField()
+        mime_type = serializers.CharField()
+        size_bytes = serializers.IntegerField(min_value=0)
+        download_url = serializers.CharField()
+
     id = serializers.IntegerField(required=False)
     application_id = serializers.IntegerField(required=False)
     project_id = serializers.IntegerField(required=False, allow_null=True)
@@ -485,6 +492,7 @@ class ReservationMessageSerializer(serializers.Serializer):
     body = serializers.CharField()
     created = serializers.IntegerField()
     created_at = serializers.CharField(required=False, allow_blank=False)
+    attachments = AttachmentSerializer(many=True, required=False)
 
 
 class ReservationMessageThreadSerializer(serializers.Serializer):
@@ -497,6 +505,27 @@ class ReservationMessageThreadSerializer(serializers.Serializer):
 
 class ReservationMessageCreateSerializer(serializers.Serializer):
     body = serializers.CharField(allow_blank=False, trim_whitespace=True)
+    attachment_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        required=False,
+    )
+    new_attachments = serializers.ListField(
+        child=serializers.DictField(),
+        required=False,
+    )
+
+
+class ReservationMessageAttachmentUploadSerializer(serializers.Serializer):
+    file = serializers.FileField()
+    display_name = serializers.CharField(required=False, allow_blank=True)
+
+
+class ReservationMessageAttachmentUploadResponseSerializer(serializers.Serializer):
+    file_id = serializers.IntegerField(required=False)
+    attachment_id = serializers.IntegerField(required=False)
+    display_name = serializers.CharField(required=False)
+    mime_type = serializers.CharField(required=False)
+    size_bytes = serializers.IntegerField(required=False)
 
 
 class ReservationMessageUnreadCountsSerializer(serializers.Serializer):

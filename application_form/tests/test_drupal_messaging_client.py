@@ -1,5 +1,6 @@
 import pytest
 import requests
+from django.core.files.uploadedfile import SimpleUploadedFile
 
 from application_form.services.drupal_messaging import (
     DrupalMessagingClient,
@@ -232,6 +233,59 @@ def test_post_sales_reply_omits_blank_co_applicant_email(settings, monkeypatch):
 
 
 @pytest.mark.django_db
+def test_post_sales_reply_includes_attachment_fields(settings, monkeypatch):
+    """POST payload includes attachment_ids and new_attachments when provided."""
+    from django.core.cache import cache as django_cache
+
+    django_cache.clear()
+    _configure_drupal_search_settings(settings)
+
+    captured = {}
+
+    monkeypatch.setattr(
+        requests,
+        "post",
+        lambda *args, **kwargs: _FakeResponse(
+            status_code=200,
+            payload={"access_token": "token-post", "expires_in": 3600},
+        ),
+    )
+
+    def fake_request(
+        method,
+        url,
+        json=None,
+        headers=None,
+        timeout=None,
+        data=None,
+        params=None,
+        verify=None,
+    ):
+        captured["payload"] = json
+        return _FakeResponse(
+            status_code=201,
+            payload={"item": {"id": 5, "application_id": 12, "body": "hello"}},
+        )
+
+    monkeypatch.setattr(requests, "request", fake_request)
+
+    client = DrupalMessagingClient()
+    client.post_sales_reply(
+        12,
+        "hello",
+        attachment_ids=[10, 20],
+        new_attachments=[{"file_id": 33, "display_name": "offer.pdf"}],
+    )
+
+    assert captured["payload"] == {
+        "body": "hello",
+        "sender_role": "sales",
+        "attachment_ids": [10, 20],
+        "new_attachments": [{"file_id": 33, "display_name": "offer.pdf"}],
+    }
+
+
+@pytest.mark.django_db
 def test_post_sales_reply_logs_co_applicant_presence(settings, monkeypatch, caplog):
     """Debug log should include metadata without exposing email value.
 
@@ -396,6 +450,79 @@ def test_get_thread_raises_for_not_found(settings, monkeypatch):
 
 
 @pytest.mark.django_db
+def test_post_sales_reply_raises_invalid_attachments_on_422(settings, monkeypatch):
+    """A 422 payload with invalid_attachments code is mapped as-is."""
+
+    _configure_drupal_search_settings(settings)
+
+    monkeypatch.setattr(
+        requests,
+        "post",
+        lambda *args, **kwargs: _FakeResponse(
+            status_code=200,
+            payload={"access_token": "token-1", "expires_in": 3600},
+        ),
+    )
+    monkeypatch.setattr(
+        requests,
+        "request",
+        lambda *args, **kwargs: _FakeResponse(
+            status_code=422,
+            payload={"code": "invalid_attachments", "message": "Invalid IDs"},
+        ),
+    )
+
+    client = DrupalMessagingClient()
+    with pytest.raises(DrupalMessagingClientError) as exc_info:
+        client.post_sales_reply(999, "hello")
+
+    assert exc_info.value.status_code == 422
+    assert exc_info.value.code == "invalid_attachments"
+    assert exc_info.value.message == "Invalid IDs"
+
+
+@pytest.mark.django_db
+def test_post_sales_reply_raises_invalid_new_attachments_on_422(
+    settings, monkeypatch
+):
+    """A 422 payload with invalid_new_attachments code is mapped as-is."""
+
+    _configure_drupal_search_settings(settings)
+
+    monkeypatch.setattr(
+        requests,
+        "post",
+        lambda *args, **kwargs: _FakeResponse(
+            status_code=200,
+            payload={"access_token": "token-1", "expires_in": 3600},
+        ),
+    )
+    monkeypatch.setattr(
+        requests,
+        "request",
+        lambda *args, **kwargs: _FakeResponse(
+            status_code=422,
+            payload={
+                "code": "invalid_new_attachments",
+                "message": "Invalid new attachments payload",
+            },
+        ),
+    )
+
+    client = DrupalMessagingClient()
+    with pytest.raises(DrupalMessagingClientError) as exc_info:
+        client.post_sales_reply(
+            999,
+            "hello",
+            new_attachments=[{"file_id": "bad"}],
+        )
+
+    assert exc_info.value.status_code == 422
+    assert exc_info.value.code == "invalid_new_attachments"
+    assert exc_info.value.message == "Invalid new attachments payload"
+
+
+@pytest.mark.django_db
 def test_post_sales_reply_raises_after_retryable_network_errors(settings, monkeypatch):
     """Network-level failures should be retried and then fail gracefully.
 
@@ -425,6 +552,123 @@ def test_post_sales_reply_raises_after_retryable_network_errors(settings, monkey
         client.post_sales_reply(77, "hello")
 
     assert exc_info.value.code == "temporary_failure"
+
+
+@pytest.mark.django_db
+def test_upload_sales_attachment_posts_multipart(settings, monkeypatch):
+    """Upload helper sends multipart payload with application context."""
+
+    _configure_drupal_search_settings(settings)
+    settings.DRUPAL_SEARCH_API_ATTACHMENTS_UPLOAD_PATH = (
+        "user/application/attachments/upload"
+    )
+
+    captured = {}
+
+    monkeypatch.setattr(
+        requests,
+        "post",
+        lambda *args, **kwargs: _FakeResponse(
+            status_code=200,
+            payload={"access_token": "token-upload", "expires_in": 3600},
+        )
+        if args and args[0] == settings.DRUPAL_SEARCH_API_TOKEN_URL
+        else captured.update(
+            {
+                "url": args[0],
+                "data": kwargs.get("data"),
+                "files": kwargs.get("files"),
+                "headers": kwargs.get("headers"),
+            }
+        )
+        or _FakeResponse(status_code=201, payload={"file_id": 321}),
+    )
+
+    client = DrupalMessagingClient()
+    upload_file = SimpleUploadedFile(
+        "offer.pdf", b"%PDF-1.4", content_type="application/pdf"
+    )
+    payload = client.upload_sales_attachment(
+        application_id=12,
+        file=upload_file,
+        display_name="Offer",
+    )
+
+    assert payload == {"file_id": 321}
+    assert captured["url"] == "https://drupal.example/user/application/attachments/upload"
+    assert captured["data"]["application_id"] == "12"
+    assert captured["data"]["display_name"] == "Offer"
+    assert captured["data"]["sender_role"] == "sales"
+    assert captured["data"]["viewer_role"] == "sales"
+    assert captured["data"]["sales_shared"] == "1"
+    assert captured["files"]["file"][0] == "offer.pdf"
+    assert captured["headers"]["Authorization"] == "Bearer token-upload"
+
+
+@pytest.mark.django_db
+def test_upload_sales_attachment_maps_422_code(settings, monkeypatch):
+    """Upload helper maps Drupal 422 payload to structured client error."""
+
+    _configure_drupal_search_settings(settings)
+    settings.DRUPAL_SEARCH_API_ATTACHMENTS_UPLOAD_PATH = (
+        "user/application/attachments/upload"
+    )
+
+    def fake_post(*args, **kwargs):
+        if args and args[0] == settings.DRUPAL_SEARCH_API_TOKEN_URL:
+            return _FakeResponse(
+                status_code=200,
+                payload={"access_token": "token-upload", "expires_in": 3600},
+            )
+        return _FakeResponse(
+            status_code=422,
+            payload={"code": "invalid_file", "message": "Unsupported MIME type"},
+        )
+
+    monkeypatch.setattr(requests, "post", fake_post)
+
+    client = DrupalMessagingClient()
+    upload_file = SimpleUploadedFile(
+        "script.sh", b"echo hi", content_type="text/x-shellscript"
+    )
+    with pytest.raises(DrupalMessagingClientError) as exc_info:
+        client.upload_sales_attachment(application_id=12, file=upload_file)
+
+    assert exc_info.value.status_code == 422
+    assert exc_info.value.code == "invalid_file"
+
+
+@pytest.mark.django_db
+def test_upload_sales_attachment_maps_429_code(settings, monkeypatch):
+    """Upload helper surfaces 429 from Drupal as structured client error."""
+
+    _configure_drupal_search_settings(settings)
+    settings.DRUPAL_SEARCH_API_ATTACHMENTS_UPLOAD_PATH = (
+        "user/application/attachments/upload"
+    )
+
+    def fake_post(*args, **kwargs):
+        if args and args[0] == settings.DRUPAL_SEARCH_API_TOKEN_URL:
+            return _FakeResponse(
+                status_code=200,
+                payload={"access_token": "token-upload", "expires_in": 3600},
+            )
+        return _FakeResponse(
+            status_code=429,
+            payload={"message": "Too many requests"},
+        )
+
+    monkeypatch.setattr(requests, "post", fake_post)
+
+    client = DrupalMessagingClient()
+    upload_file = SimpleUploadedFile(
+        "offer.pdf", b"%PDF-1.4", content_type="application/pdf"
+    )
+    with pytest.raises(DrupalMessagingClientError) as exc_info:
+        client.upload_sales_attachment(application_id=12, file=upload_file)
+
+    assert exc_info.value.status_code == 429
+    assert exc_info.value.code == "upstream_error"
 
 
 @pytest.mark.django_db

@@ -90,6 +90,11 @@ class DrupalMessagingClient:
         """Map non-retryable upstream responses into integration errors."""
         status_code = response.status_code
         message = self._extract_error_message(response)
+        payload = None
+        try:
+            payload = response.json()
+        except ValueError:
+            payload = None
 
         if status_code == 404:
             raise DrupalMessagingClientError(
@@ -109,6 +114,20 @@ class DrupalMessagingClient:
             raise DrupalMessagingClientError(
                 status_code=400,
                 code="invalid_request",
+                message=message,
+            )
+
+        if status_code == 422:
+            code = "invalid_request"
+            if isinstance(payload, dict):
+                code = (
+                    payload.get("code")
+                    or payload.get("error_code")
+                    or "invalid_request"
+                )
+            raise DrupalMessagingClientError(
+                status_code=422,
+                code=code,
                 message=message,
             )
 
@@ -322,6 +341,8 @@ class DrupalMessagingClient:
         application_id: int,
         body: str,
         co_applicant_email: Optional[str] = None,
+        attachment_ids: Optional[list[int]] = None,
+        new_attachments: Optional[list[dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         """Create a salesperson message for a specific application."""
         if not isinstance(body, str) or not body.strip():
@@ -334,6 +355,10 @@ class DrupalMessagingClient:
         payload = {"body": body, "sender_role": "sales"}
         if isinstance(co_applicant_email, str) and co_applicant_email.strip():
             payload["co_applicant_email"] = co_applicant_email.strip()
+        if attachment_ids is not None:
+            payload["attachment_ids"] = attachment_ids
+        if new_attachments is not None:
+            payload["new_attachments"] = new_attachments
 
         _logger.debug(
             "Posting sales message to Drupal: application_id=%s sender_role=%s "
@@ -349,3 +374,85 @@ class DrupalMessagingClient:
             payload=payload,
             expected_statuses=(200, 201),
         )
+
+    def upload_sales_attachment(
+        self,
+        *,
+        application_id: int,
+        file,
+        display_name: str = "",
+        sender_role: str = "sales",
+        viewer_role: str = "sales",
+        sales_shared: bool = True,
+    ) -> Dict[str, Any]:
+        """Upload a new attachment file to Drupal for message composition.
+
+        Authorization context is aligned with sales messaging to keep ACL
+        evaluation consistent between uploading and posting messages.
+        """
+        if file is None:
+            raise DrupalMessagingClientError(
+                status_code=400,
+                code="invalid_request",
+                message="Attachment file is required.",
+            )
+
+        path = getattr(
+            settings,
+            "DRUPAL_SEARCH_API_ATTACHMENTS_UPLOAD_PATH",
+            "user/application/attachments/upload",
+        )
+        url = self._build_safe_url(settings.DRUPAL_SEARCH_API_BASE_URL, path)
+        retries = max(int(getattr(settings, "DRUPAL_SEARCH_API_RETRY_COUNT", 2)), 0)
+
+        for attempt in range(retries + 1):
+            try:
+                token = self._get_access_token()
+                headers = {
+                    "Accept": "application/json",
+                    "Authorization": f"Bearer {token}",
+                }
+                data = {"application_id": str(application_id)}
+                if display_name:
+                    data["display_name"] = display_name
+                if sender_role:
+                    data["sender_role"] = sender_role
+                if viewer_role:
+                    data["viewer_role"] = viewer_role
+                if sales_shared:
+                    data["sales_shared"] = "1"
+                files = {
+                    "file": (
+                        getattr(file, "name", "attachment"),
+                        file,
+                        getattr(file, "content_type", None),
+                    )
+                }
+                response = requests.post(
+                    url,
+                    headers=headers,
+                    timeout=settings.DRUPAL_SEARCH_API_TIMEOUT,
+                    data=data,
+                    files=files,
+                    verify=settings.DRUPAL_SEARCH_API_VERIFY_SSL,
+                )
+            except requests.RequestException as exc:
+                if attempt < retries:
+                    continue
+                raise DrupalMessagingClientError(
+                    status_code=503,
+                    code="temporary_failure",
+                    message="Drupal request failed due to network error.",
+                ) from exc
+
+            if response.status_code in (200, 201):
+                return response.json()
+
+            if response.status_code >= 500:
+                if attempt < retries:
+                    continue
+                self._raise_temporary_failure()
+
+            self._raise_non_retryable_error(response)
+
+        self._raise_temporary_failure()
