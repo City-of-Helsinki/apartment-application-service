@@ -63,6 +63,14 @@ _HASO_REVAL_COLUMNS = [
     ("Luovutushinta", "haso_luovutushinta"),
 ]
 
+_PRIMARY_PROFILE_EMAIL = "primary_profile.email"
+_PRIMARY_PROFILE_PHONE = "primary_profile.phone_number"
+_PRIMARY_PROFILE_STREET_ADDRESS = "primary_profile.street_address"
+
+_SECONDARY_PROFILE_EMAIL = "secondary_profile.email"
+_SECONDARY_PROFILE_PHONE = "secondary_profile.phone_number"
+_SECONDARY_PROFILE_STREET_ADDRESS = "secondary_profile.street_address"
+
 
 def _get_profile_cell(reservation: ApartmentReservation, column_name: str) -> str:
     if (
@@ -334,8 +342,8 @@ class ApplicantMailingListExportService(CSVExportService):
         ("Sijainti jonossa", "queue_position"),
         ("Ensisijainen hakija etunimi", "primary_profile.first_name"),
         ("Ensisijainen hakija sukunimi", "primary_profile.last_name"),
-        ("Ensisijainen hakija sähköposti", "primary_profile.email"),
-        ("Ensisijainen hakija osoite", "primary_profile.street_address"),
+        ("Ensisijainen hakija sähköposti", _PRIMARY_PROFILE_EMAIL),
+        ("Ensisijainen hakija osoite", _PRIMARY_PROFILE_STREET_ADDRESS),
         ("Ensisijainen hakija postinumero", "primary_profile.postal_code"),
         ("Ensisijainen hakija postitoimipaikka", "primary_profile.city"),
         (
@@ -344,8 +352,8 @@ class ApplicantMailingListExportService(CSVExportService):
         ),
         ("Kanssahakija etunimi", "secondary_profile.first_name"),
         ("Kanssahakija sukunimi", "secondary_profile.last_name"),
-        ("Kanssahakija sähköposti", "secondary_profile.email"),
-        ("Kanssahakija osoite", "secondary_profile.street_address"),
+        ("Kanssahakija sähköposti", _SECONDARY_PROFILE_EMAIL),
+        ("Kanssahakija osoite", _SECONDARY_PROFILE_STREET_ADDRESS),
         ("Kanssahakija postinumero", "secondary_profile.postal_code"),
         ("Kanssahakija postitoimipaikka", "secondary_profile.city"),
         (
@@ -365,16 +373,16 @@ class ApplicantMailingListExportService(CSVExportService):
         ("Asunnon numero", "apartment_number"),
         ("Ensisijainen hakija etunimi", "primary_profile.first_name"),
         ("Ensisijainen hakija sukunimi", "primary_profile.last_name"),
-        ("Ensisijainen hakija sähköposti", "primary_profile.email"),
-        ("Ensisijainen hakija puhelin", "primary_profile.phone_number"),
-        ("Ensisijainen hakija osoite", "primary_profile.street_address"),
+        ("Ensisijainen hakija sähköposti", _PRIMARY_PROFILE_EMAIL),
+        ("Ensisijainen hakija puhelin", _PRIMARY_PROFILE_PHONE),
+        ("Ensisijainen hakija osoite", _PRIMARY_PROFILE_STREET_ADDRESS),
         ("Ensisijainen hakija postinumero", "primary_profile.postal_code"),
         ("Ensisijainen hakija postitoimipaikka", "primary_profile.city"),
         ("Kanssahakija etunimi", "secondary_profile.first_name"),
         ("Kanssahakija sukunimi", "secondary_profile.last_name"),
-        ("Kanssahakija sähköposti", "secondary_profile.email"),
-        ("Kanssahakija puhelin", "secondary_profile.phone_number"),
-        ("Kanssahakija osoite", "secondary_profile.street_address"),
+        ("Kanssahakija sähköposti", _SECONDARY_PROFILE_EMAIL),
+        ("Kanssahakija puhelin", _SECONDARY_PROFILE_PHONE),
+        ("Kanssahakija osoite", _SECONDARY_PROFILE_STREET_ADDRESS),
         ("Kanssahakija postinumero", "secondary_profile.postal_code"),
         ("Kanssahakija postitoimipaikka", "secondary_profile.city"),
     ]
@@ -481,6 +489,21 @@ class ApplicantMailingListExportService(CSVExportService):
         convert = lambda text: int(text) if text.isdigit() else text  # noqa: E731
         return [convert(c) for c in re.split(r"(\d+)", row[0])]
 
+    def _get_sold_reservations(self, queryset: QuerySet) -> QuerySet:
+        """Return sold reservations for full or short mailing list mode."""
+        if self.list_type == self.list_type_short:
+            return queryset.filter(state=ApartmentReservationState.SOLD)
+
+        return queryset.filter(
+            Q(state=ApartmentReservationState.SOLD)
+            | Q(
+                state=ApartmentReservationState.CANCELED,
+                state_change_events__cancellation_reason=(
+                    ApartmentReservationCancellationReason.TERMINATED
+                ),
+            )
+        ).distinct()
+
     def filter_reservations(self):
         if self.export_type not in self.allowed_apartment_export_types:
             raise ValueError(f"Invalid export type '{self.export_type}'")
@@ -509,18 +532,7 @@ class ApplicantMailingListExportService(CSVExportService):
                 )
 
         elif self.export_type == ApartmentReservationState.SOLD.value:
-            if self.list_type == self.list_type_short:
-                reservations = qs.filter(state=ApartmentReservationState.SOLD)
-            else:
-                reservations = qs.filter(
-                    Q(state=ApartmentReservationState.SOLD)
-                    | Q(
-                        state=ApartmentReservationState.CANCELED,
-                        state_change_events__cancellation_reason=(
-                            ApartmentReservationCancellationReason.TERMINATED
-                        ),
-                    )
-                ).distinct()
+            reservations = self._get_sold_reservations(qs)
 
         else:
             reservations = qs.exclude(state=ApartmentReservationState.CANCELED)
