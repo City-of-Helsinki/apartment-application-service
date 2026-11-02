@@ -3,9 +3,32 @@ from decimal import Decimal
 from typing import Optional, Union
 from uuid import UUID
 
+from django.conf import settings
+
 from apartment.elastic.queries import get_apartment
 from apartment.models import ProjectExtraData
 from application_form.models import ApartmentReservation, Offer
+
+# Body of the automatic email notifying the customer of a new offer. The offer
+# details are not included; the customer reads them in the web service.
+NEW_OFFER_EMAIL_BODY = """Tämä on automaattisesti lähetetty viesti. Ethän vastaa tähän sähköpostiin.
+
+Hei,
+
+Olet saanut uuden asuntotarjouksen Helsingin kaupungin asuntotuotannolta.
+
+Voit tutustua tarjoukseen kirjautumalla asuntotuotannon verkkopalveluun osoitteessa:
+
+{url}
+"""  # noqa: E501
+
+
+def get_new_offer_email_body() -> str:
+    """
+    Return the body of the automatic new offer email sent to the customer.
+    """
+    body = NEW_OFFER_EMAIL_BODY.format(url=settings.ASUNTOTUOTANTO_PUBLIC_URL)
+    return body.replace("\n", "\r\n")
 
 
 def get_offer_message_intro_and_content(project_uuid: UUID) -> tuple[str, str]:

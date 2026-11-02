@@ -31,7 +31,10 @@ from apartment.elastic.queries import (
     get_project,
 )
 from apartment.models import ProjectExtraData
-from apartment.services import get_offer_message_subject_and_body
+from apartment.services import (
+    get_new_offer_email_body,
+    get_offer_message_subject_and_body,
+)
 from apartment.utils import get_apartment_state_of_sale_from_event
 from application_form.api.sales.serializers import (
     OfferMessageSerializer,
@@ -1487,10 +1490,11 @@ def _get_pending_offer_messages():
             )
             _try_claim_offer_message(offer.id)
             continue
-        subject, body = get_offer_message_subject_and_body(
+        subject, _body = get_offer_message_subject_and_body(
             reservation,
             valid_until=offer.valid_until,
         )
+        body = get_new_offer_email_body()
         if not _try_claim_offer_message(offer.id):
             continue
         results.append(

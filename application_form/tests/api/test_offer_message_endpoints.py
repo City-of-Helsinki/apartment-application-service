@@ -2,10 +2,14 @@ from datetime import timedelta
 from uuid import uuid4
 
 import pytest
+from django.test import override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from apartment.services import get_offer_message_subject_and_body
+from apartment.services import (
+    get_new_offer_email_body,
+    get_offer_message_subject_and_body,
+)
 from apartment.tests.factories import ApartmentDocumentFactory
 from application_form.enums import ApartmentReservationState, OfferState
 from application_form.tests.factories import (
@@ -74,6 +78,7 @@ def _create_pending_offer(
 
 
 @pytest.mark.django_db
+@override_settings(ASUNTOTUOTANTO_PUBLIC_URL="https://asuntotuotanto.example.com")
 def test_pending_messages_returns_unsent_offers(drupal_server_api_client):
     """
     - Returns pending offers with message_sent_at unset and OFFERED reservation.
@@ -105,12 +110,15 @@ def test_pending_messages_returns_unsent_offers(drupal_server_api_client):
     assert item["id"] == offer.id
     assert item["valid_until"] == str(today + timedelta(days=7))
     assert str(item["project_uuid"]) == str(apartment.project_uuid)
-    expected_subject, expected_body = get_offer_message_subject_and_body(
+    expected_subject, _body = get_offer_message_subject_and_body(
         reservation,
         valid_until=offer.valid_until,
     )
     assert item["subject"] == expected_subject
-    assert item["body"] == expected_body
+    assert item["body"] == get_new_offer_email_body()
+    assert "Olet saanut uuden asuntotarjouksen" in item["body"]
+    assert "https://asuntotuotanto.example.com" in item["body"]
+    assert "Tarjouksen viimeinen voimassaolopäivä" not in item["body"]
     recipient_emails = {r["email"] for r in item["recipients"]}
     assert profile.email in recipient_emails
     assert secondary.email in recipient_emails

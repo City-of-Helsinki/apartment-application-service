@@ -108,6 +108,7 @@ env = environ.Env(
     TALPA_EMAIL=(str, ""),
     TALPA_EMAIL_REPLY_TO=(str, "asuntomyynti@hel.fi"),
     SALES_NOTIFICATION_EMAIL=(str, "asuntomyynti@hel.fi"),
+    ASUNTOTUOTANTO_PUBLIC_URL=(str, "https://asuntotuotanto.hel.fi"),
     AUDIT_LOG_ES_INDEX=(str, "audit-asuntotuotanto-django-test-v1"),
     AUDIT_LOG_ELASTICSEARCH_HOST=(str, ""),
     AUDIT_LOG_ELASTICSEARCH_PORT=(str, ""),
@@ -469,6 +470,9 @@ TALPA_EMAIL_REPLY_TO = env.str("TALPA_EMAIL_REPLY_TO")
 
 # General sales mailbox notified of HITAS late reservations
 SALES_NOTIFICATION_EMAIL = env.str("SALES_NOTIFICATION_EMAIL")
+
+# Public customer web service URL linked from customer emails
+ASUNTOTUOTANTO_PUBLIC_URL = env.str("ASUNTOTUOTANTO_PUBLIC_URL")
 
 # Audit logging
 CLEAR_AUDIT_LOG_ENTRIES = env.bool("CLEAR_AUDIT_LOG_ENTRIES")
