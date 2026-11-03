@@ -7,11 +7,14 @@ from application_form.api.sales.views import (
     application_inbox_summary,
     application_unread_counts,
     execute_lottery_for_project,
+    mark_offer_reminder_sent,
     OfferViewSet,
+    pending_offer_reminders,
     SalesApplicationViewSet,
 )
 from application_form.api.views import (
     ApplicationViewSet,
+    CustomerOfferUpdateView,
     DeleteApplicationView,
     LatestApplicantInfo,
     ListProjectReservations,
@@ -47,7 +50,12 @@ public_urlpatterns = [
         r"profiles/me/projects/<uuid:project_uuid>/reservations",
         ListProjectReservations.as_view(),
         name="list_project_reservations",
-    )
+    ),
+    path(
+        r"profiles/me/offers/<int:offer_id>/",
+        CustomerOfferUpdateView.as_view(),
+        name="customer_offer_update",
+    ),
 ]
 
 urlpatterns = [
@@ -91,6 +99,16 @@ urlpatterns = [
         r"sales/messages/inbox-summary/",
         application_inbox_summary,
         name="sales-application-inbox-summary",
+    ),
+    path(
+        r"sales/offers/pending_reminders/",
+        pending_offer_reminders,
+        name="pending_offer_reminders",
+    ),
+    path(
+        r"sales/offers/<int:offer_id>/mark_reminder_sent/",
+        mark_offer_reminder_sent,
+        name="mark_offer_reminder_sent",
     ),
     path(
         r"sales/applicant/latest/<int:customer_id>/",
