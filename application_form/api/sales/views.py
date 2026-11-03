@@ -7,7 +7,9 @@ from dateutil import parser
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import transaction
 from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
 from django.utils import timezone, translation
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods
@@ -29,10 +31,12 @@ from apartment.elastic.queries import (
     get_project,
 )
 from apartment.models import ProjectExtraData
+from apartment.services import get_offer_message_subject_and_body
 from apartment.utils import get_apartment_state_of_sale_from_event
 from application_form.api.sales.serializers import (
     OfferMessageSerializer,
     OfferSerializer,
+    PendingOfferMessageSerializer,
     ProjectExtraDataSerializer,
     ProjectUUIDSerializer,
     ReservationMessageCreateSerializer,
@@ -47,11 +51,13 @@ from application_form.api.serializers import (
     ApartmentReservationCancelEventSerializer,
     ApartmentReservationStateChangeEventSerializer,
     OfferMessageQueryParamsSerializer,
+    PendingOfferReminderSerializer,
 )
 from application_form.api.views import ApplicationViewSet
 from application_form.enums import (
     ApartmentReservationCancellationReason,
     ApartmentReservationState,
+    OfferState,
 )
 from application_form.exceptions import ProjectDoesNotHaveApplicationsException
 from application_form.models import (
@@ -1344,3 +1350,223 @@ class ProjectExtraDataViewSet(
 ):
     queryset = ProjectExtraData.objects.all()
     serializer_class = ProjectExtraDataSerializer
+
+
+def _get_pending_offer_reminders(days_before: int):
+    today = timezone.localdate()
+    deadline = today + timedelta(days=days_before)
+    offers = (
+        Offer.objects.select_related("apartment_reservation__customer__primary_profile")
+        .filter(
+            state=OfferState.PENDING,
+            reminder_sent_at__isnull=True,
+            valid_until__gte=today,
+            valid_until__lte=deadline,
+            apartment_reservation__state=ApartmentReservationState.OFFERED,
+        )
+        .order_by("valid_until", "id")
+    )
+    results = []
+    for offer in offers:
+        apartment_uuid = offer.apartment_reservation.apartment_uuid
+        try:
+            project_uuid = get_apartment(apartment_uuid).project_uuid
+        except ObjectDoesNotExist:
+            _logger.warning(
+                "Skipping offer %s reminder: apartment %s not found in index.",
+                offer.id,
+                apartment_uuid,
+            )
+            continue
+        customer = offer.apartment_reservation.customer
+        profile = customer.primary_profile
+        results.append(
+            {
+                "id": offer.id,
+                "valid_until": offer.valid_until,
+                "apartment_uuid": apartment_uuid,
+                "project_uuid": project_uuid,
+                "customer": {
+                    "id": customer.id,
+                    "primary_profile": {
+                        "id": profile.id,
+                        "first_name": profile.first_name,
+                        "last_name": profile.last_name,
+                        "email": profile.email,
+                    },
+                },
+            }
+        )
+    return results
+
+
+def _claim_offer_message_sent(offer: Offer) -> None:
+    """
+    Mark an offer as messaged so it is not returned again.
+    """
+    offer.message_sent_at = timezone.now()
+    offer.save(update_fields=["message_sent_at", "updated_at"])
+
+
+def _try_claim_offer_message(offer_id: int) -> bool:
+    """
+    Atomically claim a pending offer for message delivery.
+
+    Returns:
+        True when this caller claimed the offer, False if already claimed.
+    """
+    with transaction.atomic():
+        offer = (
+            Offer.objects.select_for_update()
+            .filter(
+                pk=offer_id,
+                state=OfferState.PENDING,
+                message_sent_at__isnull=True,
+            )
+            .first()
+        )
+        if offer is None:
+            return False
+        _claim_offer_message_sent(offer)
+        return True
+
+
+def _get_pending_offer_messages():
+    """
+    Claim and return pending offers that need the initial customer email.
+
+    Claims (sets message_sent_at) before returning so concurrent cron runs
+    cannot send duplicate emails. Offers without recipients are claimed
+    without returning. Offers whose apartment is missing from the search
+    index are left unclaimed for a later retry.
+    """
+    today = timezone.localdate()
+    candidates = list(
+        Offer.objects.select_related(
+            "apartment_reservation__customer__primary_profile",
+            "apartment_reservation__customer__secondary_profile",
+        )
+        .filter(
+            state=OfferState.PENDING,
+            message_sent_at__isnull=True,
+            valid_until__gte=today,
+            apartment_reservation__state=ApartmentReservationState.OFFERED,
+        )
+        .order_by("created_at", "id")
+    )
+    results = []
+    for offer in candidates:
+        reservation = offer.apartment_reservation
+        apartment_uuid = reservation.apartment_uuid
+        try:
+            project_uuid = get_apartment(apartment_uuid).project_uuid
+        except ObjectDoesNotExist:
+            _logger.warning(
+                "Skipping offer %s message: apartment %s not found in index.",
+                offer.id,
+                apartment_uuid,
+            )
+            continue
+        recipients = [
+            p
+            for p in (
+                reservation.customer.primary_profile,
+                reservation.customer.secondary_profile,
+            )
+            if p and p.email
+        ]
+        if not recipients:
+            _logger.warning(
+                "Marking offer %s message as sent: no recipient emails.",
+                offer.id,
+            )
+            _try_claim_offer_message(offer.id)
+            continue
+        subject, body = get_offer_message_subject_and_body(
+            reservation,
+            valid_until=offer.valid_until,
+        )
+        if not _try_claim_offer_message(offer.id):
+            continue
+        results.append(
+            {
+                "id": offer.id,
+                "valid_until": offer.valid_until,
+                "project_uuid": project_uuid,
+                "subject": subject,
+                "body": body,
+                "recipients": recipients,
+            }
+        )
+    return results
+
+
+@api_view(http_method_names=["GET"])
+@require_http_methods(["GET"])
+@permission_classes([IsDrupalServer])
+@authentication_classes([DrupalAuthentication])
+def pending_offer_messages(request):
+    """
+    Claims and returns pending offers that need the initial offer email.
+    """
+    messages = _get_pending_offer_messages()
+    serializer = PendingOfferMessageSerializer(messages, many=True)
+    return Response(serializer.data)
+
+
+@api_view(http_method_names=["POST"])
+@require_http_methods(["POST"])
+@permission_classes([IsDrupalServer])
+@authentication_classes([DrupalAuthentication])
+def mark_offer_message_sent(request, offer_id):
+    """
+    Records that the offer email was sent for the given offer.
+    """
+    offer = get_object_or_404(Offer, pk=offer_id)
+    if offer.message_sent_at is None and offer.state == OfferState.PENDING:
+        offer.message_sent_at = timezone.now()
+        offer.save(update_fields=["message_sent_at", "updated_at"])
+    return Response(
+        {"id": offer.id, "message_sent_at": offer.message_sent_at},
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(http_method_names=["GET"])
+@require_http_methods(["GET"])
+@permission_classes([IsDrupalServer])
+@authentication_classes([DrupalAuthentication])
+def pending_offer_reminders(request):
+    """
+    Returns pending offers that need a reminder email before the deadline.
+    """
+    days_before = settings.OFFER_REMINDER_DAYS_BEFORE
+    if days_before_param := request.query_params.get("days_before"):
+        try:
+            days_before = int(days_before_param)
+        except ValueError:
+            raise ValidationError({"days_before": "Must be an integer."})
+        if days_before < 0:
+            raise ValidationError({"days_before": "Must be zero or greater."})
+
+    reminders = _get_pending_offer_reminders(days_before)
+    serializer = PendingOfferReminderSerializer(reminders, many=True)
+    return Response(serializer.data)
+
+
+@api_view(http_method_names=["POST"])
+@require_http_methods(["POST"])
+@permission_classes([IsDrupalServer])
+@authentication_classes([DrupalAuthentication])
+def mark_offer_reminder_sent(request, offer_id):
+    """
+    Records that a reminder email was sent for the given offer.
+    """
+    offer = get_object_or_404(Offer, pk=offer_id)
+    if offer.reminder_sent_at is None and offer.state == OfferState.PENDING:
+        offer.reminder_sent_at = timezone.now()
+        offer.save(update_fields=["reminder_sent_at", "updated_at"])
+    return Response(
+        {"id": offer.id, "reminder_sent_at": offer.reminder_sent_at},
+        status=status.HTTP_200_OK,
+    )
