@@ -63,6 +63,14 @@ _HASO_REVAL_COLUMNS = [
     ("Luovutushinta", "haso_luovutushinta"),
 ]
 
+_PRIMARY_PROFILE_EMAIL = "primary_profile.email"
+_PRIMARY_PROFILE_PHONE = "primary_profile.phone_number"
+_PRIMARY_PROFILE_STREET_ADDRESS = "primary_profile.street_address"
+
+_SECONDARY_PROFILE_EMAIL = "secondary_profile.email"
+_SECONDARY_PROFILE_PHONE = "secondary_profile.phone_number"
+_SECONDARY_PROFILE_STREET_ADDRESS = "secondary_profile.street_address"
+
 
 def _get_profile_cell(reservation: ApartmentReservation, column_name: str) -> str:
     if (
@@ -324,13 +332,18 @@ class UnsoldApartmentsExportService(CSVExportService):
 
 
 class ApplicantMailingListExportService(CSVExportService):
+    list_type_full = "full"
+    list_type_short = "short"
+
+    allowed_list_types = [list_type_full, list_type_short]
+
     COLUMNS = [
         ("Asunnon numero", "apartment_number"),
         ("Sijainti jonossa", "queue_position"),
         ("Ensisijainen hakija etunimi", "primary_profile.first_name"),
         ("Ensisijainen hakija sukunimi", "primary_profile.last_name"),
-        ("Ensisijainen hakija sähköposti", "primary_profile.email"),
-        ("Ensisijainen hakija osoite", "primary_profile.street_address"),
+        ("Ensisijainen hakija sähköposti", _PRIMARY_PROFILE_EMAIL),
+        ("Ensisijainen hakija osoite", _PRIMARY_PROFILE_STREET_ADDRESS),
         ("Ensisijainen hakija postinumero", "primary_profile.postal_code"),
         ("Ensisijainen hakija postitoimipaikka", "primary_profile.city"),
         (
@@ -339,8 +352,8 @@ class ApplicantMailingListExportService(CSVExportService):
         ),
         ("Kanssahakija etunimi", "secondary_profile.first_name"),
         ("Kanssahakija sukunimi", "secondary_profile.last_name"),
-        ("Kanssahakija sähköposti", "secondary_profile.email"),
-        ("Kanssahakija osoite", "secondary_profile.street_address"),
+        ("Kanssahakija sähköposti", _SECONDARY_PROFILE_EMAIL),
+        ("Kanssahakija osoite", _SECONDARY_PROFILE_STREET_ADDRESS),
         ("Kanssahakija postinumero", "secondary_profile.postal_code"),
         ("Kanssahakija postitoimipaikka", "secondary_profile.city"),
         (
@@ -354,6 +367,24 @@ class ApplicantMailingListExportService(CSVExportService):
         ("Kohteen postitoimipaikka", "project_city"),
         ("Huoneiston kokoonpano", "apartment_structure"),
         ("Asuinpinta-ala", "living_area"),
+    ]
+
+    COLUMNS_SHORT = [
+        ("Asunnon numero", "apartment_number"),
+        ("Ensisijainen hakija etunimi", "primary_profile.first_name"),
+        ("Ensisijainen hakija sukunimi", "primary_profile.last_name"),
+        ("Ensisijainen hakija sähköposti", _PRIMARY_PROFILE_EMAIL),
+        ("Ensisijainen hakija puhelin", _PRIMARY_PROFILE_PHONE),
+        ("Ensisijainen hakija osoite", _PRIMARY_PROFILE_STREET_ADDRESS),
+        ("Ensisijainen hakija postinumero", "primary_profile.postal_code"),
+        ("Ensisijainen hakija postitoimipaikka", "primary_profile.city"),
+        ("Kanssahakija etunimi", "secondary_profile.first_name"),
+        ("Kanssahakija sukunimi", "secondary_profile.last_name"),
+        ("Kanssahakija sähköposti", _SECONDARY_PROFILE_EMAIL),
+        ("Kanssahakija puhelin", _SECONDARY_PROFILE_PHONE),
+        ("Kanssahakija osoite", _SECONDARY_PROFILE_STREET_ADDRESS),
+        ("Kanssahakija postinumero", "secondary_profile.postal_code"),
+        ("Kanssahakija postitoimipaikka", "secondary_profile.city"),
     ]
 
     COLUMNS_ROO_PAYMENTS = [
@@ -375,9 +406,30 @@ class ApplicantMailingListExportService(CSVExportService):
         export_first_in_queue,  # export reservers who are first in queue
     ]
 
-    def __init__(self, reservations: QuerySet, export_type: str):
+    def __init__(
+        self,
+        reservations: QuerySet,
+        export_type: str,
+        list_type: str = list_type_full,
+    ):
+        """Initialize mailing list export service.
+
+        Args:
+            reservations (QuerySet): Reservations to export.
+            export_type (str): Reservation filter type.
+            list_type (str): Either full or short output.
+        """
         self.reservations: QuerySet = reservations
         self.export_type = export_type
+        self.list_type = list_type
+
+        if self.list_type not in self.allowed_list_types:
+            raise ValueError(f"Invalid list type '{self.list_type}'")
+
+        if self.list_type == self.list_type_short:
+            self.add_roo_columns = False
+            self.COLUMNS = list(self.COLUMNS_SHORT)
+            return
 
         self.add_roo_columns = (
             self.any_reservation_has_roo_installments()
@@ -437,6 +489,21 @@ class ApplicantMailingListExportService(CSVExportService):
         convert = lambda text: int(text) if text.isdigit() else text  # noqa: E731
         return [convert(c) for c in re.split(r"(\d+)", row[0])]
 
+    def _get_sold_reservations(self, queryset: QuerySet) -> QuerySet:
+        """Return sold reservations for full or short mailing list mode."""
+        if self.list_type == self.list_type_short:
+            return queryset.filter(state=ApartmentReservationState.SOLD)
+
+        return queryset.filter(
+            Q(state=ApartmentReservationState.SOLD)
+            | Q(
+                state=ApartmentReservationState.CANCELED,
+                state_change_events__cancellation_reason=(
+                    ApartmentReservationCancellationReason.TERMINATED
+                ),
+            )
+        ).distinct()
+
     def filter_reservations(self):
         if self.export_type not in self.allowed_apartment_export_types:
             raise ValueError(f"Invalid export type '{self.export_type}'")
@@ -465,15 +532,7 @@ class ApplicantMailingListExportService(CSVExportService):
                 )
 
         elif self.export_type == ApartmentReservationState.SOLD.value:
-            reservations = qs.filter(
-                Q(state=ApartmentReservationState.SOLD)
-                | Q(
-                    state=ApartmentReservationState.CANCELED,
-                    state_change_events__cancellation_reason=(
-                        ApartmentReservationCancellationReason.TERMINATED
-                    ),
-                )
-            ).distinct()
+            reservations = self._get_sold_reservations(qs)
 
         else:
             reservations = qs.exclude(state=ApartmentReservationState.CANCELED)

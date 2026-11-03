@@ -5,6 +5,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+*node_modules*
+
+CLAUDE.md
+
 # C extensions
 *.so
 
@@ -52,6 +56,10 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
+
+# E2E test results
+tests-e2e/playwright-report/*
+tests-e2e/test-results/*
 
 # Translations
 *.mo
@@ -106,6 +114,7 @@ celerybeat.pid
 
 # Environments
 .env
+.env.e2e
 .venv
 env/
 venv/
@@ -148,3 +157,4 @@ schemas/*
 
 # MacOS specific .DS_STORE directory metadata
 .DS_STORE
+

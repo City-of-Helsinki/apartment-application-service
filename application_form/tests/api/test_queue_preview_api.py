@@ -394,3 +394,50 @@ def test_queue_preview_honors_requested_position_when_active_queue_has_gap(
         item["id"]: item for item in response.data if item["id"] is not None
     }
     assert response_by_id[target_reservation.id]["queue_position"] == 6
+
+
+@pytest.mark.django_db
+def test_queue_preview_add_haso_orders_by_right_of_residence_when_not_late(
+    sales_ui_salesperson_api_client,
+):
+    """
+    Previewing a non-late HASO add without queue_position ranks by RoR.
+
+    - Existing non-late reservation has RoR 500
+    - New customer has better (lower) RoR 100
+    - Preview places the newcomer at queue_position 1
+    """
+    apartment = ApartmentDocumentFactory(project_ownership_type="HASO")
+    existing = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        queue_position=1,
+        list_position=1,
+        submitted_late=False,
+        right_of_residence=500,
+        right_of_residence_is_old_batch=False,
+        state=ApartmentReservationState.SUBMITTED,
+    )
+    new_customer = CustomerFactory(
+        right_of_residence=100,
+        right_of_residence_is_old_batch=False,
+    )
+
+    response = sales_ui_salesperson_api_client.post(
+        _queue_preview_url(apartment.uuid),
+        data={
+            "customer_id": new_customer.id,
+            "submitted_late": False,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    response_by_id = {
+        item["id"]: item for item in response.data if item["id"] is not None
+    }
+    response_by_customer = {
+        item["customer"]["id"]: item for item in response.data if item.get("customer")
+    }
+    assert response_by_customer[new_customer.id]["queue_position"] == 1
+    assert response_by_id[existing.id]["queue_position"] == 2
+    assert _active_positions_from_response(response.data) == [1, 2]

@@ -211,16 +211,31 @@ class ProjectExportApplicantsMailingListAPIView(APIView):
             apartment_uuid__in=apartment_uuids,
         )
 
-        export_services = ApplicantMailingListExportService(reservations, export_type)
+        list_type = request.query_params.get(
+            "list_type", ApplicantMailingListExportService.list_type_full
+        )
+
+        try:
+            export_services = ApplicantMailingListExportService(
+                reservations,
+                export_type,
+                list_type=list_type,
+            )
+        except ValueError as error:
+            raise ValidationError(str(error)) from error
+
         csv_file = export_services.get_csv_string()
-        file_name = format_lazy(
-            _("[Project {title}] Applicants information"),
-            title=project.project_street_address,
-        ).replace(" ", "_")
+        file_name = quote(
+            format_lazy(
+                _("[Project {title}] Applicants information"),
+                title=project.project_street_address,
+            ).replace(" ", "_")
+        )
         response = HttpResponse(csv_file, content_type="text/csv; charset=utf-8-sig")
         response["Content-Disposition"] = "attachment; filename={file_name}.csv".format(
             file_name=file_name
         )
+        response["X-Mailing-List-Type"] = export_services.list_type
         return response
 
 

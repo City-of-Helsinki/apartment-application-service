@@ -1,0 +1,276 @@
+# grant_type of the sales UI's API token request, shared with the test-runner
+# so the token exchange spec sends exactly what the UI sends. The mock
+# accepts client_credentials only (see mock-oidc-proxy.conf), not the
+# Keycloak-style urn:ietf:params:oauth:grant-type:uma-ticket.
+x-e2e-api-grant-type: &e2e-api-grant-type "${E2E_API_GRANT_TYPE:-client_credentials}"
+
+services:
+  drupal-db:
+    image: druidfi/mariadb:10.6-drupal
+    volumes:
+      - drupal_db_data:/var/lib/mysql
+      - ${DRUPAL_DUMP_PATH}:/docker-entrypoint-initdb.d/dump.sql:ro
+    ports:
+      - "127.0.0.1:13306:3306"
+    networks:
+      - e2e
+
+  drupal-elastic:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    environment:
+      - node.name=drupal-elastic
+      - discovery.type=single-node
+      - cluster.name=es-docker-cluster
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - "127.0.0.1:19200:9200"
+    networks:
+      - e2e
+
+  drupal-redis:
+    image: redis:6-alpine
+    networks:
+      - e2e
+
+  drupal-app:
+    hostname: drupal-app
+    image: "${DRUPAL_IMAGE:-ghcr.io/city-of-helsinki/drupal-web:8.3}"
+    volumes:
+      - ../drupal-asuntotuotanto:/app:delegated
+      - ./drupal-e2e-deploy.sh:/entrypoints/25-e2e-deploy.sh:ro
+      # Baseline content and its loader, run by drupal-e2e-deploy.sh.
+      - ./e2e/fixtures/drupal:/e2e/fixtures/drupal:ro
+    environment:
+      APP_ENV: "${APP_ENV:-dev}"
+      WEBROOT: /app/public
+      DRUPAL_ROUTES: "http://localhost:18080,http://drupal-app:8080"
+      DRUSH_OPTIONS_URI: "http://localhost:18080"
+      SKIP_DEPLOY_SCRIPTS: "false"
+      DRUPAL_HASH_SALT: "${DRUPAL_HASH_SALT:-e2e-test-salt-not-for-production}"
+      # The drupal-web image defaults SIMPLETEST_DB to a URL pointing at host "db",
+      # which settings.php prefers over DRUPAL_DB_*. Blank it so DRUPAL_DB_* apply.
+      SIMPLETEST_DB: ""
+      DRUPAL_DB_HOST: drupal-db
+      DRUPAL_DB_NAME: drupal
+      DRUPAL_DB_USER: drupal
+      DRUPAL_DB_PASS: "${E2E_DRUPAL_DB_PASSWORD:?Set E2E_DRUPAL_DB_PASSWORD in .env.e2e — see README.md}"
+      DTT_BASE_URL: "http://localhost:18080"
+      SIMPLETEST_BASE_URL: "http://localhost:18080"
+      REDIS_HOST: drupal-redis
+      ASU_REST_OAUTH_CLIENT_ID: "${ASU_REST_OAUTH_CLIENT_ID:-installed_rest_client}"
+      ASU_REST_OAUTH_CLIENT_SECRET: "${ASU_REST_OAUTH_CLIENT_SECRET:-example-token}"
+      ASU_DJANGO_BACKEND_URL: "django-app:8081"
+      ASU_ASUNTOTUOTANTO_URL: "http://localhost:18080"
+      DRUPAL_SERVER_AUTH_TOKEN: "${DRUPAL_SERVER_AUTH_TOKEN:-example-token}"
+      ASU_REST_API_CACHE_MAX_AGE: "0"
+      E2E_BASELINE_FILE: /e2e/fixtures/drupal/baseline.json
+    ports:
+      - "127.0.0.1:18080:8080"
+    depends_on:
+      - drupal-db
+      - drupal-elastic
+      - drupal-redis
+    networks:
+      - e2e
+
+  django-db:
+    image: postgres:12
+    environment:
+      POSTGRES_USER: apartment-application
+      POSTGRES_PASSWORD: "${E2E_DJANGO_DB_PASSWORD:?Set E2E_DJANGO_DB_PASSWORD in .env.e2e — see README.md}"
+      POSTGRES_DB: apartment-application
+    ports:
+      - "127.0.0.1:15434:5432"
+    volumes:
+      - django_db_data:/var/lib/postgresql/data
+    networks:
+      - e2e
+
+  # Generic OIDC provider standing in for Tunnistamo/Keycloak so the sales
+  # API can be exercised with real signed Bearer JWTs. Tokens are minted per
+  # scope from mock-oidc-config.json. The mock derives each token's `iss`
+  # from the Host header it was reached with, so the fixed hostname makes the
+  # issuer http://mock-oidc:8080/e2e inside the e2e network, which is the
+  # value django-app trusts via OIDC_ISSUER.
+  #
+  # Clients reach the server through the `mock-oidc` proxy below, which
+  # passes the Host header through, so the issuer is unaffected by the hop.
+  mock-oidc-server:
+    image: ghcr.io/navikt/mock-oauth2-server:5.0.2
+    volumes:
+      - ./mock-oidc-config.json:/config/mock-oidc-config.json:ro
+    environment:
+      JSON_CONFIG_PATH: /config/mock-oidc-config.json
+    networks:
+      - e2e
+
+  # The OIDC endpoint every client uses (http://mock-oidc:8080). A plain
+  # nginx proxy in front of mock-oidc-server that turns the sales UI's
+  # Bearer-authenticated API token request into one the mock accepts; see
+  # mock-oidc-proxy.conf for details.
+  mock-oidc:
+    image: nginx:1.25-alpine
+    hostname: mock-oidc
+    volumes:
+      - ./mock-oidc-proxy.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "127.0.0.1:18083:8080"
+    depends_on:
+      - mock-oidc-server
+    networks:
+      - e2e
+
+  django-app:
+    build:
+      context: .
+      target: development
+    volumes:
+      - ${DJANGO_DUMP_PATH:-/dev/null}:/fixtures/django-dump.json:ro
+      - ./django_dedup_fixture.py:/django_dedup_fixture.py:ro
+      # Fixtures and their loader; .dockerignore keeps e2e/ out of the image.
+      - ./e2e:/e2e:ro
+    command:
+      - /bin/bash
+      - -c
+      - |
+        if [ -s /fixtures/django-dump.json ]; then
+          echo '[e2e] Flushing DB before fixture load...'
+          python ./manage.py flush --no-input
+          echo '[e2e] Clearing post-migrate contenttypes...'
+          python ./manage.py shell -c "from django.contrib.auth.models import Permission; from django.contrib.contenttypes.models import ContentType; Permission.objects.all().delete(); ContentType.objects.all().delete()"
+          echo '[e2e] Deduplicating fixture...'
+          python /django_dedup_fixture.py /fixtures/django-dump.json /tmp/fixture-deduped.json
+          echo '[e2e] Loading Django fixture...'
+          python ./manage.py loaddata /tmp/fixture-deduped.json
+        fi
+        echo '[e2e] Loading e2e fixtures...'
+        # The script lives outside the project dir, so /app is put on the
+        # path explicitly instead of the script mutating sys.path itself.
+        PYTHONPATH=/app python /e2e/load_django_fixtures.py
+        python ./manage.py runserver 0.0.0.0:8081
+    environment:
+      DATABASE_URL: "postgres://apartment-application:${E2E_DJANGO_DB_PASSWORD:?Set E2E_DJANGO_DB_PASSWORD in .env.e2e — see README.md}@django-db/apartment-application"
+      DATABASE_HOST: django-db
+      DRUPAL_SEARCH_API_TOKEN_URL: "http://drupal-app:8080/oauth/token"
+      DRUPAL_SEARCH_API_BASE_URL: "http://drupal-app:8080/fi"
+      DRUPAL_SEARCH_API_VERIFY_SSL: "False"
+      DRUPAL_SEARCH_API_CLIENT_ID: "${ASU_REST_OAUTH_CLIENT_ID:-installed_rest_client}"
+      DRUPAL_SEARCH_API_CLIENT_SECRET: "${ASU_REST_OAUTH_CLIENT_SECRET:-example-token}"
+      ALLOWED_HOSTS: "*"
+      CORS_ORIGIN_ALLOW_ALL: "1"
+      DEBUG: "1"
+      APPLY_MIGRATIONS: "1"
+      CREATE_SUPERUSER: "0"
+      CREATE_DATA_TRANSFER_PATH: "1"
+      APARTMENT_DATA_TRANSFER_PATH: transfer_files
+      APARTMENT_INDEX_NAME: asuntotuotanto_apartment
+      TEST_APARTMENT_INDEX_NAME: asuntotuotanto_apartment_test
+      OIKOTIE_SCHEMA_DIR: /app/schemas/
+      OIKOTIE_APARTMENTS_BATCH_SCHEMA_URL: ""
+      OIKOTIE_APARTMENTS_UPDATE_SCHEMA_URL: ""
+      OIKOTIE_HOUSINGCOMPANIES_BATCH_SCHEMA_URL: ""
+      # Required for application_form's encrypted fields (django-pgcrypto-fields).
+      # Without these, migration 0022_add_encrypted_application_fields fails with
+      # "Corrupt ascii-armor" since it embeds this key literally into decrypt SQL.
+      PUBLIC_PGP_KEY: "${PUBLIC_PGP_KEY:?Set PUBLIC_PGP_KEY in .env.e2e — see README.md}"
+      PRIVATE_PGP_KEY: "${PRIVATE_PGP_KEY:?Set PRIVATE_PGP_KEY in .env.e2e — see README.md}"
+      # Trust Bearer JWTs from the mock-oidc service (see its comment below).
+      OIDC_ISSUER: "http://mock-oidc:8080/e2e"
+      OIDC_AUDIENCE: "apartment-application-service"
+    ports:
+      - "127.0.0.1:18081:8081"
+    depends_on:
+      - django-db
+      - mock-oidc
+    networks:
+      - e2e
+
+  # att-sales-ui CRA dev server. REACT_APP_* values are read when the dev
+  # server starts, so changing them needs a container restart. The source is
+  # mounted like the sibling repo's own docker-compose.yml, so local edits to
+  # att-sales-ui are picked up without a rebuild; the anonymous volume keeps
+  # the image's node_modules instead of the host's (possibly non-Linux) one.
+  sales-ui:
+    build:
+      context: "${SALES_UI_PATH:-../att-sales-ui}"
+      target: development
+    hostname: sales-ui
+    volumes:
+      - "${SALES_UI_PATH:-../att-sales-ui}:/app"
+      - /app/node_modules
+    environment:
+      BROWSER: "none"
+      # Requests arrive with Host sales-ui:3000 (browser in test-runner) or
+      # localhost:13000 (host machine); the dev server must accept both.
+      DANGEROUSLY_DISABLE_HOST_CHECK: "true"
+      # Makes the hot-reload websocket use the page's own port, which keeps
+      # it working behind the 13000->3000 host port mapping.
+      WDS_SOCKET_PORT: "0"
+      REACT_APP_OIDC_URL: "http://mock-oidc:8080/e2e"
+      # Must be set and empty: the UI does String(REACT_APP_OIDC_REALM), so an
+      # unset variable becomes the truthy string "undefined" and the authority
+      # would get a Keycloak-style /realms/undefined suffix.
+      REACT_APP_OIDC_REALM: ""
+      REACT_APP_OIDC_CLIENT_ID: "att-sales-ui"
+      REACT_APP_OIDC_SCOPE: "openid profile"
+      REACT_APP_OIDC_CALLBACK_PATH: "/callback"
+      REACT_APP_OIDC_SILENT_AUTH_PATH: "/silent_renew.html"
+      REACT_APP_OIDC_RESPONSE_TYPE: "code"
+      REACT_APP_OIDC_LOGOUT_PATH: "/"
+      REACT_APP_OIDC_TOKEN_EXCHANGE_URL: "http://mock-oidc:8080/e2e/token"
+      REACT_APP_API_GRANT_TYPE: *e2e-api-grant-type
+      REACT_APP_API_AUDIENCE: "apartment-application-service"
+      REACT_APP_API_BASE_URL: "http://django-app:8081/v1/sales"
+      REACT_APP_DRUPAL_BASE_URL: "http://drupal-app:8080"
+    ports:
+      - "127.0.0.1:13000:3000"
+    depends_on:
+      - mock-oidc
+      - django-app
+    networks:
+      - e2e
+
+  test-runner:
+    image: mcr.microsoft.com/playwright:v1.64.1-jammy
+    working_dir: /tests
+    # Chromium keeps renderer memory in /dev/shm. Docker's 64MB default runs
+    # out with parallel workers and kills pages ("Page crashed",
+    # "Target crashed", net::ERR_ABORTED).
+    shm_size: "1gb"
+    volumes:
+      - ./tests-e2e:/tests
+      # Read by tests/baseline to know which content to expect.
+      - ./e2e/fixtures/drupal:/e2e/fixtures/drupal:ro
+    entrypoint: ["/bin/sh", "-c"]
+    # xvfb-run gives --headed a virtual display to run against inside this
+    # headless container; it's a no-op for normal headless runs.
+    command: ["npm ci && xvfb-run -a npx playwright test $$PLAYWRIGHT_ARGS"]
+    environment:
+      E2E_BASE_URL: "http://drupal-app:8080"
+      E2E_DJANGO_URL: "http://django-app:8081"
+      E2E_OIDC_URL: "http://mock-oidc:8080"
+      E2E_SALES_UI_URL: "http://sales-ui:3000"
+      E2E_API_GRANT_TYPE: *e2e-api-grant-type
+      E2E_BASELINE_FILE: /e2e/fixtures/drupal/baseline.json
+      PLAYWRIGHT_ARGS: ""
+    depends_on:
+      - drupal-app
+      - django-app
+      - mock-oidc
+      - sales-ui
+    networks:
+      - e2e
+
+networks:
+  e2e:
+    driver: bridge
+
+volumes:
+  drupal_db_data:
+  django_db_data:
