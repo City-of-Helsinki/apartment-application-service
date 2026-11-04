@@ -263,11 +263,15 @@ docker compose exec django make restore-sanitized-dump DUMP=sanitized_YYYYMMDDHH
 
 It shows the target database and asks you to type `yes` (`YES=1` skips the
 prompt). Then it drops everything in the `public` schema of `DATABASE_URL`,
-imports the dump and runs `migrate`. Run it in the django container, not on the
-host: the container's `psql` is new enough to read the `\restrict` lines that
-current `pg_dump` versions write. Restore into the same Postgres major version
-the dump was made from (`-- Dumped from database version` at the top of the
-file). An older server rejects settings such as `transaction_timeout`.
+imports the dump and runs `migrate`. The drop and the import run in one
+transaction, so if the import fails the database is left as it was. Run it in
+the django container, not on the host: the container's `psql` is new enough to
+read the `\restrict` lines that current `pg_dump` versions write.
+
+The target Postgres must be at least the major version the dump was made from
+(`-- Dumped from database version` at the top of the file). Otherwise the
+command refuses before changing anything. Local dev runs Postgres 12, so it can
+restore dumps from a Postgres 12 server.
 
 After the import:
 
