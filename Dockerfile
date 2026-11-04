@@ -18,11 +18,14 @@ COPY --chown=1001:1001 requirements-prod.txt /app/requirements-prod.txt
 # git + ca-certificates required for pip installs from git+https (e.g. django-oikotie)
 # Skip "dnf update -y": live UBI repos can conflict with packages baked into
 # ubi9/python-312 (e.g. sqlite vs sqlite-libs version skew).
+# PostgreSQL 17 client comes from the PGDG repo; UBI repos only ship 13.
 RUN dnf install -y \
+    https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-$(uname -m)/pgdg-redhat-repo-latest.noarch.rpm \
+    && dnf install -y \
     nc \
     git \
     ca-certificates \
-    postgresql \
+    postgresql17 \
     && update-ca-trust \
     && pip install -U pip \
     && pip install --no-cache-dir -r /app/requirements.txt \

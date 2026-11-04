@@ -222,20 +222,19 @@ restored Drupal dump (below). For local use, `SANITIZED_DUMP_PASSWORD=localdev`
 in `.env` is fine.
 
 ```bash
+./scripts/create_sanitized_dump.sh -d /tmp
+```
+
+Or from the Makefile (writes under `SANITIZED_DUMP_DIR`, default `.`):
+
+```bash
 make create-sanitized-dump
 ```
 
-This writes `sanitized_YYYYMMDDHHMMSS.sql` under `SANITIZED_DUMP_DIR` (default:
-current directory). The dump is written to a `.tmp` file first and renamed only
-when it succeeds; after that, older dumps are deleted so the four newest remain.
-A failed dump leaves existing dumps untouched. Override the directory with
-`make create-sanitized-dump SANITIZED_DUMP_DIR=/tmp`.
-
-Alternatively:
-
-```bash
-./manage.py create_sanitized_dump > /tmp/sanitized_$(date +%Y%m%d%H%M).sql
-```
+This writes `sanitized_YYYYMMDDHHMMSS.sql` to the given directory. The dump is
+written to a `.tmp` file first and renamed only when it succeeds; after that,
+older dumps are deleted so the four newest remain (change with `-k`). A failed
+dump leaves existing dumps untouched.
 
 On OpenShift, run the command in an application pod and copy the file out
 afterwards. Do not commit dump files.
