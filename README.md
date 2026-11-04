@@ -70,6 +70,7 @@ If you have the `make` command available, you can use the following commands to 
 * `make test` - Run tests
 * `make check-sanitizerconfig` - Verify `.sanitizerconfig` covers all Django models
 * `make create-sanitized-dump` - Create an anonymized SQL dump (rotates old dumps)
+* `make restore-sanitized-dump DUMP=file.sql` - Replace the database with a sanitized dump and migrate
 * `make fix` - Run code formmitng fixes (isort, black)
 * `make requirements` - Update all requirements `*.txt` files from their
   corresponding `*.in` files
@@ -232,7 +233,7 @@ run without it.
 oc exec <django-pod> -- env SANITIZED_DUMP_PASSWORD=<password> \
   ./scripts/create_sanitized_dump.sh -d /tmp
 # Prints: Created /tmp/sanitized_YYYYMMDDHHMMSS.sql
-oc cp <django-pod>:/tmp/sanitized_YYYYMMDDHHMMSS.sql ./django.sql
+oc cp <django-pod>:/tmp/sanitized_YYYYMMDDHHMMSS.sql ./sanitized_YYYYMMDDHHMMSS.sql
 oc exec <django-pod> -- rm /tmp/sanitized_YYYYMMDDHHMMSS.sql
 ```
 
@@ -257,12 +258,19 @@ dump leaves existing dumps untouched.
 
 ### Restore a Django dump locally
 
-The dump drops and recreates the tables it contains. Start from an empty schema
-anyway, so tables from newer migrations don't make `migrate` fail later.
+Put the dump file in this directory, then:
 
 ```bash
 docker compose exec django make restore-sanitized-dump DUMP=django_sanitized_YYYYMMDDHHMMSS.sql
 ```
+
+It shows the target database and asks you to type `yes` (`YES=1` skips the
+prompt). Then it drops everything in the `public` schema of `DATABASE_URL`,
+imports the dump and runs `migrate`. Run it in the django container, not on the
+host: the container's `psql` is new enough to read the `\restrict` lines that
+current `pg_dump` versions write. Restore into the same Postgres major version
+the dump was made from (`-- Dumped from database version` at the top of the
+file). An older server rejects settings such as `transaction_timeout`.
 
 After the import:
 
@@ -286,23 +294,19 @@ into, or no Drupal user can reach the backend (`401 No active account`).
    Users created between the two dumps won't match.
 2. Restore the Django dump ([above](#restore-a-django-dump-locally)) and the
    Drupal dump (drupal-asuntotuotanto README). Run the migrations in both.
-3. In the **target** Django environment, generate the fix. Its
-   `SANITIZED_DUMP_PASSWORD` must equal the value used when dumping:
+3. Re-link them. Locally, run this in drupal-asuntotuotanto, with both dev
+   stacks running:
 
    ```bash
-   docker compose exec -T django ./manage.py drupal_restore_credentials_sql \
-     --i-know-this-is-a-restored-dump > fix.sql
+   make relink-backend-credentials
    ```
 
-4. Apply it to the **target** Drupal and clear caches (run in
-   drupal-asuntotuotanto):
+   It runs `./manage.py drupal_restore_credentials_sql
+   --i-know-this-is-a-restored-dump` in the Django container, applies the
+   output to Drupal and clears caches. Django's `SANITIZED_DUMP_PASSWORD` must
+   equal the value used when dumping.
 
-   ```bash
-   docker compose exec -T app drush sql:cli < fix.sql
-   docker compose exec app drush cr
-   ```
-
-On a test server, replace the commands in steps 3 and 4 with
+On a test server, do step 3 by hand with
 `oc exec <django-pod> -- ./manage.py drupal_restore_credentials_sql --i-know-this-is-a-restored-dump > fix.sql`,
 then `oc cp fix.sql <drupal-pod>:/tmp/fix.sql`,
 `oc exec <drupal-pod> -- drush sql:query --file=/tmp/fix.sql` and
