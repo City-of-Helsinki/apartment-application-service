@@ -38,6 +38,11 @@ SANITIZED_DUMP_DIR ?= .
 create-sanitized-dump:
 	@./scripts/create_sanitized_dump.sh -d "$(SANITIZED_DUMP_DIR)"
 
+# Replace the database with a sanitized dump: make restore-sanitized-dump DUMP=file.sql
+restore-sanitized-dump:
+	@test -n "$(DUMP)" || { echo "Usage: make restore-sanitized-dump DUMP=file.sql [YES=1]" >&2; exit 1; }
+	@./scripts/restore_sanitized_dump.sh $(if $(YES),-y) "$(DUMP)"
+
 test:
 	pytest
 
