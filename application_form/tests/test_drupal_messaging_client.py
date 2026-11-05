@@ -555,6 +555,9 @@ def test_post_sales_reply_raises_after_retryable_network_errors(settings, monkey
 @pytest.mark.django_db
 def test_upload_sales_attachment_posts_multipart(settings, monkeypatch):
     """Upload helper sends multipart payload with application context."""
+    from django.core.cache import cache as django_cache
+
+    django_cache.clear()
 
     _configure_drupal_search_settings(settings)
     settings.DRUPAL_SEARCH_API_ATTACHMENTS_UPLOAD_PATH = (

@@ -375,6 +375,56 @@ class DrupalMessagingClient:
             expected_statuses=(200, 201),
         )
 
+    @staticmethod
+    def _build_upload_data(
+        *,
+        application_id: int,
+        display_name: str,
+        sender_role: str,
+        viewer_role: str,
+        sales_shared: bool,
+    ) -> Dict[str, str]:
+        """Build multipart form fields for attachment upload."""
+        data: Dict[str, str] = {"application_id": str(application_id)}
+        if display_name:
+            data["display_name"] = display_name
+        if sender_role:
+            data["sender_role"] = sender_role
+        if viewer_role:
+            data["viewer_role"] = viewer_role
+        if sales_shared:
+            data["sales_shared"] = "1"
+        return data
+
+    @staticmethod
+    def _build_upload_files(file) -> Dict[str, tuple]:
+        """Build multipart files payload for attachment upload."""
+        return {
+            "file": (
+                getattr(file, "name", "attachment"),
+                file,
+                getattr(file, "content_type", None),
+            )
+        }
+
+    def _post_upload_request(
+        self, *, url: str, data: Dict[str, str], files: Dict[str, tuple]
+    ):
+        """Send one multipart upload request to Drupal."""
+        token = self._get_access_token()
+        headers = {
+            "Accept": "application/json",
+            "Authorization": f"Bearer {token}",
+        }
+        return requests.post(
+            url,
+            headers=headers,
+            timeout=settings.DRUPAL_SEARCH_API_TIMEOUT,
+            data=data,
+            files=files,
+            verify=settings.DRUPAL_SEARCH_API_VERIFY_SSL,
+        )
+
     def upload_sales_attachment(
         self,
         *,
@@ -404,38 +454,18 @@ class DrupalMessagingClient:
         )
         url = self._build_safe_url(settings.DRUPAL_SEARCH_API_BASE_URL, path)
         retries = max(int(getattr(settings, "DRUPAL_SEARCH_API_RETRY_COUNT", 2)), 0)
+        data = self._build_upload_data(
+            application_id=application_id,
+            display_name=display_name,
+            sender_role=sender_role,
+            viewer_role=viewer_role,
+            sales_shared=sales_shared,
+        )
+        files = self._build_upload_files(file)
 
         for attempt in range(retries + 1):
             try:
-                token = self._get_access_token()
-                headers = {
-                    "Accept": "application/json",
-                    "Authorization": f"Bearer {token}",
-                }
-                data = {"application_id": str(application_id)}
-                if display_name:
-                    data["display_name"] = display_name
-                if sender_role:
-                    data["sender_role"] = sender_role
-                if viewer_role:
-                    data["viewer_role"] = viewer_role
-                if sales_shared:
-                    data["sales_shared"] = "1"
-                files = {
-                    "file": (
-                        getattr(file, "name", "attachment"),
-                        file,
-                        getattr(file, "content_type", None),
-                    )
-                }
-                response = requests.post(
-                    url,
-                    headers=headers,
-                    timeout=settings.DRUPAL_SEARCH_API_TIMEOUT,
-                    data=data,
-                    files=files,
-                    verify=settings.DRUPAL_SEARCH_API_VERIFY_SSL,
-                )
+                response = self._post_upload_request(url=url, data=data, files=files)
             except requests.RequestException as exc:
                 if attempt < retries:
                     continue
