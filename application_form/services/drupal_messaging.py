@@ -9,6 +9,7 @@ from django.conf import settings
 from django.core.cache import cache
 
 _logger = logging.getLogger(__name__)
+APPLICATION_JSON = "application/json"
 
 
 @dataclass
@@ -68,11 +69,11 @@ class DrupalMessagingClient:
     @staticmethod
     def _build_headers(
         token: str,
-        content_type: str = "application/json",
+        content_type: str = APPLICATION_JSON,
     ) -> Dict[str, str]:
         """Build standard headers for Drupal messaging requests."""
         return {
-            "Accept": "application/json",
+            "Accept": APPLICATION_JSON,
             "Content-Type": content_type,
             "Authorization": f"Bearer {token}",
         }
@@ -215,7 +216,7 @@ class DrupalMessagingClient:
                 content_type = (
                     "application/x-www-form-urlencoded"
                     if form_payload is not None
-                    else "application/json"
+                    else APPLICATION_JSON
                 )
                 headers = self._build_headers(token, content_type=content_type)
                 response = requests.request(
@@ -413,7 +414,7 @@ class DrupalMessagingClient:
         """Send one multipart upload request to Drupal."""
         token = self._get_access_token()
         headers = {
-            "Accept": "application/json",
+            "Accept": APPLICATION_JSON,
             "Authorization": f"Bearer {token}",
         }
         return requests.post(
