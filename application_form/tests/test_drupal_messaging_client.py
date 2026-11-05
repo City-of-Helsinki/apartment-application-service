@@ -482,9 +482,7 @@ def test_post_sales_reply_raises_invalid_attachments_on_422(settings, monkeypatc
 
 
 @pytest.mark.django_db
-def test_post_sales_reply_raises_invalid_new_attachments_on_422(
-    settings, monkeypatch
-):
+def test_post_sales_reply_raises_invalid_new_attachments_on_422(settings, monkeypatch):
     """A 422 payload with invalid_new_attachments code is mapped as-is."""
 
     _configure_drupal_search_settings(settings)
@@ -568,20 +566,22 @@ def test_upload_sales_attachment_posts_multipart(settings, monkeypatch):
     monkeypatch.setattr(
         requests,
         "post",
-        lambda *args, **kwargs: _FakeResponse(
-            status_code=200,
-            payload={"access_token": "token-upload", "expires_in": 3600},
-        )
-        if args and args[0] == settings.DRUPAL_SEARCH_API_TOKEN_URL
-        else captured.update(
-            {
-                "url": args[0],
-                "data": kwargs.get("data"),
-                "files": kwargs.get("files"),
-                "headers": kwargs.get("headers"),
-            }
-        )
-        or _FakeResponse(status_code=201, payload={"file_id": 321}),
+        lambda *args, **kwargs: (
+            _FakeResponse(
+                status_code=200,
+                payload={"access_token": "token-upload", "expires_in": 3600},
+            )
+            if args and args[0] == settings.DRUPAL_SEARCH_API_TOKEN_URL
+            else captured.update(
+                {
+                    "url": args[0],
+                    "data": kwargs.get("data"),
+                    "files": kwargs.get("files"),
+                    "headers": kwargs.get("headers"),
+                }
+            )
+            or _FakeResponse(status_code=201, payload={"file_id": 321})
+        ),
     )
 
     client = DrupalMessagingClient()
@@ -595,7 +595,9 @@ def test_upload_sales_attachment_posts_multipart(settings, monkeypatch):
     )
 
     assert payload == {"file_id": 321}
-    assert captured["url"] == "https://drupal.example/user/application/attachments/upload"
+    assert (
+        captured["url"] == "https://drupal.example/user/application/attachments/upload"
+    )
     assert captured["data"]["application_id"] == "12"
     assert captured["data"]["display_name"] == "Offer"
     assert captured["data"]["sender_role"] == "sales"

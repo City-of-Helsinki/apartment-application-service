@@ -34,13 +34,13 @@ from apartment.models import ProjectExtraData
 from apartment.services import get_offer_message_subject_and_body
 from apartment.utils import get_apartment_state_of_sale_from_event
 from application_form.api.sales.serializers import (
-    ReservationMessageAttachmentUploadResponseSerializer,
-    ReservationMessageAttachmentUploadSerializer,
     OfferMessageSerializer,
     OfferSerializer,
     PendingOfferMessageSerializer,
     ProjectExtraDataSerializer,
     ProjectUUIDSerializer,
+    ReservationMessageAttachmentUploadResponseSerializer,
+    ReservationMessageAttachmentUploadSerializer,
     ReservationMessageCreateSerializer,
     ReservationMessageInboxSummarySerializer,
     ReservationMessageSerializer,
@@ -1011,7 +1011,12 @@ class ApartmentReservationViewSet(
 
     @extend_schema(
         request={"multipart/form-data": ReservationMessageAttachmentUploadSerializer},
-        responses={(201, "application/json"): ReservationMessageAttachmentUploadResponseSerializer},
+        responses={
+            (
+                201,
+                "application/json",
+            ): ReservationMessageAttachmentUploadResponseSerializer
+        },
     )
     @action(methods=["POST"], detail=True, url_path="messages/attachments/upload")
     def message_attachment_upload(self, request, pk=None):
@@ -1061,11 +1066,7 @@ class ApartmentReservationViewSet(
         if exc.status_code == 422:
             if exc.code == "invalid_attachments":
                 return Response(
-                    {
-                        "attachment_ids": [
-                            exc.message or "Invalid attachment IDs."
-                        ]
-                    },
+                    {"attachment_ids": [exc.message or "Invalid attachment IDs."]},
                     status=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 )
             if exc.code == "invalid_new_attachments":

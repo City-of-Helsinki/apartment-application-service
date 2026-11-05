@@ -1,6 +1,6 @@
 import pytest
-from django.urls import reverse
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.urls import reverse
 
 from apartment.tests.factories import ApartmentDocumentFactory
 from application_form.tests.factories import ApartmentReservationFactory
@@ -836,9 +836,7 @@ def test_reservation_messages_post_upstream_invalid_new_attachments(
     )
 
     assert response.status_code == 422
-    assert response.data["new_attachments"] == [
-        "new_attachments payload is invalid."
-    ]
+    assert response.data["new_attachments"] == ["new_attachments payload is invalid."]
 
 
 @pytest.mark.django_db
