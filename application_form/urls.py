@@ -139,6 +139,13 @@ urlpatterns = [
         LatestApplicantInfo.as_view(),
         name="applicant-by-customer",
     ),
+    # Compatibility route for clients that accidentally call the upload endpoint
+    # without trailing slash. This prevents APPEND_SLASH POST redirect failures.
+    path(
+        r"sales/apartment_reservations/<int:pk>/messages/attachments/upload",
+        ApartmentReservationViewSet.as_view({"post": "message_attachment_upload"}),
+        name="sales-apartment-reservation-message-attachment-upload-compat",
+    ),
     path("", include(router.urls)),
 ]
 urlpatterns += public_urlpatterns

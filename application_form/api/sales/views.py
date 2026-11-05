@@ -39,6 +39,8 @@ from application_form.api.sales.serializers import (
     PendingOfferMessageSerializer,
     ProjectExtraDataSerializer,
     ProjectUUIDSerializer,
+    ReservationMessageAttachmentUploadResponseSerializer,
+    ReservationMessageAttachmentUploadSerializer,
     ReservationMessageCreateSerializer,
     ReservationMessageInboxSummarySerializer,
     ReservationMessageSerializer,
@@ -689,6 +691,9 @@ class ApartmentReservationViewSet(
         if not normalized_item.get("created"):
             normalized_item["created"] = int(timezone.now().timestamp())
 
+        if not isinstance(normalized_item.get("attachments"), list):
+            normalized_item["attachments"] = []
+
         created_at = raw_item.get("created_at") or raw_item.get("createdAt")
         if not created_at:
             created_at = datetime.fromtimestamp(
@@ -977,6 +982,8 @@ class ApartmentReservationViewSet(
                 application_id=drupal_application_id,
                 body=serializer.validated_data["body"],
                 co_applicant_email=co_applicant_email,
+                attachment_ids=serializer.validated_data.get("attachment_ids"),
+                new_attachments=serializer.validated_data.get("new_attachments"),
             )
         except DrupalMessagingClientError as exc:
             return self._handle_drupal_messaging_error(exc, drupal_application_id)
@@ -1002,17 +1009,115 @@ class ApartmentReservationViewSet(
             status=status.HTTP_201_CREATED,
         )
 
-    def _handle_drupal_messaging_error(self, exc, application_id):
-        if exc.code == "empty_body" or exc.status_code == 400:
-            if exc.code == "empty_body":
-                return Response(
-                    {"body": ["Message body cannot be empty."]},
-                    status=status.HTTP_400_BAD_REQUEST,
+    @extend_schema(
+        request={"multipart/form-data": ReservationMessageAttachmentUploadSerializer},
+        responses={
+            (
+                201,
+                "application/json",
+            ): ReservationMessageAttachmentUploadResponseSerializer
+        },
+    )
+    @action(methods=["POST"], detail=True, url_path="messages/attachments/upload")
+    def message_attachment_upload(self, request, pk=None):
+        """Upload a file to Drupal and return a file_id/attachment reference."""
+        reservation = self.get_object()
+        _, drupal_application_id, early_response = self._resolve_message_application(
+            request,
+            reservation,
+        )
+        response = early_response
+        if response is None:
+            serializer = ReservationMessageAttachmentUploadSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+
+            client = DrupalMessagingClient()
+            try:
+                payload = client.upload_sales_attachment(
+                    application_id=drupal_application_id,
+                    file=serializer.validated_data["file"],
+                    display_name=serializer.validated_data.get("display_name", ""),
+                    sender_role="sales",
+                    viewer_role="sales",
+                    sales_shared=True,
                 )
+                response = Response(payload, status=status.HTTP_201_CREATED)
+            except DrupalMessagingClientError as exc:
+                response = self._handle_attachment_upload_error(
+                    exc,
+                    drupal_application_id,
+                )
+
+        return response
+
+    def _handle_attachment_upload_error(self, exc, application_id):
+        if exc.status_code == 422 and exc.code in {
+            "invalid_new_attachments",
+            "invalid_attachments",
+            "invalid_upload",
+            "invalid_file",
+        }:
+            return Response(
+                {"file": [exc.message or "Invalid attachment file."]},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
+        if exc.status_code == 429:
+            return Response(
+                {"detail": "Too many attachment upload requests."},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+
+        return self._handle_drupal_messaging_error(exc, application_id)
+
+    def _handle_422_messaging_error(self, exc):
+        if exc.status_code != 422:
+            return None
+
+        field_error_map = {
+            "invalid_attachments": ("attachment_ids", "Invalid attachment IDs."),
+            "invalid_new_attachments": (
+                "new_attachments",
+                "Invalid new attachment payload.",
+            ),
+        }
+        field_error = field_error_map.get(exc.code)
+        if field_error is None:
+            return Response(
+                {"detail": exc.message or "Invalid request to Drupal messaging API."},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
+        field, default_message = field_error
+        return Response(
+            {field: [exc.message or default_message]},
+            status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        )
+
+    @staticmethod
+    def _handle_400_messaging_error(exc):
+        if exc.code == "empty_body":
+            return Response(
+                {"body": ["Message body cannot be empty."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if exc.status_code == 400:
             return Response(
                 {"detail": "Bad request to Drupal messaging API."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        return None
+
+    def _handle_drupal_messaging_error(self, exc, application_id):
+        response = self._handle_422_messaging_error(exc)
+        if response is not None:
+            return response
+
+        response = self._handle_400_messaging_error(exc)
+        if response is not None:
+            return response
 
         if exc.status_code == 404 or exc.code == "not_found":
             return Response(

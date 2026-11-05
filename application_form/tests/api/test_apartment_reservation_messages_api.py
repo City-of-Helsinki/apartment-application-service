@@ -1,4 +1,5 @@
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 
 from apartment.tests.factories import ApartmentDocumentFactory
@@ -29,6 +30,7 @@ class _FakeMessagingClient:
         self.unread_calls = []
         self.inbox_calls = []
         self.mark_read_calls = []
+        self.upload_calls = []
 
     def get_thread(self, application_id):
         self.get_calls.append(application_id)
@@ -36,8 +38,23 @@ class _FakeMessagingClient:
             raise self._to_raise
         return self._thread_payload
 
-    def post_sales_reply(self, application_id, body, co_applicant_email=None):
-        self.post_calls.append((application_id, body, co_applicant_email))
+    def post_sales_reply(
+        self,
+        application_id,
+        body,
+        co_applicant_email=None,
+        attachment_ids=None,
+        new_attachments=None,
+    ):
+        self.post_calls.append(
+            (
+                application_id,
+                body,
+                co_applicant_email,
+                attachment_ids,
+                new_attachments,
+            )
+        )
         if self._to_raise:
             raise self._to_raise
         return self._post_payload
@@ -71,6 +88,33 @@ class _FakeMessagingClient:
         if self._to_raise:
             raise self._to_raise
         return {"status": "ok"}
+
+    def upload_sales_attachment(
+        self,
+        *,
+        application_id,
+        file,
+        display_name="",
+        sender_role="sales",
+        viewer_role="sales",
+        sales_shared=True,
+    ):
+        self.upload_calls.append(
+            (
+                application_id,
+                getattr(file, "name", ""),
+                display_name,
+                sender_role,
+                viewer_role,
+                sales_shared,
+            )
+        )
+        if self._to_raise:
+            raise self._to_raise
+        return {
+            "file_id": 321,
+            "display_name": display_name or getattr(file, "name", "uploaded.file"),
+        }
 
 
 @pytest.mark.django_db
@@ -283,6 +327,59 @@ def test_reservation_messages_get_normalizes_message_field_to_body(
 
 
 @pytest.mark.django_db
+def test_reservation_messages_get_includes_attachment_metadata(
+    sales_ui_salesperson_api_client, monkeypatch
+):
+    """Thread items include attachment list returned by Drupal."""
+
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        application_apartment__application__drupal_application_id=781,
+    )
+    drupal_id = reservation.application_apartment.application.drupal_application_id
+
+    fake_client = _FakeMessagingClient(
+        thread_payload={
+            "application_id": drupal_id,
+            "count": 1,
+            "items": [
+                {
+                    "id": 1,
+                    "body": "with attachment",
+                    "created": 1710000000,
+                    "attachments": [
+                        {
+                            "id": 901,
+                            "display_name": "Terms.pdf",
+                            "mime_type": "application/pdf",
+                            "size_bytes": 2048,
+                            "download_url": "https://drupal.example/user/application/attachments/901/download",  # noqa: E501
+                        }
+                    ],
+                }
+            ],
+        },
+        unread_payload={"counts": {str(drupal_id): 0}, "total": 0},
+    )
+    monkeypatch.setattr(
+        "application_form.api.sales.views.DrupalMessagingClient",
+        lambda: fake_client,
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse(
+            "application_form:sales-apartment-reservation-messages",
+            kwargs={"pk": reservation.id},
+        )
+    )
+
+    assert response.status_code == 200
+    assert response.data["items"][0]["attachments"][0]["id"] == 901
+    assert response.data["items"][0]["attachments"][0]["display_name"] == "Terms.pdf"
+
+
+@pytest.mark.django_db
 def test_reservation_messages_post_success(
     sales_ui_salesperson_api_client, monkeypatch
 ):
@@ -332,7 +429,7 @@ def test_reservation_messages_post_success(
     assert response.data["created"] == 1710000000
     assert "created_at" in response.data
     assert "T" in response.data["created_at"]
-    assert fake_client.post_calls == [(drupal_id, "Hei", None)]
+    assert fake_client.post_calls == [(drupal_id, "Hei", None, None, None)]
 
 
 @pytest.mark.django_db
@@ -383,7 +480,63 @@ def test_reservation_messages_post_sends_co_applicant_email_when_known(
     )
 
     assert response.status_code == 201
-    assert fake_client.post_calls == [(drupal_id, "Hei", "co.applicant@example.com")]
+    assert fake_client.post_calls == [
+        (drupal_id, "Hei", "co.applicant@example.com", None, None)
+    ]
+
+
+@pytest.mark.django_db
+def test_reservation_messages_post_forwards_attachments_payload(
+    sales_ui_salesperson_api_client, monkeypatch
+):
+    """POST forwards attachment_ids and new_attachments to Drupal client."""
+
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        application_apartment__application__drupal_application_id=892,
+    )
+    drupal_id = reservation.application_apartment.application.drupal_application_id
+
+    fake_client = _FakeMessagingClient(
+        post_payload={
+            "item": {
+                "id": 13,
+                "application_id": drupal_id,
+                "sender_role": "sales",
+                "body": "Hei",
+                "created": 1710000002,
+            }
+        }
+    )
+    monkeypatch.setattr(
+        "application_form.api.sales.views.DrupalMessagingClient",
+        lambda: fake_client,
+    )
+
+    response = sales_ui_salesperson_api_client.post(
+        reverse(
+            "application_form:sales-apartment-reservation-messages",
+            kwargs={"pk": reservation.id},
+        ),
+        data={
+            "body": "Hei",
+            "attachment_ids": [10, 11],
+            "new_attachments": [{"file_id": 123, "display_name": "Offer.pdf"}],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert fake_client.post_calls == [
+        (
+            drupal_id,
+            "Hei",
+            None,
+            [10, 11],
+            [{"file_id": 123, "display_name": "Offer.pdf"}],
+        )
+    ]
 
 
 @pytest.mark.django_db
@@ -603,6 +756,244 @@ def test_reservation_messages_post_upstream_temporary_error(
 
     assert response.status_code == 503
     assert response.data["detail"] == "Messaging service temporarily unavailable."
+
+
+@pytest.mark.django_db
+def test_reservation_messages_post_upstream_invalid_attachments(
+    sales_ui_salesperson_api_client, monkeypatch
+):
+    """422 invalid_attachments is mapped to field-level API validation error."""
+
+    from application_form.services.drupal_messaging import DrupalMessagingClientError
+
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        application_apartment__application__drupal_application_id=998,
+    )
+
+    fake_client = _FakeMessagingClient(
+        to_raise=DrupalMessagingClientError(
+            status_code=422,
+            code="invalid_attachments",
+            message="Some attachment IDs are invalid.",
+        )
+    )
+    monkeypatch.setattr(
+        "application_form.api.sales.views.DrupalMessagingClient",
+        lambda: fake_client,
+    )
+
+    response = sales_ui_salesperson_api_client.post(
+        reverse(
+            "application_form:sales-apartment-reservation-messages",
+            kwargs={"pk": reservation.id},
+        ),
+        data={"body": "test", "attachment_ids": [99999]},
+        format="json",
+    )
+
+    assert response.status_code == 422
+    assert response.data["attachment_ids"] == ["Some attachment IDs are invalid."]
+
+
+@pytest.mark.django_db
+def test_reservation_messages_post_upstream_invalid_new_attachments(
+    sales_ui_salesperson_api_client, monkeypatch
+):
+    """422 invalid_new_attachments is mapped to field-level API error."""
+
+    from application_form.services.drupal_messaging import DrupalMessagingClientError
+
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        application_apartment__application__drupal_application_id=997,
+    )
+
+    fake_client = _FakeMessagingClient(
+        to_raise=DrupalMessagingClientError(
+            status_code=422,
+            code="invalid_new_attachments",
+            message="new_attachments payload is invalid.",
+        )
+    )
+    monkeypatch.setattr(
+        "application_form.api.sales.views.DrupalMessagingClient",
+        lambda: fake_client,
+    )
+
+    response = sales_ui_salesperson_api_client.post(
+        reverse(
+            "application_form:sales-apartment-reservation-messages",
+            kwargs={"pk": reservation.id},
+        ),
+        data={
+            "body": "test",
+            "new_attachments": [{"file_id": "not-int"}],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 422
+    assert response.data["new_attachments"] == ["new_attachments payload is invalid."]
+
+
+@pytest.mark.django_db
+def test_reservation_message_attachment_upload_success(
+    sales_ui_salesperson_api_client, monkeypatch
+):
+    """Upload endpoint proxies file to Drupal and returns response payload."""
+
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        application_apartment__application__drupal_application_id=996,
+    )
+    drupal_id = reservation.application_apartment.application.drupal_application_id
+
+    fake_client = _FakeMessagingClient()
+    monkeypatch.setattr(
+        "application_form.api.sales.views.DrupalMessagingClient",
+        lambda: fake_client,
+    )
+
+    upload_file = SimpleUploadedFile(
+        "offer.pdf", b"%PDF-1.4", content_type="application/pdf"
+    )
+    response = sales_ui_salesperson_api_client.post(
+        reverse(
+            "application_form:sales-apartment-reservation-message-attachment-upload",
+            kwargs={"pk": reservation.id},
+        ),
+        data={"file": upload_file, "display_name": "Offer"},
+    )
+
+    assert response.status_code == 201
+    assert response.data["file_id"] == 321
+    assert fake_client.upload_calls == [
+        (drupal_id, "offer.pdf", "Offer", "sales", "sales", True)
+    ]
+
+
+@pytest.mark.django_db
+def test_reservation_message_attachment_upload_success_without_trailing_slash(
+    sales_ui_salesperson_api_client, monkeypatch
+):
+    """Upload endpoint remains compatible when called without trailing slash."""
+
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        application_apartment__application__drupal_application_id=993,
+    )
+    drupal_id = reservation.application_apartment.application.drupal_application_id
+
+    fake_client = _FakeMessagingClient()
+    monkeypatch.setattr(
+        "application_form.api.sales.views.DrupalMessagingClient",
+        lambda: fake_client,
+    )
+
+    upload_file = SimpleUploadedFile(
+        "offer.pdf", b"%PDF-1.4", content_type="application/pdf"
+    )
+    url = reverse(
+        "application_form:sales-apartment-reservation-message-attachment-upload",
+        kwargs={"pk": reservation.id},
+    ).rstrip("/")
+    response = sales_ui_salesperson_api_client.post(
+        url,
+        data={"file": upload_file, "display_name": "Offer"},
+    )
+
+    assert response.status_code == 201
+    assert response.data["file_id"] == 321
+    assert fake_client.upload_calls == [
+        (drupal_id, "offer.pdf", "Offer", "sales", "sales", True)
+    ]
+
+
+@pytest.mark.django_db
+def test_reservation_message_attachment_upload_invalid_file_error(
+    sales_ui_salesperson_api_client, monkeypatch
+):
+    """422 invalid_file is mapped to a file field error payload."""
+
+    from application_form.services.drupal_messaging import DrupalMessagingClientError
+
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        application_apartment__application__drupal_application_id=995,
+    )
+
+    fake_client = _FakeMessagingClient(
+        to_raise=DrupalMessagingClientError(
+            status_code=422,
+            code="invalid_file",
+            message="Unsupported MIME type",
+        )
+    )
+    monkeypatch.setattr(
+        "application_form.api.sales.views.DrupalMessagingClient",
+        lambda: fake_client,
+    )
+
+    upload_file = SimpleUploadedFile(
+        "script.sh", b"echo hi", content_type="text/x-shellscript"
+    )
+    response = sales_ui_salesperson_api_client.post(
+        reverse(
+            "application_form:sales-apartment-reservation-message-attachment-upload",
+            kwargs={"pk": reservation.id},
+        ),
+        data={"file": upload_file},
+    )
+
+    assert response.status_code == 422
+    assert response.data["file"] == ["Unsupported MIME type"]
+
+
+@pytest.mark.django_db
+def test_reservation_message_attachment_upload_rate_limited(
+    sales_ui_salesperson_api_client, monkeypatch
+):
+    """429 from Drupal upload endpoint is surfaced to frontend."""
+
+    from application_form.services.drupal_messaging import DrupalMessagingClientError
+
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        application_apartment__application__drupal_application_id=994,
+    )
+
+    fake_client = _FakeMessagingClient(
+        to_raise=DrupalMessagingClientError(
+            status_code=429,
+            code="rate_limited",
+            message="Too many requests",
+        )
+    )
+    monkeypatch.setattr(
+        "application_form.api.sales.views.DrupalMessagingClient",
+        lambda: fake_client,
+    )
+
+    upload_file = SimpleUploadedFile(
+        "offer.pdf", b"%PDF-1.4", content_type="application/pdf"
+    )
+    response = sales_ui_salesperson_api_client.post(
+        reverse(
+            "application_form:sales-apartment-reservation-message-attachment-upload",
+            kwargs={"pk": reservation.id},
+        ),
+        data={"file": upload_file},
+    )
+
+    assert response.status_code == 429
+    assert response.data["detail"] == "Too many attachment upload requests."
 
 
 @pytest.mark.django_db
