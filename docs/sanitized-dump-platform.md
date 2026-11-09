@@ -18,7 +18,7 @@ between the two dumps won't match after restore.
 | Image | the deployed production image | the deployed production image |
 | Env / secrets | same as the app pod (DB credentials etc.), plus **`SANITIZED_DUMP_PASSWORD`** (required, from a secret) | same as the app pod, optionally `ASU_SANITIZED_DUMP_PASSWORD_HASH` |
 | Command | `make create-sanitized-dump SANITIZED_DUMP_DIR=/dumps/django` | `drush asu:sql:sanitized-dump --directory=/dumps/drupal` |
-| Output | `sanitized_YYYYMMDDHHMMSS.sql`, the 4 newest kept | same |
+| Output | `django_sanitized_YYYYMMDDHHMMSS.sql`, the 4 newest kept | `drupal_sanitized_YYYYMMDDHHMMSS.sql`, the 4 newest kept |
 | DB access needed | read only (`pg_dump`) | read only (single transaction) |
 
 Both commands write to a `.tmp` file and rename it only on success. Old dumps
@@ -28,10 +28,10 @@ dumps in place. Both exit non-zero on failure; alert on that.
 If `make` is not available in the Django image, use the equivalent:
 
 ```sh
-out=/dumps/django/sanitized_$(date +%Y%m%d%H%M%S).sql
+out=/dumps/django/django_sanitized_$(date +%Y%m%d%H%M%S).sql
 ./manage.py create_sanitized_dump > "$out.tmp" && [ -s "$out.tmp" ] && mv "$out.tmp" "$out" \
   || { rm -f "$out.tmp"; exit 1; }
-ls -1 /dumps/django/sanitized_*.sql | sort -r | tail -n +5 | xargs -r rm -f
+ls -1 /dumps/django/django_sanitized_*.sql | sort -r | tail -n +5 | xargs -r rm -f
 ```
 
 The Drupal command refuses to run (non-zero exit) if a custom table gains a
