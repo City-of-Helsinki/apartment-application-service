@@ -235,12 +235,12 @@ Or from the Makefile (writes under `SANITIZED_DUMP_DIR`, default `.`):
 make create-sanitized-dump
 ```
 
-This writes `sanitized_YYYYMMDDHHMMSS.sql` to the given directory. The dump is
+This writes `django_sanitized_YYYYMMDDHHMMSS.sql` to the given directory. The dump is
 written to a `.tmp` file first and renamed only when it succeeds; after that,
-older dumps are deleted so the four newest remain (change with `-k`). A failed
+older dumps are deleted so the five newest remain (change with `-k`). A failed
 dump leaves existing dumps untouched.
 
-- The output file is `django_sanitized_YYYYMMDDHHMMSS.sql`. The four newest dumps in
+- The output file is `django_sanitized_YYYYMMDDHHMMSS.sql`. The five newest dumps in
   the directory are kept and older ones are deleted (change with `-k`).
 - A failed dump leaves no partial file and does not delete older dumps.
 - Encrypted fields are replaced with fake values encrypted with

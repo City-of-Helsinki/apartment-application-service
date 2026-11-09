@@ -8,13 +8,13 @@ set -euo pipefail
 usage() {
   echo "Usage: $0 [-d directory] [-k keep]"
   echo "  -d  Directory for django_sanitized_*.sql (default: SANITIZED_DUMP_DIR or current directory)"
-  echo "  -k  Number of newest dumps to keep after creating (default: 4)"
+  echo "  -k  Number of newest dumps to keep after creating (default: 5)"
 }
 
 dump_dir="${SANITIZED_DUMP_DIR:-.}"
 # Drupal dumps use "drupal_sanitized_", so both can share a directory.
 prefix="django_sanitized_"
-keep=4
+keep=5
 
 while getopts ":d:k:h" opt; do
   case $opt in
