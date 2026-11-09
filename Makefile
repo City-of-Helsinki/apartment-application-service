@@ -32,7 +32,7 @@ check-requirements:
 check-sanitizerconfig:
 	./manage.py check_sanitizerconfig
 
-# Directory for anonymized dumps (gitignored sanitized_*.sql files).
+# Directory for anonymized dumps (gitignored django_sanitized_*.sql files).
 SANITIZED_DUMP_DIR ?= .
 
 create-sanitized-dump:
