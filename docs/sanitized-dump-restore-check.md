@@ -42,9 +42,9 @@ PW=localdev   # SANITIZED_DUMP_PASSWORD: same value for dumping and restoring
 docker exec -e SANITIZED_DUMP_PASSWORD="$PW" apartment-application-backend \
   ./manage.py create_sanitized_dump > "$S/django.sql"
 
-# Drupal: writes sanitized_<timestamp>.sql inside the container, copy it out
+# Drupal: writes drupal_sanitized_<timestamp>.sql inside the container, copy it out
 docker exec asuntotuotanto-app drush asu:sql:sanitized-dump --directory=/tmp/asu-restore
-docker cp "asuntotuotanto-app:$(docker exec asuntotuotanto-app sh -c 'ls /tmp/asu-restore/sanitized_*.sql')" "$S/drupal.sql"
+docker cp "asuntotuotanto-app:$(docker exec asuntotuotanto-app sh -c 'ls /tmp/asu-restore/drupal_sanitized_*.sql')" "$S/drupal.sql"
 docker exec asuntotuotanto-app rm -rf /tmp/asu-restore
 ```
 

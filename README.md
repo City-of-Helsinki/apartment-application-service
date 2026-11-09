@@ -222,7 +222,11 @@ restored Drupal dump (below). For local use, `SANITIZED_DUMP_PASSWORD=localdev`
 in `.env` is fine.
 
 ```bash
-./scripts/create_sanitized_dump.sh -d /tmp
+oc exec <django-pod> -- env SANITIZED_DUMP_PASSWORD=<password> \
+  ./scripts/create_sanitized_dump.sh -d /tmp
+# Prints: Created /tmp/django_sanitized_YYYYMMDDHHMMSS.sql
+oc cp <django-pod>:/tmp/django_sanitized_YYYYMMDDHHMMSS.sql ./django_sanitized_YYYYMMDDHHMMSS.sql
+oc exec <django-pod> -- rm /tmp/django_sanitized_YYYYMMDDHHMMSS.sql
 ```
 
 Or from the Makefile (writes under `SANITIZED_DUMP_DIR`, default `.`):
@@ -236,11 +240,13 @@ written to a `.tmp` file first and renamed only when it succeeds; after that,
 older dumps are deleted so the four newest remain (change with `-k`). A failed
 dump leaves existing dumps untouched.
 
-On OpenShift, run the command in an application pod and copy the file out
-afterwards. Do not commit dump files.
-Encrypted fields are replaced with fakes re-encrypted using `DUMP_PUBLIC_PGP_KEY`
-(defaults to the public test key from `.env.example`). Session, social-auth,
-audit, and log table data are omitted from the dump.
+- The output file is `django_sanitized_YYYYMMDDHHMMSS.sql`. The four newest dumps in
+  the directory are kept and older ones are deleted (change with `-k`).
+- A failed dump leaves no partial file and does not delete older dumps.
+- Encrypted fields are replaced with fake values encrypted with
+  `DUMP_PUBLIC_PGP_KEY` (defaults to the public test key in `.env.example`).
+- Session, social-auth, audit and log tables are dumped without data.
+- Never commit dump files.
 
 ### Restore locally
 
@@ -248,7 +254,7 @@ audit, and log table data are omitted from the dump.
 2. Import the SQL dump, for example:
 
 ```bash
-psql "$DATABASE_URL" -f sanitized_YYYYMMDDHHMM.sql
+docker compose exec django make restore-sanitized-dump DUMP=django_sanitized_YYYYMMDDHHMMSS.sql
 ```
 
 3. Use the example PGP keys from `.env.example` (or set matching
