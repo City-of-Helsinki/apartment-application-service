@@ -20,6 +20,7 @@ from pathlib import Path
 import pytest
 import yaml
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from django.core.management import call_command
 from django.db import connection
 from sanitized_dump.config import Configuration
@@ -116,6 +117,8 @@ def test_plaintext_sanitizers_replace_values(sanitizer, sample):
         person.sanitize_password,
         person.sanitize_hetu,
         pgp.sanitize_pgp_text,
+        pgp.sanitize_pgp_bool,
+        pgp.sanitize_pgp_bool_keep,
         pgp.sanitize_pgp_date,
         pgp.sanitize_pgp_ssn_suffix,
         pgp.sanitize_pgp_hetu,
@@ -408,9 +411,81 @@ def test_pgp_fields_without_pii_get_pgp_sanitizers():
     """
     strategy = _strategy()
     reservation = strategy["application_form_apartmentreservation"]
-    # Encrypted booleans are PGP fields; they must not get types.integer/char
-    assert reservation["has_children"] == "pgp.pgp_text"
-    assert reservation["is_age_over_55"] == "pgp.pgp_text"
+    # Encrypted booleans decrypt with ::BOOL, so their fakes must be booleans
+    assert reservation["is_age_over_55"] == "pgp.pgp_bool"
+    assert reservation["handler"] == "pgp.pgp_handler"
+    # has_children drives lottery logic, so its value is kept
+    assert reservation["has_children"] == "pgp.pgp_bool_keep"
+
+
+def _encrypt_with_app_key(plaintext):
+    """Return COPY hex bytea of plaintext encrypted with PUBLIC_PGP_KEY."""
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT pgp_pub_encrypt(%s, dearmor(%s))",
+            [plaintext, settings.PUBLIC_PGP_KEY],
+        )
+        return "\\x" + bytes(cursor.fetchone()[0]).hex()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("plaintext, expected", [("true", True), ("false", False)])
+def test_pgp_bool_keep_sanitizer_preserves_value(plaintext, expected):
+    """
+    - Decrypted output equals the original boolean
+    - Ciphertext is re-encrypted, not copied
+    """
+    original_copy = _encrypt_with_app_key(plaintext)
+    kept_copy = pgp.sanitize_pgp_bool_keep(original_copy)
+    assert kept_copy != original_copy
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT pgp_pub_decrypt(%s, dearmor(%s))::BOOL",
+            [bytes.fromhex(kept_copy[2:]), settings.PRIVATE_PGP_KEY],
+        )
+        assert cursor.fetchone()[0] is expected
+
+
+@pytest.mark.django_db
+def test_pgp_bool_keep_sanitizer_requires_private_key(settings):
+    """
+    - Missing PRIVATE_PGP_KEY fails instead of writing a wrong value
+    """
+    original_copy = _encrypt_with_app_key("true")
+    settings.PRIVATE_PGP_KEY = ""
+    with pytest.raises(ImproperlyConfigured):
+        pgp.sanitize_pgp_bool_keep(original_copy)
+
+
+def test_unsupported_pgp_field_type_raises():
+    """
+    - An encrypted field type without a matching PGP sanitizer fails loudly
+      instead of falling back to pgp_text
+    """
+    from apartment_application_service.fields import UUIDPGPPublicKeyField
+    from sanitizers.config import _pgp_sanitizer_for_field
+
+    field = UUIDPGPPublicKeyField()
+    field.set_attributes_from_name("secret_uuid")
+    field.model = type("FakeModel", (), {"_meta": type("Meta", (), {"db_table": "t"})})
+    with pytest.raises(TypeError, match="UUIDPGPPublicKeyField"):
+        _pgp_sanitizer_for_field(field)
+
+
+@pytest.mark.django_db
+def test_pgp_bool_sanitizer_output_is_castable_to_bool():
+    """
+    - sanitize_pgp_bool output decrypts to text Postgres can cast to BOOL
+    """
+    for _ in range(10):
+        bool_copy = pgp.sanitize_pgp_bool("\\x00")
+        assert bool_copy.startswith("\\x")
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT pgp_pub_decrypt(%s, dearmor(%s))::BOOL",
+                [bytes.fromhex(bool_copy[2:]), settings.PRIVATE_PGP_KEY],
+            )
+            assert isinstance(cursor.fetchone()[0], bool)
 
 
 @pytest.mark.django_db
