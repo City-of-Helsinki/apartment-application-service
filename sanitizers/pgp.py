@@ -10,6 +10,7 @@ are never updated. Values are returned in Postgres COPY hex bytea form
 from __future__ import annotations
 
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from django.db import connection
 from faker import Faker
 
@@ -51,6 +52,46 @@ def sanitize_pgp_text(value: str | None) -> str | None:
     if _passthrough_empty(value):
         return value
     return _encrypt_for_dump(_faker.name())
+
+
+def sanitize_pgp_bool(value: str | None) -> str | None:
+    """
+    Replace an encrypted boolean with a random encrypted boolean.
+
+    The plaintext must be castable to Postgres BOOL, since
+    BooleanPGPPublicKeyField decrypts with ``::BOOL``.
+    """
+    if _passthrough_empty(value):
+        return value
+    return _encrypt_for_dump("true" if _faker.pybool() else "false")
+
+
+def sanitize_pgp_bool_keep(value: str | None) -> str | None:
+    """
+    Keep an encrypted boolean's value, re-encrypted for the dump key.
+
+    Used where the value drives business logic (e.g. HITAS lottery) that
+    must behave the same on a restored dump. The value is decrypted with
+    ``PRIVATE_PGP_KEY`` inside Postgres and never leaves it as plaintext.
+
+    Raises:
+        ImproperlyConfigured: When PRIVATE_PGP_KEY is not set.
+    """
+    if _passthrough_empty(value):
+        return value
+    private_key = settings.PRIVATE_PGP_KEY
+    if not private_key:
+        raise ImproperlyConfigured(
+            "Set PRIVATE_PGP_KEY to keep encrypted boolean values in the dump."
+        )
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT pgp_pub_encrypt("
+            "pgp_pub_decrypt(%s, dearmor(%s))::BOOL::TEXT, dearmor(%s))",
+            [bytes.fromhex(value[2:]), private_key, settings.DUMP_PUBLIC_PGP_KEY],
+        )
+        ciphertext = cursor.fetchone()[0]
+    return "\\x" + bytes(ciphertext).hex()
 
 
 def sanitize_pgp_handler(value: str | None) -> str | None:
