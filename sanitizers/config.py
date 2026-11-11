@@ -96,6 +96,8 @@ PII = {
     },
     "application_form_apartmentreservation": {
         "handler": PGP_HANDLER,
+        # Not PII: kept (re-encrypted) because lottery logic depends on it.
+        "has_children": "pgp.pgp_bool_keep",
     },
     "application_form_offer": {
         "comment": COMMENT,
@@ -198,6 +200,34 @@ def _is_structural_skip(field: models.Field) -> bool:
     )
 
 
+def _pgp_sanitizer_for_field(field: models.Field) -> str:
+    """
+    Return the PGP sanitizer id matching an encrypted field's decrypt cast.
+
+    The fake plaintext must be castable to the field's ``cast_type``, or
+    reading the row from a restored dump fails in Postgres.
+
+    Parameters:
+        field (models.Field): PGP encrypted Django model field.
+
+    Returns:
+        sanitizer_id (str): PGP sanitizer strategy value.
+
+    Raises:
+        TypeError: When no PGP sanitizer matches the field type.
+    """
+    if isinstance(field, DatePGPPublicKeyField):
+        return PGP_DATE
+    if isinstance(field, models.BooleanField):
+        return "pgp.pgp_bool"
+    if isinstance(field, (models.CharField, models.TextField)):
+        return "pgp.pgp_text"
+    raise TypeError(
+        f"No PGP sanitizer for {type(field).__name__} "
+        f"{field.model._meta.db_table}.{field.column}; add one in sanitizers/pgp.py"
+    )
+
+
 def _type_sanitizer_for_field(field: models.Field) -> str | None:
     """
     Return a type-based or PGP sanitizer id for a user-input field.
@@ -209,7 +239,7 @@ def _type_sanitizer_for_field(field: models.Field) -> str | None:
         sanitizer_id (str | None): Strategy value, or None when not applicable.
     """
     if isinstance(field, PGPPublicKeyFieldMixin):
-        return PGP_DATE if isinstance(field, DatePGPPublicKeyField) else "pgp.pgp_text"
+        return _pgp_sanitizer_for_field(field)
     return next(
         (
             sanitizer
