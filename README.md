@@ -70,6 +70,7 @@ If you have the `make` command available, you can use the following commands to 
 * `make test` - Run tests
 * `make check-sanitizerconfig` - Verify `.sanitizerconfig` covers all Django models
 * `make create-sanitized-dump` - Create an anonymized SQL dump (rotates old dumps)
+* `make restore-sanitized-dump DUMP=file.sql` - Replace the database with a sanitized dump and migrate
 * `make fix` - Run code formmitng fixes (isort, black)
 * `make requirements` - Update all requirements `*.txt` files from their
   corresponding `*.in` files
@@ -211,28 +212,35 @@ Place Playwright test files in `tests-e2e/`. The `test-runner` service in `compo
 ## Anonymized database dump
 
 Production personal data must never be copied into local or shared environments
-as-is. Use Django's sanitized dump command, which runs a read-only `pg_dump` and
-rewrites PII in the dump stream. Production rows are not updated.
+as-is. Copy production data only through the sanitized dump: it reads the
+database with `pg_dump`, replaces personal data in the output, and never
+changes production rows.
 
-### Create a dump (production)
+Django and Drupal each have their own dump. In almost every case you want
+**both**, made at about the same time, and restored together (see
+[Restore both Django and Drupal](#restore-both-django-and-drupal)). A Django dump alone
+works for backend-only work.
 
-Set `SANITIZED_DUMP_PASSWORD` first: every user in the dump gets this password.
-The dump refuses to run without it. Use the same value when re-linking a
-restored Drupal dump (below). For local use, `SANITIZED_DUMP_PASSWORD=localdev`
-in `.env` is fine.
+### Create a dump
+
+`SANITIZED_DUMP_PASSWORD` must be set: every restored user gets it as their
+password, and you need the same value again when restoring. The dump refuses to
+run without it.
+
+**On a server (OpenShift)**, run it in the backend pod and copy the file out:
 
 ```bash
 oc exec <django-pod> -- env SANITIZED_DUMP_PASSWORD=<password> \
   ./scripts/create_sanitized_dump.sh -d /tmp
-# Prints: Created /tmp/django_sanitized_YYYYMMDDHHMMSS.sql
-oc cp <django-pod>:/tmp/django_sanitized_YYYYMMDDHHMMSS.sql ./django_sanitized_YYYYMMDDHHMMSS.sql
-oc exec <django-pod> -- rm /tmp/django_sanitized_YYYYMMDDHHMMSS.sql
+# Prints: Created /tmp/sanitized_YYYYMMDDHHMMSS.sql
+oc cp <django-pod>:/tmp/sanitized_YYYYMMDDHHMMSS.sql ./sanitized_YYYYMMDDHHMMSS.sql
+oc exec <django-pod> -- rm /tmp/sanitized_YYYYMMDDHHMMSS.sql
 ```
 
-Or from the Makefile (writes under `SANITIZED_DUMP_DIR`, default `.`):
+**Locally**, with `SANITIZED_DUMP_PASSWORD=localdev` in `.env`:
 
 ```bash
-make create-sanitized-dump
+docker compose exec django ./scripts/create_sanitized_dump.sh -d .   # writes ./sanitized_*.sql
 ```
 
 This writes `django_sanitized_YYYYMMDDHHMMSS.sql` to the given directory. The dump is
@@ -248,49 +256,83 @@ dump leaves existing dumps untouched.
 - Session, social-auth, audit and log tables are dumped without data.
 - Never commit dump files.
 
-### Restore locally
+### Restore a Django dump locally
 
-1. Start from an empty local database (same Postgres major version as production).
-2. Import the SQL dump, for example:
+Put the dump file in this directory, then:
 
 ```bash
 docker compose exec django make restore-sanitized-dump DUMP=django_sanitized_YYYYMMDDHHMMSS.sql
 ```
 
-3. Use the example PGP keys from `.env.example` (or set matching
-   `PUBLIC_PGP_KEY` / `PRIVATE_PGP_KEY` for the dump public key you used).
-4. All user passwords in the dump are the `SANITIZED_DUMP_PASSWORD` used when
-   dumping.
-5. Run `python manage.py migrate` if the dump is older than your current code.
+It shows the target database and asks you to type `yes` (`YES=1` skips the
+prompt). Then it drops everything in the `public` schema of `DATABASE_URL`,
+imports the dump and runs `migrate`. The drop and the import run in one
+transaction, so if the import fails the database is left as it was. Run it in
+the django container, not on the host: the container's `psql` is new enough to
+read the `\restrict` lines that current `pg_dump` versions write.
 
-### Restore together with Drupal
+The target Postgres must be at least the major version the dump was made from
+(`-- Dumped from database version` at the top of the file). Otherwise the
+command refuses before changing anything. Local dev runs Postgres 12, so it can
+restore dumps from a Postgres 12 server.
 
-Drupal users are linked to Django profiles by `Profile.id` == Drupal
-`users.uuid`, which both dumps keep. Drupal also stores masked copies of the
-profile id and backend password (`field_backend_profile`,
-`field_backend_password`), encoded with the source environment's
-`HASHIDS_SALT`, so they must be recomputed in the target environment:
+After the import:
 
-1. Restore this dump (above) and the Drupal dump (`drush asu:sql:sanitized-dump`
-   in drupal-asuntotuotanto).
-2. Generate the fix with this environment's settings and apply it to Drupal's
-   database. `SANITIZED_DUMP_PASSWORD` must have the same value as when the
-   dump was made:
+- Keep the example `PUBLIC_PGP_KEY` / `PRIVATE_PGP_KEY` from `.env.example`.
+  They match the default `DUMP_PUBLIC_PGP_KEY`, so you can decrypt the fake values.
+- All users' passwords are the `SANITIZED_DUMP_PASSWORD` used when dumping.
+- Drupal can't reach these profiles until you finish the next section.
 
-```bash
-./manage.py drupal_restore_credentials_sql --i-know-this-is-a-restored-dump > fix.sql
-drush sql:query --file=fix.sql   # in the Drupal container
-```
+### Restore both Django and Drupal
 
-3. Run `drush cr`. Drupal users can now reach their backend profiles.
+Drupal users are linked to Django profiles by Drupal `users.uuid` ==
+`Profile.id`, and both dumps keep that link. Drupal also stores the profile id
+and backend password in masked form (`field_backend_profile`,
+`field_backend_password`), encoded with the **source** environment's
+`HASHIDS_SALT`. Those values must be recomputed for the environment you restore
+into, or no Drupal user can reach the backend (`401 No active account`).
 
-Never apply `fix.sql` to production: it sets every Drupal user's backend
-password to `SANITIZED_DUMP_PASSWORD`.
+1. Create both dumps, Django first and Drupal right after it (see
+   [Create a dump](#create-a-dump) above and the
+   [drupal-asuntotuotanto README](https://github.com/City-of-Helsinki/drupal-asuntotuotanto#anonymized-database-dump)).
+   Users created between the two dumps won't match.
+2. Restore the Django dump ([above](#restore-a-django-dump-locally)) and the
+   Drupal dump (drupal-asuntotuotanto README). Run the migrations in both.
+3. Re-link them. Locally, run this in drupal-asuntotuotanto, with both dev
+   stacks running:
 
-To check the whole cycle end to end against the local dev stacks, follow
-[docs/sanitized-dump-restore-check.md](docs/sanitized-dump-restore-check.md).
-What the platform needs for scheduled dumps in production is in
-[docs/sanitized-dump-platform.md](docs/sanitized-dump-platform.md).
+   ```bash
+   make relink-backend-credentials
+   ```
+
+   It runs `./manage.py drupal_restore_credentials_sql
+   --i-know-this-is-a-restored-dump` in the Django container, applies the
+   output to Drupal and clears caches. Django's `SANITIZED_DUMP_PASSWORD` must
+   equal the value used when dumping.
+
+On a test server, do step 3 by hand with
+`oc exec <django-pod> -- ./manage.py drupal_restore_credentials_sql --i-know-this-is-a-restored-dump > fix.sql`,
+then `oc cp fix.sql <drupal-pod>:/tmp/fix.sql`,
+`oc exec <drupal-pod> -- drush sql:query --file=/tmp/fix.sql` and
+`oc exec <drupal-pod> -- drush cr`.
+
+> **Never apply `fix.sql` to production.** It sets every Drupal user's backend
+> password to `SANITIZED_DUMP_PASSWORD`.
+
+Logging in after the restore:
+
+- Django users use `SANITIZED_DUMP_PASSWORD`.
+- Drupal users use `localdev`, unless the Drupal dump was made with
+  `ASU_SANITIZED_DUMP_PASSWORD_HASH` set.
+- Customer SAML logins don't map to restored Drupal users.
+
+More detail:
+
+- [docs/sanitized-dump-restore-check.md](docs/sanitized-dump-restore-check.md)
+  tests the whole cycle against the local dev stacks, including a check that
+  Drupal users reach their profiles.
+- [docs/sanitized-dump-platform.md](docs/sanitized-dump-platform.md) describes
+  the scheduled production dump jobs.
 
 ### What is intentionally kept
 
