@@ -580,12 +580,15 @@ def test_reservation_messages_post_success(
     assert response.data["created"] == 1710000000
     assert "created_at" in response.data
     assert "T" in response.data["created_at"]
+    expected_main_email = (
+        reservation.application_apartment.application.customer.primary_profile.email
+    )
     assert fake_client.post_calls == [
         (
             drupal_id,
             "Hei",
             None,
-            reservation.application_apartment.application.customer.primary_profile.email,
+            expected_main_email,
             None,
             None,
         )
@@ -640,12 +643,15 @@ def test_reservation_messages_post_sends_co_applicant_email_when_known(
     )
 
     assert response.status_code == 201
+    expected_main_email = (
+        reservation.application_apartment.application.customer.primary_profile.email
+    )
     assert fake_client.post_calls == [
         (
             drupal_id,
             "Hei",
             "co.applicant@example.com",
-            reservation.application_apartment.application.customer.primary_profile.email,
+            expected_main_email,
             None,
             None,
         )
@@ -803,12 +809,15 @@ def test_reservation_messages_post_forwards_attachments_payload(
     )
 
     assert response.status_code == 201
+    expected_main_email = (
+        reservation.application_apartment.application.customer.primary_profile.email
+    )
     assert fake_client.post_calls == [
         (
             drupal_id,
             "Hei",
             None,
-            reservation.application_apartment.application.customer.primary_profile.email,
+            expected_main_email,
             [10, 11],
             [{"file_id": 123, "display_name": "Offer.pdf"}],
         )
