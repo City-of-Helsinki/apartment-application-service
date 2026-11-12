@@ -701,7 +701,7 @@ def test_reservation_messages_post_uses_primary_profile_email_as_main_applicant(
 def test_reservation_messages_post_fallbacks_main_applicant_email_to_application(
     sales_ui_salesperson_api_client, monkeypatch
 ):
-    """POST falls back main_applicant_email to application email when primary is blank."""
+    """POST falls back main_applicant_email when primary profile email is blank."""
 
     apartment = ApartmentDocumentFactory()
     primary_profile = ProfileFactory(email="   ")
