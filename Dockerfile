@@ -29,11 +29,15 @@ RUN dnf install -y \
     nc \
     git \
     ca-certificates \
-    postgresql \
+    postgresql17 \
     && update-ca-trust \
     && pip install -U pip \
     && pip install --no-cache-dir -r /app/requirements.txt \
     && pip install --no-cache-dir  -r /app/requirements-prod.txt
+
+# Put the PGDG 17 binaries first so psql/pg_dump resolve to v17 regardless of
+# alternatives or any distro postgresql client pulled in as a dependency.
+ENV PATH="/usr/pgsql-17/bin:${PATH}"
 
 COPY --chown=1001:1001 docker-entrypoint.sh /entrypoint/docker-entrypoint.sh
 ENTRYPOINT ["/entrypoint/docker-entrypoint.sh"]
