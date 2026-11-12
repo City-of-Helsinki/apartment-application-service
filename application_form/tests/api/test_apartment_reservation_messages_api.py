@@ -580,7 +580,16 @@ def test_reservation_messages_post_success(
     assert response.data["created"] == 1710000000
     assert "created_at" in response.data
     assert "T" in response.data["created_at"]
-    assert fake_client.post_calls == [(drupal_id, "Hei", None, None, None, None)]
+    assert fake_client.post_calls == [
+        (
+            drupal_id,
+            "Hei",
+            None,
+            reservation.application_apartment.application.customer.primary_profile.email,
+            None,
+            None,
+        )
+    ]
 
 
 @pytest.mark.django_db
@@ -636,7 +645,7 @@ def test_reservation_messages_post_sends_co_applicant_email_when_known(
             drupal_id,
             "Hei",
             "co.applicant@example.com",
-            reservation.application_apartment.application.email,
+            reservation.application_apartment.application.customer.primary_profile.email,
             None,
             None,
         )
@@ -708,7 +717,6 @@ def test_reservation_messages_post_fallbacks_main_applicant_email_to_application
     reservation = ApartmentReservationFactory(
         apartment_uuid=apartment.uuid,
         application_apartment__application__drupal_application_id=895,
-        application_apartment__application__email="application@example.com",
         application_apartment__application__customer__primary_profile=primary_profile,
     )
     drupal_id = reservation.application_apartment.application.drupal_application_id
@@ -745,7 +753,7 @@ def test_reservation_messages_post_fallbacks_main_applicant_email_to_application
             drupal_id,
             "Hei",
             None,
-            "application@example.com",
+            None,
             None,
             None,
         )
@@ -800,6 +808,7 @@ def test_reservation_messages_post_forwards_attachments_payload(
             drupal_id,
             "Hei",
             None,
+            reservation.application_apartment.application.customer.primary_profile.email,
             [10, 11],
             [{"file_id": 123, "display_name": "Offer.pdf"}],
         )

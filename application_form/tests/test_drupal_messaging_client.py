@@ -785,6 +785,10 @@ def test_upload_sales_attachment_maps_429_code(settings, monkeypatch):
 def test_get_sales_attachment_open_fetches_binary_content(settings, monkeypatch):
     """Attachment open fetch should call Drupal endpoint with bearer token."""
 
+    from django.core.cache import cache as django_cache
+
+    django_cache.clear()
+
     _configure_drupal_search_settings(settings)
 
     captured = {}
