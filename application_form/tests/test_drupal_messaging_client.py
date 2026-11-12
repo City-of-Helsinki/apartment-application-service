@@ -186,6 +186,64 @@ def test_post_sales_reply_includes_co_applicant_email_when_given(settings, monke
 
 
 @pytest.mark.django_db
+def test_post_sales_reply_includes_main_applicant_email_when_given(
+    settings, monkeypatch
+):
+    """Verify POST payload includes main_applicant_email when available.
+
+    - Sends user body as-is.
+    - Enforces sender_role="sales".
+    - Includes main_applicant_email when provided.
+    """
+    from django.core.cache import cache as django_cache
+
+    django_cache.clear()
+    _configure_drupal_search_settings(settings)
+
+    captured = {}
+
+    monkeypatch.setattr(
+        requests,
+        "post",
+        lambda *args, **kwargs: _FakeResponse(
+            status_code=200,
+            payload={"access_token": "token-post", "expires_in": 3600},
+        ),
+    )
+
+    def fake_request(
+        method,
+        url,
+        json=None,
+        headers=None,
+        timeout=None,
+        data=None,
+        params=None,
+        verify=None,
+    ):
+        captured["payload"] = json
+        return _FakeResponse(
+            status_code=201,
+            payload={"item": {"id": 22, "application_id": 12, "body": "hello"}},
+        )
+
+    monkeypatch.setattr(requests, "request", fake_request)
+
+    client = DrupalMessagingClient()
+    client.post_sales_reply(
+        12,
+        "hello",
+        main_applicant_email="main.applicant@example.com",
+    )
+
+    assert captured["payload"] == {
+        "body": "hello",
+        "sender_role": "sales",
+        "main_applicant_email": "main.applicant@example.com",
+    }
+
+
+@pytest.mark.django_db
 def test_post_sales_reply_omits_blank_co_applicant_email(settings, monkeypatch):
     """Blank co_applicant_email should not break integration payload.
 
@@ -228,6 +286,53 @@ def test_post_sales_reply_omits_blank_co_applicant_email(settings, monkeypatch):
 
     client = DrupalMessagingClient()
     client.post_sales_reply(12, "hello", co_applicant_email="   ")
+
+    assert captured["payload"] == {"body": "hello", "sender_role": "sales"}
+
+
+@pytest.mark.django_db
+def test_post_sales_reply_omits_blank_main_applicant_email(settings, monkeypatch):
+    """Blank main_applicant_email should not break integration payload.
+
+    - Request is still sent successfully.
+    - Payload omits main_applicant_email when blank.
+    """
+    from django.core.cache import cache as django_cache
+
+    django_cache.clear()
+    _configure_drupal_search_settings(settings)
+
+    captured = {}
+
+    monkeypatch.setattr(
+        requests,
+        "post",
+        lambda *args, **kwargs: _FakeResponse(
+            status_code=200,
+            payload={"access_token": "token-post", "expires_in": 3600},
+        ),
+    )
+
+    def fake_request(
+        method,
+        url,
+        json=None,
+        headers=None,
+        timeout=None,
+        data=None,
+        params=None,
+        verify=None,
+    ):
+        captured["payload"] = json
+        return _FakeResponse(
+            status_code=201,
+            payload={"item": {"id": 23, "application_id": 12, "body": "hello"}},
+        )
+
+    monkeypatch.setattr(requests, "request", fake_request)
+
+    client = DrupalMessagingClient()
+    client.post_sales_reply(12, "hello", main_applicant_email="   ")
 
     assert captured["payload"] == {"body": "hello", "sender_role": "sales"}
 
@@ -674,6 +779,78 @@ def test_upload_sales_attachment_maps_429_code(settings, monkeypatch):
 
     assert exc_info.value.status_code == 429
     assert exc_info.value.code == "upstream_error"
+
+
+@pytest.mark.django_db
+def test_get_sales_attachment_open_fetches_binary_content(settings, monkeypatch):
+    """Attachment open fetch should call Drupal endpoint with bearer token."""
+
+    from django.core.cache import cache as django_cache
+
+    django_cache.clear()
+
+    _configure_drupal_search_settings(settings)
+
+    captured = {}
+
+    def fake_post(*args, **kwargs):
+        return _FakeResponse(
+            status_code=200,
+            payload={"access_token": "token-attachment", "expires_in": 3600},
+        )
+
+    def fake_get(url, headers=None, timeout=None, verify=None):
+        captured["url"] = url
+        captured["headers"] = headers
+        response = _FakeResponse(status_code=200, payload={})
+        response.content = b"%PDF-1.4"
+        response.headers = {
+            "Content-Type": "application/pdf",
+            "Content-Disposition": 'inline; filename="file.pdf"',
+        }
+        return response
+
+    monkeypatch.setattr(requests, "post", fake_post)
+    monkeypatch.setattr(requests, "get", fake_get)
+
+    client = DrupalMessagingClient()
+    response = client.get_sales_attachment(attachment_id=9, mode="open")
+
+    assert response.content == b"%PDF-1.4"
+    assert (
+        captured["url"] == "https://drupal.example/user/application/attachments/9/open"
+    )
+    assert captured["headers"]["Authorization"] == "Bearer token-attachment"
+
+
+@pytest.mark.django_db
+def test_get_sales_attachment_raises_for_not_found(settings, monkeypatch):
+    """Attachment fetch should map 404 to not_found error."""
+
+    _configure_drupal_search_settings(settings)
+
+    monkeypatch.setattr(
+        requests,
+        "post",
+        lambda *args, **kwargs: _FakeResponse(
+            status_code=200,
+            payload={"access_token": "token-attachment", "expires_in": 3600},
+        ),
+    )
+    monkeypatch.setattr(
+        requests,
+        "get",
+        lambda *args, **kwargs: _FakeResponse(
+            status_code=404, payload={"message": "missing"}
+        ),
+    )
+
+    client = DrupalMessagingClient()
+    with pytest.raises(DrupalMessagingClientError) as exc_info:
+        client.get_sales_attachment(attachment_id=9, mode="download")
+
+    assert exc_info.value.status_code == 404
+    assert exc_info.value.code == "not_found"
 
 
 @pytest.mark.django_db
