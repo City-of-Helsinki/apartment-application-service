@@ -342,6 +342,7 @@ class DrupalMessagingClient:
         application_id: int,
         body: str,
         co_applicant_email: Optional[str] = None,
+        main_applicant_email: Optional[str] = None,
         attachment_ids: Optional[list[int]] = None,
         new_attachments: Optional[list[dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
@@ -356,6 +357,8 @@ class DrupalMessagingClient:
         payload = {"body": body, "sender_role": "sales"}
         if isinstance(co_applicant_email, str) and co_applicant_email.strip():
             payload["co_applicant_email"] = co_applicant_email.strip()
+        if isinstance(main_applicant_email, str) and main_applicant_email.strip():
+            payload["main_applicant_email"] = main_applicant_email.strip()
         if attachment_ids is not None:
             payload["attachment_ids"] = attachment_ids
         if new_attachments is not None:
@@ -478,6 +481,55 @@ class DrupalMessagingClient:
 
             if response.status_code in (200, 201):
                 return response.json()
+
+            if response.status_code >= 500:
+                if attempt < retries:
+                    continue
+                self._raise_temporary_failure()
+
+            self._raise_non_retryable_error(response)
+
+        self._raise_temporary_failure()
+
+    def get_sales_attachment(
+        self, *, attachment_id: int, mode: str
+    ) -> requests.Response:
+        """Fetch attachment bytes from Drupal for open/download proxying."""
+        if mode not in {"open", "download"}:
+            raise DrupalMessagingClientError(
+                status_code=400,
+                code="invalid_request",
+                message="Invalid attachment mode.",
+            )
+
+        path = f"user/application/attachments/{attachment_id}/{mode}"
+        url = self._build_safe_url(settings.DRUPAL_SEARCH_API_BASE_URL, path)
+        retries = max(int(getattr(settings, "DRUPAL_SEARCH_API_RETRY_COUNT", 2)), 0)
+
+        for attempt in range(retries + 1):
+            try:
+                token = self._get_access_token()
+                headers = {
+                    "Accept": "*/*",
+                    "Authorization": f"Bearer {token}",
+                }
+                response = requests.get(
+                    url,
+                    headers=headers,
+                    timeout=settings.DRUPAL_SEARCH_API_TIMEOUT,
+                    verify=settings.DRUPAL_SEARCH_API_VERIFY_SSL,
+                )
+            except requests.RequestException as exc:
+                if attempt < retries:
+                    continue
+                raise DrupalMessagingClientError(
+                    status_code=503,
+                    code="temporary_failure",
+                    message="Drupal request failed due to network error.",
+                ) from exc
+
+            if response.status_code == 200:
+                return response
 
             if response.status_code >= 500:
                 if attempt < retries:

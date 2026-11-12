@@ -7,6 +7,12 @@ from application_form.tests.factories import ApartmentReservationFactory
 from users.tests.factories import ProfileFactory
 
 
+class _FakeBinaryResponse:
+    def __init__(self, *, content: bytes, headers=None):
+        self.content = content
+        self.headers = headers or {}
+
+
 class _FakeMessagingClient:
     def __init__(
         self,
@@ -31,6 +37,7 @@ class _FakeMessagingClient:
         self.inbox_calls = []
         self.mark_read_calls = []
         self.upload_calls = []
+        self.attachment_calls = []
 
     def get_thread(self, application_id):
         self.get_calls.append(application_id)
@@ -43,6 +50,7 @@ class _FakeMessagingClient:
         application_id,
         body,
         co_applicant_email=None,
+        main_applicant_email=None,
         attachment_ids=None,
         new_attachments=None,
     ):
@@ -51,6 +59,7 @@ class _FakeMessagingClient:
                 application_id,
                 body,
                 co_applicant_email,
+                main_applicant_email,
                 attachment_ids,
                 new_attachments,
             )
@@ -115,6 +124,17 @@ class _FakeMessagingClient:
             "file_id": 321,
             "display_name": display_name or getattr(file, "name", "uploaded.file"),
         }
+
+    def get_sales_attachment(self, *, attachment_id, mode):
+        self.attachment_calls.append((attachment_id, mode))
+        if self._to_raise:
+            raise self._to_raise
+        content = b"%PDF-1.4 fake"
+        headers = {
+            "Content-Type": "application/pdf",
+            "Content-Disposition": f'inline; filename="{attachment_id}.pdf"',
+        }
+        return _FakeBinaryResponse(content=content, headers=headers)
 
 
 @pytest.mark.django_db
@@ -330,7 +350,11 @@ def test_reservation_messages_get_normalizes_message_field_to_body(
 def test_reservation_messages_get_includes_attachment_metadata(
     sales_ui_salesperson_api_client, monkeypatch
 ):
-    """Thread items include attachment list returned by Drupal."""
+    """Thread items include attachment list returned by Drupal.
+
+    - New contract returns both open_url and download_url.
+    - API forwards both values to frontend.
+    """
 
     apartment = ApartmentDocumentFactory()
     reservation = ApartmentReservationFactory(
@@ -354,6 +378,7 @@ def test_reservation_messages_get_includes_attachment_metadata(
                             "display_name": "Terms.pdf",
                             "mime_type": "application/pdf",
                             "size_bytes": 2048,
+                            "open_url": "https://drupal.example/user/application/attachments/901/open",  # noqa: E501
                             "download_url": "https://drupal.example/user/application/attachments/901/download",  # noqa: E501
                         }
                     ],
@@ -377,6 +402,132 @@ def test_reservation_messages_get_includes_attachment_metadata(
     assert response.status_code == 200
     assert response.data["items"][0]["attachments"][0]["id"] == 901
     assert response.data["items"][0]["attachments"][0]["display_name"] == "Terms.pdf"
+    assert response.data["items"][0]["attachments"][0]["open_url"] == reverse(
+        "application_form:sales-apartment-reservation-message-attachment-open",
+        kwargs={"pk": reservation.id, "attachment_id": 901},
+    )
+    assert response.data["items"][0]["attachments"][0]["download_url"] == reverse(
+        "application_form:sales-apartment-reservation-message-attachment-download",
+        kwargs={"pk": reservation.id, "attachment_id": 901},
+    )
+
+
+@pytest.mark.django_db
+def test_reservation_messages_get_attachment_open_url_fallbacks_to_download_url(
+    sales_ui_salesperson_api_client, monkeypatch
+):
+    """Attachment open_url falls back to download_url when open_url is missing."""
+
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        application_apartment__application__drupal_application_id=782,
+    )
+    drupal_id = reservation.application_apartment.application.drupal_application_id
+
+    fake_client = _FakeMessagingClient(
+        thread_payload={
+            "application_id": drupal_id,
+            "count": 1,
+            "items": [
+                {
+                    "id": 1,
+                    "body": "with attachment",
+                    "created": 1710000000,
+                    "attachments": [
+                        {
+                            "id": 902,
+                            "display_name": "Offer.pdf",
+                            "mime_type": "application/pdf",
+                            "size_bytes": 1024,
+                            "download_url": "https://drupal.example/user/application/attachments/902/download",  # noqa: E501
+                        }
+                    ],
+                }
+            ],
+        },
+        unread_payload={"counts": {str(drupal_id): 0}, "total": 0},
+    )
+    monkeypatch.setattr(
+        "application_form.api.sales.views.DrupalMessagingClient",
+        lambda: fake_client,
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse(
+            "application_form:sales-apartment-reservation-messages",
+            kwargs={"pk": reservation.id},
+        )
+    )
+
+    assert response.status_code == 200
+    assert response.data["items"][0]["attachments"][0]["open_url"] == reverse(
+        "application_form:sales-apartment-reservation-message-attachment-open",
+        kwargs={"pk": reservation.id, "attachment_id": 902},
+    )
+    assert response.data["items"][0]["attachments"][0]["download_url"] == reverse(
+        "application_form:sales-apartment-reservation-message-attachment-download",
+        kwargs={"pk": reservation.id, "attachment_id": 902},
+    )
+
+
+@pytest.mark.django_db
+def test_reservation_messages_get_attachment_legacy_download_field_supported(
+    sales_ui_salesperson_api_client, monkeypatch
+):
+    """Legacy attachment key download is mapped to open_url and download_url."""
+
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        application_apartment__application__drupal_application_id=783,
+    )
+    drupal_id = reservation.application_apartment.application.drupal_application_id
+
+    fake_client = _FakeMessagingClient(
+        thread_payload={
+            "application_id": drupal_id,
+            "count": 1,
+            "items": [
+                {
+                    "id": 1,
+                    "body": "with attachment",
+                    "created": 1710000000,
+                    "attachments": [
+                        {
+                            "id": 903,
+                            "display_name": "Old.pdf",
+                            "mime_type": "application/pdf",
+                            "size_bytes": 512,
+                            "download": "https://drupal.example/user/application/attachments/903/download",  # noqa: E501
+                        }
+                    ],
+                }
+            ],
+        },
+        unread_payload={"counts": {str(drupal_id): 0}, "total": 0},
+    )
+    monkeypatch.setattr(
+        "application_form.api.sales.views.DrupalMessagingClient",
+        lambda: fake_client,
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse(
+            "application_form:sales-apartment-reservation-messages",
+            kwargs={"pk": reservation.id},
+        )
+    )
+
+    assert response.status_code == 200
+    assert response.data["items"][0]["attachments"][0]["open_url"] == reverse(
+        "application_form:sales-apartment-reservation-message-attachment-open",
+        kwargs={"pk": reservation.id, "attachment_id": 903},
+    )
+    assert response.data["items"][0]["attachments"][0]["download_url"] == reverse(
+        "application_form:sales-apartment-reservation-message-attachment-download",
+        kwargs={"pk": reservation.id, "attachment_id": 903},
+    )
 
 
 @pytest.mark.django_db
@@ -429,7 +580,7 @@ def test_reservation_messages_post_success(
     assert response.data["created"] == 1710000000
     assert "created_at" in response.data
     assert "T" in response.data["created_at"]
-    assert fake_client.post_calls == [(drupal_id, "Hei", None, None, None)]
+    assert fake_client.post_calls == [(drupal_id, "Hei", None, None, None, None)]
 
 
 @pytest.mark.django_db
@@ -481,7 +632,123 @@ def test_reservation_messages_post_sends_co_applicant_email_when_known(
 
     assert response.status_code == 201
     assert fake_client.post_calls == [
-        (drupal_id, "Hei", "co.applicant@example.com", None, None)
+        (
+            drupal_id,
+            "Hei",
+            "co.applicant@example.com",
+            reservation.application_apartment.application.email,
+            None,
+            None,
+        )
+    ]
+
+
+@pytest.mark.django_db
+def test_reservation_messages_post_uses_primary_profile_email_as_main_applicant(
+    sales_ui_salesperson_api_client, monkeypatch
+):
+    """POST includes main_applicant_email from primary profile when available."""
+
+    apartment = ApartmentDocumentFactory()
+    primary_profile = ProfileFactory(email="main.applicant@example.com")
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        application_apartment__application__drupal_application_id=891,
+        application_apartment__application__customer__primary_profile=primary_profile,
+    )
+    drupal_id = reservation.application_apartment.application.drupal_application_id
+
+    fake_client = _FakeMessagingClient(
+        post_payload={
+            "message": "Message created.",
+            "item": {
+                "id": 14,
+                "application_id": drupal_id,
+                "sender_role": "sales",
+                "body": "Hei",
+                "created": 1710000003,
+            },
+        }
+    )
+    monkeypatch.setattr(
+        "application_form.api.sales.views.DrupalMessagingClient",
+        lambda: fake_client,
+    )
+
+    response = sales_ui_salesperson_api_client.post(
+        reverse(
+            "application_form:sales-apartment-reservation-messages",
+            kwargs={"pk": reservation.id},
+        ),
+        data={"body": "Hei"},
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert fake_client.post_calls == [
+        (
+            drupal_id,
+            "Hei",
+            None,
+            "main.applicant@example.com",
+            None,
+            None,
+        )
+    ]
+
+
+@pytest.mark.django_db
+def test_reservation_messages_post_fallbacks_main_applicant_email_to_application(
+    sales_ui_salesperson_api_client, monkeypatch
+):
+    """POST falls back main_applicant_email to application email when primary is blank."""
+
+    apartment = ApartmentDocumentFactory()
+    primary_profile = ProfileFactory(email="   ")
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        application_apartment__application__drupal_application_id=895,
+        application_apartment__application__email="application@example.com",
+        application_apartment__application__customer__primary_profile=primary_profile,
+    )
+    drupal_id = reservation.application_apartment.application.drupal_application_id
+
+    fake_client = _FakeMessagingClient(
+        post_payload={
+            "message": "Message created.",
+            "item": {
+                "id": 15,
+                "application_id": drupal_id,
+                "sender_role": "sales",
+                "body": "Hei",
+                "created": 1710000004,
+            },
+        }
+    )
+    monkeypatch.setattr(
+        "application_form.api.sales.views.DrupalMessagingClient",
+        lambda: fake_client,
+    )
+
+    response = sales_ui_salesperson_api_client.post(
+        reverse(
+            "application_form:sales-apartment-reservation-messages",
+            kwargs={"pk": reservation.id},
+        ),
+        data={"body": "Hei"},
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert fake_client.post_calls == [
+        (
+            drupal_id,
+            "Hei",
+            None,
+            "application@example.com",
+            None,
+            None,
+        )
     ]
 
 
@@ -994,6 +1261,68 @@ def test_reservation_message_attachment_upload_rate_limited(
 
     assert response.status_code == 429
     assert response.data["detail"] == "Too many attachment upload requests."
+
+
+@pytest.mark.django_db
+def test_reservation_message_attachment_open_proxies_file_content(
+    sales_ui_salesperson_api_client, monkeypatch
+):
+    """Open endpoint proxies attachment bytes from Drupal with headers."""
+
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        application_apartment__application__drupal_application_id=991,
+    )
+
+    fake_client = _FakeMessagingClient()
+    monkeypatch.setattr(
+        "application_form.api.sales.views.DrupalMessagingClient",
+        lambda: fake_client,
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse(
+            "application_form:sales-apartment-reservation-message-attachment-open",
+            kwargs={"pk": reservation.id, "attachment_id": 9},
+        )
+    )
+
+    assert response.status_code == 200
+    assert response["Content-Type"] == "application/pdf"
+    assert "Content-Disposition" in response
+    assert fake_client.attachment_calls == [(9, "open")]
+
+
+@pytest.mark.django_db
+def test_reservation_message_attachment_download_proxies_file_content(
+    sales_ui_salesperson_api_client, monkeypatch
+):
+    """Download endpoint proxies attachment bytes from Drupal with headers."""
+
+    apartment = ApartmentDocumentFactory()
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        application_apartment__application__drupal_application_id=992,
+    )
+
+    fake_client = _FakeMessagingClient()
+    monkeypatch.setattr(
+        "application_form.api.sales.views.DrupalMessagingClient",
+        lambda: fake_client,
+    )
+
+    response = sales_ui_salesperson_api_client.get(
+        reverse(
+            "application_form:sales-apartment-reservation-message-attachment-download",
+            kwargs={"pk": reservation.id, "attachment_id": 10},
+        )
+    )
+
+    assert response.status_code == 200
+    assert response["Content-Type"] == "application/pdf"
+    assert "Content-Disposition" in response
+    assert fake_client.attachment_calls == [(10, "download")]
 
 
 @pytest.mark.django_db

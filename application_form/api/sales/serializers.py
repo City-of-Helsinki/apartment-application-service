@@ -480,6 +480,7 @@ class ReservationMessageSerializer(serializers.Serializer):
         display_name = serializers.CharField()
         mime_type = serializers.CharField()
         size_bytes = serializers.IntegerField(min_value=0)
+        open_url = serializers.CharField(allow_blank=True)
         download_url = serializers.CharField()
 
     id = serializers.IntegerField(required=False)
