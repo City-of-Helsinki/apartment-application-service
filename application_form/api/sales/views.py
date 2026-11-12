@@ -7,9 +7,12 @@ from dateutil import parser
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.validators import EmailValidator
 from django.db import transaction
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
+from django.urls import reverse
 from django.utils import timezone, translation
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_http_methods
@@ -95,6 +98,7 @@ from audit_log.viewsets import AuditLoggingModelViewSet
 from users.permissions import IsDjangoSalesperson, IsDrupalSalesperson
 
 _logger = logging.getLogger(__name__)
+_EMAIL_VALIDATOR = EmailValidator()
 
 
 @api_view(http_method_names=["POST"])
@@ -674,7 +678,76 @@ class ApartmentReservationViewSet(
     serializer_class = RootApartmentReservationSerializer
 
     @staticmethod
-    def _normalize_message_item(*, raw_item, drupal_application_id, fallback_body):
+    def _first_non_blank_string(*values):
+        """Return the first non-blank string from values."""
+        for value in values:
+            if isinstance(value, str):
+                normalized = value.strip()
+                if normalized:
+                    return normalized
+        return ""
+
+    @staticmethod
+    def _build_attachment_proxy_urls(*, reservation_id: int, attachment_id: int):
+        """Build local Django proxy URLs for opening/downloading an attachment."""
+        open_url = reverse(
+            "application_form:sales-apartment-reservation-message-attachment-open",
+            kwargs={"pk": reservation_id, "attachment_id": attachment_id},
+        )
+        download_url = reverse(
+            "application_form:sales-apartment-reservation-message-attachment-download",
+            kwargs={"pk": reservation_id, "attachment_id": attachment_id},
+        )
+        return open_url, download_url
+
+    @classmethod
+    def _normalize_message_attachments(cls, *, attachments, reservation_id: int):
+        """Normalize attachment URL keys for new and legacy Drupal contracts."""
+        if not isinstance(attachments, list):
+            return []
+
+        normalized_attachments = []
+        for raw_attachment in attachments:
+            if not isinstance(raw_attachment, dict):
+                continue
+
+            normalized_attachment = dict(raw_attachment)
+            attachment_id = raw_attachment.get("id")
+            if isinstance(attachment_id, int):
+                open_url, download_url = cls._build_attachment_proxy_urls(
+                    reservation_id=reservation_id,
+                    attachment_id=attachment_id,
+                )
+            else:
+                download_url = cls._first_non_blank_string(
+                    raw_attachment.get("download_url"),
+                    raw_attachment.get("downloadUrl"),
+                    raw_attachment.get("download"),
+                )
+                open_url = cls._first_non_blank_string(
+                    raw_attachment.get("open_url"),
+                    raw_attachment.get("openUrl"),
+                )
+
+                if not open_url:
+                    open_url = download_url
+                if not download_url:
+                    download_url = open_url
+
+            normalized_attachment["open_url"] = open_url
+            normalized_attachment["download_url"] = download_url
+            normalized_attachments.append(normalized_attachment)
+
+        return normalized_attachments
+
+    @staticmethod
+    def _normalize_message_item(
+        *,
+        raw_item,
+        drupal_application_id,
+        fallback_body,
+        reservation_id: int,
+    ):
         """Normalize Drupal message item to stable API shape for frontend."""
         if not isinstance(raw_item, dict):
             raw_item = {}
@@ -691,8 +764,12 @@ class ApartmentReservationViewSet(
         if not normalized_item.get("created"):
             normalized_item["created"] = int(timezone.now().timestamp())
 
-        if not isinstance(normalized_item.get("attachments"), list):
-            normalized_item["attachments"] = []
+        normalized_item["attachments"] = (
+            ApartmentReservationViewSet._normalize_message_attachments(
+                attachments=normalized_item.get("attachments"),
+                reservation_id=reservation_id,
+            )
+        )
 
         created_at = raw_item.get("created_at") or raw_item.get("createdAt")
         if not created_at:
@@ -715,16 +792,43 @@ class ApartmentReservationViewSet(
         )
 
     @staticmethod
+    def _normalize_valid_email(raw_email: Optional[str]) -> Optional[str]:
+        """Normalize an email and return it only when syntactically valid."""
+        if not isinstance(raw_email, str):
+            return None
+
+        normalized_email = raw_email.strip()
+        if not normalized_email:
+            return None
+
+        try:
+            _EMAIL_VALIDATOR(normalized_email)
+        except DjangoValidationError:
+            return None
+
+        return normalized_email
+
+    @classmethod
+    def _get_main_applicant_email(cls, application):
+        """Return primary profile email, falling back to application email."""
+        customer = getattr(application, "customer", None)
+        primary_profile = getattr(customer, "primary_profile", None)
+        primary_email = cls._normalize_valid_email(
+            getattr(primary_profile, "email", None)
+        )
+        if primary_email:
+            return primary_email
+
+        return cls._normalize_valid_email(getattr(application, "email", None))
+
+    @staticmethod
     def _get_co_applicant_email(application):
         """Return secondary profile email if known for outgoing sales messages."""
         customer = getattr(application, "customer", None)
         secondary_profile = getattr(customer, "secondary_profile", None)
-        email = getattr(secondary_profile, "email", None)
-        if not isinstance(email, str):
-            return None
-
-        normalized_email = email.strip()
-        return normalized_email or None
+        return ApartmentReservationViewSet._normalize_valid_email(
+            getattr(secondary_profile, "email", None)
+        )
 
     def _resolve_message_application(self, request, reservation):
         """Resolve linked application and Drupal id for reservation messages."""
@@ -799,6 +903,7 @@ class ApartmentReservationViewSet(
                 raw_item=item,
                 drupal_application_id=application_id,
                 fallback_body="",
+                reservation_id=reservation.id,
             )
             for item in thread_payload.get("items", [])
         ]
@@ -973,6 +1078,9 @@ class ApartmentReservationViewSet(
 
         serializer = ReservationMessageCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        main_applicant_email = self._get_main_applicant_email(
+            reservation.application_apartment.application
+        )
         co_applicant_email = self._get_co_applicant_email(
             reservation.application_apartment.application
         )
@@ -982,6 +1090,7 @@ class ApartmentReservationViewSet(
                 application_id=drupal_application_id,
                 body=serializer.validated_data["body"],
                 co_applicant_email=co_applicant_email,
+                main_applicant_email=main_applicant_email,
                 attachment_ids=serializer.validated_data.get("attachment_ids"),
                 new_attachments=serializer.validated_data.get("new_attachments"),
             )
@@ -1002,6 +1111,7 @@ class ApartmentReservationViewSet(
             raw_item=raw_item,
             drupal_application_id=drupal_application_id,
             fallback_body=serializer.validated_data["body"],
+            reservation_id=reservation.id,
         )
 
         return Response(
@@ -1049,6 +1159,90 @@ class ApartmentReservationViewSet(
                 )
 
         return response
+
+    @staticmethod
+    def _build_attachment_file_response(upstream_response) -> HttpResponse:
+        """Build file response preserving relevant upstream headers."""
+        response = HttpResponse(
+            upstream_response.content,
+            content_type=upstream_response.headers.get(
+                "Content-Type", "application/octet-stream"
+            ),
+        )
+
+        for header_name in (
+            "Content-Disposition",
+            "Content-Length",
+            "Cache-Control",
+            "ETag",
+            "Last-Modified",
+        ):
+            header_value = upstream_response.headers.get(header_name)
+            if header_value:
+                response[header_name] = header_value
+
+        return response
+
+    def _proxy_attachment_response(
+        self, request, reservation, attachment_id: int, mode: str
+    ):
+        """Proxy attachment open/download through Django using Drupal service auth."""
+        application_apartment = reservation.application_apartment
+        if not application_apartment:
+            return Response(
+                {"detail": "Reservation has no linked application."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        application = application_apartment.application
+        if application.drupal_application_id is None:
+            return Response(
+                {"detail": "Messaging unavailable: application has no Drupal ID."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        client = DrupalMessagingClient()
+        try:
+            upstream_response = client.get_sales_attachment(
+                attachment_id=attachment_id,
+                mode=mode,
+            )
+        except DrupalMessagingClientError as exc:
+            return self._handle_drupal_messaging_error(exc, attachment_id)
+
+        return self._build_attachment_file_response(upstream_response)
+
+    @extend_schema(responses={(200, "*/*"): OpenApiTypes.BINARY})
+    @action(
+        methods=["GET"],
+        detail=True,
+        url_path=r"messages/attachments/(?P<attachment_id>[^/.]+)/open",
+    )
+    def message_attachment_open(self, request, pk=None, attachment_id=None):
+        """Open message attachment via Django proxy."""
+        reservation = self.get_object()
+        return self._proxy_attachment_response(
+            request,
+            reservation,
+            attachment_id=int(attachment_id),
+            mode="open",
+        )
+
+    @extend_schema(responses={(200, "*/*"): OpenApiTypes.BINARY})
+    @action(
+        methods=["GET"],
+        detail=True,
+        url_path=r"messages/attachments/(?P<attachment_id>[^/.]+)/download",
+    )
+    def message_attachment_download(self, request, pk=None, attachment_id=None):
+        """Download message attachment via Django proxy."""
+        reservation = self.get_object()
+        return self._proxy_attachment_response(
+            request,
+            reservation,
+            attachment_id=int(attachment_id),
+            mode="download",
+        )
 
     def _handle_attachment_upload_error(self, exc, application_id):
         if exc.status_code == 422 and exc.code in {
