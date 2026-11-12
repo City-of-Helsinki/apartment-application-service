@@ -18,7 +18,14 @@ COPY --chown=1001:1001 requirements-prod.txt /app/requirements-prod.txt
 # git + ca-certificates required for pip installs from git+https (e.g. django-oikotie)
 # Skip "dnf update -y": live UBI repos can conflict with packages baked into
 # ubi9/python-312 (e.g. sqlite vs sqlite-libs version skew).
+# PostgreSQL 17 client comes from the PGDG repo; UBI repos only ship 13.
+# PGDG baseurls use rhel-$releasever_major.$releasever_minor, and new UBI minor
+# releases (e.g. 9.9) appear before PGDG publishes that tree (404 on repomd.xml)
+# -> point PGDG repos at the major-only tree (rhel-9-<arch>).
 RUN dnf install -y \
+    https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-$(uname -m)/pgdg-redhat-repo-latest.noarch.rpm \
+    && sed -i 's/\$releasever_major\.\$releasever_minor/$releasever_major/g' /etc/yum.repos.d/pgdg-redhat-all.repo \
+    && dnf install -y \
     nc \
     git \
     ca-certificates \
