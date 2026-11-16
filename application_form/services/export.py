@@ -342,17 +342,29 @@ _PROJECT_PII_FIELDS = {
     "project_estate_agent_phone",
 }
 
-# Not needed in the export
+# Not needed in the export (URL and project_contract_* fields are excluded
+# by name below)
 _PROJECT_EXCLUDED_FIELDS = {
     "project_description",
+    "project_city",
+    "project_documents_delivered",
+    "project_barred_bank_account",
+    "project_regular_bank_account",
+    "project_payment_recipient",
+    "project_payment_recipient_final",
+    "project_customer_document_handover",
 }
 
-_EXPORTED_PROJECT_FIELDS = [
+# project_property_number is the first column of the export
+_EXPORTED_PROJECT_FIELDS = ["project_property_number"] + [
     name
     for name in ApartmentDocument.model_fields
     if name.startswith("project_")
+    and name != "project_property_number"
     and name not in _PROJECT_PII_FIELDS
     and name not in _PROJECT_EXCLUDED_FIELDS
+    and "url" not in name
+    and not name.startswith("project_contract_")
 ]
 
 
@@ -404,7 +416,6 @@ class ApartmentSalesDataExportService(UnsoldApartmentsExportService):
         "offer_concluded_at",
         *(key for _, key in _HASO_REVAL_COLUMNS),
         "installments_total",
-        "installments_paid",
     ]
     # header row == property names
     COLUMNS = [(field, field) for field in FIELDS]
@@ -487,7 +498,7 @@ class ApartmentSalesDataExportService(UnsoldApartmentsExportService):
                 "revaluation",
                 "application_apartment__lotteryeventresult",
             )
-            .prefetch_related("apartment_installments__payments")
+            .prefetch_related("apartment_installments")
         )
         self._winning_reservations = {str(r.apartment_uuid): r for r in winning}
         self._active_counts = {
@@ -533,9 +544,13 @@ class ApartmentSalesDataExportService(UnsoldApartmentsExportService):
         return CSVExportService.get_csv_string(self)
 
     @staticmethod
-    def _format_cents(value: int) -> str:
-        """Convert integer cents to euros with a dot decimal separator."""
-        return f"{(Decimal(value) / 100).quantize(Decimal('0.01')):.2f}"
+    def _format_cents(value: int) -> Decimal:
+        """Convert integer cents to euros.
+
+        Returned as a number so the CSV writer leaves it unquoted; quoted
+        values are text (e.g. zero-padded postal codes), unquoted are numbers.
+        """
+        return (Decimal(value) / 100).quantize(Decimal("0.01"))
 
     _RESERVATION_KEYS = {
         "sale_state",
@@ -549,7 +564,6 @@ class ApartmentSalesDataExportService(UnsoldApartmentsExportService):
         "offer_valid_until",
         "offer_concluded_at",
         "installments_total",
-        "installments_paid",
         *(key for _, key in _HASO_REVAL_COLUMNS),
     }
 
@@ -601,17 +615,13 @@ class ApartmentSalesDataExportService(UnsoldApartmentsExportService):
         installments = reservation.apartment_installments.all()
         if not installments:
             return None
-        if key == "installments_total":
-            total = sum(i.value for i in installments)
-        else:
-            total = sum(p.amount for i in installments for p in i.payments.all())
-        return self._format_eur(total)
+        return self._format_eur(sum(i.value for i in installments))
 
     @staticmethod
     def _format_eur(value):
         if value in ("", None):
             return ""
-        return f"{Decimal(value).quantize(Decimal('0.01')):.2f}"
+        return Decimal(value).quantize(Decimal("0.01"))
 
 
 class ApplicantMailingListExportService(CSVExportService):

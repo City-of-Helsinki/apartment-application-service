@@ -1582,10 +1582,7 @@ def test_apartment_sales_data_export_filters_projects_and_includes_sale_data():
 
     # B1 sold with installments, B2 reserved, B10 free
     sold = _sell(on_sale_project[2])
-    installment = ApartmentInstallmentFactory(
-        apartment_reservation=sold, value=Decimal("100.00")
-    )
-    PaymentFactory(apartment_installment=installment, amount=Decimal("40.50"))
+    ApartmentInstallmentFactory(apartment_reservation=sold, value=Decimal("100.00"))
     ApartmentReservationFactory(
         apartment_uuid=on_sale_project[1].uuid,
         queue_position=1,
@@ -1607,17 +1604,32 @@ def test_apartment_sales_data_export_filters_projects_and_includes_sale_data():
     b1, b2, b10 = rows
     # zero padding is preserved, also as a quoted string in the CSV text
     assert all(r["project_property_number"] == "007" for r in rows)
-    assert ';"007";' in service.get_csv_string()
+    data_lines = service.get_csv_string().splitlines()[1:]
+    assert all(line.startswith('"007";') for line in data_lines)
+    # money is written unquoted so spreadsheets import it as a number
+    assert ";123.45;" in data_lines[0]
     # every non-PII project_* field is exported
-    assert {"project_contract_rs_bank", "project_energy_class"} <= set(rows[0])
+    assert {"project_energy_class", "project_property_number"} <= set(rows[0])
     assert "project_description" not in rows[0]
+    for removed in (
+        "project_city",
+        "project_documents_delivered",
+        "installments_paid",
+        "project_barred_bank_account",
+        "project_regular_bank_account",
+        "project_payment_recipient",
+        "project_payment_recipient_final",
+        "project_customer_document_handover",
+    ):
+        assert removed not in rows[0]
+    assert not [key for key in rows[0] if key.startswith("project_contract_")]
+    assert not [key for key in rows[0] if "url" in key]
     assert rows[0]["project_heating_options"] == "kaukolämpö,maalämpö"
     assert b1["sale_state"] == "sold"
     assert b1["sold_at"].startswith("2026-03-04T12:00:00")
-    assert b1["installments_total"] == "100.00"
-    assert b1["installments_paid"] == "40.50"
-    assert b1["sales_price"] == "123.45"
-    assert b1["right_of_occupancy_payment"] == "123.45"
+    assert b1["installments_total"] == Decimal("100.00")
+    assert b1["sales_price"] == Decimal("123.45")
+    assert b1["right_of_occupancy_payment"] == Decimal("123.45")
 
     assert b2["sale_state"] == "reserved"
     assert b2["active_reservation_count"] == 2
@@ -1659,8 +1671,8 @@ def test_apartment_sales_data_export_query_count_is_constant(django_assert_num_q
         ApartmentInstallmentFactory(apartment_reservation=sold)
 
     # winning reservations + offer/revaluation/lottery via select_related,
-    # installments, payments, active counts, sold events
-    with django_assert_num_queries(5):
+    # installments, active counts, sold events
+    with django_assert_num_queries(4):
         _apartment_sales_data_rows(on_sale_project)
 
 
@@ -1685,5 +1697,5 @@ def test_export_apartment_sales_data_csv_command(elasticsearch, tmp_path):
         contents = f.read()
     assert not contents.startswith("\ufeff")
     lines = contents.splitlines()
-    assert lines[0].startswith('"project_id";"project_uuid";')
+    assert lines[0].startswith('"project_property_number";"project_id";"project_uuid";')
     assert len(lines) == 1 + len(on_sale_project)
