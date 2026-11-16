@@ -111,6 +111,14 @@ class ProjectAPIView(APIView):
     http_method_names = ["get"]
     pagination_class = ProjectListPagination
 
+    @staticmethod
+    def _sort_projects_for_list(project_data):
+        """Return projects ordered with published entries first."""
+        return sorted(
+            project_data,
+            key=lambda project: not bool(getattr(project, "project_published", False)),
+        )
+
     def get(self, request, project_uuid=None):
         try:
             if project_uuid is not None:
@@ -124,7 +132,7 @@ class ProjectAPIView(APIView):
                 project_filters["include_archived"] = True
             else:
                 project_filters["project_archived"] = False
-            project_data = get_projects(**project_filters)
+            project_data = self._sort_projects_for_list(get_projects(**project_filters))
             return self._get_list(request, project_data)
         except ObjectDoesNotExist:
             raise NotFound()

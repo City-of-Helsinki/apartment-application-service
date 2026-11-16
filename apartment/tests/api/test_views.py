@@ -107,6 +107,29 @@ def test_project_list_get(sales_ui_salesperson_api_client):
 
 
 @pytest.mark.django_db
+def test_project_list_prioritizes_published_projects(
+    sales_ui_salesperson_api_client,
+):
+    published_project = ApartmentDocumentFactory(project_published=True)
+    unpublished_project = ApartmentDocumentFactory(project_published=False)
+    add_to_store([published_project, unpublished_project])
+
+    response = sales_ui_salesperson_api_client.get(
+        f"{reverse('apartment:project-list')}?page_size=50",
+        format="json",
+    )
+
+    assert response.status_code == 200
+    result_uuids = [item["uuid"] for item in response.data["results"]]
+
+    assert str(published_project.project_uuid) in result_uuids
+    assert str(unpublished_project.project_uuid) in result_uuids
+    assert result_uuids.index(str(published_project.project_uuid)) < result_uuids.index(
+        str(unpublished_project.project_uuid)
+    )
+
+
+@pytest.mark.django_db
 def test_project_list_excludes_archived_by_default(sales_ui_salesperson_api_client):
     active_project = ApartmentDocumentFactory(project_archived=False)
     archived_project = ApartmentDocumentFactory(project_archived=True)
