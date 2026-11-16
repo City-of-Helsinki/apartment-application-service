@@ -3,15 +3,16 @@ import logging
 import operator
 import re
 from abc import abstractmethod
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from io import BytesIO, StringIO
 from typing import List, Literal, Union
 
 import xlsxwriter
 from django.core.exceptions import ObjectDoesNotExist
-from django.db.models import CharField, Max, Q, QuerySet
+from django.db.models import CharField, Count, Max, Q, QuerySet
 from django.db.models.functions import Cast
+from django.utils import timezone
 
 from apartment.elastic.documents import ApartmentDocument
 from apartment.elastic.queries import (
@@ -329,6 +330,288 @@ class UnsoldApartmentsExportService(CSVExportService):
         """Return CSV string with explicit delimiter hint for Excel."""
         csv_body = super().get_csv_string()
         return f"sep={self.CSV_DELIMITER}\r\n{csv_body}"
+
+
+# Names and contact details of individual staff members
+_PROJECT_PII_FIELDS = {
+    "project_acc_salesperson",
+    "project_acc_financeofficer",
+    "project_project_manager",
+    "project_estate_agent",
+    "project_estate_agent_email",
+    "project_estate_agent_phone",
+}
+
+# Not needed in the export
+_PROJECT_EXCLUDED_FIELDS = {
+    "project_description",
+}
+
+_EXPORTED_PROJECT_FIELDS = [
+    name
+    for name in ApartmentDocument.model_fields
+    if name.startswith("project_")
+    and name not in _PROJECT_PII_FIELDS
+    and name not in _PROJECT_EXCLUDED_FIELDS
+]
+
+
+class ApartmentSalesDataExportService(UnsoldApartmentsExportService):
+    """Build machine-readable CSV of apartment sales data, one apartment per row.
+
+    Currently limited to apartments in projects that have unsold apartments.
+    Contains apartment/project sales data and the winning reservation's
+    (queue position 1) sales state, but no PII. Column headers are property
+    names; money is in euros with a dot decimal separator, dates are ISO 8601
+    and booleans are ``true``/``false``. List values are comma-separated strings.
+    """
+
+    FIELDS = [
+        # --- project: every project_* field of ApartmentDocument except PII ---
+        *_EXPORTED_PROJECT_FIELDS,
+        # --- apartment ---
+        "uuid",
+        "apartment_number",
+        "floor",
+        "apartment_structure",
+        "room_count",
+        "living_area",
+        "housing_shares",
+        "sales_price",
+        "debt_free_sales_price",
+        "loan_share",
+        "price_m2",
+        "maintenance_fee",
+        "financing_fee",
+        "water_fee",
+        "parking_fee",
+        "right_of_occupancy_payment",
+        "field_index_adjusted_right_of_oc",
+        "right_of_occupancy_fee",
+        "right_of_occupancy_deposit",
+        "release_payment",
+        "apartment_state_of_sale",
+        # --- winning reservation ---
+        "sale_state",
+        "reservation_state",
+        "active_reservation_count",
+        "queue_position",
+        "lottery_position",
+        "has_children",
+        "has_hitas_ownership",
+        "sold_at",
+        "offer_valid_until",
+        "offer_concluded_at",
+        *(key for _, key in _HASO_REVAL_COLUMNS),
+        "installments_total",
+        "installments_paid",
+    ]
+    # header row == property names
+    COLUMNS = [(field, field) for field in FIELDS]
+    # no BOM, this file is meant for machines rather than Excel
+    FILE_ENCODING = "utf-8"
+
+    CENTS_FIELDS = {
+        "sales_price",
+        "debt_free_sales_price",
+        "loan_share",
+        "price_m2",
+        "maintenance_fee",
+        "financing_fee",
+        "water_fee",
+        "parking_fee",
+        "right_of_occupancy_payment",
+        "right_of_occupancy_fee",
+        "right_of_occupancy_deposit",
+        "release_payment",
+        "field_index_adjusted_right_of_oc",
+        "field_alteration_work",
+    }
+
+    def __init__(self, apartments=None):
+        """Initialize with apartment documents; fetch all from Drupal if omitted."""
+        if apartments is None:
+            apartments = get_apartments(include_project_fields=True)
+        self.apartments = list(apartments)
+        self.project_count = 0
+        self._winning_reservations = {}
+        self._active_counts = {}
+        self._sold_at = {}
+
+    def get_rows(self):
+        """Return header row and one row per apartment in projects on sale."""
+        apartments = [
+            a for a in self.apartments if not getattr(a, "project_archived", False)
+        ]
+        self._load_reservation_data([str(a.uuid) for a in apartments])
+
+        projects = {}
+        for apartment in apartments:
+            projects.setdefault(str(apartment.project_uuid), []).append(apartment)
+
+        projects_on_sale = [
+            project_apartments
+            for project_apartments in projects.values()
+            if any(not self._is_sold(a) for a in project_apartments)
+        ]
+        self.project_count = len(projects_on_sale)
+
+        selected = sorted(
+            (a for project_apartments in projects_on_sale for a in project_apartments),
+            key=lambda a: (
+                a.project_street_address or "",
+                str(a.project_uuid),
+                get_apartment_number_sort_tuple(a.apartment_number or ""),
+            ),
+        )
+
+        rows = [self._get_header_row()]
+        rows.extend(self.get_row(apartment) for apartment in selected)
+        return rows
+
+    def get_row(self, apartment):
+        """Map one apartment and its winning reservation into a CSV row."""
+        reservation = self._winning_reservations.get(str(apartment.uuid))
+        return [self._get_cell(key, apartment, reservation) for _, key in self.COLUMNS]
+
+    def _load_reservation_data(self, apartment_uuids: List[str]):
+        if not apartment_uuids:
+            return
+        active = ApartmentReservation.objects.active().filter(
+            apartment_uuid__in=apartment_uuids
+        )
+        winning = (
+            active.filter(queue_position=1)
+            .select_related(
+                "offer",
+                "revaluation",
+                "application_apartment__lotteryeventresult",
+            )
+            .prefetch_related("apartment_installments__payments")
+        )
+        self._winning_reservations = {str(r.apartment_uuid): r for r in winning}
+        self._active_counts = {
+            str(row["apartment_uuid"]): row["count"]
+            for row in active.order_by()
+            .values("apartment_uuid")
+            .annotate(count=Count("id"))
+        }
+        self._sold_at = dict(
+            ApartmentReservationStateChangeEvent.objects.filter(
+                reservation_id__in=[r.pk for r in self._winning_reservations.values()],
+                state=ApartmentReservationState.SOLD,
+            )
+            .order_by()
+            .values("reservation_id")
+            .annotate(latest=Max("timestamp"))
+            .values_list("reservation_id", "latest")
+        )
+
+    def _is_sold(self, apartment) -> bool:
+        reservation = self._winning_reservations.get(str(apartment.uuid))
+        return bool(reservation and reservation.state == ApartmentReservationState.SOLD)
+
+    def _get_cell(self, key, apartment, reservation):
+        if key in self._RESERVATION_KEYS:
+            value = self._get_reservation_cell(key, apartment, reservation)
+        else:
+            value = getattr(apartment, key, None)
+            if key in self.CENTS_FIELDS and value is not None:
+                value = self._format_cents(value)
+        if isinstance(value, datetime) and timezone.is_aware(value):
+            value = timezone.localtime(value)
+        if isinstance(value, (datetime, date)):
+            value = value.isoformat()
+        if isinstance(value, bool):
+            value = "true" if value else "false"
+        if isinstance(value, (list, tuple)):
+            value = ",".join(str(item) for item in value)
+        return "" if value is None else value
+
+    def get_csv_string(self):
+        """Plain CSV without the Excel ``sep=`` hint added by the parent class."""
+        return CSVExportService.get_csv_string(self)
+
+    @staticmethod
+    def _format_cents(value: int) -> str:
+        """Convert integer cents to euros with a dot decimal separator."""
+        return f"{(Decimal(value) / 100).quantize(Decimal('0.01')):.2f}"
+
+    _RESERVATION_KEYS = {
+        "sale_state",
+        "reservation_state",
+        "active_reservation_count",
+        "queue_position",
+        "lottery_position",
+        "has_children",
+        "has_hitas_ownership",
+        "sold_at",
+        "offer_valid_until",
+        "offer_concluded_at",
+        "installments_total",
+        "installments_paid",
+        *(key for _, key in _HASO_REVAL_COLUMNS),
+    }
+
+    def _get_reservation_cell(self, key, apartment, reservation):
+        if key == "sale_state":
+            return self._get_sale_state(reservation)
+        if key == "active_reservation_count":
+            return self._active_counts.get(str(apartment.uuid), 0)
+        if reservation is None:
+            return ""
+
+        dispatch = {
+            "reservation_state": lambda r: r.state.value,
+            "has_children": lambda r: r.has_children,
+            "has_hitas_ownership": lambda r: r.has_hitas_ownership,
+            "lottery_position": self._get_lottery_position,
+            "sold_at": lambda r: self._sold_at.get(r.pk),
+        }
+        if key in dispatch:
+            return dispatch[key](reservation)
+        if key.startswith("offer_"):
+            offer = getattr(reservation, "offer", None)
+            return getattr(offer, key[len("offer_") :], None) if offer else None
+        if key.startswith("installments_"):
+            return self._get_installment_sum(key, reservation)
+        if key.startswith("haso_"):
+            return self._format_eur(_get_haso_revaluation_value(key, reservation))
+        return _get_simple_reservation_cell(reservation, key)
+
+    @staticmethod
+    def _get_sale_state(reservation):
+        if (
+            reservation is None
+            or reservation.state == ApartmentReservationState.SUBMITTED
+        ):
+            return ApartmentState.FREE.value
+        return ApartmentState.get_from_reserved_reservation_state(
+            reservation.state
+        ).value
+
+    @staticmethod
+    def _get_lottery_position(reservation):
+        try:
+            return reservation.application_apartment.lotteryeventresult.result_position
+        except (AttributeError, ObjectDoesNotExist):
+            return None
+
+    def _get_installment_sum(self, key, reservation):
+        installments = reservation.apartment_installments.all()
+        if not installments:
+            return None
+        if key == "installments_total":
+            total = sum(i.value for i in installments)
+        else:
+            total = sum(p.amount for i in installments for p in i.payments.all())
+        return self._format_eur(total)
+
+    @staticmethod
+    def _format_eur(value):
+        if value in ("", None):
+            return ""
+        return f"{Decimal(value).quantize(Decimal('0.01')):.2f}"
 
 
 class ApplicantMailingListExportService(CSVExportService):
