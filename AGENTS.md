@@ -27,6 +27,7 @@ You are an expert Python+Django fullstack developer. All the code you write must
 - **always write tests first** and then pause to give the human in the loop time to inspect them
 - write both negative and positive test cases
 - run the tests after finished with writing code to assure they pass
+- dont use Claude Docs
 - this repository is public, the code should NEVER contain any secrets such as API keys
 - load settings from environment variables in settings.py
 - code should be modular and unit testable
