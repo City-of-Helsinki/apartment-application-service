@@ -31,6 +31,7 @@ from application_form.models import (
 )
 from application_form.services.application import cancel_reservation
 from application_form.services.export import (
+    ApartmentSalesDataExportService,
     ApplicantExportService,
     ApplicantMailingListExportService,
     ProjectLotteryResultExportService,
@@ -618,6 +619,11 @@ def test_export_applicants_mailing_list_short_includes_phone_numbers(reservation
     # Keep the test deterministic: short+reserved export excludes canceled rows.
     reservation_queryset.update(state=ApartmentReservationState.SUBMITTED)
     reservation = reservation_queryset.first()
+    # The factory picks a random state; the RESERVED export leaves out canceled
+    # reservations, so pin the state to keep this reservation's row exported.
+    ApartmentReservation.objects.filter(pk=reservation.pk).update(
+        state=ApartmentReservationState.RESERVED
+    )
     reservation.customer.primary_profile.phone_number = "0401234567"
     reservation.customer.primary_profile.save(update_fields=["phone_number"])
 
@@ -1514,3 +1520,182 @@ def test_write_csv_file(applicant_export_service, tmp_path):
         contents = f.read()
         assert contents.startswith('"Primary applicant";"Primary applicant address"')
         assert "äöÄÖtest" in contents
+
+
+def _projects_on_sale_apartments():
+    """One fully sold HITAS project and one partially sold HASO project."""
+    sold_project = [
+        ApartmentDocumentFactory(
+            project_ownership_type="Hitas",
+            project_street_address="A-katu 1",
+            apartment_number=f"A{i}",
+        )
+        for i in range(1, 3)
+    ]
+    for apartment in sold_project[1:]:
+        apartment.project_uuid = sold_project[0].project_uuid
+
+    on_sale_project = [
+        ApartmentDocumentFactory(
+            project_ownership_type="Haso",
+            project_street_address="B-katu 1",
+            apartment_number=f"B{i}",
+            sales_price=12345,
+            right_of_occupancy_payment=12345,
+            project_property_number="007",
+            project_heating_options=["kaukolämpö", "maalämpö"],
+        )
+        for i in (10, 2, 1)
+    ]
+    for apartment in on_sale_project[1:]:
+        apartment.project_uuid = on_sale_project[0].project_uuid
+
+    return sold_project, on_sale_project
+
+
+def _sell(apartment, **kwargs):
+    reservation = ApartmentReservationFactory(
+        apartment_uuid=apartment.uuid,
+        queue_position=1,
+        list_position=1,
+        state=ApartmentReservationState.SOLD,
+        **kwargs,
+    )
+    reservation.state_change_events.update(
+        timestamp=timezone.make_aware(datetime(2026, 3, 4, 12, 0))
+    )
+    return reservation
+
+
+def _apartment_sales_data_rows(apartments):
+    service = ApartmentSalesDataExportService(apartments=apartments)
+    rows = service.get_rows()
+    header = rows[0]
+    return service, [dict(zip(header, row)) for row in rows[1:]], header
+
+
+@pytest.mark.django_db
+def test_apartment_sales_data_export_filters_projects_and_includes_sale_data():
+    sold_project, on_sale_project = _projects_on_sale_apartments()
+    for apartment in sold_project:
+        _sell(apartment)
+
+    # B1 sold with installments, B2 reserved, B10 free
+    sold = _sell(on_sale_project[2])
+    ApartmentInstallmentFactory(apartment_reservation=sold, value=Decimal("100.00"))
+    ApartmentReservationFactory(
+        apartment_uuid=on_sale_project[1].uuid,
+        queue_position=1,
+        list_position=1,
+        state=ApartmentReservationState.RESERVED,
+    )
+    ApartmentReservationFactory(
+        apartment_uuid=on_sale_project[1].uuid,
+        queue_position=2,
+        list_position=2,
+        state=ApartmentReservationState.SUBMITTED,
+    )
+
+    service, rows, _ = _apartment_sales_data_rows(sold_project + on_sale_project)
+
+    assert service.project_count == 1
+    assert [r["apartment_number"] for r in rows] == ["B1", "B2", "B10"]
+
+    b1, b2, b10 = rows
+    # zero padding is preserved, also as a quoted string in the CSV text
+    assert all(r["project_property_number"] == "007" for r in rows)
+    data_lines = service.get_csv_string().splitlines()[1:]
+    assert all(line.startswith('"007";') for line in data_lines)
+    # money is written unquoted so spreadsheets import it as a number
+    assert ";123.45;" in data_lines[0]
+    # every non-PII project_* field is exported
+    assert {"project_energy_class", "project_property_number"} <= set(rows[0])
+    assert "project_description" not in rows[0]
+    for removed in (
+        "project_city",
+        "project_documents_delivered",
+        "installments_paid",
+        "project_barred_bank_account",
+        "project_regular_bank_account",
+        "project_payment_recipient",
+        "project_payment_recipient_final",
+        "project_customer_document_handover",
+    ):
+        assert removed not in rows[0]
+    assert not [key for key in rows[0] if key.startswith("project_contract_")]
+    assert not [key for key in rows[0] if "url" in key]
+    assert rows[0]["project_heating_options"] == "kaukolämpö,maalämpö"
+    assert b1["sale_state"] == "sold"
+    assert b1["sold_at"].startswith("2026-03-04T12:00:00")
+    assert b1["installments_total"] == Decimal("100.00")
+    assert b1["sales_price"] == Decimal("123.45")
+    assert b1["right_of_occupancy_payment"] == Decimal("123.45")
+
+    assert b2["sale_state"] == "reserved"
+    assert b2["active_reservation_count"] == 2
+    assert b2["sold_at"] == ""
+
+    assert b10["sale_state"] == "free"
+    assert b10["active_reservation_count"] == 0
+    assert b10["reservation_state"] == ""
+
+
+@pytest.mark.django_db
+def test_apartment_sales_data_export_has_no_pii_columns():
+    _, on_sale_project = _projects_on_sale_apartments()
+    _sell(on_sale_project[0])
+    _, rows, _ = _apartment_sales_data_rows(on_sale_project)
+
+    keys = {key for _, key in ApartmentSalesDataExportService.COLUMNS}
+    assert not any(
+        k.startswith(("primary_profile", "secondary_profile", "customer")) for k in keys
+    )
+    assert "right_of_residence" not in keys
+    assert "handler" not in keys
+    assert not keys & {
+        "project_acc_salesperson",
+        "project_acc_financeofficer",
+        "project_project_manager",
+        "project_estate_agent",
+        "project_estate_agent_email",
+        "project_estate_agent_phone",
+    }
+    assert len(rows) == 3
+
+
+@pytest.mark.django_db
+def test_apartment_sales_data_export_query_count_is_constant(django_assert_num_queries):
+    _, on_sale_project = _projects_on_sale_apartments()
+    for apartment in on_sale_project[:2]:
+        sold = _sell(apartment)
+        ApartmentInstallmentFactory(apartment_reservation=sold)
+
+    # winning reservations + offer/revaluation/lottery via select_related,
+    # installments, active counts, sold events
+    with django_assert_num_queries(4):
+        _apartment_sales_data_rows(on_sale_project)
+
+
+@pytest.mark.django_db
+def test_export_apartment_sales_data_csv_command(elasticsearch, tmp_path):
+    from django.core.management import call_command
+
+    from apartment.tests.factories import add_to_store
+
+    sold_project, on_sale_project = _projects_on_sale_apartments()
+    add_to_store(sold_project + on_sale_project)
+    for apartment in sold_project:
+        _sell(apartment)
+
+    call_command(
+        "export_apartment_sales_data_csv",
+        filename="out.csv",
+        output_dir=str(tmp_path),
+    )
+
+    with open(tmp_path / "out.csv", encoding="utf-8") as f:
+        contents = f.read()
+    assert not contents.startswith("\ufeff")
+    lines = contents.splitlines()
+    assert lines[0].startswith('"project_property_number";"project_id";"project_uuid";')
+    assert len(lines) == 1 + len(on_sale_project)

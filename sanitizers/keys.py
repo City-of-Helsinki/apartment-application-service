@@ -1,0 +1,35 @@
+"""
+Default PGP public key used when re-encrypting fakes for anonymized dumps.
+
+Matches the local/test key in ``.env.example`` so restored dumps work with
+example private keys. Override with ``DUMP_PUBLIC_PGP_KEY`` for other targets.
+"""
+
+DEFAULT_DUMP_PUBLIC_PGP_KEY = """-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+mQGiBGDJ7egRBACtiOeDD28VV1rViZ0ondhlGdnfEDqgsuGnUPywfDb8h5B9bHxQ
+cQj8NuygD9wBInx/H5eO4UkfBjQaUIaWBUSWiynyPfcicOdPOqEFiyliEmB3daqf
+H74Tt9dMOaHj43rXal3URKtgiFa/foGa2H5oAXQMtLg8xOrFB/x/BiuBVwCg4dD9
+eh/NKo1mSpD6BH3CGlCwdzkD/Re9dmg9lL0K1b+JCjzQ4xF5XzzfMX0dtW9zJbTj
+pCjmIrv86FO1wWZq17pMvMStcu08slkMHa8XkIfslN+3CnMDKhBABBDakatKxfu+
+5Ka7EQK0PAyGeG8qdqzrOBP97/ws91ymsgkQeBfYNPncbLTbIsI9N2dBUsL5XmoD
+/ztzA/0VNNsp3jOD5OfPJ9IqW5WoCQgz0aX1zzzhwwR4MMVXwkXMenS+aVKOhVqu
+e2xtA+ueYoR96oZzI/CzSS8/+li8WY5nnNbGRaYeQDtdkrmsMSnUGhfohZE/+S7J
+PD4W+KEjYVHee9lpWngzQ5OL8QiwDT+CFeb+ExoBtLf7lLKnEbSMQXBhcnRtZW50
+IEFwcGxpY2F0aW9uIFNlcnZpY2UgKFRlc3Qga2V5IGZvciBhcGFydG1lbnQgYXBw
+bGljYXRpb24gc2VydmljZS4gTm90IGZvciBwcm9kdWN0aW9uIHVzZSEpIDxhcGFy
+dG1lbnRfYXBwbGljYXRpb25fc2VydmljZUBoZWxzaW5raT6IfAQTEQIAPBYhBADC
+erfH00QwdNYDkE4ComjeRsaUBQJgye3oAhsDBQsJCAcCAyICAQYVCgkICwIEFgID
+AQIeBwIXgAAKCRBOAqJo3kbGlBQiAJwNdjAua7cpuV3f2qHXTDewO4hQDQCgtKiN
+QnGOKTK4V36ZkjfcbuPQL2K5AQwEYMnt6BAEAJS4fy4zxq7PxJHE5eICfykvgJ3j
+hw4IwHdHpoCbqc5Tjd7f14u8OWWCXhQJ8lcPPeeuEzNPqeRIefd6Y/XlBl+NoJCE
+oiGaCh29PhN2G5MnVsUJjXOr7dZXjKucmHkiG1EZP1Ef98n/Z5CxeDcXqNuSow+Q
+zTc8Q3fgTlNwaoDPAAMFA/dXidxWhIUpRCCBOK2tD5y2GGvum7sttfiLlJuK1ep4
+5TZsfvxSDE941iXGmG3M+FcABQdqUrh0M9r/IW+i5B9MyKu/SQeBb7HnhVJSe27l
+TxP9CHmOb2GtrvwkXjUn8/Vn1A36p8seEXIt+AKjEVktrMOtqlz51ZncijThL7y6
+iGAEGBECACAWIQQAwnq3x9NEMHTWA5BOAqJo3kbGlAUCYMnt6AIbDAAKCRBOAqJo
+3kbGlDPeAJ9zGF5H44WpF8P8FqA3rhHKaKT+XgCfQFgR78yp9qzhShwbKdpjcowW
+vMc=
+=WxtF
+-----END PGP PUBLIC KEY BLOCK-----
+"""

@@ -7,6 +7,8 @@ from django.utils.translation import gettext_lazy as _
 from sentry_sdk.integrations.django import DjangoIntegration
 from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
 
+from sanitizers.keys import DEFAULT_DUMP_PUBLIC_PGP_KEY
+
 from .utils import is_module_available, scrub_sensitive_payload
 from .version import get_version
 
@@ -84,6 +86,8 @@ env = environ.Env(
     HASHIDS_SALT=(str, ""),
     PUBLIC_PGP_KEY=(str, ""),
     PRIVATE_PGP_KEY=(str, ""),
+    DUMP_PUBLIC_PGP_KEY=(str, ""),
+    SANITIZED_DUMP_PASSWORD=(str, ""),
     SAP_SFTP_USERNAME=(str, ""),
     SAP_SFTP_PASSWORD=(str, ""),
     SAP_SFTP_HOST=(str, ""),
@@ -128,6 +132,10 @@ env = environ.Env(
     DRUPAL_SEARCH_API_VERIFY_SSL=(bool, True),
     DRUPAL_SEARCH_API_PAGE_SIZE=(int, 100),
     DRUPAL_SEARCH_API_CACHE_TTL=(int, 60),
+    DRUPAL_SEARCH_API_ATTACHMENTS_UPLOAD_PATH=(
+        str,
+        "user/application/attachments/upload",
+    ),
     DEFAULT_SOLD_APARMENT_TIME_RANGE=(int, 1),
     DEFAULT_APARTMENT_REVALUATION_TIME_RANGE=(int, 1),
     APPLICANT_DUPLICATE_VALIDATION_DISABLED=(bool, False),
@@ -213,6 +221,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "pgcrypto",
     "resilient_logger",
+    "sanitized_dump",
     # local apps
     "apartment",
     "application_form",
@@ -457,6 +466,16 @@ SIMPLE_JWT = {"ACCESS_TOKEN_LIFETIME": timedelta(minutes=30)}
 # For pgcrypto
 PUBLIC_PGP_KEY = env.str("PUBLIC_PGP_KEY", multiline=True)
 PRIVATE_PGP_KEY = env.str("PRIVATE_PGP_KEY", multiline=True)
+# Public key used when re-encrypting fake PII in anonymized dumps.
+# Defaults to the local/test key so restored dumps work with .env.example.
+DUMP_PUBLIC_PGP_KEY = env.str(
+    "DUMP_PUBLIC_PGP_KEY",
+    default=DEFAULT_DUMP_PUBLIC_PGP_KEY,
+    multiline=True,
+)
+# Password of every user in anonymized dumps. Must be the same when dumping
+# and when running drupal_restore_credentials_sql on the restored copy.
+SANITIZED_DUMP_PASSWORD = env.str("SANITIZED_DUMP_PASSWORD")
 
 # Metadata constants =
 METADATA_HANDLER_INFORMATION = env.str("METADATA_HANDLER_INFORMATION")
@@ -533,6 +552,9 @@ DRUPAL_SEARCH_API_INITIAL_TIMEOUT = env.int("DRUPAL_SEARCH_API_INITIAL_TIMEOUT")
 DRUPAL_SEARCH_API_VERIFY_SSL = env.bool("DRUPAL_SEARCH_API_VERIFY_SSL")
 DRUPAL_SEARCH_API_PAGE_SIZE = env.int("DRUPAL_SEARCH_API_PAGE_SIZE")
 DRUPAL_SEARCH_API_CACHE_TTL = int(os.environ.get("DRUPAL_SEARCH_API_CACHE_TTL") or 60)
+DRUPAL_SEARCH_API_ATTACHMENTS_UPLOAD_PATH = env.str(
+    "DRUPAL_SEARCH_API_ATTACHMENTS_UPLOAD_PATH"
+)
 DEFAULT_SOLD_APARMENT_TIME_RANGE = env.int("DEFAULT_SOLD_APARMENT_TIME_RANGE")  # hours
 DEFAULT_APARTMENT_REVALUATION_TIME_RANGE = env.int(
     "DEFAULT_APARTMENT_REVALUATION_TIME_RANGE"

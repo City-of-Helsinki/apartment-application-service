@@ -158,3 +158,9 @@ schemas/*
 # MacOS specific .DS_STORE directory metadata
 .DS_STORE
 
+# Anonymized database dumps (never commit)
+*sanitized_*.sql
+*sanitized_*.sql.tmp
+*.sanitized.sql
+# Output of drupal_restore_credentials_sql
+fix.sql
