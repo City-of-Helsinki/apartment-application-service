@@ -448,6 +448,7 @@ class ApartmentSalesDataExportService(UnsoldApartmentsExportService):
         self._winning_reservations = {}
         self._active_counts = {}
         self._sold_at = {}
+        self._reservation_getters = self._build_reservation_getters()
 
     def get_rows(self):
         """Return header row and one row per apartment in projects on sale."""
@@ -523,7 +524,7 @@ class ApartmentSalesDataExportService(UnsoldApartmentsExportService):
         return bool(reservation and reservation.state == ApartmentReservationState.SOLD)
 
     def _get_cell(self, key, apartment, reservation):
-        if key in self._RESERVATION_KEYS:
+        if key in self._reservation_getters:
             value = self._get_reservation_cell(key, apartment, reservation)
         else:
             value = getattr(apartment, key, None)
@@ -550,48 +551,44 @@ class ApartmentSalesDataExportService(UnsoldApartmentsExportService):
         Returned as a number so the CSV writer leaves it unquoted; quoted
         values are text (e.g. zero-padded postal codes), unquoted are numbers.
         """
-        return (Decimal(value) / 100).quantize(Decimal("0.01"))
+        return Decimal(value).scaleb(-2).quantize(Decimal("0.01"))
 
-    _RESERVATION_KEYS = {
-        "sale_state",
-        "reservation_state",
-        "active_reservation_count",
-        "queue_position",
-        "lottery_position",
-        "has_children",
-        "has_hitas_ownership",
-        "sold_at",
-        "offer_valid_until",
-        "offer_concluded_at",
-        "installments_total",
-        *(key for _, key in _HASO_REVAL_COLUMNS),
-    }
+    # reservation-derived columns that have a value even without a reservation
+    _APARTMENT_LEVEL_RESERVATION_KEYS = {"sale_state", "active_reservation_count"}
+
+    def _build_reservation_getters(self):
+        """Map reservation-derived column keys to ``(apartment, reservation)``
+        getter functions."""
+        getters = {
+            "sale_state": lambda a, r: self._get_sale_state(r),
+            "active_reservation_count": lambda a, r: self._active_counts.get(
+                str(a.uuid), 0
+            ),
+            "reservation_state": lambda a, r: r.state.value,
+            "queue_position": lambda a, r: r.queue_position,
+            "lottery_position": lambda a, r: self._get_lottery_position(r),
+            "has_children": lambda a, r: r.has_children,
+            "has_hitas_ownership": lambda a, r: r.has_hitas_ownership,
+            "sold_at": lambda a, r: self._sold_at.get(r.pk),
+            "offer_valid_until": lambda a, r: self._get_offer_field(r, "valid_until"),
+            "offer_concluded_at": lambda a, r: self._get_offer_field(r, "concluded_at"),
+            "installments_total": lambda a, r: self._get_installments_total(r),
+        }
+        for _, key in _HASO_REVAL_COLUMNS:
+            getters[key] = lambda a, r, key=key: self._format_eur(
+                _get_haso_revaluation_value(key, r)
+            )
+        return getters
 
     def _get_reservation_cell(self, key, apartment, reservation):
-        if key == "sale_state":
-            return self._get_sale_state(reservation)
-        if key == "active_reservation_count":
-            return self._active_counts.get(str(apartment.uuid), 0)
-        if reservation is None:
+        if reservation is None and key not in self._APARTMENT_LEVEL_RESERVATION_KEYS:
             return ""
+        return self._reservation_getters[key](apartment, reservation)
 
-        dispatch = {
-            "reservation_state": lambda r: r.state.value,
-            "has_children": lambda r: r.has_children,
-            "has_hitas_ownership": lambda r: r.has_hitas_ownership,
-            "lottery_position": self._get_lottery_position,
-            "sold_at": lambda r: self._sold_at.get(r.pk),
-        }
-        if key in dispatch:
-            return dispatch[key](reservation)
-        if key.startswith("offer_"):
-            offer = getattr(reservation, "offer", None)
-            return getattr(offer, key[len("offer_") :], None) if offer else None
-        if key.startswith("installments_"):
-            return self._get_installment_sum(key, reservation)
-        if key.startswith("haso_"):
-            return self._format_eur(_get_haso_revaluation_value(key, reservation))
-        return _get_simple_reservation_cell(reservation, key)
+    @staticmethod
+    def _get_offer_field(reservation, field_name):
+        offer = getattr(reservation, "offer", None)
+        return getattr(offer, field_name, None) if offer else None
 
     @staticmethod
     def _get_sale_state(reservation):
@@ -611,7 +608,7 @@ class ApartmentSalesDataExportService(UnsoldApartmentsExportService):
         except (AttributeError, ObjectDoesNotExist):
             return None
 
-    def _get_installment_sum(self, key, reservation):
+    def _get_installments_total(self, reservation):
         installments = reservation.apartment_installments.all()
         if not installments:
             return None

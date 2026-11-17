@@ -31,10 +31,10 @@ from application_form.models import (
 )
 from application_form.services.application import cancel_reservation
 from application_form.services.export import (
+    ApartmentSalesDataExportService,
     ApplicantExportService,
     ApplicantMailingListExportService,
     ProjectLotteryResultExportService,
-    ApartmentSalesDataExportService,
     SaleReportExportService,
     XlsxSalesReportExportService,
 )
