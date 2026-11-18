@@ -1,0 +1,44 @@
+{
+  "description": "Customer scenarios for the e2e stack. load_customers.php creates each customer in Drupal (login with the email and the per-run E2E_CUSTOMER_PASSWORD), creates its Django profile through the backend API and recreates its Drupal application. seed_customer_scenarios.py then creates the matching Django application and reservation, keyed by the same backend_uuid (Drupal field_backend_id == Django Application.external_uuid). project/apartment refer to keys in baseline.json. Read by tests-e2e/tests/fixtures.ts.",
+  "customers": [
+    {
+      "key": "hitas_late_canceled",
+      "email": "hitas-late-canceled@e2e.invalid",
+      "first_name": "Peruttu",
+      "last_name": "E2eHitasLateCanceled",
+      "date_of_birth": "1980-01-01",
+      "national_identification_number": "010180-1232",
+      "application": {
+        "backend_uuid": "e2e00020-0000-4000-8000-000000000001",
+        "project": "hitas_late",
+        "apartment": "hitas-late-c1",
+        "reservation_state": "canceled",
+        "cancellation_reason": "offer_rejected"
+      }
+    },
+    {
+      "key": "hitas_late_fresh",
+      "email": "hitas-late-fresh@e2e.invalid",
+      "first_name": "Uusi",
+      "last_name": "E2eHitasLateFresh",
+      "date_of_birth": "1980-01-01",
+      "national_identification_number": "010180-1243",
+      "application": null
+    },
+    {
+      "key": "hitas_open_submitted",
+      "email": "hitas-open-submitted@e2e.invalid",
+      "first_name": "Lahetetty",
+      "last_name": "E2eHitasOpenSubmitted",
+      "date_of_birth": "1980-01-01",
+      "national_identification_number": "010180-1254",
+      "application": {
+        "backend_uuid": "e2e00020-0000-4000-8000-000000000003",
+        "project": "hitas_open",
+        "apartment": "hitas-open-d1",
+        "reservation_state": "submitted",
+        "cancellation_reason": null
+      }
+    }
+  ]
+}

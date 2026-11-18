@@ -210,6 +210,10 @@ function e2e_baseline_upsert_apartment(array $apartment, string $streetAddress, 
   $changed = e2e_baseline_set_value($node, 'field_apartment_structure', $apartment['apartment_structure'] ?? NULL) || $changed;
   $changed = e2e_baseline_set_value($node, 'field_living_area', $apartment['living_area'] ?? NULL) || $changed;
   $changed = e2e_baseline_set_value($node, 'field_floor', $apartment['floor'] ?? NULL) || $changed;
+  $changed = e2e_baseline_set_value($node, 'field_sales_price', $apartment['sales_price'] ?? NULL) || $changed;
+  $changed = e2e_baseline_set_value($node, 'field_debt_free_sales_price', $apartment['debt_free_sales_price'] ?? NULL) || $changed;
+  $stateOfSale = isset($apartment['state_of_sale']) ? [$apartment['state_of_sale']] : [];
+  $changed = e2e_baseline_set_references($node, 'field_apartment_state_of_sale', $stateOfSale) || $changed;
   if (!$node->isPublished()) {
     $node->setPublished();
     $changed = TRUE;
@@ -247,6 +251,11 @@ function e2e_baseline_upsert_project(array $project, array &$counts): array {
   $changed = e2e_baseline_set_value($node, 'field_postal_code', $project['postal_code'] ?? NULL) || $changed;
   $changed = e2e_baseline_set_value($node, 'field_city', $project['city'] ?? NULL) || $changed;
   $changed = e2e_baseline_set_value($node, 'field_archived', 0) || $changed;
+  // Stored as UTC "Y-m-d\TH:i:s" strings, like the datetime field itself.
+  $changed = e2e_baseline_set_value($node, 'field_application_start_time', $project['application_start_time'] ?? NULL) || $changed;
+  $changed = e2e_baseline_set_value($node, 'field_application_end_time', $project['application_end_time'] ?? NULL) || $changed;
+  $canApplyAfterwards = isset($project['can_apply_afterwards']) ? (int) $project['can_apply_afterwards'] : NULL;
+  $changed = e2e_baseline_set_value($node, 'field_can_apply_afterwards', $canApplyAfterwards) || $changed;
   $changed = e2e_baseline_set_references($node, 'field_state_of_sale', [E2E_BASELINE_PROJECT_STATE_OF_SALE]) || $changed;
   $ownershipTermId = e2e_baseline_ownership_term_id($project['ownership_type']);
   $changed = e2e_baseline_set_references($node, 'field_ownership_type', [$ownershipTermId]) || $changed;
