@@ -90,6 +90,16 @@ wait_for_http sales-ui "http://localhost:13000" 300
 echo "[e2e] Resetting Django fixtures..."
 $COMPOSE exec -T -e PYTHONPATH=/app django-app python /e2e/load_django_fixtures.py
 
+# Customer scenarios (e2e/fixtures/drupal/customers.json): Drupal customers
+# with a Django profile, their Drupal applications, and the matching Django
+# applications/reservations. Customers log in with their email and this
+# per-run random password, which is handed to the test runner only.
+echo "[e2e] Loading customer scenarios..."
+E2E_CUSTOMER_PASSWORD=$(openssl rand -hex 16)
+$COMPOSE exec -T -e E2E_CUSTOMER_PASSWORD="$E2E_CUSTOMER_PASSWORD" drupal-app \
+  drush php:script /e2e/fixtures/drupal/load_customers.php
+$COMPOSE exec -T -e PYTHONPATH=/app django-app python /e2e/seed_customer_scenarios.py
+
 echo "[e2e] Generating one-time admin login link..."
 LOGIN_URL=$($COMPOSE exec -T drupal-app drush uli --uid=1 --uri="http://drupal-app:8080" 2>/dev/null | tr -d '\r')
 # The link grants admin access, so it is passed to the test runner but not printed.
@@ -99,7 +109,7 @@ fi
 
 echo "[e2e] Running tests..."
 set +e
-$COMPOSE run --rm -e E2E_LOGIN_URL="$LOGIN_URL" -e PLAYWRIGHT_ARGS="$PLAYWRIGHT_ARGS" test-runner
+$COMPOSE run --rm -e E2E_LOGIN_URL="$LOGIN_URL" -e E2E_CUSTOMER_PASSWORD="$E2E_CUSTOMER_PASSWORD" -e PLAYWRIGHT_ARGS="$PLAYWRIGHT_ARGS" test-runner
 EXIT_CODE=$?
 set -e
 

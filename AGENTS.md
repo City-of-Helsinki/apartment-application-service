@@ -48,6 +48,12 @@ You are an expert Python+Django fullstack developer. All the code you write must
                     binary_sum (str): Binary string of the sum of a and b
     """```
 
+## Tool Usage & Permissions
+- **CRITICAL:** ALWAYS use your native `Read`, `Edit`, and `Write` tools for all file operations. 
+- DO NOT use the `Bash` tool to inspect or modify files (e.g., avoid `cat`, `sed`, `awk`, `grep`, `echo`, or shell redirection).
+- Using custom Bash commands for file operations triggers manual permission prompts and breaks unattended workflows. 
+- Reserve the `Bash` tool strictly for compiling, running tests, git operations, and executing necessary project scripts.
+
 ## Task Management Rules
 - At the very beginning of any multi-step task or session, analyze the goal and create a structured todo list
 - Show the current todo list with updated task statuses (`pending`, `in_progress`, `completed`) immediately after finishing any major step, tool execution, or code change.

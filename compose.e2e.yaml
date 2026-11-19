@@ -31,7 +31,10 @@ services:
     ports:
       - "127.0.0.1:19200:9200"
     networks:
-      - e2e
+      e2e:
+        # Drupal's settings.php forces http://elastic:9200 for APP_ENV=dev.
+        aliases:
+          - elastic
 
   drupal-redis:
     image: redis:6-alpine
@@ -40,7 +43,7 @@ services:
 
   drupal-app:
     hostname: drupal-app
-    image: "${DRUPAL_IMAGE:-ghcr.io/city-of-helsinki/drupal-web:8.3}"
+    image: "${DRUPAL_IMAGE:-ghcr.io/city-of-helsinki/drupal-web:8.4}"
     volumes:
       - ../drupal-asuntotuotanto:/app:delegated
       - ./drupal-e2e-deploy.sh:/entrypoints/25-e2e-deploy.sh:ro

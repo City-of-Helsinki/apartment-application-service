@@ -70,6 +70,89 @@
           "floor": 3
         }
       ]
+    },
+    {
+      "key": "hitas_late",
+      "uuid": "e2e00003-0000-4000-8000-000000000003",
+      "ownership_type": "Hitas",
+      "housing_company": "E2E Jälkivaraus Oy",
+      "street_address": "E2E-testikatu 3",
+      "postal_code": "00100",
+      "city": "Helsinki",
+      "application_start_time": "2026-01-01T08:00:00",
+      "application_end_time": "2026-02-01T10:00:00",
+      "can_apply_afterwards": true,
+      "apartments": [
+        {
+          "key": "hitas-late-c1",
+          "uuid": "e2e00003-0000-4000-8000-000000000301",
+          "apartment_number": "C1",
+          "apartment_structure": "2h+k",
+          "living_area": 50.0,
+          "floor": 1,
+          "sales_price": 150000,
+          "debt_free_sales_price": 200000,
+          "state_of_sale": "free_for_reservations"
+        },
+        {
+          "key": "hitas-late-c2",
+          "uuid": "e2e00003-0000-4000-8000-000000000302",
+          "apartment_number": "C2",
+          "apartment_structure": "3h+k",
+          "living_area": 72.0,
+          "floor": 2,
+          "sales_price": 210000,
+          "debt_free_sales_price": 280000,
+          "state_of_sale": "free_for_reservations"
+        },
+        {
+          "key": "hitas-late-c3",
+          "uuid": "e2e00003-0000-4000-8000-000000000303",
+          "apartment_number": "C3",
+          "apartment_structure": "1h+kk",
+          "living_area": 33.0,
+          "floor": 3,
+          "sales_price": 100000,
+          "debt_free_sales_price": 130000,
+          "state_of_sale": "reserved"
+        }
+      ]
+    },
+    {
+      "key": "hitas_open",
+      "uuid": "e2e00004-0000-4000-8000-000000000004",
+      "ownership_type": "Hitas",
+      "housing_company": "E2E Hakuaika Oy",
+      "street_address": "E2E-testikatu 4",
+      "postal_code": "00100",
+      "city": "Helsinki",
+      "application_start_time": "2026-01-01T08:00:00",
+      "application_end_time": "2099-12-31T10:00:00",
+      "can_apply_afterwards": false,
+      "apartments": [
+        {
+          "key": "hitas-open-d1",
+          "uuid": "e2e00004-0000-4000-8000-000000000401",
+          "apartment_number": "D1",
+          "apartment_structure": "2h+k",
+          "living_area": 51.0,
+          "floor": 1,
+          "sales_price": 160000,
+          "debt_free_sales_price": 210000,
+          "state_of_sale": "open_for_applications"
+        },
+        {
+          "key": "hitas-open-d2",
+          "uuid": "e2e00004-0000-4000-8000-000000000402",
+          "apartment_number": "D2",
+          "apartment_structure": "3h+k",
+          "living_area": 74.0,
+          "floor": 2,
+          "sales_price": 220000,
+          "debt_free_sales_price": 290000,
+          "state_of_sale": "open_for_applications"
+        }
+      ]
     }
   ]
 }
