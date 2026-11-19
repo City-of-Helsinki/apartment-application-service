@@ -39,6 +39,26 @@ fi
 # django-app (e.g. a registry hiccup pulling its base image) would otherwise
 # prevent drupal-app etc. from starting at all, even though they don't need
 # a build and have nothing to do with the failure.
+# Postgres refuses to start on a data directory initialised by another major
+# version, so a volume kept from an older image (e.g. postgres:12 before the
+# move to 17) leaves django-app waiting for the DB forever. The Django DB only
+# holds fixtures that are reloaded on every run, so a mismatched volume is
+# dropped and recreated empty. PG_MAJOR is set by the official postgres image.
+reset_django_db_if_major_version_changed() {
+  local volume="${COMPOSE_PROJECT_NAME}_django_db_data"
+  if ! docker volume inspect "$volume" >/dev/null 2>&1; then
+    return 0
+  fi
+  if $COMPOSE run --rm --no-deps -T --entrypoint sh django-db -c \
+    'f=/var/lib/postgresql/data/PG_VERSION; [ ! -f "$f" ] || [ "$(cat "$f")" = "$PG_MAJOR" ]'; then
+    return 0
+  fi
+  echo "[e2e] django-db volume was created by another Postgres major version; recreating it..."
+  $COMPOSE rm -fsv django-db
+  docker volume rm "$volume" >/dev/null
+}
+reset_django_db_if_major_version_changed
+
 echo "[e2e] Ensuring Drupal stack is up to date..."
 $COMPOSE up -d drupal-db drupal-elastic drupal-redis drupal-app django-db \
   mock-oidc-server mock-oidc
