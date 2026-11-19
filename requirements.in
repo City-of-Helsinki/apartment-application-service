@@ -1,4 +1,4 @@
-Django
+Django~=5.2.0
 django-cors-headers
 django-enumfields2
 django-environ
@@ -11,7 +11,7 @@ git+https://github.com/incuna/django-pgcrypto-fields@5b4b8eed3f9636ba3331f26e41a
 django-sanitized-dump==1.2.2
 django-simple-history
 djangorestframework
-djangorestframework-simplejwt==5.3.1
+djangorestframework-simplejwt==5.5.1
 drf-oidc-auth
 drf-spectacular
 elasticsearch~=7.14.0

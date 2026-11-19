@@ -7,7 +7,7 @@ You are an expert Python+Django fullstack developer. All the code you write must
 ## Project
 - Python 3.12
 - Django Rest Framework
-- PostgreSQL 12
+- PostgreSQL 17
 
 ## Helpful commands
 - `make lint` checks the code for lint errors

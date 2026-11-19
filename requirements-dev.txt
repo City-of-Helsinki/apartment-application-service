@@ -4,7 +4,7 @@
 #
 #    pip-compile --strip-extras requirements-dev.in
 #
-asgiref==3.7.2
+asgiref==3.13.0
     # via
     #   -c requirements.txt
     #   django
@@ -36,7 +36,7 @@ dill==0.3.7
     # via pylint
 distlib==0.3.7
     # via virtualenv
-django==4.2.11
+django==5.2.19
     # via
     #   -c requirements.txt
     #   django-extensions
@@ -168,7 +168,7 @@ six==1.16.0
     #   -c requirements.txt
     #   asttokens
     #   python-dateutil
-sqlparse==0.4.4
+sqlparse==0.6.1
     # via
     #   -c requirements.txt
     #   django

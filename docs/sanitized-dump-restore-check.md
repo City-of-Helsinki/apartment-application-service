@@ -18,7 +18,7 @@ Takes about 10 minutes.
 | Container | What | Notes |
 |---|---|---|
 | `apartment-application-backend` | Django dev (this repo, `docker compose up`) | Image `apartment-application-service-django` must be built from the current requirements (`docker compose build django`) |
-| `apartment-application-db` | Postgres 12 (source) | |
+| `apartment-application-db` | Postgres 17 (source) | |
 | `asuntotuotanto-app` | Drupal dev (drupal-asuntotuotanto) | Module `asu_sanitized_dump` enabled (`drush pm:list \| grep asu_sanitized_dump`) |
 | `asuntotuotanto-db` | MariaDB 10.6 (source) | |
 
@@ -53,7 +53,7 @@ docker exec asuntotuotanto-app rm -rf /tmp/asu-restore
 ```bash
 docker network create asu-restore
 docker run -d --name asu-restore-pg --network asu-restore \
-  -e POSTGRES_USER=restore -e POSTGRES_PASSWORD=restore -e POSTGRES_DB=restore postgres:12
+  -e POSTGRES_USER=restore -e POSTGRES_PASSWORD=restore -e POSTGRES_DB=restore postgres:17
 docker run -d --name asu-restore-mariadb --network asu-restore \
   -e MYSQL_DATABASE=drupal -e MYSQL_USER=drupal -e MYSQL_PASSWORD=drupal -e MYSQL_ROOT_PASSWORD=drupal \
   druidfi/mariadb:10.6-drupal
@@ -64,8 +64,9 @@ until docker exec asu-restore-pg pg_isready -U restore -q \
 
 ## 3. Restore the dumps
 
-Use `psql` from the backend image, not from `postgres:12`. Recent `pg_dump`
-versions write `\restrict` lines that older `psql` clients can't parse.
+Use `psql` from the backend image, not from the target `postgres` container.
+Recent `pg_dump` versions write `\restrict` lines that older `psql` clients
+can't parse.
 
 ```bash
 docker run --rm -i --network asu-restore --entrypoint psql apartment-application-service-django \

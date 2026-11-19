@@ -15,6 +15,7 @@ from users.api.serializers import (
 from users.enums import Roles
 from users.masking import mask_string, mask_uuid, unmask_uuid
 from users.models import Profile
+from users.passwords import generate_random_password
 
 MASKED_ID_PARAMETER = OpenApiParameter(
     name="id",
@@ -65,7 +66,7 @@ class ProfileViewSet(AuditLoggingModelViewSet):
         return Response(credentials, status=status.HTTP_201_CREATED)
 
     def _create_credentials(self, user) -> dict:
-        password = get_user_model().objects.make_random_password(length=32)
+        password = generate_random_password(length=32)
         user.set_password(password)
         user.save(update_fields=["password"])
         return {

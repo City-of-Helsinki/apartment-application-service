@@ -135,6 +135,10 @@ class CustomerSerializer(serializers.ModelSerializer):
             "right_of_residence_is_old_batch",
             "secondary_profile",
         )
+        # DRF >= 3.15 derives UniqueTogetherValidators from Meta.constraints,
+        # which fail on the nested profile input. Uniqueness is enforced by
+        # Customer.clean() and the DB constraints.
+        validators = []
 
     def _apply_resolved_profile_data(
         self, profile_data: dict, resolved_profile: ResolvedProfileData

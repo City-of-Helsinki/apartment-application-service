@@ -6,11 +6,10 @@ import logging
 from typing import Iterable, Iterator
 from uuid import UUID
 
-from django.contrib.auth import get_user_model
-
 from sanitizers.person import dump_password
 from users.masking import mask_string, mask_uuid
 from users.models import Profile
+from users.passwords import generate_random_password
 
 _logger = logging.getLogger(__name__)
 
@@ -94,8 +93,7 @@ def build_masked_credentials(profile: Profile, *, dry_run: bool = False) -> dict
     if user is None:
         raise ProfileUserMissingError(f"Profile {profile.pk} has no linked Django user")
 
-    User = get_user_model()
-    password = User.objects.make_random_password(length=32)
+    password = generate_random_password(length=32)
 
     if not dry_run:
         user.set_password(password)
