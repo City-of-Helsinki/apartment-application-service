@@ -1,10 +1,10 @@
 import logging
 from datetime import datetime, timedelta
+from datetime import timezone as dt_timezone
 
 import pytest
 from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
-from django.utils import timezone
 from resilient_logger.models import ResilientLogEntry
 from resilient_logger.sources import ResilientLogSource
 
@@ -116,12 +116,12 @@ def test_log_origin(fixed_datetime, profile):
 @pytest.mark.django_db
 def test_log_current_timestamp(profile):
     tolerance = timedelta(seconds=1)
-    date_before_logging = datetime.now(tz=timezone.utc) - tolerance
+    date_before_logging = datetime.now(tz=dt_timezone.utc) - tolerance
     audit_logging.log(profile, Operation.READ, profile)
-    date_after_logging = datetime.now(tz=timezone.utc) + tolerance
+    date_after_logging = datetime.now(tz=dt_timezone.utc) + tolerance
     entry = ResilientLogEntry.objects.get()
     logged_date_from_date_time_epoch = datetime.fromtimestamp(
-        int(entry.context["date_time_epoch"]) / 1000, tz=timezone.utc
+        int(entry.context["date_time_epoch"]) / 1000, tz=dt_timezone.utc
     )
     assert date_before_logging <= logged_date_from_date_time_epoch <= date_after_logging
     logged_date_from_date_time = datetime.strptime(

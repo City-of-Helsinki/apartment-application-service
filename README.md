@@ -9,11 +9,16 @@ Apartment application service
 
 The project is now running at [localhost:8081](http://localhost:8081)
 
+The compose files use Postgres 17. A database volume created by an older
+Postgres major version (for example 12) does not start under 17. Either remove
+it with `docker compose down -v` (the data is lost) or dump the data with the
+old version first and restore it into the new volume.
+
 ## Development without Docker
 
 Prerequisites:
 
-* PostgreSQL 12
+* PostgreSQL 17 (Django 5.2 requires at least PostgreSQL 14)
 * Python 3.12
 * Pip 26.01
 
@@ -39,7 +44,8 @@ Allow user to create test database
 
 Some model fields are encrypted using `pgcrypto`, which requires a PGP keypair.
 For instructions on how to generate the keys, see the
-[pgcrypto documentation](https://postgresql.org/docs/12/pgcrypto.html#id-1.11.7.34.7.19):
+[pgcrypto documentation](https://postgresql.org/docs/17/pgcrypto.html)
+(section "Generating PGP Keys with GnuPG"):
 
 Use the PostgreSQL preferred key type ("DSA and Elgamal") and *at least* 2048 bits
 as the key size.
@@ -200,6 +206,8 @@ docker compose -p att-e2e down -v
 
 The `-v` flag removes the DB volumes so the next run starts with a clean database. Omit it to keep the data.
 
+The Django Postgres service uses Postgres 17. A `django_db_data` volume created by an older Postgres major version (for example 12) does not start under 17; run the teardown above with `-v` once (or dump and restore the data) after upgrading.
+
 ### What happens on startup
 
 - **Drupal**: the SQL dump is imported into MariaDB on first start (empty volume only). `drush updatedb` and `drush cim` run on every start, followed by provisioning of the OAuth consumer Django uses to fetch project data from Drupal (`ASU_REST_OAUTH_CLIENT_ID` / `ASU_REST_OAUTH_CLIENT_SECRET`) and loading the baseline content (see above).
@@ -273,8 +281,8 @@ read the `\restrict` lines that current `pg_dump` versions write.
 
 The target Postgres must be at least the major version the dump was made from
 (`-- Dumped from database version` at the top of the file). Otherwise the
-command refuses before changing anything. Local dev runs Postgres 12, so it can
-restore dumps from a Postgres 12 server.
+command refuses before changing anything. Local dev runs Postgres 17, so it can
+restore dumps from a Postgres 17 server.
 
 After the import:
 

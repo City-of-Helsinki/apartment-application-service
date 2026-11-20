@@ -4,6 +4,7 @@ from datetime import date, datetime
 from django.db import models
 from enumfields.drf import EnumSupportSerializerMixin
 from rest_framework import serializers
+from rest_framework.validators import UniqueTogetherValidator
 
 from application_form.models import (
     ApartmentReservation,
@@ -89,6 +90,9 @@ class CustomerSerializer(CustomModelSerializer):
     class Meta:
         model = Customer
         exclude = ("id",)
+        # DRF >= 3.15 derives validators from Meta.constraints; the import
+        # relies on the DB constraints only, as it did before the upgrade.
+        validators = []
 
     def to_internal_value(self, data):
         data["right_of_residence_is_old_batch"] = True
@@ -172,6 +176,15 @@ class ApartmentReservationSerializer(
             "right_of_residence",
             "right_of_residence_is_old_batch",
         )
+        # DRF >= 3.15 also derives a validator from the deferrable
+        # (apartment_uuid, list_position) constraint; only the
+        # Meta.unique_together validator is kept, as before the upgrade.
+        validators = [
+            UniqueTogetherValidator(
+                queryset=ApartmentReservation.objects.all(),
+                fields=("apartment_uuid", "application_apartment"),
+            )
+        ]
 
     def to_internal_value(self, data):
         data["apartment_uuid"] = get_apartment_uuid(data["apartment_uuid"])
@@ -220,6 +233,9 @@ class ProjectInstallmentTemplateSerializer(CustomModelSerializer):
     class Meta:
         model = ProjectInstallmentTemplate
         fields = "__all__"
+        # DRF >= 3.15 derives validators from Meta.constraints; the import
+        # relies on the DB constraints only, as it did before the upgrade.
+        validators = []
 
     def to_internal_value(self, data):
         data["project_uuid"] = get_project_uuid(data["project_uuid"])
@@ -238,6 +254,9 @@ class ApartmentInstallmentSerializer(CustomModelSerializer):
     class Meta:
         model = ApartmentInstallment
         fields = "__all__"
+        # DRF >= 3.15 derives validators from Meta.constraints; the import
+        # relies on the DB constraints only, as it did before the upgrade.
+        validators = []
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

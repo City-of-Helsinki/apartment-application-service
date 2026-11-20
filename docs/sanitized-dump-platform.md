@@ -40,9 +40,10 @@ leaking. Report it to the developers.
 
 ### To verify first
 
-- **Postgres version.** The Django image ships `pg_dump` 13 (`postgresql` from
-  UBI 9). `pg_dump` refuses to dump a newer server. If production Postgres is
-  newer than 13, the image needs a matching client.
+- **Postgres version.** The Django image ships `pg_dump` 17 (`postgresql17`
+  from the PGDG repo). `pg_dump` refuses to dump a newer server. Production
+  runs Postgres 17; if it is upgraded past 17, the image needs a matching
+  client.
 - **Size and duration.** Local dev data dumps in a few seconds (Django 7 MB,
   Drupal 58 MB). Production is larger; size the volume and job timeout from a
   first manual run.

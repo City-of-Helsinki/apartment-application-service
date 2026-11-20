@@ -83,7 +83,7 @@ services:
       - e2e
 
   django-db:
-    image: postgres:12
+    image: postgres:17
     environment:
       POSTGRES_USER: apartment-application
       POSTGRES_PASSWORD: "${E2E_DJANGO_DB_PASSWORD:?Set E2E_DJANGO_DB_PASSWORD in .env.e2e — see README.md}"

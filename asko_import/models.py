@@ -73,9 +73,9 @@ class AsKoLink(models.Model):
         unique_together = [
             ("object_type", "asko_id"),
         ]
-        index_together = [
-            ("object_type", "asko_id", "object_id_int"),
-            ("object_type", "asko_id", "object_id_uuid"),
+        indexes = [
+            models.Index(fields=["object_type", "asko_id", "object_id_int"]),
+            models.Index(fields=["object_type", "asko_id", "object_id_uuid"]),
         ]
         verbose_name = "AsKo Link"
         verbose_name_plural = "AsKo Links"
