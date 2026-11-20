@@ -296,6 +296,10 @@ def test_sanitized_dump_does_not_contain_original_pii():
     )
     assert process.returncode == 0, process.stderr
     dump = process.stdout
+    # database-sanitizer ignores pg_dump's exit code, so a failing pg_dump
+    # (e.g. client older than the server) yields empty output with rc 0.
+    assert dump, f"pg_dump produced no output: {process.stderr}"
+    assert "PostgreSQL database dump complete" in dump, process.stderr
     assert distinctive_first not in dump
     assert distinctive_email not in dump
     assert distinctive_hetu not in dump
