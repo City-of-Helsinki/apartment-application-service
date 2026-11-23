@@ -203,6 +203,7 @@ class ApartmentDocument(BaseModel):
     floor: Optional[int] = None
     floor_max: Optional[int] = None
     showing_times: List[datetime] = []
+    showing_end_times: List[datetime] = []
     apartment_structure: Optional[str] = None
     room_count: Optional[int] = None
     condition: Optional[str] = None
