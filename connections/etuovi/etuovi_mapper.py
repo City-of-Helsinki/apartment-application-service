@@ -97,18 +97,14 @@ def get_showing_datetime_with_index(
     Add some extra logic to make sure that the showing_times field is actually
     a list and it contains a datetime.
     """
+    result = None
     showing_date = getattr(elastic_apartment, "showing_times", None)
-    if not isinstance(showing_date, (AttrList, list, tuple)):
-        return None
+    if isinstance(showing_date, (AttrList, list, tuple)) and len(showing_date) > index:
+        current_showing_date = showing_date[index]
+        if isinstance(current_showing_date, datetime):
+            result = current_showing_date
 
-    if len(showing_date) <= index:
-        return None
-
-    current_showing_date = showing_date[index]
-    if isinstance(current_showing_date, datetime):
-        return current_showing_date
-
-    return None
+    return result
 
 
 def get_showing_end_datetime_with_index(
@@ -118,18 +114,14 @@ def get_showing_end_datetime_with_index(
     Returns a showing end date from the showing_end_times list with the given
     index when present.
     """
+    result = None
     showing_end_date = getattr(elastic_apartment, "showing_end_times", None)
-    if not isinstance(showing_end_date, (AttrList, list, tuple)):
-        return None
+    if isinstance(showing_end_date, (AttrList, list, tuple)) and len(showing_end_date) > index:
+        current_showing_end_date = showing_end_date[index]
+        if isinstance(current_showing_end_date, datetime):
+            result = current_showing_end_date
 
-    if len(showing_end_date) <= index:
-        return None
-
-    current_showing_end_date = showing_end_date[index]
-    if isinstance(current_showing_end_date, datetime):
-        return current_showing_end_date
-
-    return None
+    return result
 
 
 def map_showing_date(
