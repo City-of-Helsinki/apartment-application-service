@@ -98,14 +98,38 @@ def get_showing_datetime_with_index(
     a list and it contains a datetime.
     """
     showing_date = getattr(elastic_apartment, "showing_times", None)
-    if (
-        isinstance(showing_date, AttrList)
-        and len(showing_date) > index
-        and isinstance(showing_date[index], datetime)
-    ):
-        return showing_date[index]
-    else:
+    if not isinstance(showing_date, (AttrList, list, tuple)):
         return None
+
+    if len(showing_date) <= index:
+        return None
+
+    current_showing_date = showing_date[index]
+    if isinstance(current_showing_date, datetime):
+        return current_showing_date
+
+    return None
+
+
+def get_showing_end_datetime_with_index(
+    elastic_apartment: ApartmentDocument, index: int
+) -> Optional[datetime]:
+    """
+    Returns a showing end date from the showing_end_times list with the given
+    index when present.
+    """
+    showing_end_date = getattr(elastic_apartment, "showing_end_times", None)
+    if not isinstance(showing_end_date, (AttrList, list, tuple)):
+        return None
+
+    if len(showing_end_date) <= index:
+        return None
+
+    current_showing_end_date = showing_end_date[index]
+    if isinstance(current_showing_end_date, datetime):
+        return current_showing_end_date
+
+    return None
 
 
 def map_showing_date(
@@ -129,8 +153,13 @@ def map_showing_end_time(
     End time should be specified as "hh:mm" and because ElasticSearch does not
     provide an ending time, we estimate it to be 1 hour from the starting time.
     """
+    showing_end_date = get_showing_end_datetime_with_index(elastic_apartment, index)
+    if showing_end_date:
+        return showing_end_date.strftime("%H:%M")
+
     showing_date = get_showing_datetime_with_index(elastic_apartment, index)
     if showing_date:
+        # Fallback for legacy payloads that provide only start datetimes.
         return (showing_date + timedelta(hours=1)).strftime("%H:%M")
     else:
         return None

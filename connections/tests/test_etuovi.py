@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from uuid import UUID
 
@@ -201,6 +202,41 @@ class TestEtuoviMapper:
             staircase_floor_max_lookup={f"{project_uuid}:C": 4},
         )
         assert item.floors == 4
+
+    def test_map_apartment_to_item_exports_showing_times_from_python_list(self):
+        """
+        - Exports showing start and end time when showing_times is a Python list.
+        - Keeps end time based on one-hour fallback logic.
+        """
+        showing_start = datetime(2026, 11, 25, 17, 0, tzinfo=timezone.utc)
+        apartment = ApartmentMinimalFactory(showing_times=[showing_start])
+
+        item = map_apartment_to_item(apartment)
+
+        assert item.showingdate == showing_start
+
+        texts = {text.text_key: text.text_value for text in item.text}
+        assert texts[TextKey.SHOWING_ENDTIME] == (
+            showing_start + timedelta(hours=1)
+        ).strftime("%H:%M")
+
+    def test_map_apartment_to_item_prefers_showing_end_times_when_present(self):
+        """
+        - Uses showing_end_times as the authoritative source for end time.
+        - Does not apply +1 hour fallback when explicit end time exists.
+        """
+        showing_start = datetime(2026, 11, 25, 17, 0, tzinfo=timezone.utc)
+        showing_end = datetime(2026, 11, 25, 17, 30, tzinfo=timezone.utc)
+        apartment = ApartmentMinimalFactory(
+            showing_times=[showing_start],
+            showing_end_times=[showing_end],
+        )
+
+        item = map_apartment_to_item(apartment)
+        texts = {text.text_key: text.text_value for text in item.text}
+
+        assert item.showingdate == showing_start
+        assert texts[TextKey.SHOWING_ENDTIME] == "17:30"
 
 
 class TestEtuoviImagesInXml:
