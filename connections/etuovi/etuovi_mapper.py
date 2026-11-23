@@ -116,7 +116,10 @@ def get_showing_end_datetime_with_index(
     """
     result = None
     showing_end_date = getattr(elastic_apartment, "showing_end_times", None)
-    if isinstance(showing_end_date, (AttrList, list, tuple)) and len(showing_end_date) > index:
+    if (
+        isinstance(showing_end_date, (AttrList, list, tuple))
+        and len(showing_end_date) > index
+    ):
         current_showing_end_date = showing_end_date[index]
         if isinstance(current_showing_end_date, datetime):
             result = current_showing_end_date
