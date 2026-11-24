@@ -491,6 +491,16 @@ def map_showing_start_time(
 def map_showing_end_time(
     elastic_apartment: ElasticApartment, index: int
 ) -> Optional[str]:
+    """Map showing end time, preferring explicit end datetimes when present."""
+    showing_end_times = getattr(elastic_apartment, "showing_end_times", None)
+    if (
+        isinstance(showing_end_times, (AttrList, list, tuple))
+        and len(showing_end_times) > index
+    ):
+        current_showing_end_time = showing_end_times[index]
+        if hasattr(current_showing_end_time, "strftime"):
+            return current_showing_end_time.strftime("%H:%M")
+
     if (
         getattr(elastic_apartment, "showing_times", None)
         and len(elastic_apartment.showing_times) > index
@@ -504,6 +514,15 @@ def map_showing_end_time(
 def map_showing_date_explanation(
     elastic_apartment: ElasticApartment, index: int
 ) -> Optional[str]:
+    """Return estimate explanation only when explicit end datetime is missing."""
+    showing_end_times = getattr(elastic_apartment, "showing_end_times", None)
+    if (
+        isinstance(showing_end_times, (AttrList, list, tuple))
+        and len(showing_end_times) > index
+        and hasattr(showing_end_times[index], "strftime")
+    ):
+        return None
+
     if (
         getattr(elastic_apartment, "showing_times", None)
         and len(elastic_apartment.showing_times) > index

@@ -1,4 +1,5 @@
 import os
+from datetime import datetime, timezone
 from decimal import Decimal
 from uuid import UUID
 
@@ -225,6 +226,40 @@ class TestOikotieMapper:
         mapped_apartment = map_oikotie_apartment(apartment)
         assert mapped_apartment.building_material == "Betoni"
         assert mapped_apartment.heating == "Kaukolämpö"
+
+    def test_map_oikotie_apartment_prefers_explicit_showing_end_times(self):
+        """
+        - Uses showing_end_times as authoritative end time when available.
+        - Does not include estimate explanation for explicit end times.
+        """
+        showing_start = datetime(2026, 11, 25, 16, 0, tzinfo=timezone.utc)
+        showing_end = datetime(2026, 11, 25, 16, 40, tzinfo=timezone.utc)
+        apartment = ApartmentMinimalFactory(
+            showing_times=[showing_start],
+            showing_end_times=[showing_end],
+        )
+
+        mapped_apartment = map_oikotie_apartment(apartment)
+
+        assert mapped_apartment.showing_start_time1 == "16:00"
+        assert mapped_apartment.showing_end_time1 == "16:40"
+        assert mapped_apartment.showing_date_explanation1 is None
+
+    def test_map_oikotie_apartment_marks_estimated_end_time_on_fallback(self):
+        """
+        - Falls back to start + 1h when showing_end_times is missing.
+        - Includes estimate explanation for fallback end time.
+        """
+        showing_start = datetime(2026, 11, 25, 16, 0, tzinfo=timezone.utc)
+        apartment = ApartmentMinimalFactory(showing_times=[showing_start])
+
+        mapped_apartment = map_oikotie_apartment(apartment)
+
+        assert mapped_apartment.showing_end_time1 == "17:00"
+        assert (
+            mapped_apartment.showing_date_explanation1
+            == "Asuntonäytön lopetusaika on arvio."
+        )
 
     def test_map_floor_location_resolves_floor_max_per_staircase(self):
         """
