@@ -276,10 +276,11 @@ It shows the target database and asks you to type `yes` (`YES=1` skips the
 prompt). Then it drops all tables, views, sequences and foreign tables in the
 `public` schema of `DATABASE_URL` (except those belonging to extensions, such as
 PostGIS `spatial_ref_sys`), imports the dump and runs `migrate`. The schema and
-extensions are kept, and the dump's `COMMENT ON SCHEMA`, `COMMENT ON EXTENSION`
-and `DROP EXTENSION` lines and empty `COPY` blocks (such as the one for
-`spatial_ref_sys`) are skipped, so the database user does not need to own the
-schema or extensions. `DATABASE_PASSWORD` is used when the URL has no
+extensions are kept, and the dump's `COMMENT ON SCHEMA`, `COMMENT ON EXTENSION`,
+`CREATE EXTENSION` and `DROP EXTENSION` lines and empty `COPY` blocks (such as
+the one for `spatial_ref_sys`) are skipped, so the database user does not need
+to own the schema or extensions. The extensions the data uses (`hstore`,
+`pgcrypto`) must already exist in the target database; PostGIS is not needed. `DATABASE_PASSWORD` is used when the URL has no
 password and `PGPASSWORD` is not set. The drop and the import run in one
 transaction, so if the import fails the database is left as it was. Run it in
 the django container, not on the host: the container's `psql` is new enough to
