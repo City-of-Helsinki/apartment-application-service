@@ -6,9 +6,11 @@
 # (extension members excluded), in the same transaction as the import, so a
 # failed import leaves the database unchanged. The schema itself is kept, so the
 # connecting role does not need to own it. COMMENT ON SCHEMA/EXTENSION and
-# DROP EXTENSION lines are filtered out of the dump, since they need ownership
-# of the schema or extension and would drop extension member tables. Empty COPY
-# blocks are skipped, since they need INSERT on e.g. extension config tables.
+# CREATE/DROP EXTENSION lines are filtered out of the dump, since they need
+# ownership of the schema or extension (or admin rights, e.g. postgis on Azure)
+# and would drop extension member tables. Extensions the data needs (hstore,
+# pgcrypto) must already exist in the target. Empty COPY blocks are skipped,
+# since they need INSERT on e.g. extension config tables.
 
 set -euo pipefail
 
@@ -124,7 +126,7 @@ filter_dump() {
     }
     in_copy { print; if ($0 == "\\.") in_copy = 0; next }
     /^COPY .* FROM stdin;$/ { pending = $0; next }
-    /^(COMMENT ON (SCHEMA|EXTENSION)|DROP EXTENSION) / { next }
+    /^(COMMENT ON (SCHEMA|EXTENSION)|(CREATE|DROP) EXTENSION) / { next }
     { print }
     END { if (pending != "") print pending }
   ' "$dump"
